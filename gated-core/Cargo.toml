@@ -5,6 +5,7 @@ name = "gated-core"
 version = "0.21.1"
 
 [dependencies]
+gated-ca = { version = "*", path = "../gated-ca" }
 gated-common = { version = "*", path = "../gated-common" }
 gated-db-entities = { version = "*", path = "../gated-db-entities" }
 gated-db-migrations = { version = "*", path = "../gated-db-migrations" }

@@ -13,7 +13,7 @@ use gated_common::{
     GlobalParams, TargetOptions, TargetWebAdminOptions, GatedConfig, GatedError,
 };
 use gated_db_entities::Target::TargetKind;
-use gated_db_entities::{LogEntry, Role, Target, TargetRoleAssignment};
+use gated_db_entities::{LogEntry, Parameters, Role, Target, TargetRoleAssignment};
 use gated_db_migrations::migrate_database;
 
 use crate::consts::{BUILTIN_ADMIN_ROLE_NAME, BUILTIN_ADMIN_TARGET_NAME};
@@ -146,6 +146,17 @@ pub async fn populate_db(
             ..Default::default()
         };
         values.insert(&*db).await.map_err(GatedError::from)?;
+    }
+
+    // Generate CA certificate if not yet initialized
+    let params = Parameters::Entity::get(db).await.map_err(GatedError::from)?;
+    if params.ca_certificate_pem.is_empty() || params.ca_private_key_pem.is_empty() {
+        info!("Generating CA certificate");
+        let (cert_pem, key_pem) = gated_ca::generate_root_certificate_rcgen()?;
+        let mut active: Parameters::ActiveModel = params.into();
+        active.ca_certificate_pem = Set(cert_pem);
+        active.ca_private_key_pem = Set(key_pem);
+        active.update(&*db).await.map_err(GatedError::from)?;
     }
 
     Ok(())
