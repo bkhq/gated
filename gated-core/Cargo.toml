@@ -1,0 +1,52 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-core"
+version = "0.21.1"
+
+[dependencies]
+gated-common = { version = "*", path = "../gated-common" }
+gated-db-entities = { version = "*", path = "../gated-db-entities" }
+gated-db-migrations = { version = "*", path = "../gated-db-migrations" }
+gated-ldap = { version = "*", path = "../gated-ldap" }
+
+anyhow.workspace = true
+argon2 = "0.5"
+async-trait = "0.1"
+bytes.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
+data-encoding.workspace = true
+dialoguer.workspace = true
+enum_dispatch.workspace = true
+humantime-serde = "1.1"
+futures.workspace = true
+ldap3.workspace = true
+once_cell = "1.17"
+packet = "0.1"
+password-hash.workspace = true
+poem.workspace = true
+poem-openapi.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
+rand_core.workspace = true
+russh.workspace = true
+sea-orm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+totp-rs = { version = "5.0", features = ["otpauth"], default-features = false }
+tracing.workspace = true
+tracing-core = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false }
+url = { version = "2.2", default-features = false }
+uuid.workspace = true
+gated-sso = { version = "*", path = "../gated-sso", default-features = false }
+rustls.workspace = true
+webpki = { version = "0.22", default-features = false }
+governor.workspace = true
+
+[features]
+postgres = ["sea-orm/sqlx-postgres"]
+mysql = ["sea-orm/sqlx-mysql"]
+sqlite = ["sea-orm/sqlx-sqlite"]

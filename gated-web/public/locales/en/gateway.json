@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "login": "Login",
+    "profile": "Profile",
+    "credentials": "Credentials",
+    "apiTokens": "API Tokens",
+    "targetList": "Target List",
+    "terminal": "Terminal: {{targetName}}"
+  }
+}

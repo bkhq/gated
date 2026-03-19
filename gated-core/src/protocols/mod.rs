@@ -1,0 +1,30 @@
+use std::fmt::Debug;
+use std::future::Future;
+
+use anyhow::Result;
+use gated_common::ListenEndpoint;
+
+mod handle;
+
+pub use handle::{SessionHandle, GatedServerHandle};
+
+#[derive(Debug, thiserror::Error)]
+pub enum TargetTestError {
+    #[error("unreachable")]
+    Unreachable,
+    #[error("authentication failed")]
+    AuthenticationError,
+    #[error("connection error: {0}")]
+    ConnectionError(String),
+    #[error("misconfigured: {0}")]
+    Misconfigured(String),
+    #[error("I/O: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("dialoguer: {0}")]
+    Dialoguer(#[from] dialoguer::Error),
+}
+
+pub trait ProtocolServer {
+    fn name(&self) -> &'static str;
+    fn run(self, address: ListenEndpoint) -> impl Future<Output = Result<()>> + Send;
+}

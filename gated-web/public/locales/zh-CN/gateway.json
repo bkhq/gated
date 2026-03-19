@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "login": "登录",
+    "profile": "个人中心",
+    "credentials": "凭证",
+    "apiTokens": "API 令牌",
+    "targetList": "目标列表",
+    "terminal": "终端: {{targetName}}"
+  }
+}

@@ -1,0 +1,210 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/test.yml'
+      - 'tests/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - name: Cache Rust
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Create dist directory
+        run: mkdir -p gated-web/dist
+
+      - name: Run tests
+        run: cargo test --all-features
+
+      - name: Build release binary
+        run: cargo build --all-features --release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: gated-binary
+          path: target/release/gated
+          retention-days: 1
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Cache cargo tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just
+
+      - name: Install tools
+        run: |
+          command -v just || cargo install --locked just
+
+      - name: Build frontend
+        run: |
+          just pnpm install --frozen-lockfile
+          just pnpm run build
+
+  integration:
+    name: Integration tests
+    needs: [test, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Cache cargo tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config openssh-client expect gnome-keyring kubectl
+          command -v just || cargo install --locked just
+
+      - name: Build frontend
+        run: |
+          just pnpm install --frozen-lockfile
+          just openapi
+          just pnpm run build
+
+      - name: Download binary
+        uses: actions/download-artifact@v8
+        with:
+          name: gated-binary
+          path: target/release
+
+      - name: Make binary executable
+        run: chmod +x target/release/gated
+
+      - name: Build test images
+        working-directory: tests
+        run: make all
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: bun install
+
+      - name: Run integration tests
+        working-directory: tests
+        env:
+          GATED_BINARY: ${{ github.workspace }}/target/release/gated
+          TIMEOUT: "120"
+        run: bun test --timeout 300000
+
+  schema-compatibility:
+    name: API schema compatibility
+    if: github.event_name == 'pull_request'
+    needs: [test, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Cache cargo tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just
+
+      - name: Install tools
+        run: |
+          command -v just || cargo install --locked just
+
+      - name: Install pnpm dependencies
+        run: |
+          cd gated-web && pnpm install --frozen-lockfile
+
+      - name: Generate API schema files
+        run: |
+          mkdir gated-web/dist
+          just openapi-all
+
+      - name: Checkout main branch to compare
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Regenerate main branch schema
+        run: |
+          cd main-branch
+          mkdir -p gated-web/dist
+          npm ci --prefix gated-web
+          just openapi-all
+
+      - name: Check admin API
+        run: |
+          docker run --rm -t -v $(pwd):/specs:ro tufin/oasdiff breaking -f githubactions --fail-on WARN /specs/main-branch/gated-web/src/admin/lib/openapi-schema.json /specs/gated-web/src/admin/lib/openapi-schema.json
+
+      - name: Check gateway API
+        run: |
+          docker run --rm -t -v $(pwd):/specs:ro tufin/oasdiff breaking -f githubactions --fail-on WARN /specs/main-branch/gated-web/src/gateway/lib/openapi-schema.json /specs/gated-web/src/gateway/lib/openapi-schema.json

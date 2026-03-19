@@ -1,0 +1,19 @@
+Gated
+Copyright 2024-2026 Gated contributors (https://github.com/bkhq/gated)
+
+This project is a derivative work of Warpgate.
+Copyright 2022 Warpgate contributors (https://github.com/warp-tech/warpgate)
+
+Warpgate is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+The original Warpgate source code, documentation, and branding
+(including the name "Warpgate") are the property of their respective
+authors and contributors.
+
+"Gated" is an independent project that builds upon the Warpgate
+codebase. The "Warpgate" name and brand are not used by this project
+except to identify the upstream origin as required by the Apache
+License 2.0, Section 4(c).

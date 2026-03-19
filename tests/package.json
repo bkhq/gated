@@ -1,0 +1,23 @@
+{
+  "name": "gated-e2e-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test --timeout 300000",
+    "test:http": "bun test http/",
+    "test:ssh": "bun test ssh/",
+    "test:db": "bun test db/",
+    "test:api": "bun test api/",
+    "test:k8s": "bun test kubernetes/",
+    "test:misc": "bun test misc/"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "js-yaml": "^4.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "otpauth": "^9.3.1",
+    "deepmerge": "^4.3.1",
+    "ws": "^8.18.0",
+    "@types/ws": "^8.5.12"
+  }
+}

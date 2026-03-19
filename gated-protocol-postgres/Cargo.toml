@@ -1,0 +1,33 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-protocol-postgres"
+version = "0.21.1"
+
+[dependencies]
+gated-common = { version = "*", path = "../gated-common", default-features = false }
+gated-tls = { version = "*", path = "../gated-tls", default-features = false }
+gated-core = { version = "*", path = "../gated-core", default-features = false }
+anyhow.workspace = true
+async-trait = { version = "0.1", default-features = false }
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+bytes.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+thiserror.workspace = true
+rustls-native-certs = { version = "0.8", default-features = false }
+pgwire = { version = "0.30", default-features = false, features = [
+    "server-api-aws-lc-rs",
+] }
+rsasl = { version = "2.1.0", default-features = false, features = [
+    "config_builder",
+    "scram-sha-2",
+    "std",
+    "plain",
+    "provider",
+] }
+futures.workspace = true
+humantime = { version = "2.1", default-features = false }
+socket2 = { version = "0.5", features = ["all"] }

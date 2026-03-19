@@ -1,0 +1,26 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-db-migrations"
+publish = false
+version = "0.21.1"
+
+[lib]
+
+[dependencies]
+tokio.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
+sea-orm = { workspace = true, features = [
+    "with-chrono",
+    "with-uuid",
+    "with-json",
+], default-features = false }
+sea-orm-migration.workspace = true
+uuid.workspace = true
+serde_json.workspace = true
+async-trait = "0.1"
+
+[features]
+postgres = ["sea-orm/sqlx-postgres"]
+mysql = ["sea-orm/sqlx-mysql"]
+sqlite = ["sea-orm/sqlx-sqlite"]

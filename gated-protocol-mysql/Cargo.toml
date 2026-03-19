@@ -1,0 +1,29 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-protocol-mysql"
+version = "0.21.1"
+
+[dependencies]
+gated-common = { version = "*", path = "../gated-common", default-features = false }
+gated-tls = { version = "*", path = "../gated-tls", default-features = false }
+gated-core = { version = "*", path = "../gated-core", default-features = false }
+gated-db-entities = { version = "*", path = "../gated-db-entities", default-features = false }
+gated-database-protocols = { version = "*", path = "../gated-database-protocols", default-features = false }
+anyhow.workspace = true
+async-trait = { version = "0.1", default-features = false }
+futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+bytes.workspace = true
+mysql_common = { version = "0.34", default-features = false }
+flate2 = { version = "1", features = ["zlib"], default-features = false }
+rand.workspace = true
+sha1 = { version = "0.10", default-features = false }
+password-hash.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+thiserror.workspace = true
+webpki = { version = "0.22", default-features = false }
+once_cell = { version = "1.17", default-features = false }

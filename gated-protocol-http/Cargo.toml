@@ -1,0 +1,36 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-protocol-http"
+version = "0.21.1"
+
+[dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
+cookie = "0.18"
+futures.workspace = true
+http = { version = "1.0", default-features = false }
+once_cell = { version = "1.17", default-features = false }
+poem.workspace = true
+poem-openapi.workspace = true
+sea-orm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+gated-admin = { version = "*", path = "../gated-admin", default-features = false }
+gated-common = { version = "*", path = "../gated-common", default-features = false }
+gated-ca = { version = "*", path = "../gated-ca", default-features = false }
+gated-tls = { version = "*", path = "../gated-tls", default-features = false }
+gated-core = { version = "*", path = "../gated-core", default-features = false }
+gated-db-entities = { version = "*", path = "../gated-db-entities", default-features = false }
+gated-web = { version = "*", path = "../gated-web", default-features = false }
+gated-protocol-api = { version = "*", path = "../gated-protocol-api", default-features = false }
+gated-protocol-ssh = { version = "*", path = "../gated-protocol-ssh", default-features = false }
+gated-sso = { version = "*", path = "../gated-sso", default-features = false }
+bytes.workspace = true
+percent-encoding = { version = "2.1", default-features = false }
+russh.workspace = true
+uuid.workspace = true
+regex.workspace = true

@@ -1,0 +1,20 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-mcp"
+version = "0.21.1"
+
+[dependencies]
+anyhow.workspace = true
+chrono = "0.4"
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "http2", "json"] }
+sea-orm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+gated-common = { version = "*", path = "../gated-common" }
+gated-core = { version = "*", path = "../gated-core" }
+gated-db-entities = { version = "*", path = "../gated-db-entities" }

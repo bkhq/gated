@@ -1,0 +1,40 @@
+{
+  "nav": {
+    "sessions": "会话",
+    "log": "日志",
+    "targets": "目标",
+    "users": "用户",
+    "roles": "角色",
+    "tickets": "工单",
+    "sshKeys": "SSH 密钥",
+    "ldap": "LDAP",
+    "groups": "分组",
+    "parameters": "参数"
+  },
+  "pages": {
+    "sessions": "会话",
+    "sessionDetail": "会话详情: {{id}}",
+    "recording": "录像: {{id}}",
+    "log": "日志",
+    "targets": "目标",
+    "targetDetail": "目标详情: {{id}}",
+    "createTarget": "创建目标",
+    "users": "用户",
+    "userDetail": "用户详情: {{id}}",
+    "createUser": "创建用户",
+    "roles": "角色",
+    "roleDetail": "角色详情: {{id}}",
+    "createRole": "创建角色",
+    "tickets": "工单",
+    "createTicket": "创建工单",
+    "sshKeys": "SSH 密钥",
+    "parameters": "参数",
+    "ldapServers": "LDAP 服务器",
+    "ldapServerDetail": "LDAP 服务器详情: {{id}}",
+    "createLdapServer": "创建 LDAP 服务器",
+    "targetGroups": "目标分组",
+    "targetGroupDetail": "目标分组详情: {{id}}",
+    "createTargetGroup": "创建目标分组",
+    "configLayout": "配置"
+  }
+}

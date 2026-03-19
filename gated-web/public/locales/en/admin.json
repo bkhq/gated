@@ -1,0 +1,40 @@
+{
+  "nav": {
+    "sessions": "Sessions",
+    "log": "Log",
+    "targets": "Targets",
+    "users": "Users",
+    "roles": "Roles",
+    "tickets": "Tickets",
+    "sshKeys": "SSH Keys",
+    "ldap": "LDAP",
+    "groups": "Groups",
+    "parameters": "Parameters"
+  },
+  "pages": {
+    "sessions": "Sessions",
+    "sessionDetail": "Session Detail: {{id}}",
+    "recording": "Recording: {{id}}",
+    "log": "Log",
+    "targets": "Targets",
+    "targetDetail": "Target Detail: {{id}}",
+    "createTarget": "Create Target",
+    "users": "Users",
+    "userDetail": "User Detail: {{id}}",
+    "createUser": "Create User",
+    "roles": "Roles",
+    "roleDetail": "Role Detail: {{id}}",
+    "createRole": "Create Role",
+    "tickets": "Tickets",
+    "createTicket": "Create Ticket",
+    "sshKeys": "SSH Keys",
+    "parameters": "Parameters",
+    "ldapServers": "LDAP Servers",
+    "ldapServerDetail": "LDAP Server Detail: {{id}}",
+    "createLdapServer": "Create LDAP Server",
+    "targetGroups": "Target Groups",
+    "targetGroupDetail": "Target Group Detail: {{id}}",
+    "createTargetGroup": "Create Target Group",
+    "configLayout": "Configuration"
+  }
+}

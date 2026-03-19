@@ -1,0 +1,27 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-protocol-api"
+version = "0.21.1"
+
+[dependencies]
+anyhow.workspace = true
+base64 = { version = "0.22", default-features = false }
+bytes.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
+futures.workspace = true
+http = { version = "1.0", default-features = false }
+poem.workspace = true
+poem-openapi.workspace = true
+reqwest.workspace = true
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_json = { version = "1.0", default-features = false }
+tokio.workspace = true
+tracing.workspace = true
+url = { version = "2.0", default-features = false }
+urlencoding = "2"
+uuid.workspace = true
+gated-common = { version = "*", path = "../gated-common", default-features = false }
+gated-tls = { version = "*", path = "../gated-tls", default-features = false }
+gated-core = { version = "*", path = "../gated-core", default-features = false }
+gated-db-entities = { version = "*", path = "../gated-db-entities", default-features = false }

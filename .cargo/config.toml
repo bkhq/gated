@@ -1,0 +1,8 @@
+# https://github.com/rust-lang/cargo/issues/5376#issuecomment-2163350032
+[target.'cfg(all())']
+rustflags = [
+    "--cfg", "tokio_unstable",
+    "-Zremap-cwd-prefix=/reproducible-cwd",
+    "--remap-path-prefix=$HOME=/reproducible-home",
+    "--remap-path-prefix=$PWD=/reproducible-pwd",
+]

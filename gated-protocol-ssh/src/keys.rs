@@ -1,0 +1,59 @@
+use std::fs::{create_dir_all, File};
+use std::path::PathBuf;
+
+use anyhow::{Context, Result};
+use russh::keys::{encode_pkcs8_pem, load_secret_key, HashAlg, PrivateKey};
+use tracing::*;
+use gated_common::helpers::fs::{secure_directory, secure_file};
+use gated_common::helpers::rng::get_crypto_rng;
+use gated_common::{GlobalParams, GatedConfig};
+
+fn get_keys_path(config: &GatedConfig, params: &GlobalParams) -> PathBuf {
+    let mut path = params.paths_relative_to().clone();
+    path.push(&config.store.ssh.keys);
+    path
+}
+
+pub fn generate_keys(config: &GatedConfig, params: &GlobalParams, prefix: &str) -> Result<()> {
+    let path = get_keys_path(config, params);
+    create_dir_all(&path)?;
+    if params.should_secure_files() {
+        secure_directory(&path)?;
+    }
+
+    for (algo, name) in [
+        (russh::keys::Algorithm::Ed25519, format!("{prefix}-ed25519")),
+        (
+            russh::keys::Algorithm::Rsa {
+                hash: Some(HashAlg::Sha512),
+            },
+            format!("{prefix}-rsa"),
+        ),
+    ] {
+        let key_path = path.join(name);
+        if !key_path.exists() {
+            info!("Generating {prefix} key ({algo:?})");
+            let key = PrivateKey::random(&mut get_crypto_rng(), algo)
+                .context("Failed to generate key")?;
+            let f = File::create(&key_path)?;
+            encode_pkcs8_pem(&key, f)?;
+        }
+        if params.should_secure_files() {
+            secure_file(&key_path)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn load_keys(
+    config: &GatedConfig,
+    params: &GlobalParams,
+    prefix: &str,
+) -> Result<Vec<PrivateKey>, russh::keys::Error> {
+    let path = get_keys_path(config, params);
+    Ok(vec![
+        load_secret_key(path.join(format!("{prefix}-ed25519")), None)?,
+        load_secret_key(path.join(format!("{prefix}-rsa")), None)?,
+    ])
+}

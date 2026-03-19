@@ -1,0 +1,17 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-ldap"
+version = "0.21.1"
+
+[dependencies]
+anyhow.workspace = true
+ldap3.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+poem-openapi.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+gated-tls = { version = "*", path = "../gated-tls", default-features = false }
