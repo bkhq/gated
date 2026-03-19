@@ -249,15 +249,10 @@ Supports hot-swap via `SwappableLimiterCell` when config changes.
 
 ## CI/CD
 
-8 GitHub Actions workflows:
-- `build.yml` - Multi-platform builds (Linux x86_64/ARM64, macOS)
-- `test.yml` - Integration tests
-- `docker.yml` - Docker image builds
-- `codeql.yml` - Code quality scanning
-- `check-schema-compatibility.yml` - Config schema validation
-- `dependency-review.yml` - Dependency security
-- `reprotest.yml` - Reproducible build verification
-- `scorecard.yml` - OpenSSF scorecard
+3 GitHub Actions workflows:
+- `build.yml` - Multi-platform builds (Linux x86_64/ARM64) + config schema check, triggered on tags
+- `test.yml` - Rust tests, frontend build, integration tests, API schema compatibility
+- `docker.yml` - Docker image builds (multi-arch), triggered on tags
 
 ## Deployment
 

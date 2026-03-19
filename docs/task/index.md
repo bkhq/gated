@@ -30,3 +30,5 @@ Each task is a single line linking to its detail file. All detailed information 
 ---
 
 ## Tasks
+
+- [x] [**INFRA-001 Full repository audit and documentation cleanup**](INFRA-001.md) `P1`

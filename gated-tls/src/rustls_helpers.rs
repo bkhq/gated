@@ -31,6 +31,7 @@ pub async fn configure_tls_connector(
     .with_safe_default_protocol_versions()?;
 
     let config = if accept_invalid_certs {
+        tracing::warn!("TLS certificate verification is disabled — this is insecure and should not be used in production");
         config
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier))

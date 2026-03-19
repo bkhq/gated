@@ -30,3 +30,12 @@ dhat-heap.json
 
 cdx.xml
 *.cdx.xml
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*

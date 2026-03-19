@@ -48,7 +48,7 @@ jobs:
           override: true
 
       - name: Cache Rust
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
         with:
           path: |
             ~/.cargo/registry
@@ -58,12 +58,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-cargo-build-
 
-      - uses: oven-sh/setup-bun@v2.2.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: latest
 
       - name: Cache cargo tools
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
         with:
           path: ~/.cargo/bin
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just-cargo-deny-0.18.9-cargo-cyclonedx-0.5
@@ -169,7 +169,7 @@ jobs:
           submodules: recursive
 
       - name: Cache Rust
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
         with:
           path: |
             ~/.cargo/registry
@@ -180,7 +180,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-cargo-schema-
 
       - name: Cache cargo tools
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
         with:
           path: ~/.cargo/bin
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just

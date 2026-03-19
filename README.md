@@ -1,25 +1,30 @@
 # Gated
 
-A smart bastion host / access gateway for SSH, HTTPS, MySQL, and PostgreSQL.
+A smart bastion host / access gateway for SSH, HTTPS, MySQL, PostgreSQL, and Kubernetes.
 
 Based on [Warpgate](https://github.com/warp-tech/warpgate) by Warpgate contributors.
 
 ## Features
 
-- SSH, HTTPS, MySQL, PostgreSQL proxying
+- SSH, HTTPS, MySQL, PostgreSQL, Kubernetes proxying
 - Centralized authentication with 2FA (TOTP) and SSO (OpenID Connect)
+- LDAP / Active Directory integration
+- Role-based access control (RBAC)
 - Session recording and replay
-- Web admin UI
+- Web admin UI with live terminal
 - Single binary, no dependencies
 - Written in 100% safe Rust
 
 ## Build
 
 ```bash
-# Prerequisites: Rust, Node.js, npm, just
-just npm ci
-just npm run build
+# Prerequisites: Rust, Bun, just
+just bun install --frozen-lockfile
+just bun run build
 cargo build --release
+
+# Feature flags for database backends
+cargo build --features mysql,postgres
 ```
 
 ## License

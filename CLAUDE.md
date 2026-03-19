@@ -7,9 +7,10 @@ Gated is a smart bastion host / access gateway written in Rust. It proxies SSH, 
 ## Build & Run
 
 ```bash
-# Prerequisites: Rust, NodeJS, NPM, just
-just npm run build      # Build frontend
-cargo build --release   # Build backend
+# Prerequisites: Rust, Bun, just
+just bun install --frozen-lockfile  # Install frontend deps
+just bun run build                  # Build frontend
+cargo build --release               # Build backend
 # Binary: target/release/gated
 
 # Feature flags for database backends

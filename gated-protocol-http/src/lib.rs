@@ -269,7 +269,7 @@ impl ProtocolServer for HTTPProtocolServer {
             .with(TicketMiddleware::new())
             .with(ServerSession::new(
                 CookieConfig::default()
-                    .secure(false)
+                    .secure(tls_enabled)
                     .max_age(cookie_max_age)
                     .name(SESSION_COOKIE_NAME),
                 session_storage.clone(),
@@ -286,6 +286,16 @@ impl ProtocolServer for HTTPProtocolServer {
                 tokio::time::sleep(Duration::from_secs(60)).await;
             }
         });
+
+        let app = app.with(
+            SetHeader::new()
+                .overriding(http::header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+                .overriding(http::header::X_FRAME_OPTIONS, "DENY")
+                .overriding(
+                    http::header::HeaderName::from_static("referrer-policy"),
+                    "strict-origin-when-cross-origin",
+                ),
+        );
 
         if tls_enabled {
             let app = app.with(

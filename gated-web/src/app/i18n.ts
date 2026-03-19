@@ -20,7 +20,7 @@ void i18n
       caches: ['localStorage'],
     },
     interpolation: {
-      escapeValue: false,
+      escapeValue: true,
     },
   })
 
