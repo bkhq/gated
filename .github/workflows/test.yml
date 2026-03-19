@@ -8,6 +8,10 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/test.yml'
+      - 'gated-*/src/**'
+      - 'gated-*/Cargo.toml'
+      - 'gated/src/**'
+      - 'gated/Cargo.toml'
       - 'tests/**'
       - 'gated-web/**'
 
