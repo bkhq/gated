@@ -62,14 +62,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
-          node-version: 24
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
+          bun-version: latest
 
       - name: Cache cargo tools
         uses: actions/cache@v5
@@ -83,8 +78,8 @@ jobs:
 
       - name: Build frontend
         run: |
-          just pnpm install --frozen-lockfile
-          just pnpm run build
+          just bun install --frozen-lockfile
+          just bun run build
 
   integration:
     name: Integration tests
@@ -98,15 +93,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version: latest
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
-        with:
-          node-version: 24
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
 
       - name: Cache cargo tools
         uses: actions/cache@v5
@@ -122,9 +108,9 @@ jobs:
 
       - name: Build frontend
         run: |
-          just pnpm install --frozen-lockfile
+          just bun install --frozen-lockfile
           just openapi
-          just pnpm run build
+          just bun run build
 
       - name: Download binary
         uses: actions/download-artifact@v8
@@ -160,14 +146,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
-          node-version: 24
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
+          bun-version: latest
 
       - name: Cache cargo tools
         uses: actions/cache@v5
@@ -179,9 +160,9 @@ jobs:
         run: |
           command -v just || cargo install --locked just
 
-      - name: Install pnpm dependencies
+      - name: Install dependencies
         run: |
-          cd gated-web && pnpm install --frozen-lockfile
+          cd gated-web && bun install --frozen-lockfile
 
       - name: Generate API schema files
         run: |
@@ -198,13 +179,13 @@ jobs:
         run: |
           cd main-branch
           mkdir -p gated-web/dist
-          npm ci --prefix gated-web
-          just openapi-all
+          cd gated-web && bun install --frozen-lockfile
+          cd .. && just openapi-all
 
       - name: Check admin API
         run: |
-          docker run --rm -t -v $(pwd):/specs:ro tufin/oasdiff breaking -f githubactions --fail-on WARN /specs/main-branch/gated-web/src/admin/lib/openapi-schema.json /specs/gated-web/src/admin/lib/openapi-schema.json
+          docker run --rm -t -v $(pwd):/specs:ro tufin/oasdiff breaking -f githubactions --fail-on WARN /specs/main-branch/gated-web/src/features/admin/lib/openapi-schema.json /specs/gated-web/src/features/admin/lib/openapi-schema.json
 
       - name: Check gateway API
         run: |
-          docker run --rm -t -v $(pwd):/specs:ro tufin/oasdiff breaking -f githubactions --fail-on WARN /specs/main-branch/gated-web/src/gateway/lib/openapi-schema.json /specs/gated-web/src/gateway/lib/openapi-schema.json
+          docker run --rm -t -v $(pwd):/specs:ro tufin/oasdiff breaking -f githubactions --fail-on WARN /specs/main-branch/gated-web/src/features/gateway/lib/openapi-schema.json /specs/gated-web/src/features/gateway/lib/openapi-schema.json

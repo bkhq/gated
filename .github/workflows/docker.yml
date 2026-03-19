@@ -1,8 +1,6 @@
 name: Docker
 permissions: read-all
 on:
-  schedule:
-    - cron: '25 12 * * *'
   push:
     tags: [ 'v*.*.*' ] # Publish semver tags as releases.
 

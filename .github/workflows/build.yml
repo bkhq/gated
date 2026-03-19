@@ -58,14 +58,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-cargo-build-
 
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
-          node-version: 24
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
+          bun-version: latest
 
       - name: Cache cargo tools
         uses: actions/cache@v5
@@ -86,7 +81,7 @@ jobs:
           wget https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/${{ matrix.cyclonedx-build }} -O cyclonedx
           chmod +x cyclonedx
 
-      - name: Install CycloneDX-pnpm
+      - name: Install CycloneDX-bun
         run: |
           cd /
           npm i -g @cyclonedx/cyclonedx-npm@4.1.2
@@ -98,15 +93,14 @@ jobs:
 
       - name: Install UI deps
         run: |
-          just pnpm install --frozen-lockfile
+          just bun install --frozen-lockfile
 
       - name: Build UI
         run: |
-          just pnpm run build
+          just bun run build
 
       - name: Generate UI BOM
         run: |
-          just pnpm prune --prod
           cd gated-web && NODE_ENV=dev cyclonedx-npm --output-format xml > ../cdx/admin-ui.cdx.xml
 
       - name: Build

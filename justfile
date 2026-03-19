@@ -15,26 +15,26 @@ clippy *ARGS:
 test:
     for p in {{projects}}; do cargo test --all-features -p $p; done
 
-pnpm *ARGS:
-    cd gated-web && pnpm {{ARGS}}
+bun *ARGS:
+    cd gated-web && bun {{ARGS}}
 
-pnpx *ARGS:
-    cd gated-web && pnpm dlx {{ARGS}}
+bunx *ARGS:
+    cd gated-web && bunx {{ARGS}}
 
 migrate *ARGS:
     cargo run --all-features -p gated-db-migrations -- {{ARGS}}
 
 lint *ARGS:
-    cd gated-web && pnpm run lint {{ARGS}}
+    cd gated-web && bun run lint {{ARGS}}
 
 typecheck:
-    cd gated-web && pnpm run typecheck
+    cd gated-web && bun run typecheck
 
 openapi-all:
-    cd gated-web && pnpm run openapi:schema:admin && pnpm run openapi:schema:gateway && pnpm run openapi:client:admin && pnpm run openapi:client:gateway
+    cd gated-web && bun run openapi:schema:admin && bun run openapi:schema:gateway && bun run openapi:client:admin && bun run openapi:client:gateway
 
 openapi:
-    cd gated-web && pnpm run openapi:client:admin && pnpm run openapi:client:gateway
+    cd gated-web && bun run openapi:client:admin && bun run openapi:client:gateway
 
 config-schema:
     cargo run -p gated-common --bin config-schema > config-schema.json
