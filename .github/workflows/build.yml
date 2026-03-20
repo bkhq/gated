@@ -83,8 +83,7 @@ jobs:
 
       - name: Install CycloneDX-bun
         run: |
-          cd /
-          npm i -g @cyclonedx/cyclonedx-npm@4.1.2
+          bun i -g @cyclonedx/cdxgen
 
       - name: cargo-deny
         run: |
@@ -101,7 +100,7 @@ jobs:
 
       - name: Generate UI BOM
         run: |
-          cd gated-web && NODE_ENV=dev cyclonedx-npm --output-format xml > ../cdx/admin-ui.cdx.xml
+          cd gated-web && cdxgen -t bun -o ../cdx/admin-ui.cdx.xml --spec-version 1.5
 
       - name: Build
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505

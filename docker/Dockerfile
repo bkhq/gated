@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.3-labs
 # hadolint global ignore=DL3008
-FROM rust:1.93.1-bookworm@sha256:f7c04ebd7e4a09e95700aeab38ca54d1a21ce323ff48abed703a0f0cbb22bc0e AS build
+FROM rust:1.93.1-bookworm@sha256:7c4ae649a84014c467d79319bbf17ce2632ae8b8be123ac2fb2ea5be46823f31 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -25,7 +25,7 @@ RUN just bun install --frozen-lockfile \
     && just bun run build \
     && cargo build --features mysql,postgres --release
 
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
 LABEL maintainer=bkhq
 ARG USER_ID=1000
 
