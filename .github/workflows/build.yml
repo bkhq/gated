@@ -100,7 +100,10 @@ jobs:
 
       - name: Generate UI BOM
         run: |
-          cd gated-web && cdxgen -t bun -o ../cdx/admin-ui.cdx.xml --spec-version 1.5
+          cd gated-web && cdxgen -t bun -o ../cdx/admin-ui.cdx.json --spec-version 1.5
+          cd ..
+          ./cyclonedx convert --input-file cdx/admin-ui.cdx.json --output-file cdx/admin-ui.cdx.xml --input-format json --output-format xml
+          rm cdx/admin-ui.cdx.json
 
       - name: Build
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
