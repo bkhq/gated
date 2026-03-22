@@ -1,4 +1,54 @@
 {
+  "sessions": {
+    "title": "Sessions",
+    "description": "View and manage active and historical sessions",
+    "filterActive": "Active sessions only",
+    "closeAll": "Close All Sessions",
+    "closeAllConfirm": "Close all active sessions?",
+    "closeAllDescription": "This will immediately terminate all active sessions.",
+    "cleanAllSuccess": "All active sessions closed",
+    "cleanAllError": "Failed to close sessions, please try again",
+    "searchPlaceholder": "Search sessions...",
+    "columns": {
+      "username": "User",
+      "target": "Target",
+      "protocol": "Protocol",
+      "started": "Started",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "ended": "Ended"
+    },
+    "actions": {
+      "viewDetail": "View Detail",
+      "close": "Close Session",
+      "closeConfirm": "Close this session?",
+      "closeDescription": "This will immediately terminate the session.",
+      "closeSuccess": "Session closed",
+      "closeError": "Failed to close session, please try again"
+    }
+  },
+  "sessionDetail": {
+    "title": "Session Detail",
+    "back": "Back to Sessions",
+    "notFound": "Session not found",
+    "metadata": {
+      "status": "Status",
+      "user": "User",
+      "target": "Target",
+      "protocol": "Protocol",
+      "started": "Started",
+      "ended": "Ended",
+      "ticketId": "Ticket ID"
+    },
+    "recordings": {
+      "title": "Recordings",
+      "empty": "No recordings for this session",
+      "view": "View"
+    }
+  },
   "nav": {
     "sessions": "Sessions",
     "log": "Log",
@@ -10,6 +60,34 @@
     "ldap": "LDAP",
     "groups": "Groups",
     "parameters": "Parameters"
+  },
+  "parameters": {
+    "description": "Configure global system parameters",
+    "saved": "Parameters saved successfully",
+    "saveFailed": "Failed to save parameters",
+    "sections": {
+      "accessControl": "Access Control",
+      "accessControlDesc": "Control user access and credential management policies",
+      "sshClientAuth": "SSH Client Authentication",
+      "sshClientAuthDesc": "Configure which SSH client authentication methods are allowed",
+      "network": "Network",
+      "networkDesc": "Network and bandwidth settings"
+    },
+    "fields": {
+      "allowOwnCredentialManagement": "Allow Own Credential Management",
+      "allowOwnCredentialManagementDesc": "Allow users to manage their own credentials (passwords, SSH keys, TOTP)",
+      "minimizePasswordLogin": "Minimize Password Login",
+      "minimizePasswordLoginDesc": "Prefer other authentication methods over password login where possible",
+      "sshClientAuthPublickey": "Public Key Authentication",
+      "sshClientAuthPublickeyDesc": "Allow SSH clients to authenticate using public keys",
+      "sshClientAuthPassword": "Password Authentication",
+      "sshClientAuthPasswordDesc": "Allow SSH clients to authenticate using passwords",
+      "sshClientAuthKeyboardInteractive": "Keyboard-Interactive Authentication",
+      "sshClientAuthKeyboardInteractiveDesc": "Allow SSH clients to authenticate using keyboard-interactive method",
+      "rateLimitBytesPerSecond": "Rate Limit (bytes/sec)",
+      "rateLimitBytesPerSecondDesc": "Maximum bandwidth per session in bytes per second. Leave empty for unlimited.",
+      "rateLimitPlaceholder": "Unlimited"
+    }
   },
   "pages": {
     "sessions": "Sessions",

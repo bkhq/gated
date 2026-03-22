@@ -1,4 +1,54 @@
 {
+  "sessions": {
+    "title": "会话",
+    "description": "查看和管理活跃及历史会话",
+    "filterActive": "仅显示活跃会话",
+    "closeAll": "关闭所有会话",
+    "closeAllConfirm": "关闭所有活跃会话？",
+    "closeAllDescription": "此操作将立即终止所有活跃会话。",
+    "cleanAllSuccess": "已关闭所有活跃会话",
+    "cleanAllError": "关闭会话失败，请重试",
+    "searchPlaceholder": "搜索会话...",
+    "columns": {
+      "username": "用户",
+      "target": "目标",
+      "protocol": "协议",
+      "started": "开始时间",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "status": {
+      "active": "活跃",
+      "ended": "已结束"
+    },
+    "actions": {
+      "viewDetail": "查看详情",
+      "close": "关闭会话",
+      "closeConfirm": "关闭此会话？",
+      "closeDescription": "此操作将立即终止该会话。",
+      "closeSuccess": "会话已关闭",
+      "closeError": "关闭会话失败，请重试"
+    }
+  },
+  "sessionDetail": {
+    "title": "会话详情",
+    "back": "返回会话列表",
+    "notFound": "未找到会话",
+    "metadata": {
+      "status": "状态",
+      "user": "用户",
+      "target": "目标",
+      "protocol": "协议",
+      "started": "开始时间",
+      "ended": "结束时间",
+      "ticketId": "工单 ID"
+    },
+    "recordings": {
+      "title": "录制列表",
+      "empty": "此会话暂无录制",
+      "view": "查看"
+    }
+  },
   "nav": {
     "sessions": "会话",
     "log": "日志",
@@ -10,6 +60,34 @@
     "ldap": "LDAP",
     "groups": "分组",
     "parameters": "参数"
+  },
+  "parameters": {
+    "description": "配置全局系统参数",
+    "saved": "参数保存成功",
+    "saveFailed": "参数保存失败",
+    "sections": {
+      "accessControl": "访问控制",
+      "accessControlDesc": "控制用户访问和凭证管理策略",
+      "sshClientAuth": "SSH 客户端认证",
+      "sshClientAuthDesc": "配置允许的 SSH 客户端认证方式",
+      "network": "网络",
+      "networkDesc": "网络与带宽设置"
+    },
+    "fields": {
+      "allowOwnCredentialManagement": "允许自主管理凭证",
+      "allowOwnCredentialManagementDesc": "允许用户自行管理其凭证（密码、SSH 密钥、TOTP）",
+      "minimizePasswordLogin": "减少密码登录",
+      "minimizePasswordLoginDesc": "尽可能优先使用其他认证方式而非密码登录",
+      "sshClientAuthPublickey": "公钥认证",
+      "sshClientAuthPublickeyDesc": "允许 SSH 客户端使用公钥认证",
+      "sshClientAuthPassword": "密码认证",
+      "sshClientAuthPasswordDesc": "允许 SSH 客户端使用密码认证",
+      "sshClientAuthKeyboardInteractive": "键盘交互认证",
+      "sshClientAuthKeyboardInteractiveDesc": "允许 SSH 客户端使用键盘交互方式认证",
+      "rateLimitBytesPerSecond": "速率限制（字节/秒）",
+      "rateLimitBytesPerSecondDesc": "每个会话的最大带宽（字节/秒），留空表示不限制",
+      "rateLimitPlaceholder": "不限制"
+    }
   },
   "pages": {
     "sessions": "会话",

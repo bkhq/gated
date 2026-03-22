@@ -1,11 +1,12 @@
 // TanStack Query hooks for the admin API
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, stringifyError, type CreateUserRequest, type UserDataRequest, type NewPasswordCredential, type NewSsoCredential, type NewPublicKeyCredential, type RoleDataRequest, type ParameterUpdate } from '@/features/admin/lib/api'
+import { api, stringifyError, type CreateUserRequest, type UserDataRequest, type NewPasswordCredential, type NewSsoCredential, type NewPublicKeyCredential, type RoleDataRequest, type ParameterUpdate, type CreateLdapServerRequest, type UpdateLdapServerRequest, type TestLdapServerRequest, type ImportLdapUsersRequest, type CreateTicketRequest, type GetLogsRequest } from '@/features/admin/lib/api'
 
 export const adminKeys = {
-  sessions: ['admin', 'sessions'] as const,
+  sessions: (activeOnly?: boolean) => ['admin', 'sessions', { activeOnly }] as const,
   session: (id: string) => ['admin', 'sessions', id] as const,
+  sessionRecordings: (id: string) => ['admin', 'sessions', id, 'recordings'] as const,
   recordings: ['admin', 'recordings'] as const,
   recording: (id: string) => ['admin', 'recordings', id] as const,
   targets: ['admin', 'targets'] as const,
@@ -18,6 +19,8 @@ export const adminKeys = {
   userPublicKeyCredentials: (id: string) => ['admin', 'users', id, 'credentials', 'public-keys'] as const,
   roles: ['admin', 'roles'] as const,
   role: (id: string) => ['admin', 'roles', id] as const,
+  roleUsers: (id: string) => ['admin', 'roles', id, 'users'] as const,
+  roleTargets: (id: string) => ['admin', 'roles', id, 'targets'] as const,
   tickets: ['admin', 'tickets'] as const,
   sshKeys: ['admin', 'ssh-keys'] as const,
   knownHosts: ['admin', 'known-hosts'] as const,
@@ -25,8 +28,56 @@ export const adminKeys = {
   logs: ['admin', 'logs'] as const,
   ldapServers: ['admin', 'ldap-servers'] as const,
   ldapServer: (id: string) => ['admin', 'ldap-servers', id] as const,
+  ldapUsers: (id: string) => ['admin', 'ldap-servers', id, 'users'] as const,
   targetGroups: ['admin', 'target-groups'] as const,
   targetGroup: (id: string) => ['admin', 'target-groups', id] as const,
+}
+
+// ============================================================
+// Sessions
+// ============================================================
+
+export function useSessionsQuery(activeOnly?: boolean) {
+  return useQuery({
+    queryKey: adminKeys.sessions(activeOnly),
+    queryFn: () => api.getSessions({ active_only: activeOnly }),
+  })
+}
+
+export function useSessionQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.session(id),
+    queryFn: () => api.getSession(id),
+    enabled: !!id,
+  })
+}
+
+export function useSessionRecordingsQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.sessionRecordings(id),
+    queryFn: () => api.getSessionRecordings(id),
+    enabled: !!id,
+  })
+}
+
+export function useCloseSessionMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.closeSession(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'sessions'] })
+    },
+  })
+}
+
+export function useCleanSessionsMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.closeAllSessions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'sessions'] })
+    },
+  })
 }
 
 // ============================================================
@@ -227,6 +278,82 @@ export function useCreateRole() {
   })
 }
 
+export function useRoleQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.role(id),
+    queryFn: () => api.getRole(id),
+    enabled: !!id,
+  })
+}
+
+export function useRoleUsersQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.roleUsers(id),
+    queryFn: () => api.getRoleUsers(id),
+    enabled: !!id,
+  })
+}
+
+export function useRoleTargetsQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.roleTargets(id),
+    queryFn: () => api.getRoleTargets(id),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateRoleMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, req }: { id: string; req: RoleDataRequest }) => api.updateRole(id, req),
+    onSuccess: (_data, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.roles })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.role(id) })
+    },
+  })
+}
+
+export function useDeleteRoleMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteRole(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.roles })
+    },
+  })
+}
+
+// ============================================================
+// Tickets
+// ============================================================
+
+export function useTicketsQuery() {
+  return useQuery({
+    queryKey: adminKeys.tickets,
+    queryFn: () => api.getTickets(),
+  })
+}
+
+export function useCreateTicketMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (req: CreateTicketRequest) => api.createTicket(req),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.tickets })
+    },
+  })
+}
+
+export function useDeleteTicketMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteTicket(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.tickets })
+    },
+  })
+}
+
 // ============================================================
 // Parameters
 // ============================================================
@@ -245,6 +372,92 @@ export function useUpdateParametersMutation() {
     onSuccess: (data) => {
       queryClient.setQueryData(adminKeys.parameters, data)
     },
+  })
+}
+
+// ============================================================
+// LDAP Servers
+// ============================================================
+
+export function useLdapServersQuery(search?: string) {
+  return useQuery({
+    queryKey: search ? [...adminKeys.ldapServers, { search }] : adminKeys.ldapServers,
+    queryFn: () => api.getLdapServers(search),
+  })
+}
+
+export function useLdapServerQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.ldapServer(id),
+    queryFn: () => api.getLdapServer(id),
+    enabled: !!id,
+  })
+}
+
+export function useLdapUsersQuery(id: string, enabled = false) {
+  return useQuery({
+    queryKey: adminKeys.ldapUsers(id),
+    queryFn: () => api.getLdapUsers(id),
+    enabled: enabled && !!id,
+  })
+}
+
+export function useCreateLdapServerMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (req: CreateLdapServerRequest) => api.createLdapServer(req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
+    },
+  })
+}
+
+export function useUpdateLdapServerMutation(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (req: UpdateLdapServerRequest) => api.updateLdapServer(id, req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
+      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServer(id) })
+    },
+  })
+}
+
+export function useDeleteLdapServerMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteLdapServer(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
+    },
+  })
+}
+
+export function useTestLdapMutation() {
+  return useMutation({
+    mutationFn: (req: TestLdapServerRequest) => api.testLdapServerConnection(req),
+  })
+}
+
+export function useImportLdapUsersMutation(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (req: ImportLdapUsersRequest) => api.importLdapUsers(id, req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.ldapUsers(id) })
+    },
+  })
+}
+
+// ============================================================
+// Logs
+// ============================================================
+
+export function useLogsQuery(params: GetLogsRequest, options?: { refetchInterval?: number | false }) {
+  return useQuery({
+    queryKey: [...adminKeys.logs, params],
+    queryFn: () => api.getLogs(params),
+    refetchInterval: options?.refetchInterval,
   })
 }
 
