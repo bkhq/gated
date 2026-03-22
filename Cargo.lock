@@ -1928,6 +1928,7 @@ dependencies = [
  "dialoguer",
  "enum_dispatch",
  "futures",
+ "gated-ca",
  "gated-common",
  "gated-db-entities",
  "gated-db-migrations",
