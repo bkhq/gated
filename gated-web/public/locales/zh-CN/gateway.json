@@ -37,5 +37,80 @@
       "invalid": "验证码错误，请重试",
       "failed": "验证失败，请重试"
     }
+  },
+  "targetList": {
+    "search": "搜索目标...",
+    "empty": "暂无可用目标",
+    "copyCommand": "复制 SSH 命令",
+    "openTerminal": "打开终端"
+  },
+  "profile": {
+    "loggedInAs": "当前登录：{{username}}",
+    "securitySection": "安全设置",
+    "changePassword": {
+      "title": "修改密码",
+      "description": "更新您的账号密码",
+      "newPassword": "新密码",
+      "confirmPassword": "确认密码",
+      "submit": "更新密码",
+      "success": "密码已更新",
+      "error": "密码更新失败",
+      "errors": {
+        "mismatch": "两次输入的密码不一致"
+      }
+    }
+  },
+  "credentials": {
+    "label": "名称",
+    "addedOn": "添加于 {{date}}",
+    "publicKeys": {
+      "tab": "公钥",
+      "addTitle": "添加公钥",
+      "publicKey": "公钥（OpenSSH 格式）",
+      "empty": "暂无公钥",
+      "addSuccess": "公钥已添加",
+      "addError": "公钥添加失败",
+      "deleteSuccess": "公钥已删除",
+      "deleteError": "公钥删除失败"
+    },
+    "otp": {
+      "tab": "OTP / TOTP",
+      "addTitle": "添加验证器",
+      "addDescription": "将生成新的密钥，请使用验证器 App 扫描 URI。",
+      "addedInfo": "验证器已添加，请复制 URI 并用验证器 App 扫描。",
+      "scanOnce": "此 URI 仅显示一次，请妥善保存。",
+      "item": "验证器 #{{index}}",
+      "empty": "暂无 OTP 设备",
+      "addError": "OTP 设备添加失败",
+      "deleteSuccess": "OTP 设备已删除",
+      "deleteError": "OTP 设备删除失败"
+    },
+    "certificates": {
+      "tab": "证书",
+      "empty": "暂无证书"
+    }
+  },
+  "apiTokens": {
+    "createTitle": "创建 API 令牌",
+    "listTitle": "我的 API 令牌",
+    "label": "令牌名称",
+    "labelPlaceholder": "例如：CI/CD 流水线",
+    "expiryDays": "有效期（天）",
+    "create": "创建令牌",
+    "created": "创建于 {{date}}",
+    "expires": "过期于 {{date}}",
+    "empty": "暂无 API 令牌",
+    "secretWarning": "请立即复制令牌，此后将不再显示。",
+    "createError": "令牌创建失败",
+    "deleteSuccess": "令牌已删除",
+    "deleteError": "令牌删除失败"
+  },
+  "terminal": {
+    "status": {
+      "connecting": "连接中...",
+      "connected": "已连接",
+      "disconnected": "已断开"
+    },
+    "reconnect": "重新连接"
   }
 }

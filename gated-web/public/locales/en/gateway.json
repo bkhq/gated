@@ -37,5 +37,80 @@
       "invalid": "Invalid code, please try again",
       "failed": "Verification failed, please try again"
     }
+  },
+  "targetList": {
+    "search": "Search targets...",
+    "empty": "No targets available",
+    "copyCommand": "Copy SSH command",
+    "openTerminal": "Open Terminal"
+  },
+  "profile": {
+    "loggedInAs": "Logged in as {{username}}",
+    "securitySection": "Security",
+    "changePassword": {
+      "title": "Change Password",
+      "description": "Update your account password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "submit": "Update password",
+      "success": "Password updated successfully",
+      "error": "Failed to update password",
+      "errors": {
+        "mismatch": "Passwords do not match"
+      }
+    }
+  },
+  "credentials": {
+    "label": "Label",
+    "addedOn": "Added {{date}}",
+    "publicKeys": {
+      "tab": "Public Keys",
+      "addTitle": "Add Public Key",
+      "publicKey": "Public key (OpenSSH format)",
+      "empty": "No public keys added",
+      "addSuccess": "Public key added",
+      "addError": "Failed to add public key",
+      "deleteSuccess": "Public key removed",
+      "deleteError": "Failed to remove public key"
+    },
+    "otp": {
+      "tab": "OTP / TOTP",
+      "addTitle": "Add Authenticator",
+      "addDescription": "A new secret key will be generated. Scan the provisioning URI with your authenticator app.",
+      "addedInfo": "Authenticator added. Copy the provisioning URI and scan it with your app.",
+      "scanOnce": "This URI is only shown once. Make sure you save it.",
+      "item": "Authenticator #{{index}}",
+      "empty": "No OTP devices added",
+      "addError": "Failed to add OTP device",
+      "deleteSuccess": "OTP device removed",
+      "deleteError": "Failed to remove OTP device"
+    },
+    "certificates": {
+      "tab": "Certificates",
+      "empty": "No certificates issued"
+    }
+  },
+  "apiTokens": {
+    "createTitle": "Create API Token",
+    "listTitle": "Your API Tokens",
+    "label": "Token name",
+    "labelPlaceholder": "e.g. CI/CD pipeline",
+    "expiryDays": "Expiry (days)",
+    "create": "Create token",
+    "created": "Created {{date}}",
+    "expires": "Expires {{date}}",
+    "empty": "No API tokens created",
+    "secretWarning": "Copy this token now — it will not be shown again.",
+    "createError": "Failed to create token",
+    "deleteSuccess": "Token deleted",
+    "deleteError": "Failed to delete token"
+  },
+  "terminal": {
+    "status": {
+      "connecting": "Connecting...",
+      "connected": "Connected",
+      "disconnected": "Disconnected"
+    },
+    "reconnect": "Reconnect"
   }
 }
