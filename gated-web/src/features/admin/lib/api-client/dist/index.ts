@@ -878,4 +878,10 @@ export class DefaultApi {
     const res = await fetchApi(this.config, '/parameters', 'PUT', req)
     return json<ParameterValues>(res)
   }
+
+  // Recording cast (asciicast v2 text)
+  async getRecordingCast(id: string): Promise<string> {
+    const res = await fetchApi(this.config, `/recordings/${id}/cast`, 'GET')
+    return res.text()
+  }
 }
