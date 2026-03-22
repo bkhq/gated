@@ -320,7 +320,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
     println!("{yaml}");
 
     let yaml = format!(
-        "# Config generated in version {version}\n# yaml-language-server: $schema=https://raw.githubusercontent.com/warp-tech/gated/refs/heads/main/config-schema.json\n\n{yaml}",
+        "# Config generated in version {version}\n# yaml-language-server: $schema=https://raw.githubusercontent.com/bkhq/gated/refs/heads/main/config-schema.json\n\n{yaml}",
         version = gated_version()
     );
 
@@ -366,7 +366,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
     info!("");
     info!("You can now start Gated with:");
     if is_docker() {
-        info!("docker run -p 8888:8888 -p 2222:2222 -it -v <your data dir>:/data ghcr.io/warp-tech/gated");
+        info!("docker run -p 8888:8888 -p 2222:2222 -it -v <your data dir>:/data ghcr.io/bkhq/gated");
     } else {
         info!(
             "  {} --config {} run",
