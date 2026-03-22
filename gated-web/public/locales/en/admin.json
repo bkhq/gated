@@ -89,6 +89,54 @@
       "rateLimitPlaceholder": "Unlimited"
     }
   },
+  "common": {
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "copy": "Copy",
+    "loading": "Loading..."
+  },
+  "ssh": {
+    "description": "Manage SSH known hosts, verify host keys, and view the gateway's own public keys.",
+    "tabs": {
+      "knownHosts": "Known Hosts",
+      "checkHostKey": "Check Host Key",
+      "ownKeys": "Own Public Keys"
+    },
+    "fields": {
+      "host": "Host",
+      "port": "Port",
+      "keyType": "Key Type",
+      "keyBase64": "Public Key (Base64)",
+      "fingerprint": "Key (truncated)"
+    },
+    "knownHosts": {
+      "add": "Add Known Host",
+      "addTitle": "Add Known Host",
+      "addDescription": "Add a trusted SSH host key to the known hosts list.",
+      "addSuccess": "Known host added",
+      "addError": "Failed to add known host",
+      "deleteTitle": "Delete Known Host",
+      "deleteDescription": "This host will be removed from the trusted list. Are you sure?",
+      "deleteSuccess": "Known host deleted",
+      "deleteError": "Failed to delete known host",
+      "empty": "No known hosts",
+      "emptyDescription": "Add a trusted SSH host to get started.",
+      "search": "Search hosts..."
+    },
+    "checkHostKey": {
+      "check": "Check Host Key",
+      "checking": "Checking...",
+      "result": "Host Key",
+      "error": "Failed to retrieve host key. Ensure the host is reachable."
+    },
+    "ownKeys": {
+      "empty": "No own keys",
+      "emptyDescription": "The gateway has not generated any SSH keys yet.",
+      "copyKey": "Copy public key"
+    }
+  },
   "pages": {
     "sessions": "Sessions",
     "sessionDetail": "Session Detail: {{id}}",

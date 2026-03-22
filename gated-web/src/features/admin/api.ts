@@ -1,7 +1,7 @@
 // TanStack Query hooks for the admin API
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, stringifyError, type CreateUserRequest, type UserDataRequest, type NewPasswordCredential, type NewSsoCredential, type NewPublicKeyCredential, type RoleDataRequest, type ParameterUpdate, type CreateLdapServerRequest, type UpdateLdapServerRequest, type TestLdapServerRequest, type ImportLdapUsersRequest, type CreateTicketRequest, type GetLogsRequest } from '@/features/admin/lib/api'
+import { api, stringifyError, type CreateUserRequest, type UserDataRequest, type NewPasswordCredential, type NewSsoCredential, type NewPublicKeyCredential, type RoleDataRequest, type ParameterUpdate, type CreateLdapServerRequest, type UpdateLdapServerRequest, type TestLdapServerRequest, type ImportLdapUsersRequest, type CreateTicketRequest, type GetLogsRequest, type TargetGroupDataRequest } from '@/features/admin/lib/api'
 
 export const adminKeys = {
   sessions: (activeOnly?: boolean) => ['admin', 'sessions', { activeOnly }] as const,
@@ -31,6 +31,7 @@ export const adminKeys = {
   ldapUsers: (id: string) => ['admin', 'ldap-servers', id, 'users'] as const,
   targetGroups: ['admin', 'target-groups'] as const,
   targetGroup: (id: string) => ['admin', 'target-groups', id] as const,
+  targetsByGroup: (groupId: string) => ['admin', 'targets', 'by-group', groupId] as const,
 }
 
 // ============================================================
@@ -458,6 +459,65 @@ export function useLogsQuery(params: GetLogsRequest, options?: { refetchInterval
     queryKey: [...adminKeys.logs, params],
     queryFn: () => api.getLogs(params),
     refetchInterval: options?.refetchInterval,
+  })
+}
+
+// ============================================================
+// Target Groups
+// ============================================================
+
+export function useTargetGroupsQuery() {
+  return useQuery({
+    queryKey: adminKeys.targetGroups,
+    queryFn: () => api.listTargetGroups(),
+  })
+}
+
+export function useTargetGroupQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.targetGroup(id),
+    queryFn: () => api.getTargetGroup(id),
+    enabled: !!id,
+  })
+}
+
+export function useCreateTargetGroupMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (req: TargetGroupDataRequest) => api.createTargetGroup(req),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.targetGroups })
+    },
+  })
+}
+
+export function useUpdateTargetGroupMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, req }: { id: string; req: TargetGroupDataRequest }) =>
+      api.updateTargetGroup(id, req),
+    onSuccess: (_, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.targetGroups })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.targetGroup(id) })
+    },
+  })
+}
+
+export function useDeleteTargetGroupMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteTargetGroup(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.targetGroups })
+    },
+  })
+}
+
+export function useTargetsByGroupQuery(groupId: string) {
+  return useQuery({
+    queryKey: adminKeys.targetsByGroup(groupId),
+    queryFn: () => api.getTargets({ group_id: groupId }),
+    enabled: !!groupId,
   })
 }
 

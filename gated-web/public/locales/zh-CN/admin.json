@@ -89,6 +89,54 @@
       "rateLimitPlaceholder": "不限制"
     }
   },
+  "common": {
+    "save": "保存",
+    "saving": "保存中...",
+    "cancel": "取消",
+    "delete": "删除",
+    "copy": "复制",
+    "loading": "加载中..."
+  },
+  "ssh": {
+    "description": "管理 SSH 已知主机、验证主机密钥，以及查看网关自有公钥。",
+    "tabs": {
+      "knownHosts": "已知主机",
+      "checkHostKey": "主机密钥检查",
+      "ownKeys": "自有公钥"
+    },
+    "fields": {
+      "host": "主机",
+      "port": "端口",
+      "keyType": "密钥类型",
+      "keyBase64": "公钥（Base64）",
+      "fingerprint": "密钥（截断）"
+    },
+    "knownHosts": {
+      "add": "添加已知主机",
+      "addTitle": "添加已知主机",
+      "addDescription": "将受信任的 SSH 主机密钥添加到已知主机列表。",
+      "addSuccess": "已知主机添加成功",
+      "addError": "添加已知主机失败",
+      "deleteTitle": "删除已知主机",
+      "deleteDescription": "此主机将从信任列表中移除，确定要继续吗？",
+      "deleteSuccess": "已知主机已删除",
+      "deleteError": "删除已知主机失败",
+      "empty": "暂无已知主机",
+      "emptyDescription": "添加一个受信任的 SSH 主机以开始使用。",
+      "search": "搜索主机..."
+    },
+    "checkHostKey": {
+      "check": "检查主机密钥",
+      "checking": "检查中...",
+      "result": "主机密钥",
+      "error": "获取主机密钥失败，请确认主机可达。"
+    },
+    "ownKeys": {
+      "empty": "暂无自有密钥",
+      "emptyDescription": "网关尚未生成任何 SSH 密钥。",
+      "copyKey": "复制公钥"
+    }
+  },
   "pages": {
     "sessions": "会话",
     "sessionDetail": "会话详情: {{id}}",
