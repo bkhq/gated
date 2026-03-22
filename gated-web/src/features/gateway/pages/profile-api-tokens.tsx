@@ -16,7 +16,7 @@ import type { ExistingApiToken } from '@/features/gateway/lib/api-client'
 
 const createTokenSchema = z.object({
   label: z.string().min(1),
-  expiryDays: z.coerce.number().int().min(1).max(365),
+  expiryDays: z.number().int().min(1).max(365),
 })
 type CreateTokenForm = z.infer<typeof createTokenSchema>
 
@@ -104,7 +104,7 @@ function CreateTokenDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('gateway:apiTokens.expiryDays')}</FormLabel>
-                    <FormControl><Input type="number" min={1} max={365} {...field} /></FormControl>
+                    <FormControl><Input type="number" min={1} max={365} {...field} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

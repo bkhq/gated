@@ -1,27 +1,7 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router'
-import { Loader2 } from 'lucide-react'
+import { createBrowserRouter, Navigate } from 'react-router'
 import { AdminLayout } from '@/features/admin/components/admin-layout'
 import { GatewayLayout } from '@/features/gateway/components/gateway-layout'
-import { useAuthStore } from '@/shared/stores/auth'
-
-function RequireAuth() {
-  const { isAuthenticated, initialized } = useAuthStore()
-  const location = useLocation()
-
-  if (!initialized) {
-    return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/@gated/login" state={{ from: location }} replace />
-  }
-
-  return <Outlet />
-}
+import { RequireAdmin, RequireAuth } from '@/shared/components/auth-guard'
 
 export const router = createBrowserRouter([
   {
@@ -46,34 +26,39 @@ export const router = createBrowserRouter([
     path: '/@gated/admin',
     element: <AdminLayout />,
     children: [
-      { index: true, handle: { breadcrumbKey: 'admin:pages.sessions' }, lazy: async () => import('@/features/admin/pages/sessions') },
-      { path: 'sessions/:id', handle: { breadcrumbKey: 'admin:pages.sessionDetail' }, lazy: async () => import('@/features/admin/pages/session-detail') },
-      { path: 'recordings/:id', handle: { breadcrumbKey: 'admin:pages.recording' }, lazy: async () => import('@/features/admin/pages/recording') },
-      { path: 'log', handle: { breadcrumbKey: 'admin:pages.log' }, lazy: async () => import('@/features/admin/pages/log') },
       {
-        path: 'config',
-        handle: { breadcrumbKey: 'admin:pages.configLayout' },
-        lazy: async () => import('@/features/admin/pages/config/config-layout'),
+        element: <RequireAdmin />,
         children: [
-          { path: 'targets', handle: { breadcrumbKey: 'admin:pages.targets' }, lazy: async () => import('@/features/admin/pages/config/targets') },
-          { path: 'targets/new', handle: { breadcrumbKey: 'admin:pages.createTarget' }, lazy: async () => import('@/features/admin/pages/config/create-target') },
-          { path: 'targets/:id', handle: { breadcrumbKey: 'admin:pages.targetDetail' }, lazy: async () => import('@/features/admin/pages/config/target-detail') },
-          { path: 'users', handle: { breadcrumbKey: 'admin:pages.users' }, lazy: async () => import('@/features/admin/pages/config/users') },
-          { path: 'users/new', handle: { breadcrumbKey: 'admin:pages.createUser' }, lazy: async () => import('@/features/admin/pages/config/create-user') },
-          { path: 'users/:id', handle: { breadcrumbKey: 'admin:pages.userDetail' }, lazy: async () => import('@/features/admin/pages/config/user-detail') },
-          { path: 'roles', handle: { breadcrumbKey: 'admin:pages.roles' }, lazy: async () => import('@/features/admin/pages/config/roles') },
-          { path: 'roles/new', handle: { breadcrumbKey: 'admin:pages.createRole' }, lazy: async () => import('@/features/admin/pages/config/create-role') },
-          { path: 'roles/:id', handle: { breadcrumbKey: 'admin:pages.roleDetail' }, lazy: async () => import('@/features/admin/pages/config/role-detail') },
-          { path: 'tickets', handle: { breadcrumbKey: 'admin:pages.tickets' }, lazy: async () => import('@/features/admin/pages/config/tickets') },
-          { path: 'tickets/new', handle: { breadcrumbKey: 'admin:pages.createTicket' }, lazy: async () => import('@/features/admin/pages/config/create-ticket') },
-          { path: 'ssh-keys', handle: { breadcrumbKey: 'admin:pages.sshKeys' }, lazy: async () => import('@/features/admin/pages/config/ssh-keys') },
-          { path: 'parameters', handle: { breadcrumbKey: 'admin:pages.parameters' }, lazy: async () => import('@/features/admin/pages/config/parameters') },
-          { path: 'ldap', handle: { breadcrumbKey: 'admin:pages.ldapServers' }, lazy: async () => import('@/features/admin/pages/config/ldap-servers') },
-          { path: 'ldap/new', handle: { breadcrumbKey: 'admin:pages.createLdapServer' }, lazy: async () => import('@/features/admin/pages/config/create-ldap-server') },
-          { path: 'ldap/:id', handle: { breadcrumbKey: 'admin:pages.ldapServerDetail' }, lazy: async () => import('@/features/admin/pages/config/ldap-server-detail') },
-          { path: 'target-groups', handle: { breadcrumbKey: 'admin:pages.targetGroups' }, lazy: async () => import('@/features/admin/pages/config/target-groups') },
-          { path: 'target-groups/new', handle: { breadcrumbKey: 'admin:pages.createTargetGroup' }, lazy: async () => import('@/features/admin/pages/config/create-target-group') },
-          { path: 'target-groups/:id', handle: { breadcrumbKey: 'admin:pages.targetGroupDetail' }, lazy: async () => import('@/features/admin/pages/config/target-group-detail') },
+          { index: true, handle: { breadcrumbKey: 'admin:pages.sessions' }, lazy: async () => import('@/features/admin/pages/sessions') },
+          { path: 'sessions/:id', handle: { breadcrumbKey: 'admin:pages.sessionDetail' }, lazy: async () => import('@/features/admin/pages/session-detail') },
+          { path: 'recordings/:id', handle: { breadcrumbKey: 'admin:pages.recording' }, lazy: async () => import('@/features/admin/pages/recording') },
+          { path: 'log', handle: { breadcrumbKey: 'admin:pages.log' }, lazy: async () => import('@/features/admin/pages/log') },
+          {
+            path: 'config',
+            handle: { breadcrumbKey: 'admin:pages.configLayout' },
+            lazy: async () => import('@/features/admin/pages/config/config-layout'),
+            children: [
+              { path: 'targets', handle: { breadcrumbKey: 'admin:pages.targets' }, lazy: async () => import('@/features/admin/pages/config/targets') },
+              { path: 'targets/new', handle: { breadcrumbKey: 'admin:pages.createTarget' }, lazy: async () => import('@/features/admin/pages/config/create-target') },
+              { path: 'targets/:id', handle: { breadcrumbKey: 'admin:pages.targetDetail' }, lazy: async () => import('@/features/admin/pages/config/target-detail') },
+              { path: 'users', handle: { breadcrumbKey: 'admin:pages.users' }, lazy: async () => import('@/features/admin/pages/config/users') },
+              { path: 'users/new', handle: { breadcrumbKey: 'admin:pages.createUser' }, lazy: async () => import('@/features/admin/pages/config/create-user') },
+              { path: 'users/:id', handle: { breadcrumbKey: 'admin:pages.userDetail' }, lazy: async () => import('@/features/admin/pages/config/user-detail') },
+              { path: 'roles', handle: { breadcrumbKey: 'admin:pages.roles' }, lazy: async () => import('@/features/admin/pages/config/roles') },
+              { path: 'roles/new', handle: { breadcrumbKey: 'admin:pages.createRole' }, lazy: async () => import('@/features/admin/pages/config/create-role') },
+              { path: 'roles/:id', handle: { breadcrumbKey: 'admin:pages.roleDetail' }, lazy: async () => import('@/features/admin/pages/config/role-detail') },
+              { path: 'tickets', handle: { breadcrumbKey: 'admin:pages.tickets' }, lazy: async () => import('@/features/admin/pages/config/tickets') },
+              { path: 'tickets/new', handle: { breadcrumbKey: 'admin:pages.createTicket' }, lazy: async () => import('@/features/admin/pages/config/create-ticket') },
+              { path: 'ssh-keys', handle: { breadcrumbKey: 'admin:pages.sshKeys' }, lazy: async () => import('@/features/admin/pages/config/ssh-keys') },
+              { path: 'parameters', handle: { breadcrumbKey: 'admin:pages.parameters' }, lazy: async () => import('@/features/admin/pages/config/parameters') },
+              { path: 'ldap', handle: { breadcrumbKey: 'admin:pages.ldapServers' }, lazy: async () => import('@/features/admin/pages/config/ldap-servers') },
+              { path: 'ldap/new', handle: { breadcrumbKey: 'admin:pages.createLdapServer' }, lazy: async () => import('@/features/admin/pages/config/create-ldap-server') },
+              { path: 'ldap/:id', handle: { breadcrumbKey: 'admin:pages.ldapServerDetail' }, lazy: async () => import('@/features/admin/pages/config/ldap-server-detail') },
+              { path: 'target-groups', handle: { breadcrumbKey: 'admin:pages.targetGroups' }, lazy: async () => import('@/features/admin/pages/config/target-groups') },
+              { path: 'target-groups/new', handle: { breadcrumbKey: 'admin:pages.createTargetGroup' }, lazy: async () => import('@/features/admin/pages/config/create-target-group') },
+              { path: 'target-groups/:id', handle: { breadcrumbKey: 'admin:pages.targetGroupDetail' }, lazy: async () => import('@/features/admin/pages/config/target-group-detail') },
+            ],
+          },
         ],
       },
     ],
