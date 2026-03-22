@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Trash2, Plus, X, Key } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
 import { Button } from '@/shared/components/ui/button'
@@ -32,6 +33,7 @@ import {
 // ── Roles Tab ─────────────────────────────────────────────────────────────────
 
 function RolesTab({ targetId }: { targetId: string }) {
+  const { t } = useTranslation('admin')
   const [selectedRoleId, setSelectedRoleId] = useState('')
 
   const { data: assignedRoles, isLoading: rolesLoading } = useTargetRoles(targetId)
@@ -66,7 +68,7 @@ function RolesTab({ targetId }: { targetId: string }) {
       <div className="flex gap-2">
         <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
           <SelectTrigger className="flex-1 max-w-xs">
-            <SelectValue placeholder="Select a role to add…" />
+            <SelectValue placeholder={t('targets.roles.addPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
             {availableRoles.map(r => (
@@ -86,7 +88,7 @@ function RolesTab({ targetId }: { targetId: string }) {
           ) : (
             <Plus className="h-4 w-4" />
           )}
-          <span className="ml-1">Add</span>
+          <span className="ml-1">{t('targets.roles.add')}</span>
         </Button>
       </div>
 
@@ -94,8 +96,8 @@ function RolesTab({ targetId }: { targetId: string }) {
       {!assignedRoles?.length ? (
         <EmptyState
           icon={Key}
-          title="No roles assigned"
-          description="Add a role to control which users can access this target."
+          title={t('targets.roles.empty')}
+          description={t('targets.roles.emptyDescription')}
         />
       ) : (
         <ul className="space-y-2">
@@ -130,6 +132,7 @@ function RolesTab({ targetId }: { targetId: string }) {
 // ── SSH Host Keys Tab ─────────────────────────────────────────────────────────
 
 function SshHostKeysTab({ targetId }: { targetId: string }) {
+  const { t } = useTranslation('admin')
   const { data: hostKeys, isLoading } = useTargetSshHostKeys(targetId, true)
 
   if (isLoading) {
@@ -146,8 +149,8 @@ function SshHostKeysTab({ targetId }: { targetId: string }) {
     return (
       <EmptyState
         icon={Key}
-        title="No known host keys"
-        description="Host keys will appear here after the first successful connection."
+        title={t('targets.sshHostKeys.empty')}
+        description={t('targets.sshHostKeys.emptyDescription')}
       />
     )
   }
@@ -172,6 +175,7 @@ function SshHostKeysTab({ targetId }: { targetId: string }) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function Component() {
+  const { t } = useTranslation('admin')
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -206,11 +210,11 @@ export function Component() {
   if (!target) {
     return (
       <EmptyState
-        title="Target not found"
-        description="The requested target does not exist."
+        title={t('targets.notFound')}
+        description={t('targets.emptyDescription')}
         action={
           <Button variant="outline" onClick={() => void navigate('/@gated/admin/config/targets')}>
-            Back to Targets
+            {t('targets.title')}
           </Button>
         }
       />
@@ -232,16 +236,16 @@ export function Component() {
             disabled={deleteMutation.isPending}
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {t('common.delete')}
           </Button>
         }
       />
 
       <Tabs defaultValue="details" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="roles">Roles</TabsTrigger>
-          {isSsh && <TabsTrigger value="ssh-keys">SSH Host Keys</TabsTrigger>}
+          <TabsTrigger value="details">{t('targets.tabs.details')}</TabsTrigger>
+          <TabsTrigger value="roles">{t('targets.tabs.roles')}</TabsTrigger>
+          {isSsh && <TabsTrigger value="ssh-keys">{t('targets.tabs.sshHostKeys')}</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="details">
@@ -251,7 +255,7 @@ export function Component() {
               groups={groups}
               onSubmit={onSubmit}
               isSubmitting={updateMutation.isPending}
-              submitLabel="Save Changes"
+              submitLabel={t('targets.saveChanges')}
             />
           </div>
         </TabsContent>
@@ -274,9 +278,9 @@ export function Component() {
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete Target"
-        description={`Are you sure you want to delete "${target.name}"? This action cannot be undone.`}
-        confirmLabel="Delete"
+        title={t('targets.deleteTitle')}
+        description={t('targets.deleteDescription')}
+        confirmLabel={t('common.delete')}
         onConfirm={handleDelete}
       />
     </div>

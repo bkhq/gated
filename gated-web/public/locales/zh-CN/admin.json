@@ -310,6 +310,115 @@
     "notFound": "角色不存在",
     "reset": "重置"
   },
+  "targets": {
+    "title": "目标",
+    "description": "管理连接目标",
+    "create": "创建目标",
+    "created": "目标已创建",
+    "createError": "创建目标失败",
+    "updated": "目标已更新",
+    "updateError": "更新目标失败",
+    "deleted": "目标已删除",
+    "deleteError": "删除目标失败",
+    "deleteTitle": "删除目标",
+    "deleteDescription": "确定要删除此目标吗？此操作无法撤销。",
+    "notFound": "目标不存在",
+    "searchPlaceholder": "搜索目标...",
+    "allGroups": "所有分组",
+    "noGroup": "无分组",
+    "columns": {
+      "name": "名称",
+      "type": "类型",
+      "address": "地址",
+      "group": "分组",
+      "actions": "操作"
+    },
+    "types": {
+      "Ssh": "SSH",
+      "Kubernetes": "Kubernetes",
+      "MySql": "MySQL",
+      "Postgres": "PostgreSQL",
+      "WebAdmin": "Web 管理",
+      "Api": "API"
+    },
+    "tabs": {
+      "details": "详情",
+      "roles": "角色",
+      "sshHostKeys": "SSH 主机密钥"
+    },
+    "form": {
+      "type": "类型",
+      "name": "名称",
+      "namePlaceholder": "例如 prod-server",
+      "description": "描述",
+      "descriptionPlaceholder": "可选描述",
+      "group": "分组",
+      "rateLimit": "速率限制（字节/秒）",
+      "rateLimitPlaceholder": "不限制"
+    },
+    "ssh": {
+      "host": "主机",
+      "port": "端口",
+      "username": "用户名",
+      "allowInsecureAlgos": "允许不安全算法",
+      "auth": "认证方式",
+      "authPublicKey": "公钥",
+      "authPassword": "密码",
+      "password": "密码"
+    },
+    "kubernetes": {
+      "clusterUrl": "集群地址",
+      "clusterUrlPlaceholder": "https://kubernetes.example.com:6443",
+      "auth": "认证方式",
+      "authToken": "Token",
+      "authCertificate": "证书",
+      "token": "Token",
+      "certificate": "证书 (PEM)",
+      "privateKey": "私钥 (PEM)"
+    },
+    "mysql": {
+      "host": "主机",
+      "port": "端口",
+      "username": "用户名",
+      "password": "密码",
+      "defaultDatabase": "默认数据库"
+    },
+    "postgres": {
+      "host": "主机",
+      "port": "端口",
+      "username": "用户名",
+      "password": "密码",
+      "idleTimeout": "空闲超时",
+      "idleTimeoutPlaceholder": "例如 30s",
+      "defaultDatabase": "默认数据库"
+    },
+    "api": {
+      "url": "URL",
+      "urlPlaceholder": "https://api.example.com"
+    },
+    "tls": {
+      "mode": "TLS 模式",
+      "verify": "验证 TLS",
+      "disabled": "禁用",
+      "preferred": "优先",
+      "required": "必须"
+    },
+    "roles": {
+      "add": "添加",
+      "addPlaceholder": "选择要添加的角色…",
+      "empty": "未分配角色",
+      "emptyDescription": "添加角色以控制哪些用户可以访问此目标。",
+      "removeTitle": "移除角色？",
+      "removeDescription": "该角色将从此目标移除。"
+    },
+    "sshHostKeys": {
+      "empty": "暂无已知主机密钥",
+      "emptyDescription": "首次成功连接后，主机密钥将显示在这里。"
+    },
+    "empty": "暂无目标",
+    "emptyDescription": "创建第一个连接目标以开始使用。",
+    "saveChanges": "保存更改"
+  },
   "log": {
     "title": "审计日志",
     "description": "查看系统审计日志和操作记录",

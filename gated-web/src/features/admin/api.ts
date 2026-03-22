@@ -759,4 +759,13 @@ export const useCreateUserMutation = useCreateUser
 export const useUpdateUserMutation = useUpdateUser
 export const useDeleteUserMutation = useDeleteUser
 
+// Target hook aliases
+export const useTargetsQuery = useTargets
+export const useTargetQuery = useTarget
+export const useCreateTargetMutation = useCreateTarget
+export const useUpdateTargetMutation = useUpdateTarget
+export const useDeleteTargetMutation = useDeleteTarget
+export const useTargetRolesMutation = useAddTargetRole
+export const useTargetSshKnownHostsQuery = useTargetSshHostKeys
+
 export { stringifyError }
