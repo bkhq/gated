@@ -28,3 +28,5 @@ Each plan is a single line linking to its detail file. All detailed information 
 ---
 
 ## Plans
+
+- [ ] [**PLAN-005 管理 UI 全功能实现**](PLAN-005.md) `2026-03-22`
