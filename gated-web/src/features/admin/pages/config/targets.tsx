@@ -65,7 +65,7 @@ export function Component() {
       header: t('targets.columns.name'),
       cell: ({ row }) => (
         <Link
-          to={`/@gated/admin/config/targets/${row.original.id}`}
+          to={`/@gated/ui/admin/config/targets/${row.original.id}`}
           className="font-medium text-primary hover:underline"
         >
           {row.original.name}
@@ -113,7 +113,7 @@ export function Component() {
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Button variant="ghost" size="icon" asChild>
-            <Link to={`/@gated/admin/config/targets/${row.original.id}`}>
+            <Link to={`/@gated/ui/admin/config/targets/${row.original.id}`}>
               <Pencil className="h-4 w-4" />
             </Link>
           </Button>
@@ -137,7 +137,7 @@ export function Component() {
         description={t('targets.description')}
         actions={
           <Button asChild>
-            <Link to="/@gated/admin/config/targets/new">
+            <Link to="/@gated/ui/admin/config/targets/new">
               <Plus className="mr-2 h-4 w-4" />
               {t('targets.create')}
             </Link>
@@ -174,7 +174,7 @@ export function Component() {
           description={t('targets.emptyDescription')}
           action={
             <Button asChild>
-              <Link to="/@gated/admin/config/targets/new">
+              <Link to="/@gated/ui/admin/config/targets/new">
                 <Plus className="mr-2 h-4 w-4" />
                 {t('targets.create')}
               </Link>

@@ -193,7 +193,7 @@ export function Component() {
   function handleDelete() {
     if (!id) return
     deleteMutation.mutate(id, {
-      onSuccess: () => void navigate('/@gated/admin/config/targets'),
+      onSuccess: () => void navigate('/@gated/ui/admin/config/targets'),
     })
   }
 
@@ -213,7 +213,7 @@ export function Component() {
         title={t('targets.notFound')}
         description={t('targets.emptyDescription')}
         action={
-          <Button variant="outline" onClick={() => void navigate('/@gated/admin/config/targets')}>
+          <Button variant="outline" onClick={() => void navigate('/@gated/ui/admin/config/targets')}>
             {t('targets.title')}
           </Button>
         }

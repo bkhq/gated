@@ -5,7 +5,7 @@ import { RequireAdmin, RequireAuth } from '@/shared/components/auth-guard'
 
 export const router = createBrowserRouter([
   {
-    path: '/@gated',
+    path: '/@gated/ui',
     element: <GatewayLayout />,
     children: [
       { path: 'login', handle: { breadcrumbKey: 'gateway:pages.login' }, lazy: async () => import('@/features/gateway/pages/login') },
@@ -23,7 +23,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/@gated/admin',
+    path: '/@gated/ui/admin',
     element: <AdminLayout />,
     children: [
       {
@@ -65,6 +65,6 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <Navigate to="/@gated" replace />,
+    element: <Navigate to="/@gated/ui" replace />,
   },
 ])

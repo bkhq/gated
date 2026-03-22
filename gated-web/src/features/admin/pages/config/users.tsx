@@ -99,7 +99,7 @@ export function Component() {
         description="Manage user accounts and credentials"
         actions={
           <Button asChild>
-            <Link to="/@gated/admin/config/users/new">
+            <Link to="/@gated/ui/admin/config/users/new">
               <Plus className="h-4 w-4 mr-2" />
               New User
             </Link>

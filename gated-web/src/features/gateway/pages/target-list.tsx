@@ -51,7 +51,7 @@ function TargetCard({ target, infoData }: { target: TargetSnapshot; infoData: { 
             <code className="flex-1 text-xs bg-muted px-2 py-1 rounded font-mono truncate">{sshCmd}</code>
             <CopyButton value={sshCmd} label={t('targetList.copyCommand')} />
             <Button asChild size="sm" variant="outline">
-              <Link to={`/@gated/ssh/${encodeURIComponent(target.name)}`}>
+              <Link to={`/@gated/ui/ssh/${encodeURIComponent(target.name)}`}>
                 <Terminal className="size-3.5 mr-1" />
                 {t('targetList.openTerminal')}
               </Link>

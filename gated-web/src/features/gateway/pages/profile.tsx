@@ -103,13 +103,13 @@ export function Component() {
         <h2 className="text-lg font-semibold">{t('gateway:profile.securitySection')}</h2>
         <div className="flex flex-col gap-2">
           <Button asChild variant="outline" className="justify-start gap-2 w-fit">
-            <Link to="/@gated/profile/credentials">
+            <Link to="/@gated/ui/profile/credentials">
               <KeyRound className="size-4" />
               {t('gateway:pages.credentials')}
             </Link>
           </Button>
           <Button asChild variant="outline" className="justify-start gap-2 w-fit">
-            <Link to="/@gated/profile/api-tokens">
+            <Link to="/@gated/ui/profile/api-tokens">
               <Coins className="size-4" />
               {t('gateway:pages.apiTokens')}
             </Link>

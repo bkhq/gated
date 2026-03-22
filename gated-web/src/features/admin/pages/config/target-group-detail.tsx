@@ -160,7 +160,7 @@ function TargetsSection({ groupId }: { groupId: string }) {
       header: 'Name',
       cell: ({ row }) => (
         <Link
-          to={`/@gated/admin/config/targets/${row.original.id}`}
+          to={`/@gated/ui/admin/config/targets/${row.original.id}`}
           className="font-medium hover:underline flex items-center gap-2"
         >
           <Server className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -215,7 +215,7 @@ export function Component() {
     try {
       await deleteGroup.mutateAsync(group.id)
       toast.success(`Target group "${group.name}" deleted`)
-      navigate('/@gated/admin/config/target-groups')
+      navigate('/@gated/ui/admin/config/target-groups')
     } catch {
       toast.error('Failed to delete target group')
     }

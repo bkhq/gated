@@ -7,7 +7,7 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
-  base: '/@gated',
+  base: '/@gated/ui/',
   resolve: {
     tsconfigPaths: true,
   },

@@ -25,7 +25,7 @@ export function Component() {
 
   const state = location.state as { username?: string; from?: string } | null
   const username = state?.username ?? ''
-  const from = state?.from ?? '/@gated'
+  const from = state?.from ?? '/@gated/ui'
 
   const form = useForm<OtpForm>({
     resolver: zodResolver(otpSchema),
@@ -83,7 +83,7 @@ export function Component() {
             </form>
           </Form>
           <Button variant="ghost" size="sm" className="w-full" asChild>
-            <Link to="/@gated/login">{t('gateway:otp.back')}</Link>
+            <Link to="/@gated/ui/login">{t('gateway:otp.back')}</Link>
           </Button>
         </CardContent>
       </Card>

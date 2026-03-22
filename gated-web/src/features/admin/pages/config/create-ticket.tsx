@@ -76,7 +76,7 @@ export function Component() {
           actions={
             <Button
               variant="outline"
-              onClick={() => void navigate('/@gated/admin/config/tickets')}
+              onClick={() => void navigate('/@gated/ui/admin/config/tickets')}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               {tc('actions.back')}
@@ -143,7 +143,7 @@ export function Component() {
         actions={
           <Button
             variant="outline"
-            onClick={() => void navigate('/@gated/admin/config/tickets')}
+            onClick={() => void navigate('/@gated/ui/admin/config/tickets')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             {tc('actions.back')}
@@ -232,7 +232,7 @@ export function Component() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => void navigate('/@gated/admin/config/tickets')}
+              onClick={() => void navigate('/@gated/ui/admin/config/tickets')}
             >
               {tc('actions.cancel')}
             </Button>

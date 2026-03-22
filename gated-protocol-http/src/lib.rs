@@ -181,20 +181,21 @@ impl ProtocolServer for HTTPProtocolServer {
                 .nest("/api/playground", openapi_ui_route)
                 .nest("/api", api_service.with(cache_bust()))
                 .nest("/api/openapi.json", openapi_spec_route)
-                .nest_no_strip(
-                    "/assets",
-                    EmbeddedFilesEndpoint::<Assets>::new().with(cache_static()),
-                )
                 .nest(
                     "/admin/api",
                     endpoint_auth(endpoint_admin_auth(admin_api_app)).with(cache_bust()),
                 )
-                .at(
-                    "/admin",
-                    page_auth(page_admin_auth(EmbeddedFileEndpoint::<Assets>::new(
-                        "index.html",
-                    )))
-                    .with(cache_bust()),
+                .nest_no_strip(
+                    "/ui",
+                    Route::new()
+                        .nest_no_strip(
+                            "/",
+                            EmbeddedFilesEndpoint::<Assets>::new(),
+                        )
+                        .at(
+                            "*",
+                            EmbeddedFileEndpoint::<Assets>::new("index.html"),
+                        ),
                 )
                 .at(
                     "/api/ssh/terminal/:target_name",

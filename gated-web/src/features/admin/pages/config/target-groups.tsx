@@ -41,7 +41,7 @@ export function Component() {
       header: 'Name',
       cell: ({ row }) => (
         <Link
-          to={`/@gated/admin/config/target-groups/${row.original.id}`}
+          to={`/@gated/ui/admin/config/target-groups/${row.original.id}`}
           className="font-medium hover:underline flex items-center gap-2"
         >
           <Layers className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -82,7 +82,7 @@ export function Component() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onClick={() =>
-                  navigate(`/@gated/admin/config/target-groups/${row.original.id}`)
+                  navigate(`/@gated/ui/admin/config/target-groups/${row.original.id}`)
                 }
               >
                 View details
@@ -119,7 +119,7 @@ export function Component() {
         description="Organize targets into named groups"
         actions={
           <Button asChild>
-            <Link to="/@gated/admin/config/target-groups/new">
+            <Link to="/@gated/ui/admin/config/target-groups/new">
               <Plus className="h-4 w-4 mr-2" />
               New Group
             </Link>

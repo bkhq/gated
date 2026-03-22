@@ -12,7 +12,7 @@ export function Component() {
   function onSubmit(values: FormValues) {
     createMutation.mutate(buildRequest(values), {
       onSuccess: target => {
-        void navigate(`/@gated/admin/config/targets/${target.id}`)
+        void navigate(`/@gated/ui/admin/config/targets/${target.id}`)
       },
     })
   }

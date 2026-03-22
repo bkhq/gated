@@ -55,7 +55,7 @@ export function Component() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/@gated/admin')}
+          onClick={() => navigate('/@gated/ui/admin')}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           {t('sessionDetail.back')}
@@ -156,7 +156,7 @@ export function Component() {
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/@gated/admin/recordings/${rec.id}`}>
+                    <Link to={`/@gated/ui/admin/recordings/${rec.id}`}>
                       {t('sessionDetail.recordings.view')}
                     </Link>
                   </Button>

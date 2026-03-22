@@ -15,7 +15,7 @@ export function RequireAuth() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/@gated/login" state={{ from: location }} replace />
+    return <Navigate to="/@gated/ui/login" state={{ from: location }} replace />
   }
 
   return <Outlet />
@@ -34,11 +34,11 @@ export function RequireAdmin() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/@gated/login" state={{ from: location }} replace />
+    return <Navigate to="/@gated/ui/login" state={{ from: location }} replace />
   }
 
   if (!isAdmin) {
-    return <Navigate to="/@gated" replace />
+    return <Navigate to="/@gated/ui" replace />
   }
 
   return <Outlet />

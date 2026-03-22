@@ -37,25 +37,25 @@ import { UserMenu } from '@/shared/components/user-menu'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
 
 const monitoringItems = [
-  { to: '/@gated/admin', key: 'nav.sessions', icon: Activity, end: true },
-  { to: '/@gated/admin/log', key: 'nav.log', icon: FileText, end: false },
+  { to: '/@gated/ui/admin', key: 'nav.sessions', icon: Activity, end: true },
+  { to: '/@gated/ui/admin/log', key: 'nav.log', icon: FileText, end: false },
 ]
 
 const configItems = [
-  { to: '/@gated/admin/config/targets', key: 'nav.targets', icon: Server },
-  { to: '/@gated/admin/config/target-groups', key: 'nav.groups', icon: Layers },
-  { to: '/@gated/admin/config/users', key: 'nav.users', icon: Users },
-  { to: '/@gated/admin/config/roles', key: 'nav.roles', icon: Shield },
+  { to: '/@gated/ui/admin/config/targets', key: 'nav.targets', icon: Server },
+  { to: '/@gated/ui/admin/config/target-groups', key: 'nav.groups', icon: Layers },
+  { to: '/@gated/ui/admin/config/users', key: 'nav.users', icon: Users },
+  { to: '/@gated/ui/admin/config/roles', key: 'nav.roles', icon: Shield },
 ]
 
 const securityItems = [
-  { to: '/@gated/admin/config/ssh-keys', key: 'nav.sshKeys', icon: Key },
-  { to: '/@gated/admin/config/tickets', key: 'nav.tickets', icon: Ticket },
-  { to: '/@gated/admin/config/ldap', key: 'nav.ldap', icon: Building2 },
+  { to: '/@gated/ui/admin/config/ssh-keys', key: 'nav.sshKeys', icon: Key },
+  { to: '/@gated/ui/admin/config/tickets', key: 'nav.tickets', icon: Ticket },
+  { to: '/@gated/ui/admin/config/ldap', key: 'nav.ldap', icon: Building2 },
 ]
 
 const systemItems = [
-  { to: '/@gated/admin/config/parameters', key: 'nav.parameters', icon: Settings2 },
+  { to: '/@gated/ui/admin/config/parameters', key: 'nav.parameters', icon: Settings2 },
 ]
 
 function isNavActive(pathname: string, to: string, end: boolean): boolean {
@@ -103,7 +103,7 @@ export function AdminLayout() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
-                <Link to="/@gated/admin">
+                <Link to="/@gated/ui/admin">
                   <ShieldCheck className="size-5 shrink-0" />
                   <span className="font-heading font-semibold">{t('common:adminTitle')}</span>
                 </Link>
