@@ -219,29 +219,53 @@
     "deleteDescription": "This will permanently delete the user and all their credentials.",
     "searchPlaceholder": "Search users...",
     "notFound": "User not found",
-    "columns": { "username": "Username", "description": "Description", "ldap": "LDAP" },
+    "columns": {
+      "username": "Username",
+      "description": "Description",
+      "ldap": "LDAP"
+    },
     "ldap": {
-      "title": "LDAP Link", "linked": "Linked", "notLinked": "Not linked to LDAP",
-      "unlink": "Unlink", "autoLink": "Auto-Link", "autoLinking": "Linking...",
+      "title": "LDAP Link",
+      "linked": "Linked",
+      "notLinked": "Not linked to LDAP",
+      "unlink": "Unlink",
+      "autoLink": "Auto-Link",
+      "autoLinking": "Linking...",
       "unlinkTitle": "Unlink from LDAP?",
       "unlinkDescription": "This will remove the LDAP association. The user will no longer sync with LDAP.",
-      "autoLinkSuccess": "Auto-linked to LDAP", "autoLinkError": "Auto-link failed",
-      "unlinkSuccess": "Unlinked from LDAP", "unlinkError": "Unlink failed"
+      "autoLinkSuccess": "Auto-linked to LDAP",
+      "autoLinkError": "Auto-link failed",
+      "unlinkSuccess": "Unlinked from LDAP",
+      "unlinkError": "Unlink failed"
     },
     "credentials": {
-      "passwords": "Passwords", "publicKeys": "Public Keys", "otp": "OTP",
-      "certificates": "Certificates", "sso": "SSO", "roles": "Roles",
+      "passwords": "Passwords",
+      "publicKeys": "Public Keys",
+      "otp": "OTP",
+      "certificates": "Certificates",
+      "sso": "SSO",
+      "roles": "Roles",
       "password": {
-        "set": "Set Password", "setSuccess": "Password set", "setError": "Failed to set password",
-        "removeTitle": "Remove password?", "removeDescription": "The password credential will be deleted.",
-        "removeSuccess": "Password removed", "removeError": "Failed to remove password",
-        "empty": "No password set", "emptyDescription": "Set a password for this user."
+        "set": "Set Password",
+        "setSuccess": "Password set",
+        "setError": "Failed to set password",
+        "removeTitle": "Remove password?",
+        "removeDescription": "The password credential will be deleted.",
+        "removeSuccess": "Password removed",
+        "removeError": "Failed to remove password",
+        "empty": "No password set",
+        "emptyDescription": "Set a password for this user."
       },
       "publicKey": {
-        "add": "Add Key", "addSuccess": "Public key added", "addError": "Failed to add public key",
-        "removeTitle": "Remove key?", "removeDescription": "This public key will be permanently removed.",
-        "removeSuccess": "Key removed", "removeError": "Failed to remove public key",
-        "empty": "No public keys", "emptyDescription": "Add an SSH public key for this user."
+        "add": "Add Key",
+        "addSuccess": "Public key added",
+        "addError": "Failed to add public key",
+        "removeTitle": "Remove key?",
+        "removeDescription": "This public key will be permanently removed.",
+        "removeSuccess": "Key removed",
+        "removeError": "Failed to remove public key",
+        "empty": "No public keys",
+        "emptyDescription": "Add an SSH public key for this user."
       },
       "otpCred": {
         "add": "Add OTP",
@@ -249,11 +273,14 @@
         "setupDescription": "Scan the URI with your authenticator app. The secret cannot be retrieved after confirming.",
         "provisioningUri": "Provisioning URI",
         "confirm": "Confirm & Save",
-        "addSuccess": "OTP credential added", "addError": "Failed to add OTP credential",
+        "addSuccess": "OTP credential added",
+        "addError": "Failed to add OTP credential",
         "removeTitle": "Remove OTP credential?",
         "removeDescription": "The user will no longer be able to authenticate with this TOTP credential.",
-        "removeSuccess": "OTP credential removed", "removeError": "Failed to remove OTP credential",
-        "empty": "No OTP credentials", "emptyDescription": "Add a TOTP authenticator for this user."
+        "removeSuccess": "OTP credential removed",
+        "removeError": "Failed to remove OTP credential",
+        "empty": "No OTP credentials",
+        "emptyDescription": "Add a TOTP authenticator for this user."
       },
       "certificate": {
         "issue": "Issue Certificate",
@@ -261,25 +288,39 @@
         "issueDescription": "Provide a label and the user's public key PEM to issue a signed certificate.",
         "issuedTitle": "Certificate Issued",
         "issuedDescription": "Save this certificate now — it will not be shown again.",
-        "issueSuccess": "Certificate issued", "issueError": "Failed to issue certificate",
+        "issueSuccess": "Certificate issued",
+        "issueError": "Failed to issue certificate",
         "revokeTitle": "Revoke certificate?",
         "revokeDescription": "This certificate will be permanently revoked.",
-        "revokeSuccess": "Certificate revoked", "revokeError": "Failed to revoke certificate",
-        "empty": "No certificates", "emptyDescription": "Issue a certificate credential for this user."
+        "revokeSuccess": "Certificate revoked",
+        "revokeError": "Failed to revoke certificate",
+        "empty": "No certificates",
+        "emptyDescription": "Issue a certificate credential for this user."
       },
       "ssoCred": {
-        "add": "Add SSO", "addSuccess": "SSO credential added", "addError": "Failed to add SSO credential",
-        "removeTitle": "Remove SSO credential?", "removeDescription": "This SSO credential will be permanently removed.",
-        "removeSuccess": "SSO credential removed", "removeError": "Failed to remove SSO credential",
-        "empty": "No SSO credentials", "emptyDescription": "Add an SSO identity for this user."
+        "add": "Add SSO",
+        "addSuccess": "SSO credential added",
+        "addError": "Failed to add SSO credential",
+        "removeTitle": "Remove SSO credential?",
+        "removeDescription": "This SSO credential will be permanently removed.",
+        "removeSuccess": "SSO credential removed",
+        "removeError": "Failed to remove SSO credential",
+        "empty": "No SSO credentials",
+        "emptyDescription": "Add an SSO identity for this user."
       },
       "role": {
-        "add": "Add Role", "addTitle": "Add Role", "addDescription": "Select a role to assign to this user.",
+        "add": "Add Role",
+        "addTitle": "Add Role",
+        "addDescription": "Select a role to assign to this user.",
         "noMore": "No more roles available.",
-        "removeTitle": "Remove role?", "removeDescription": "The user will lose access granted by this role.",
-        "addSuccess": "Role added", "addError": "Failed to add role",
-        "removeSuccess": "Role removed", "removeError": "Failed to remove role",
-        "empty": "No roles assigned", "emptyDescription": "Assign roles to control what this user can access."
+        "removeTitle": "Remove role?",
+        "removeDescription": "The user will lose access granted by this role.",
+        "addSuccess": "Role added",
+        "addError": "Failed to add role",
+        "removeSuccess": "Role removed",
+        "removeError": "Failed to remove role",
+        "empty": "No roles assigned",
+        "emptyDescription": "Assign roles to control what this user can access."
       }
     }
   },
@@ -405,7 +446,7 @@
     },
     "roles": {
       "add": "Add",
-      "addPlaceholder": "Select a role to add\u2026",
+      "addPlaceholder": "Select a role to add…",
       "empty": "No roles assigned",
       "emptyDescription": "Add a role to control which users can access this target.",
       "removeTitle": "Remove role?",
@@ -439,6 +480,87 @@
       "username": "User",
       "message": "Message",
       "sessionId": "Session ID"
+    }
+  },
+  "ldap": {
+    "description": "Manage LDAP server connections for centralized authentication",
+    "create": "Add LDAP Server",
+    "created": "LDAP server created successfully",
+    "createError": "Failed to create LDAP server",
+    "updated": "LDAP server updated successfully",
+    "updateError": "Failed to update LDAP server",
+    "deleted": "LDAP server deleted successfully",
+    "deleteError": "Failed to delete LDAP server",
+    "deleteTitle": "Delete LDAP Server",
+    "deleteDescription": "Are you sure you want to delete this LDAP server? This action cannot be undone.",
+    "notFound": "LDAP server not found",
+    "searchPlaceholder": "Search LDAP servers...",
+    "emptyTitle": "No LDAP servers",
+    "emptyDescription": "Add an LDAP server to enable directory-based authentication.",
+    "columns": {
+      "name": "Name",
+      "host": "Host",
+      "tls": "TLS",
+      "status": "Status"
+    },
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "sections": {
+      "connection": "Connection",
+      "auth": "Authentication",
+      "search": "Search Configuration"
+    },
+    "fields": {
+      "name": "Server Name",
+      "host": "Host",
+      "port": "Port",
+      "tlsMode": "TLS Mode",
+      "tlsVerify": "Verify TLS Certificate",
+      "description": "Description",
+      "bindDn": "Bind DN",
+      "bindPassword": "Bind Password",
+      "bindPasswordHint": "(leave blank to keep current)",
+      "userFilter": "User Filter",
+      "usernameAttribute": "Username Attribute",
+      "sshKeyAttribute": "SSH Key Attribute",
+      "uuidAttribute": "UUID Attribute",
+      "enabled": "Enabled",
+      "autoLinkSso": "Auto-link SSO Users"
+    },
+    "placeholders": {
+      "name": "Corporate LDAP",
+      "description": "Optional description"
+    },
+    "tls": {
+      "disabled": "Disabled",
+      "preferred": "Preferred",
+      "required": "Required"
+    },
+    "test": {
+      "title": "Connection Test",
+      "run": "Test Connection",
+      "testing": "Testing...",
+      "baseDns": "Base DNs",
+      "error": "Connection test failed"
+    },
+    "users": {
+      "title": "LDAP Users",
+      "load": "Load Users",
+      "empty": "No users found",
+      "searchPlaceholder": "Search users...",
+      "selectFirst": "Select users to import first",
+      "import": "Import ({{count}})",
+      "importing": "Importing...",
+      "importSuccess": "Imported {{count}} user(s) successfully",
+      "importError": "Failed to import users"
+    },
+    "userColumns": {
+      "username": "Username",
+      "displayName": "Display Name",
+      "email": "Email",
+      "dn": "DN"
     }
   }
 }

@@ -219,29 +219,53 @@
     "deleteDescription": "此操作将永久删除该用户及其所有凭证，无法撤销。",
     "searchPlaceholder": "搜索用户...",
     "notFound": "用户不存在",
-    "columns": { "username": "用户名", "description": "描述", "ldap": "LDAP" },
+    "columns": {
+      "username": "用户名",
+      "description": "描述",
+      "ldap": "LDAP"
+    },
     "ldap": {
-      "title": "LDAP 关联", "linked": "已关联", "notLinked": "未关联 LDAP",
-      "unlink": "取消关联", "autoLink": "自动关联", "autoLinking": "关联中...",
+      "title": "LDAP 关联",
+      "linked": "已关联",
+      "notLinked": "未关联 LDAP",
+      "unlink": "取消关联",
+      "autoLink": "自动关联",
+      "autoLinking": "关联中...",
       "unlinkTitle": "取消 LDAP 关联？",
       "unlinkDescription": "此操作将移除 LDAP 关联，用户将不再与 LDAP 同步。",
-      "autoLinkSuccess": "已自动关联至 LDAP", "autoLinkError": "自动关联失败",
-      "unlinkSuccess": "已取消 LDAP 关联", "unlinkError": "取消关联失败"
+      "autoLinkSuccess": "已自动关联至 LDAP",
+      "autoLinkError": "自动关联失败",
+      "unlinkSuccess": "已取消 LDAP 关联",
+      "unlinkError": "取消关联失败"
     },
     "credentials": {
-      "passwords": "密码", "publicKeys": "公钥", "otp": "动态口令",
-      "certificates": "证书", "sso": "单点登录", "roles": "角色",
+      "passwords": "密码",
+      "publicKeys": "公钥",
+      "otp": "动态口令",
+      "certificates": "证书",
+      "sso": "单点登录",
+      "roles": "角色",
       "password": {
-        "set": "设置密码", "setSuccess": "密码已设置", "setError": "设置密码失败",
-        "removeTitle": "删除密码？", "removeDescription": "密码凭证将被删除。",
-        "removeSuccess": "密码已删除", "removeError": "删除密码失败",
-        "empty": "未设置密码", "emptyDescription": "为该用户设置密码。"
+        "set": "设置密码",
+        "setSuccess": "密码已设置",
+        "setError": "设置密码失败",
+        "removeTitle": "删除密码？",
+        "removeDescription": "密码凭证将被删除。",
+        "removeSuccess": "密码已删除",
+        "removeError": "删除密码失败",
+        "empty": "未设置密码",
+        "emptyDescription": "为该用户设置密码。"
       },
       "publicKey": {
-        "add": "添加公钥", "addSuccess": "公钥添加成功", "addError": "添加公钥失败",
-        "removeTitle": "删除公钥？", "removeDescription": "该公钥将被永久删除。",
-        "removeSuccess": "公钥已删除", "removeError": "删除公钥失败",
-        "empty": "暂无公钥", "emptyDescription": "为该用户添加 SSH 公钥。"
+        "add": "添加公钥",
+        "addSuccess": "公钥添加成功",
+        "addError": "添加公钥失败",
+        "removeTitle": "删除公钥？",
+        "removeDescription": "该公钥将被永久删除。",
+        "removeSuccess": "公钥已删除",
+        "removeError": "删除公钥失败",
+        "empty": "暂无公钥",
+        "emptyDescription": "为该用户添加 SSH 公钥。"
       },
       "otpCred": {
         "add": "添加动态口令",
@@ -249,11 +273,14 @@
         "setupDescription": "使用认证器 App 扫描 URI。确认后，密钥将无法再次查看。",
         "provisioningUri": "配置 URI",
         "confirm": "确认并保存",
-        "addSuccess": "动态口令凭证已添加", "addError": "添加动态口令失败",
+        "addSuccess": "动态口令凭证已添加",
+        "addError": "添加动态口令失败",
         "removeTitle": "删除动态口令凭证？",
         "removeDescription": "用户将无法使用此 TOTP 凭证进行认证。",
-        "removeSuccess": "动态口令已删除", "removeError": "删除动态口令失败",
-        "empty": "暂无动态口令凭证", "emptyDescription": "为该用户添加 TOTP 认证器。"
+        "removeSuccess": "动态口令已删除",
+        "removeError": "删除动态口令失败",
+        "empty": "暂无动态口令凭证",
+        "emptyDescription": "为该用户添加 TOTP 认证器。"
       },
       "certificate": {
         "issue": "签发证书",
@@ -261,25 +288,39 @@
         "issueDescription": "提供标签和用户的 PEM 公钥以签发证书。",
         "issuedTitle": "证书已签发",
         "issuedDescription": "请立即保存此证书，离开后将无法再次查看。",
-        "issueSuccess": "证书签发成功", "issueError": "签发证书失败",
+        "issueSuccess": "证书签发成功",
+        "issueError": "签发证书失败",
         "revokeTitle": "吊销证书？",
         "revokeDescription": "该证书将被永久吊销，无法再使用。",
-        "revokeSuccess": "证书已吊销", "revokeError": "吊销证书失败",
-        "empty": "暂无证书", "emptyDescription": "为该用户签发证书凭证。"
+        "revokeSuccess": "证书已吊销",
+        "revokeError": "吊销证书失败",
+        "empty": "暂无证书",
+        "emptyDescription": "为该用户签发证书凭证。"
       },
       "ssoCred": {
-        "add": "添加 SSO", "addSuccess": "SSO 凭证添加成功", "addError": "添加 SSO 凭证失败",
-        "removeTitle": "删除 SSO 凭证？", "removeDescription": "该 SSO 凭证将被永久删除。",
-        "removeSuccess": "SSO 凭证已删除", "removeError": "删除 SSO 凭证失败",
-        "empty": "暂无 SSO 凭证", "emptyDescription": "为该用户添加 SSO 身份。"
+        "add": "添加 SSO",
+        "addSuccess": "SSO 凭证添加成功",
+        "addError": "添加 SSO 凭证失败",
+        "removeTitle": "删除 SSO 凭证？",
+        "removeDescription": "该 SSO 凭证将被永久删除。",
+        "removeSuccess": "SSO 凭证已删除",
+        "removeError": "删除 SSO 凭证失败",
+        "empty": "暂无 SSO 凭证",
+        "emptyDescription": "为该用户添加 SSO 身份。"
       },
       "role": {
-        "add": "添加角色", "addTitle": "添加角色", "addDescription": "选择要分配给该用户的角色。",
+        "add": "添加角色",
+        "addTitle": "添加角色",
+        "addDescription": "选择要分配给该用户的角色。",
         "noMore": "暂无可分配角色。",
-        "removeTitle": "移除角色？", "removeDescription": "该用户将失去此角色授予的访问权限。",
-        "addSuccess": "角色添加成功", "addError": "添加角色失败",
-        "removeSuccess": "角色已移除", "removeError": "移除角色失败",
-        "empty": "未分配角色", "emptyDescription": "分配角色以控制该用户的访问权限。"
+        "removeTitle": "移除角色？",
+        "removeDescription": "该用户将失去此角色授予的访问权限。",
+        "addSuccess": "角色添加成功",
+        "addError": "添加角色失败",
+        "removeSuccess": "角色已移除",
+        "removeError": "移除角色失败",
+        "empty": "未分配角色",
+        "emptyDescription": "分配角色以控制该用户的访问权限。"
       }
     }
   },
@@ -439,6 +480,87 @@
       "username": "用户",
       "message": "消息",
       "sessionId": "会话 ID"
+    }
+  },
+  "ldap": {
+    "description": "管理 LDAP 服务器连接，实现集中式身份认证",
+    "create": "添加 LDAP 服务器",
+    "created": "LDAP 服务器创建成功",
+    "createError": "创建 LDAP 服务器失败",
+    "updated": "LDAP 服务器更新成功",
+    "updateError": "更新 LDAP 服务器失败",
+    "deleted": "LDAP 服务器删除成功",
+    "deleteError": "删除 LDAP 服务器失败",
+    "deleteTitle": "删除 LDAP 服务器",
+    "deleteDescription": "确定要删除此 LDAP 服务器吗？此操作无法撤销。",
+    "notFound": "LDAP 服务器不存在",
+    "searchPlaceholder": "搜索 LDAP 服务器...",
+    "emptyTitle": "暂无 LDAP 服务器",
+    "emptyDescription": "添加一个 LDAP 服务器以启用目录认证。",
+    "columns": {
+      "name": "名称",
+      "host": "主机",
+      "tls": "TLS",
+      "status": "状态"
+    },
+    "status": {
+      "enabled": "已启用",
+      "disabled": "已禁用"
+    },
+    "sections": {
+      "connection": "连接信息",
+      "auth": "认证信息",
+      "search": "搜索配置"
+    },
+    "fields": {
+      "name": "服务器名称",
+      "host": "主机",
+      "port": "端口",
+      "tlsMode": "TLS 模式",
+      "tlsVerify": "验证 TLS 证书",
+      "description": "描述",
+      "bindDn": "Bind DN",
+      "bindPassword": "Bind 密码",
+      "bindPasswordHint": "（留空保持原密码不变）",
+      "userFilter": "用户过滤器",
+      "usernameAttribute": "用户名属性",
+      "sshKeyAttribute": "SSH 密钥属性",
+      "uuidAttribute": "UUID 属性",
+      "enabled": "启用",
+      "autoLinkSso": "自动关联 SSO 用户"
+    },
+    "placeholders": {
+      "name": "企业 LDAP",
+      "description": "可选描述"
+    },
+    "tls": {
+      "disabled": "禁用",
+      "preferred": "优先",
+      "required": "必须"
+    },
+    "test": {
+      "title": "连接测试",
+      "run": "测试连接",
+      "testing": "测试中...",
+      "baseDns": "Base DN 列表",
+      "error": "连接测试失败"
+    },
+    "users": {
+      "title": "LDAP 用户",
+      "load": "加载用户",
+      "empty": "未找到用户",
+      "searchPlaceholder": "搜索用户...",
+      "selectFirst": "请先选择要导入的用户",
+      "import": "导入（{{count}}）",
+      "importing": "导入中...",
+      "importSuccess": "成功导入 {{count}} 个用户",
+      "importError": "导入用户失败"
+    },
+    "userColumns": {
+      "username": "用户名",
+      "displayName": "显示名称",
+      "email": "邮箱",
+      "dn": "DN"
     }
   }
 }
