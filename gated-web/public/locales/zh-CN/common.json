@@ -6,5 +6,33 @@
     "dark": "深色",
     "system": "跟随系统",
     "toggle": "切换主题"
+  },
+  "actions": {
+    "create": "创建",
+    "edit": "编辑",
+    "delete": "删除",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "search": "搜索",
+    "back": "返回",
+    "loading": "加载中...",
+    "noData": "暂无数据"
+  },
+  "status": {
+    "active": "启用",
+    "inactive": "停用",
+    "enabled": "已启用",
+    "disabled": "已禁用"
+  },
+  "table": {
+    "search": "搜索...",
+    "noResults": "未找到结果。",
+    "pagination": "第 {{page}} 页，共 {{total}} 页",
+    "rowsPerPage": "每页行数"
+  },
+  "confirm": {
+    "deleteTitle": "删除确认",
+    "deleteDescription": "确定要删除此项吗？此操作无法撤销。"
   }
 }
