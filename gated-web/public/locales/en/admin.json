@@ -205,6 +205,84 @@
     "createTargetGroup": "Create Target Group",
     "configLayout": "Configuration"
   },
+  "users": {
+    "title": "Users",
+    "description": "Manage user accounts and credentials",
+    "create": "New User",
+    "created": "User created",
+    "createError": "Failed to create user",
+    "updated": "User updated",
+    "updateError": "Failed to update user",
+    "deleted": "User deleted",
+    "deleteError": "Failed to delete user",
+    "deleteTitle": "Delete User",
+    "deleteDescription": "This will permanently delete the user and all their credentials.",
+    "searchPlaceholder": "Search users...",
+    "notFound": "User not found",
+    "columns": { "username": "Username", "description": "Description", "ldap": "LDAP" },
+    "ldap": {
+      "title": "LDAP Link", "linked": "Linked", "notLinked": "Not linked to LDAP",
+      "unlink": "Unlink", "autoLink": "Auto-Link", "autoLinking": "Linking...",
+      "unlinkTitle": "Unlink from LDAP?",
+      "unlinkDescription": "This will remove the LDAP association. The user will no longer sync with LDAP.",
+      "autoLinkSuccess": "Auto-linked to LDAP", "autoLinkError": "Auto-link failed",
+      "unlinkSuccess": "Unlinked from LDAP", "unlinkError": "Unlink failed"
+    },
+    "credentials": {
+      "passwords": "Passwords", "publicKeys": "Public Keys", "otp": "OTP",
+      "certificates": "Certificates", "sso": "SSO", "roles": "Roles",
+      "password": {
+        "set": "Set Password", "setSuccess": "Password set", "setError": "Failed to set password",
+        "removeTitle": "Remove password?", "removeDescription": "The password credential will be deleted.",
+        "removeSuccess": "Password removed", "removeError": "Failed to remove password",
+        "empty": "No password set", "emptyDescription": "Set a password for this user."
+      },
+      "publicKey": {
+        "add": "Add Key", "addSuccess": "Public key added", "addError": "Failed to add public key",
+        "removeTitle": "Remove key?", "removeDescription": "This public key will be permanently removed.",
+        "removeSuccess": "Key removed", "removeError": "Failed to remove public key",
+        "empty": "No public keys", "emptyDescription": "Add an SSH public key for this user."
+      },
+      "otpCred": {
+        "add": "Add OTP",
+        "setupTitle": "Add TOTP Authenticator",
+        "setupDescription": "Scan the URI with your authenticator app. The secret cannot be retrieved after confirming.",
+        "provisioningUri": "Provisioning URI",
+        "confirm": "Confirm & Save",
+        "addSuccess": "OTP credential added", "addError": "Failed to add OTP credential",
+        "removeTitle": "Remove OTP credential?",
+        "removeDescription": "The user will no longer be able to authenticate with this TOTP credential.",
+        "removeSuccess": "OTP credential removed", "removeError": "Failed to remove OTP credential",
+        "empty": "No OTP credentials", "emptyDescription": "Add a TOTP authenticator for this user."
+      },
+      "certificate": {
+        "issue": "Issue Certificate",
+        "issueTitle": "Issue Certificate",
+        "issueDescription": "Provide a label and the user's public key PEM to issue a signed certificate.",
+        "issuedTitle": "Certificate Issued",
+        "issuedDescription": "Save this certificate now — it will not be shown again.",
+        "issueSuccess": "Certificate issued", "issueError": "Failed to issue certificate",
+        "revokeTitle": "Revoke certificate?",
+        "revokeDescription": "This certificate will be permanently revoked.",
+        "revokeSuccess": "Certificate revoked", "revokeError": "Failed to revoke certificate",
+        "empty": "No certificates", "emptyDescription": "Issue a certificate credential for this user."
+      },
+      "ssoCred": {
+        "add": "Add SSO", "addSuccess": "SSO credential added", "addError": "Failed to add SSO credential",
+        "removeTitle": "Remove SSO credential?", "removeDescription": "This SSO credential will be permanently removed.",
+        "removeSuccess": "SSO credential removed", "removeError": "Failed to remove SSO credential",
+        "empty": "No SSO credentials", "emptyDescription": "Add an SSO identity for this user."
+      },
+      "role": {
+        "add": "Add Role", "addTitle": "Add Role", "addDescription": "Select a role to assign to this user.",
+        "noMore": "No more roles available.",
+        "removeTitle": "Remove role?", "removeDescription": "The user will lose access granted by this role.",
+        "addSuccess": "Role added", "addError": "Failed to add role",
+        "removeSuccess": "Role removed", "removeError": "Failed to remove role",
+        "empty": "No roles assigned", "emptyDescription": "Assign roles to control what this user can access."
+      }
+    }
+  },
   "roles": {
     "name": "Name",
     "description": "Description",
