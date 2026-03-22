@@ -9,6 +9,7 @@ export const adminKeys = {
   sessionRecordings: (id: string) => ['admin', 'sessions', id, 'recordings'] as const,
   recordings: ['admin', 'recordings'] as const,
   recording: (id: string) => ['admin', 'recordings', id] as const,
+  recordingCast: (id: string) => ['admin', 'recordings', id, 'cast'] as const,
   targets: ['admin', 'targets'] as const,
   target: (id: string) => ['admin', 'targets', id] as const,
   users: ['admin', 'users'] as const,
@@ -78,6 +79,26 @@ export function useCleanSessionsMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'sessions'] })
     },
+  })
+}
+
+// ============================================================
+// Recordings
+// ============================================================
+
+export function useRecordingQuery(id: string) {
+  return useQuery({
+    queryKey: adminKeys.recording(id),
+    queryFn: () => api.getRecording(id),
+    enabled: !!id,
+  })
+}
+
+export function useRecordingCastQuery(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.recordingCast(id),
+    queryFn: () => api.getRecordingCast(id),
+    enabled: !!id && enabled,
   })
 }
 
