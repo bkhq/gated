@@ -137,6 +137,34 @@
       "copyKey": "复制公钥"
     }
   },
+  "tickets": {
+    "create": "创建工单",
+    "table": {
+      "id": "ID",
+      "username": "用户",
+      "target": "目标",
+      "description": "描述",
+      "usesLeft": "剩余次数",
+      "expiry": "过期时间",
+      "created": "创建时间"
+    },
+    "form": {
+      "username": "用户名",
+      "usernamePlaceholder": "输入用户名",
+      "targetName": "目标",
+      "targetNamePlaceholder": "输入目标名称",
+      "expiry": "过期时间（可选）",
+      "numberOfUses": "使用次数（可选）",
+      "numberOfUsesPlaceholder": "留空表示不限",
+      "description": "描述（可选）",
+      "descriptionPlaceholder": "输入描述"
+    },
+    "secret": {
+      "title": "工单已创建",
+      "warning": "请立即保存此密钥，离开页面后将无法再次查看。",
+      "label": "一次性密钥"
+    }
+  },
   "pages": {
     "sessions": "会话",
     "sessionDetail": "会话详情: {{id}}",
@@ -162,5 +190,32 @@
     "targetGroupDetail": "目标分组详情: {{id}}",
     "createTargetGroup": "创建目标分组",
     "configLayout": "配置"
+  },
+  "roles": {
+    "name": "名称",
+    "description": "描述",
+    "create": "创建角色",
+    "created": "角色创建成功",
+    "createError": "创建角色失败",
+    "updated": "角色更新成功",
+    "updateError": "更新角色失败",
+    "deleted": "角色删除成功",
+    "deleteError": "删除角色失败",
+    "deleteTitle": "删除角色",
+    "deleteDescription": "确定要删除此角色吗？此操作无法撤销。",
+    "searchPlaceholder": "搜索角色...",
+    "namePlaceholder": "请输入角色名称",
+    "descriptionPlaceholder": "请输入角色描述",
+    "tabInfo": "基本信息",
+    "tabUsers": "关联用户",
+    "tabTargets": "关联目标",
+    "searchUsers": "搜索用户...",
+    "searchTargets": "搜索目标...",
+    "usernameColumn": "用户名",
+    "descriptionColumn": "描述",
+    "targetNameColumn": "名称",
+    "targetKindColumn": "类型",
+    "notFound": "角色不存在",
+    "reset": "重置"
   }
 }

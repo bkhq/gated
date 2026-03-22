@@ -137,6 +137,34 @@
       "copyKey": "Copy public key"
     }
   },
+  "tickets": {
+    "create": "Create Ticket",
+    "table": {
+      "id": "ID",
+      "username": "User",
+      "target": "Target",
+      "description": "Description",
+      "usesLeft": "Uses Left",
+      "expiry": "Expiry",
+      "created": "Created"
+    },
+    "form": {
+      "username": "Username",
+      "usernamePlaceholder": "Enter username",
+      "targetName": "Target",
+      "targetNamePlaceholder": "Enter target name",
+      "expiry": "Expiry (optional)",
+      "numberOfUses": "Number of Uses (optional)",
+      "numberOfUsesPlaceholder": "Unlimited if empty",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "Enter description"
+    },
+    "secret": {
+      "title": "Ticket Created",
+      "warning": "Save this secret now. It will not be shown again once you leave this page.",
+      "label": "One-Time Secret"
+    }
+  },
   "pages": {
     "sessions": "Sessions",
     "sessionDetail": "Session Detail: {{id}}",
@@ -162,5 +190,32 @@
     "targetGroupDetail": "Target Group Detail: {{id}}",
     "createTargetGroup": "Create Target Group",
     "configLayout": "Configuration"
+  },
+  "roles": {
+    "name": "Name",
+    "description": "Description",
+    "create": "Create Role",
+    "created": "Role created successfully",
+    "createError": "Failed to create role",
+    "updated": "Role updated successfully",
+    "updateError": "Failed to update role",
+    "deleted": "Role deleted successfully",
+    "deleteError": "Failed to delete role",
+    "deleteTitle": "Delete Role",
+    "deleteDescription": "Are you sure you want to delete this role? This action cannot be undone.",
+    "searchPlaceholder": "Search roles...",
+    "namePlaceholder": "Enter role name",
+    "descriptionPlaceholder": "Enter role description",
+    "tabInfo": "Info",
+    "tabUsers": "Users",
+    "tabTargets": "Targets",
+    "searchUsers": "Search users...",
+    "searchTargets": "Search targets...",
+    "usernameColumn": "Username",
+    "descriptionColumn": "Description",
+    "targetNameColumn": "Name",
+    "targetKindColumn": "Type",
+    "notFound": "Role not found",
+    "reset": "Reset"
   }
 }
