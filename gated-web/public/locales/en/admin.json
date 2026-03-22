@@ -165,6 +165,20 @@
       "label": "One-Time Secret"
     }
   },
+  "recording": {
+    "title": "Recording",
+    "metadata": "Details",
+    "player": "Playback",
+    "loadError": "Failed to load recording",
+    "castError": "Failed to load recording data",
+    "fields": {
+      "type": "Type",
+      "kind": "Format",
+      "started": "Started",
+      "ended": "Ended",
+      "session": "Session ID"
+    }
+  },
   "pages": {
     "sessions": "Sessions",
     "sessionDetail": "Session Detail: {{id}}",
@@ -217,5 +231,27 @@
     "targetKindColumn": "Type",
     "notFound": "Role not found",
     "reset": "Reset"
+  },
+  "log": {
+    "title": "Audit Log",
+    "description": "View system audit logs and activity",
+    "autoRefreshOn": "Auto-refresh: On",
+    "autoRefreshOff": "Auto-refresh",
+    "last1h": "Last 1 hour",
+    "last24h": "Last 24 hours",
+    "last7d": "Last 7 days",
+    "all": "All time",
+    "filterByUser": "Filter by user...",
+    "search": "Search logs...",
+    "showing": "{{count}} entries",
+    "noLogs": "No log entries found",
+    "prev": "Previous",
+    "next": "Next",
+    "columns": {
+      "timestamp": "Timestamp",
+      "username": "User",
+      "message": "Message",
+      "sessionId": "Session ID"
+    }
   }
 }

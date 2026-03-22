@@ -165,6 +165,20 @@
       "label": "一次性密钥"
     }
   },
+  "recording": {
+    "title": "录制",
+    "metadata": "详情",
+    "player": "回放",
+    "loadError": "无法加载录制",
+    "castError": "无法加载录制数据",
+    "fields": {
+      "type": "类型",
+      "kind": "格式",
+      "started": "开始时间",
+      "ended": "结束时间",
+      "session": "会话 ID"
+    }
+  },
   "pages": {
     "sessions": "会话",
     "sessionDetail": "会话详情: {{id}}",
@@ -217,5 +231,27 @@
     "targetKindColumn": "类型",
     "notFound": "角色不存在",
     "reset": "重置"
+  },
+  "log": {
+    "title": "审计日志",
+    "description": "查看系统审计日志和操作记录",
+    "autoRefreshOn": "自动刷新: 开启",
+    "autoRefreshOff": "自动刷新",
+    "last1h": "最近 1 小时",
+    "last24h": "最近 24 小时",
+    "last7d": "最近 7 天",
+    "all": "全部",
+    "filterByUser": "按用户筛选...",
+    "search": "搜索日志...",
+    "showing": "共 {{count}} 条",
+    "noLogs": "暂无日志记录",
+    "prev": "上一页",
+    "next": "下一页",
+    "columns": {
+      "timestamp": "时间戳",
+      "username": "用户",
+      "message": "消息",
+      "sessionId": "会话 ID"
+    }
   }
 }
