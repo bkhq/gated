@@ -3,11 +3,15 @@
   "adminTitle": "Gated Admin",
   "nav": {
     "monitoring": "Monitoring",
-    "configuration": "Configuration"
+    "configuration": "Configuration",
+    "security": "Security",
+    "system": "System"
   },
   "user": {
     "profile": "Profile",
-    "logout": "Log out"
+    "adminPanel": "Admin Panel",
+    "logout": "Log out",
+    "logoutError": "Failed to log out, please try again"
   },
   "theme": {
     "light": "Light",

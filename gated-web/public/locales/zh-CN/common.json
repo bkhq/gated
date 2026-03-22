@@ -3,11 +3,15 @@
   "adminTitle": "Gated 管理",
   "nav": {
     "monitoring": "监控",
-    "configuration": "配置"
+    "configuration": "配置",
+    "security": "安全",
+    "system": "系统"
   },
   "user": {
     "profile": "个人中心",
-    "logout": "退出登录"
+    "adminPanel": "管理后台",
+    "logout": "退出登录",
+    "logoutError": "退出登录失败，请重试"
   },
   "theme": {
     "light": "浅色",
