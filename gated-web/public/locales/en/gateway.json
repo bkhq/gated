@@ -1,10 +1,41 @@
 {
   "pages": {
     "login": "Login",
+    "otp": "Two-Factor Authentication",
     "profile": "Profile",
     "credentials": "Credentials",
     "apiTokens": "API Tokens",
-    "targetList": "Target List",
+    "targetList": "Targets",
     "terminal": "Terminal: {{targetName}}"
+  },
+  "nav": {
+    "targets": "Targets",
+    "profile": "Profile",
+    "logout": "Log out",
+    "logoutError": "Failed to log out, please try again"
+  },
+  "login": {
+    "description": "Sign in to Gated",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "ssoSection": "Or sign in with SSO",
+    "loginWith": "Sign in with {{name}}",
+    "errors": {
+      "invalid": "Invalid username or password",
+      "failed": "Login failed, please try again",
+      "ssoFailed": "SSO login failed, please try again"
+    }
+  },
+  "otp": {
+    "title": "Two-Factor Authentication",
+    "description": "Enter the code from your authenticator app",
+    "code": "Verification code",
+    "submit": "Verify",
+    "back": "Back to login",
+    "errors": {
+      "invalid": "Invalid code, please try again",
+      "failed": "Verification failed, please try again"
+    }
   }
 }

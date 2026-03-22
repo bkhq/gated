@@ -1,6 +1,14 @@
 {
   "appName": "Gated",
   "adminTitle": "Gated Admin",
+  "nav": {
+    "monitoring": "Monitoring",
+    "configuration": "Configuration"
+  },
+  "user": {
+    "profile": "Profile",
+    "logout": "Log out"
+  },
   "theme": {
     "light": "Light",
     "dark": "Dark",

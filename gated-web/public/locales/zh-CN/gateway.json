@@ -1,10 +1,41 @@
 {
   "pages": {
     "login": "登录",
+    "otp": "二次验证",
     "profile": "个人中心",
     "credentials": "凭证",
     "apiTokens": "API 令牌",
-    "targetList": "目标列表",
+    "targetList": "目标",
     "terminal": "终端: {{targetName}}"
+  },
+  "nav": {
+    "targets": "目标",
+    "profile": "个人中心",
+    "logout": "退出登录",
+    "logoutError": "退出登录失败，请重试"
+  },
+  "login": {
+    "description": "登录到 Gated",
+    "username": "用户名",
+    "password": "密码",
+    "submit": "登录",
+    "ssoSection": "或通过 SSO 登录",
+    "loginWith": "使用 {{name}} 登录",
+    "errors": {
+      "invalid": "用户名或密码错误",
+      "failed": "登录失败，请重试",
+      "ssoFailed": "SSO 登录失败，请重试"
+    }
+  },
+  "otp": {
+    "title": "二次验证",
+    "description": "请输入验证器 App 中的验证码",
+    "code": "验证码",
+    "submit": "验证",
+    "back": "返回登录",
+    "errors": {
+      "invalid": "验证码错误，请重试",
+      "failed": "验证失败，请重试"
+    }
   }
 }

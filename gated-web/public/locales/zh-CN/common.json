@@ -1,6 +1,14 @@
 {
   "appName": "Gated",
   "adminTitle": "Gated 管理",
+  "nav": {
+    "monitoring": "监控",
+    "configuration": "配置"
+  },
+  "user": {
+    "profile": "个人中心",
+    "logout": "退出登录"
+  },
   "theme": {
     "light": "浅色",
     "dark": "深色",

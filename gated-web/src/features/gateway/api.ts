@@ -1,6 +1,5 @@
-// TanStack Query hooks for the gateway API
-// These will be populated once the OpenAPI client is generated.
-// Run `bun run openapi` to generate the client.
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, ResponseError } from '@/features/gateway/lib/api'
 
 export const gatewayKeys = {
   info: ['gateway', 'info'] as const,
@@ -10,6 +9,56 @@ export const gatewayKeys = {
   ssoProviders: ['gateway', 'sso-providers'] as const,
 }
 
-// TODO: Uncomment and implement once OpenAPI client is generated
-// import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-// import { api } from '@/features/gateway/lib/api'
+export function useInfoQuery() {
+  return useQuery({
+    queryKey: gatewayKeys.info,
+    queryFn: () => api.getInfo(),
+    retry: false,
+  })
+}
+
+export function useSsoProvidersQuery() {
+  return useQuery({
+    queryKey: gatewayKeys.ssoProviders,
+    queryFn: () => api.getSsoProviders(),
+    retry: false,
+  })
+}
+
+export function useLoginMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (req: { username: string; password: string }) => api.login(req),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
+    },
+  })
+}
+
+export function useOtpLoginMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (req: { otp: string }) => api.otpLogin(req),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
+    },
+  })
+}
+
+export function useLogoutMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.logout(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
+    },
+  })
+}
+
+export function useStartSsoMutation() {
+  return useMutation({
+    mutationFn: ({ name, next }: { name: string; next?: string }) => api.startSso(name, next),
+  })
+}
+
+export { ResponseError }
