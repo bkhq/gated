@@ -6,7 +6,7 @@ use gated_protocol_http::api;
 #[allow(clippy::unwrap_used)]
 pub fn main() {
     let api_service = OpenApiService::new(api::get(), "Gated HTTP proxy", gated_version())
-        .server("/@gated/api");
+        .server("/api");
 
     let spec = api_service.spec();
     let re = Regex::new(r"PaginatedResponse<(?P<name>\w+)>").unwrap();

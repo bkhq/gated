@@ -9,7 +9,7 @@ pub(crate) async fn command(params: &GlobalParams) -> Result<()> {
 
     let scheme = if config.store.http.tls { "https" } else { "http" };
     let url = format!(
-        "{}://{}/@gated/api/info",
+        "{}://{}/api/info",
         scheme,
         config.store.http.listen.address()
     );

@@ -97,7 +97,7 @@ export function Component() {
       <PageHeader
         title={t('pages.tickets')}
         actions={
-          <Button onClick={() => void navigate('/@gated/ui/admin/config/tickets/new')}>
+          <Button onClick={() => void navigate('/ui/admin/config/tickets/new')}>
             <Plus className="h-4 w-4 mr-2" />
             {t('tickets.create')}
           </Button>

@@ -41,7 +41,7 @@ export function Component() {
         description: values.description || undefined,
       })
       toast.success(`User "${user.username}" created`)
-      navigate(`/@gated/ui/admin/config/users/${user.id}`)
+      navigate(`/ui/admin/config/users/${user.id}`)
     } catch {
       toast.error('Failed to create user')
     }
@@ -90,7 +90,7 @@ export function Component() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/@gated/ui/admin/config/users')}
+                  onClick={() => navigate('/ui/admin/config/users')}
                 >
                   Cancel
                 </Button>

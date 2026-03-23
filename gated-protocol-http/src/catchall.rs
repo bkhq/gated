@@ -10,7 +10,7 @@ use crate::common::RequestAuthorization;
 use gated_common::http_headers::X_GATED_TARGET;
 
 pub fn target_select_redirect() -> Response {
-    Redirect::temporary("/@gated").into_response()
+    Redirect::temporary("/ui/").into_response()
 }
 
 #[handler]

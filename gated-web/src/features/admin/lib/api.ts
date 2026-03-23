@@ -1,7 +1,7 @@
 import { DefaultApi, Configuration, ResponseError } from './api-client/dist'
 
 const configuration = new Configuration({
-    basePath: '/@gated/admin/api',
+    basePath: '/admin/api',
 })
 
 export const api = new DefaultApi(configuration)

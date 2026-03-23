@@ -162,7 +162,7 @@ impl AuthState {
         config: &GatedConfig,
     ) -> Result<url::Url, GatedError> {
         let mut external_url = config.construct_external_url(None, None)?;
-        external_url.set_path("@gated");
+        external_url.set_path("");
         external_url.set_fragment(Some(&format!("/login/{}", self.id())));
         Ok(external_url)
     }

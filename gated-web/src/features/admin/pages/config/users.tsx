@@ -29,7 +29,7 @@ export function Component() {
       header: 'Username',
       cell: ({ row }) => (
         <Link
-          to={`/\@gated/admin/config/users/${row.original.id}`}
+          to={`/ui/admin/config/users/${row.original.id}`}
           className="font-medium hover:underline flex items-center gap-2"
         >
           <UserCircle className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -64,7 +64,7 @@ export function Component() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/\@gated/admin/config/users/${row.original.id}`)}>
+              <DropdownMenuItem onClick={() => navigate(`/ui/admin/config/users/${row.original.id}`)}>
                 View details
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -99,7 +99,7 @@ export function Component() {
         description="Manage user accounts and credentials"
         actions={
           <Button asChild>
-            <Link to="/@gated/ui/admin/config/users/new">
+            <Link to="/ui/admin/config/users/new">
               <Plus className="h-4 w-4 mr-2" />
               New User
             </Link>

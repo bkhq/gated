@@ -34,7 +34,7 @@ export function UserMenu({ variant = 'button' }: UserMenuProps) {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         clearAuth()
-        void navigate('/@gated/ui/login')
+        void navigate('/ui/login')
       },
       onError: () => {
         toast.error(t('user.logoutError'))
@@ -49,14 +49,14 @@ export function UserMenu({ variant = 'button' }: UserMenuProps) {
       className="w-56"
     >
       <DropdownMenuItem asChild>
-        <Link to="/@gated/ui/profile">
+        <Link to="/ui/profile">
           <User className="mr-2 size-4" />
           {t('user.profile')}
         </Link>
       </DropdownMenuItem>
       {isAdmin && (
         <DropdownMenuItem asChild>
-          <Link to="/@gated/ui/admin">
+          <Link to="/ui/admin">
             <ShieldCheck className="mr-2 size-4" />
             {t('user.adminPanel')}
             <ExternalLink className="ml-auto size-3.5 text-muted-foreground" />

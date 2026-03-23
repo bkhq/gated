@@ -970,7 +970,7 @@ export function Component() {
     try {
       await deleteUser.mutateAsync(user.id)
       toast.success(`User "${user.username}" deleted`)
-      navigate('/@gated/ui/admin/config/users')
+      navigate('/ui/admin/config/users')
     } catch {
       toast.error('Failed to delete user')
     }

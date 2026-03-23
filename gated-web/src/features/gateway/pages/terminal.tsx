@@ -14,7 +14,7 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 function buildWsUrl(targetName: string): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  return `${protocol}//${host}/@gated/api/targets/${encodeURIComponent(targetName)}/terminal`
+  return `${protocol}//${host}/api/targets/${encodeURIComponent(targetName)}/terminal`
 }
 
 export function Component() {

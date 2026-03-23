@@ -26,7 +26,7 @@ export function Component() {
   const location = useLocation()
   const setAuth = useAuthStore(s => s.setAuth)
 
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/@gated/ui'
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/ui'
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -48,7 +48,7 @@ export function Component() {
           try {
             const body = await err.response.json() as LoginFailureResponse
             if (body.state === 'OtpNeeded') {
-              void navigate('/@gated/ui/otp', { state: { username: values.username, from } })
+              void navigate('/ui/otp', { state: { username: values.username, from } })
               return
             }
           } catch {

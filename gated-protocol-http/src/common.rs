@@ -283,7 +283,7 @@ pub fn gateway_redirect(req: &Request) -> Response {
         .unwrap_or_else(|| "".into());
 
     let path = format!(
-        "/@gated#/login?next={}",
+        "/ui/#/login?next={}",
         utf8_percent_encode(&path, NON_ALPHANUMERIC),
     );
 

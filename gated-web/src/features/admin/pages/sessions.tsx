@@ -79,7 +79,7 @@ export function Component() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`/@gated/ui/admin/sessions/${session.id}`)}
+              onClick={() => navigate(`/ui/admin/sessions/${session.id}`)}
               title={t('sessions.actions.viewDetail')}
             >
               <Eye className="h-4 w-4" />

@@ -64,7 +64,7 @@ impl Api {
             Some(req),
             provider_config.return_domain_whitelist.as_deref(),
         )?;
-        return_url.set_path("@gated/api/sso/return");
+        return_url.set_path("api/sso/return");
         debug!("Return URL: {}", &return_url);
 
         let client = SsoClient::new(provider_config.provider.clone())?;

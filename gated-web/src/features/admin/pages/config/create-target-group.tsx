@@ -55,7 +55,7 @@ export function Component() {
         color: (values.color as BootstrapThemeColor) || undefined,
       })
       toast.success(`Target group "${group.name}" created`)
-      navigate(`/@gated/ui/admin/config/target-groups/${group.id}`)
+      navigate(`/ui/admin/config/target-groups/${group.id}`)
     } catch {
       toast.error('Failed to create target group')
     }
@@ -127,7 +127,7 @@ export function Component() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/@gated/ui/admin/config/target-groups')}
+                  onClick={() => navigate('/ui/admin/config/target-groups')}
                 >
                   Cancel
                 </Button>

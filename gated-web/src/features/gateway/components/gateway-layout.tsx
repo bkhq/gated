@@ -23,21 +23,21 @@ export function GatewayLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <header className="border-b border-border px-6 h-14 flex items-center gap-4">
-        <Link to="/@gated/ui" className="text-lg font-heading font-semibold shrink-0 mr-2">
+        <Link to="/ui" className="text-lg font-heading font-semibold shrink-0 mr-2">
           {t('common:appName')}
         </Link>
 
         {isAuthenticated && (
           <nav className="flex items-center gap-1">
-            <NavLink to="/@gated/ui" end className={navLinkClass}>
+            <NavLink to="/ui" end className={navLinkClass}>
               <Server className="size-4" />
               <span>{t('gateway:nav.targets')}</span>
             </NavLink>
-            <NavLink to="/@gated/ui/profile" end className={navLinkClass}>
+            <NavLink to="/ui/profile" end className={navLinkClass}>
               <User className="size-4" />
               <span>{t('gateway:nav.profile')}</span>
             </NavLink>
-            <NavLink to="/@gated/ui/profile/api-tokens" className={navLinkClass}>
+            <NavLink to="/ui/profile/api-tokens" className={navLinkClass}>
               <Key className="size-4" />
               <span>{t('gateway:pages.apiTokens')}</span>
             </NavLink>
