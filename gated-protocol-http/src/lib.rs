@@ -6,6 +6,7 @@ mod error;
 mod middleware;
 mod session;
 mod session_handle;
+mod spa;
 
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -15,7 +16,8 @@ use anyhow::{Context, Result};
 use common::{inject_request_authorization, page_admin_auth};
 pub use common::{SsoLoginState, PROTOCOL_NAME};
 use http::HeaderValue;
-use poem::endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint};
+use poem::endpoint::EmbeddedFileEndpoint;
+use crate::spa::SpaEndpoint;
 use poem::listener::{Listener, RustlsConfig};
 use poem::middleware::SetHeader;
 use poem::session::{CookieConfig, MemoryStorage, ServerSession};
@@ -185,15 +187,7 @@ impl ProtocolServer for HTTPProtocolServer {
             )
             .nest_no_strip(
                 "/ui",
-                Route::new()
-                    .nest_no_strip(
-                        "/",
-                        EmbeddedFilesEndpoint::<Assets>::new(),
-                    )
-                    .at(
-                        "*",
-                        EmbeddedFileEndpoint::<Assets>::new("index.html"),
-                    ),
+                SpaEndpoint::new(),
             )
             .at(
                 "/api/ssh/terminal/:target_name",
