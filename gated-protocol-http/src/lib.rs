@@ -185,7 +185,7 @@ impl ProtocolServer for HTTPProtocolServer {
                 "/admin/api",
                 endpoint_auth(endpoint_admin_auth(admin_api_app)).with(cache_bust()),
             )
-            .nest_no_strip(
+            .nest(
                 "/ui",
                 SpaEndpoint::new(),
             )
