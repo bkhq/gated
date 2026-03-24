@@ -39,6 +39,7 @@ impl SetupState {
 pub struct Info {
     version: Option<String>,
     username: Option<String>,
+    admin: bool,
     selected_target: Option<String>,
     external_host: Option<String>,
     ports: PortsInfo,
@@ -80,31 +81,30 @@ impl Api {
                 .context("loading parameters")?
         };
 
-        let setup_state = {
+        let user_is_admin = if let Some(auth) = &request_authorization {
+            is_user_admin(req, auth).await?
+        } else {
+            false
+        };
+
+        let setup_state = if user_is_admin {
             let (users, targets) = {
                 let mut p = services.config_provider.lock().await;
                 let users = p.list_users().await?;
                 let targets = p.list_targets().await?;
                 (users, targets)
             };
-            let user_is_admin = if let Some(auth) = &request_authorization {
-                is_user_admin(req, auth).await?
-            } else {
-                false
+            let state = SetupState {
+                has_targets: targets.len() > 1,
+                has_users: users.len() > 1,
             };
-            if user_is_admin {
-                let state = SetupState {
-                    has_targets: targets.len() > 1,
-                    has_users: users.len() > 1,
-                };
-                if !state.completed() {
-                    Some(state)
-                } else {
-                    None
-                }
+            if !state.completed() {
+                Some(state)
             } else {
                 None
             }
+        } else {
+            None
         };
 
         let has_ldap = LdapServer::Entity::find()
@@ -118,6 +118,7 @@ impl Api {
                 .is_some()
                 .then(|| gated_version().to_string()),
             username: session.get_username(),
+            admin: user_is_admin,
             selected_target: session.get_target_name(),
             external_host,
             minimize_password_login: parameters.minimize_password_login,

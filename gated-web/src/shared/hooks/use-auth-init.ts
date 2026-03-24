@@ -10,7 +10,7 @@ export function useAuthInit() {
     if (infoQuery.isSuccess) {
       const info = infoQuery.data
       if (info.username) {
-        setAuth(info.username, false)
+        setAuth(info.username, info.admin ?? false)
       } else {
         clearAuth()
       }
