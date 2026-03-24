@@ -197,6 +197,15 @@ impl ProtocolServer for HTTPProtocolServer {
                 "/api/auth/web-auth-requests/stream",
                 endpoint_auth(api::auth::api_get_web_auth_requests_stream),
             )
+            .nest_no_strip(
+                "/",
+                page_auth(catchall::catchall_endpoint).around(move |ep, req| async move {
+                    Ok(match ep.call(req).await {
+                        Ok(response) => response.into_response(),
+                        Err(error) => error_page(error).into_response(),
+                    })
+                }),
+            )
             .around({
                 let services = services_for_routes.clone();
                 move |ep, req| {
