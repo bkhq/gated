@@ -188,6 +188,12 @@ async fn _main() -> Result<()> {
 
 #[tokio::main]
 async fn main() {
+    // On panic: print error and exit cleanly (no core dump)
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("fatal: {info}");
+        std::process::exit(1);
+    }));
+
     if let Err(error) = _main().await {
         error!(?error, "Fatal error");
         std::process::exit(1);
