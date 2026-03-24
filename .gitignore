@@ -39,3 +39,6 @@ cdx.xml
 # Environment
 .env
 .env.*
+
+# Claude Code
+.claude/

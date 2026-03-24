@@ -193,7 +193,7 @@ export function buildRequest(values: FormValues): TargetDataRequest {
   const base = {
     name: values.name,
     description: values.description || undefined,
-    group_id: values.group_id || undefined,
+    group_id: (values.group_id && values.group_id !== '__none__') ? values.group_id : undefined,
     rate_limit_bytes_per_second: values.rate_limit ? parseInt(values.rate_limit, 10) : undefined,
   }
 
@@ -422,7 +422,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">No group</SelectItem>
+                  <SelectItem value="__none__">No group</SelectItem>
                   {groups.map(g => (
                     <SelectItem key={g.id} value={g.id}>
                       {g.name}

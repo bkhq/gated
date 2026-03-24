@@ -69,6 +69,7 @@ export interface SetupState {
 export interface Info {
   version?: string
   username?: string
+  admin?: boolean
   selected_target?: string
   external_host?: string
   ports: PortsInfo
