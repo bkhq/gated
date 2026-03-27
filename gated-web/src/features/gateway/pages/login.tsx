@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router'
+import { Navigate, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { ResponseError, useLoginMutation, useSsoProvidersQuery, useStartSsoMutation } from '@/features/gateway/api'
@@ -25,7 +25,7 @@ export function Component() {
   const { t } = useTranslation(['gateway', 'common'])
   const navigate = useNavigate()
   const location = useLocation()
-  const setAuth = useAuthStore(s => s.setAuth)
+  const { isAuthenticated, setAuth } = useAuthStore()
 
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/ui'
 
@@ -37,6 +37,10 @@ export function Component() {
   const loginMutation = useLoginMutation()
   const startSsoMutation = useStartSsoMutation()
   const ssoProvidersQuery = useSsoProvidersQuery()
+
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />
+  }
 
   async function onSubmit(values: LoginForm) {
     try {
@@ -79,7 +83,7 @@ export function Component() {
   const ssoProviders = ssoProvidersQuery.data ?? []
 
   return (
-    <div className="flex items-center justify-center min-h-[70vh]">
+    <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-sm shadow-lg border-border/60">
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-3">

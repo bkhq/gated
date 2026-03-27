@@ -209,6 +209,7 @@
     "title": "Users",
     "description": "Manage user accounts and credentials",
     "create": "New User",
+    "createDescription": "Add a new user account",
     "created": "User created",
     "createError": "Failed to create user",
     "updated": "User updated",
@@ -219,6 +220,16 @@
     "deleteDescription": "This will permanently delete the user and all their credentials.",
     "searchPlaceholder": "Search users...",
     "notFound": "User not found",
+    "editUser": "Edit User",
+    "deleteUser": "Delete User",
+    "fields": {
+      "username": "Username",
+      "usernamePlaceholder": "e.g. alice",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "rateLimit": "Rate Limit (B/s)",
+      "rateLimitPlaceholder": "Unlimited"
+    },
     "columns": {
       "username": "Username",
       "description": "Description",
@@ -247,6 +258,8 @@
       "roles": "Roles",
       "password": {
         "set": "Set Password",
+        "label": "Password",
+        "placeholder": "New password",
         "setSuccess": "Password set",
         "setError": "Failed to set password",
         "removeTitle": "Remove password?",
@@ -258,6 +271,11 @@
       },
       "publicKey": {
         "add": "Add Key",
+        "addTitle": "Add Public Key",
+        "label": "Label",
+        "opensshKey": "OpenSSH Public Key",
+        "copyKey": "Copy key",
+        "lastUsed": "Last used:",
         "addSuccess": "Public key added",
         "addError": "Failed to add public key",
         "removeTitle": "Remove key?",
@@ -270,9 +288,11 @@
       "otpCred": {
         "add": "Add OTP",
         "setupTitle": "Add TOTP Authenticator",
-        "setupDescription": "Scan the URI with your authenticator app. The secret cannot be retrieved after confirming.",
+        "setupDescription": "Scan the URI with your authenticator app or copy it manually. After confirming, the secret cannot be retrieved again.",
         "provisioningUri": "Provisioning URI",
         "confirm": "Confirm & Save",
+        "afterConfirm": "After clicking \"Confirm\", the secret is stored. Make sure the user has scanned this URI first.",
+        "copyUri": "Copy URI",
         "addSuccess": "OTP credential added",
         "addError": "Failed to add OTP credential",
         "removeTitle": "Remove OTP credential?",
@@ -288,10 +308,18 @@
         "issueDescription": "Provide a label and the user's public key PEM to issue a signed certificate.",
         "issuedTitle": "Certificate Issued",
         "issuedDescription": "Save this certificate now — it will not be shown again.",
+        "label": "Label",
+        "publicKeyPem": "Public Key (PEM)",
+        "certificatePem": "Certificate PEM",
+        "fingerprint": "Fingerprint:",
+        "dateAdded": "Added:",
+        "copyCert": "Copy certificate",
+        "issuing": "Issuing...",
+        "issueButton": "Issue",
         "issueSuccess": "Certificate issued",
         "issueError": "Failed to issue certificate",
         "revokeTitle": "Revoke certificate?",
-        "revokeDescription": "This certificate will be permanently revoked.",
+        "revokeDescription": "This certificate will be permanently revoked and can no longer be used.",
         "revokeSuccess": "Certificate revoked",
         "revokeError": "Failed to revoke certificate",
         "empty": "No certificates",
@@ -299,6 +327,10 @@
       },
       "ssoCred": {
         "add": "Add SSO",
+        "addTitle": "Add SSO Credential",
+        "email": "Email",
+        "provider": "Provider (optional)",
+        "adding": "Adding...",
         "addSuccess": "SSO credential added",
         "addError": "Failed to add SSO credential",
         "removeTitle": "Remove SSO credential?",
@@ -390,14 +422,18 @@
     "form": {
       "type": "Type",
       "name": "Name",
+      "nameRequired": "Name is required",
       "namePlaceholder": "e.g. prod-server",
       "description": "Description",
       "descriptionPlaceholder": "Optional description",
       "group": "Group",
+      "noGroup": "No group",
       "rateLimit": "Rate Limit (bytes/s)",
-      "rateLimitPlaceholder": "Unlimited"
+      "rateLimitPlaceholder": "Unlimited",
+      "optionalPlaceholder": "Optional"
     },
     "ssh": {
+      "section": "SSH Connection",
       "host": "Host",
       "port": "Port",
       "username": "Username",
@@ -408,6 +444,7 @@
       "password": "Password"
     },
     "kubernetes": {
+      "section": "Kubernetes Connection",
       "clusterUrl": "Cluster URL",
       "clusterUrlPlaceholder": "https://kubernetes.example.com:6443",
       "auth": "Authentication",
@@ -418,6 +455,7 @@
       "privateKey": "Private Key (PEM)"
     },
     "mysql": {
+      "section": "MySQL Connection",
       "host": "Host",
       "port": "Port",
       "username": "Username",
@@ -425,6 +463,7 @@
       "defaultDatabase": "Default Database"
     },
     "postgres": {
+      "section": "PostgreSQL Connection",
       "host": "Host",
       "port": "Port",
       "username": "Username",
@@ -434,6 +473,7 @@
       "defaultDatabase": "Default Database"
     },
     "api": {
+      "section": "API Connection",
       "url": "URL",
       "urlPlaceholder": "https://api.example.com"
     },
@@ -562,5 +602,51 @@
       "email": "Email",
       "dn": "DN"
     }
+  },
+  "targetGroups": {
+    "title": "Target Groups",
+    "description": "Organize targets into named groups",
+    "create": "New Group",
+    "created": "Target group \"{{name}}\" created",
+    "createError": "Failed to create target group",
+    "updated": "Target group updated",
+    "updateError": "Failed to update target group",
+    "deleted": "Target group \"{{name}}\" deleted",
+    "deleteError": "Failed to delete target group",
+    "deleteTitle": "Delete group \"{{name}}\"?",
+    "deleteDescription": "This will permanently delete the target group.",
+    "deleteDescriptionDetail": "This will permanently delete the target group. Targets in this group will not be deleted.",
+    "searchPlaceholder": "Search target groups...",
+    "notFound": "Target group not found.",
+    "noTargets": "No targets in this group.",
+    "searchTargets": "Search targets...",
+    "groupSettings": "Group Settings",
+    "associatedTargets": "Associated Targets",
+    "deleteGroup": "Delete Group",
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "color": "Color",
+      "type": "Type"
+    },
+    "actions": {
+      "viewDetails": "View details"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "e.g. production-servers",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "color": "Color",
+      "colorPlaceholder": "No color",
+      "colorSelectPlaceholder": "Select a color (optional)",
+      "nameRequired": "Name is required"
+    },
+    "createTitle": "Create Target Group",
+    "createDescription": "Add a new target group",
+    "createButton": "Create Group",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "saving": "Saving..."
   }
 }

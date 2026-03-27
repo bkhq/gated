@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -113,6 +114,8 @@ const editSchema = z.object({
 type EditFormValues = z.infer<typeof editSchema>
 
 function EditUserCard({ userId }: { userId: string }) {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { data: user, isLoading } = useUser(userId)
   const updateUser = useUpdateUser(userId)
 
@@ -139,10 +142,10 @@ function EditUserCard({ userId }: { userId: string }) {
             ? undefined
             : Number(values.rate_limit_bytes_per_second),
       })
-      toast.success('User updated')
+      toast.success(t('users.updated'))
     }
     catch {
-      toast.error('Failed to update user')
+      toast.error(t('users.updateError'))
     }
   }
 
@@ -154,7 +157,7 @@ function EditUserCard({ userId }: { userId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <UserCog className="h-4 w-4" />
-          Edit User
+          {t('users.editUser')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -166,7 +169,7 @@ function EditUserCard({ userId }: { userId: string }) {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>{t('users.fields.username')}</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -177,9 +180,9 @@ function EditUserCard({ userId }: { userId: string }) {
                 name="rate_limit_bytes_per_second"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rate Limit (B/s)</FormLabel>
+                    <FormLabel>{t('users.fields.rateLimit')}</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Unlimited" {...field} value={field.value ?? ''} />
+                      <Input type="number" placeholder={t('users.fields.rateLimitPlaceholder')} {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -191,7 +194,7 @@ function EditUserCard({ userId }: { userId: string }) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>{t('users.fields.description')}</FormLabel>
                   <FormControl><Textarea rows={2} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -199,7 +202,7 @@ function EditUserCard({ userId }: { userId: string }) {
             />
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={updateUser.isPending}>
-                {updateUser.isPending ? 'Saving...' : 'Save Changes'}
+                {updateUser.isPending ? tc('actions.loading') : tc('actions.save')}
               </Button>
             </div>
           </form>
@@ -212,6 +215,7 @@ function EditUserCard({ userId }: { userId: string }) {
 // ─── LDAP Card ────────────────────────────────────────────────────────────────
 
 function LdapCard({ userId }: { userId: string }) {
+  const { t } = useTranslation('admin')
   const { data: user } = useUser(userId)
   const unlink = useUnlinkUserFromLdapMutation()
   const autoLink = useAutoLinkUserToLdapMutation()
@@ -220,20 +224,20 @@ function LdapCard({ userId }: { userId: string }) {
   async function handleAutoLink() {
     try {
       await autoLink.mutateAsync(userId)
-      toast.success('Auto-linked to LDAP')
+      toast.success(t('users.ldap.autoLinkSuccess'))
     }
     catch {
-      toast.error('Auto-link failed')
+      toast.error(t('users.ldap.autoLinkError'))
     }
   }
 
   async function handleUnlink() {
     try {
       await unlink.mutateAsync(userId)
-      toast.success('Unlinked from LDAP')
+      toast.success(t('users.ldap.unlinkSuccess'))
     }
     catch {
-      toast.error('Unlink failed')
+      toast.error(t('users.ldap.unlinkError'))
     }
     finally {
       setConfirmUnlink(false)
@@ -245,7 +249,7 @@ function LdapCard({ userId }: { userId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Link2 className="h-4 w-4" />
-          LDAP Link
+          {t('users.ldap.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -253,21 +257,21 @@ function LdapCard({ userId }: { userId: string }) {
           ? (
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">Linked</p>
+                  <p className="text-sm font-medium">{t('users.ldap.linked')}</p>
                   <p className="text-xs text-muted-foreground font-mono">{user.ldap_server_id}</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setConfirmUnlink(true)}>
                   <Link2Off className="h-4 w-4 mr-2" />
-                  Unlink
+                  {t('users.ldap.unlink')}
                 </Button>
               </div>
             )
           : (
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Not linked to LDAP</p>
+                <p className="text-sm text-muted-foreground">{t('users.ldap.notLinked')}</p>
                 <Button variant="outline" size="sm" onClick={() => void handleAutoLink()} disabled={autoLink.isPending}>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  {autoLink.isPending ? 'Linking...' : 'Auto-Link'}
+                  {autoLink.isPending ? t('users.ldap.autoLinking') : t('users.ldap.autoLink')}
                 </Button>
               </div>
             )}
@@ -275,9 +279,9 @@ function LdapCard({ userId }: { userId: string }) {
       <ConfirmDialog
         open={confirmUnlink}
         onOpenChange={setConfirmUnlink}
-        title="Unlink from LDAP?"
-        description="This will remove the LDAP association. The user will no longer sync with LDAP."
-        confirmLabel="Unlink"
+        title={t('users.ldap.unlinkTitle')}
+        description={t('users.ldap.unlinkDescription')}
+        confirmLabel={t('users.ldap.unlink')}
         onConfirm={() => void handleUnlink()}
       />
     </Card>
@@ -292,6 +296,8 @@ const passwordSchema = z.object({
 type PasswordFormValues = z.infer<typeof passwordSchema>
 
 function PasswordsTab({ userId }: { userId: string }) {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { data: credentials, isLoading } = usePasswordCredentials(userId)
   const createCred = useCreatePasswordCredential(userId)
   const deleteCred = useDeletePasswordCredential(userId)
@@ -306,12 +312,12 @@ function PasswordsTab({ userId }: { userId: string }) {
   async function onSubmit(values: PasswordFormValues) {
     try {
       await createCred.mutateAsync({ password: values.password })
-      toast.success('Password set')
+      toast.success(t('users.credentials.password.setSuccess'))
       form.reset()
       setDialogOpen(false)
     }
     catch {
-      toast.error('Failed to set password')
+      toast.error(t('users.credentials.password.setError'))
     }
   }
 
@@ -320,10 +326,10 @@ function PasswordsTab({ userId }: { userId: string }) {
       return
     try {
       await deleteCred.mutateAsync(deleteId)
-      toast.success('Password removed')
+      toast.success(t('users.credentials.password.removeSuccess'))
     }
     catch {
-      toast.error('Failed to remove password')
+      toast.error(t('users.credentials.password.removeError'))
     }
     finally {
       setDeleteId(null)
@@ -338,13 +344,13 @@ function PasswordsTab({ userId }: { userId: string }) {
       <div className="flex justify-end">
         <Button size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Set Password
+          {t('users.credentials.password.set')}
         </Button>
       </div>
 
       {!credentials || credentials.length === 0
         ? (
-            <EmptyState icon={KeyRound} title="No password set" description="Set a password for this user." />
+            <EmptyState icon={KeyRound} title={t('users.credentials.password.empty')} description={t('users.credentials.password.emptyDescription')} />
           )
         : (
             <div className="space-y-2">
@@ -364,7 +370,7 @@ function PasswordsTab({ userId }: { userId: string }) {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Set Password</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('users.credentials.password.set')}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
@@ -372,15 +378,15 @@ function PasswordsTab({ userId }: { userId: string }) {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl><Input type="password" placeholder="New password" {...field} /></FormControl>
+                    <FormLabel>{t('users.credentials.password.label')}</FormLabel>
+                    <FormControl><Input type="password" placeholder={t('users.credentials.password.placeholder')} {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? 'Saving...' : 'Save'}</Button>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{tc('actions.cancel')}</Button>
+                <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? tc('actions.loading') : tc('actions.save')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -390,9 +396,9 @@ function PasswordsTab({ userId }: { userId: string }) {
       <ConfirmDialog
         open={deleteId != null}
         onOpenChange={open => !open && setDeleteId(null)}
-        title="Remove password?"
-        description="The password credential will be deleted."
-        confirmLabel="Remove"
+        title={t('users.credentials.password.removeTitle')}
+        description={t('users.credentials.password.removeDescription')}
+        confirmLabel={tc('actions.delete')}
         onConfirm={() => void handleDelete()}
       />
     </div>
@@ -408,6 +414,8 @@ const ssoSchema = z.object({
 type SsoFormValues = z.infer<typeof ssoSchema>
 
 function SsoTab({ userId }: { userId: string }) {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { data: credentials, isLoading } = useSsoCredentials(userId)
   const createCred = useCreateSsoCredential(userId)
   const deleteCred = useDeleteSsoCredential(userId)
@@ -422,12 +430,12 @@ function SsoTab({ userId }: { userId: string }) {
   async function onSubmit(values: SsoFormValues) {
     try {
       await createCred.mutateAsync({ email: values.email, provider: values.provider != null && values.provider !== '' ? values.provider : undefined })
-      toast.success('SSO credential added')
+      toast.success(t('users.credentials.ssoCred.addSuccess'))
       form.reset()
       setDialogOpen(false)
     }
     catch {
-      toast.error('Failed to add SSO credential')
+      toast.error(t('users.credentials.ssoCred.addError'))
     }
   }
 
@@ -436,10 +444,10 @@ function SsoTab({ userId }: { userId: string }) {
       return
     try {
       await deleteCred.mutateAsync(deleteTarget.id)
-      toast.success('SSO credential removed')
+      toast.success(t('users.credentials.ssoCred.removeSuccess'))
     }
     catch {
-      toast.error('Failed to remove SSO credential')
+      toast.error(t('users.credentials.ssoCred.removeError'))
     }
     finally {
       setDeleteTarget(null)
@@ -454,13 +462,13 @@ function SsoTab({ userId }: { userId: string }) {
       <div className="flex justify-end">
         <Button size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add SSO
+          {t('users.credentials.ssoCred.add')}
         </Button>
       </div>
 
       {!credentials || credentials.length === 0
         ? (
-            <EmptyState icon={Mail} title="No SSO credentials" description="Add an SSO identity for this user." />
+            <EmptyState icon={Mail} title={t('users.credentials.ssoCred.empty')} description={t('users.credentials.ssoCred.emptyDescription')} />
           )
         : (
             <div className="space-y-2">
@@ -481,7 +489,7 @@ function SsoTab({ userId }: { userId: string }) {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add SSO Credential</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('users.credentials.ssoCred.addTitle')}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
@@ -489,7 +497,7 @@ function SsoTab({ userId }: { userId: string }) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('users.credentials.ssoCred.email')}</FormLabel>
                     <FormControl><Input type="email" placeholder="user@example.com" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -500,15 +508,15 @@ function SsoTab({ userId }: { userId: string }) {
                 name="provider"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Provider (optional)</FormLabel>
+                    <FormLabel>{t('users.credentials.ssoCred.provider')}</FormLabel>
                     <FormControl><Input placeholder="e.g. google, github" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? 'Adding...' : 'Add'}</Button>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{tc('actions.cancel')}</Button>
+                <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? t('users.credentials.ssoCred.adding') : tc('actions.add')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -518,9 +526,9 @@ function SsoTab({ userId }: { userId: string }) {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={open => !open && setDeleteTarget(null)}
-        title={`Remove SSO credential "${deleteTarget?.email}"?`}
-        description="This SSO credential will be permanently removed."
-        confirmLabel="Remove"
+        title={t('users.credentials.ssoCred.removeTitle')}
+        description={t('users.credentials.ssoCred.removeDescription')}
+        confirmLabel={tc('actions.delete')}
         onConfirm={() => void handleDelete()}
       />
     </div>
@@ -536,6 +544,8 @@ const publicKeySchema = z.object({
 type PublicKeyFormValues = z.infer<typeof publicKeySchema>
 
 function PublicKeysTab({ userId }: { userId: string }) {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { data: credentials, isLoading } = usePublicKeyCredentials(userId)
   const createCred = useCreatePublicKeyCredential(userId)
   const deleteCred = useDeletePublicKeyCredential(userId)
@@ -550,12 +560,12 @@ function PublicKeysTab({ userId }: { userId: string }) {
   async function onSubmit(values: PublicKeyFormValues) {
     try {
       await createCred.mutateAsync(values)
-      toast.success('Public key added')
+      toast.success(t('users.credentials.publicKey.addSuccess'))
       form.reset()
       setDialogOpen(false)
     }
     catch {
-      toast.error('Failed to add public key')
+      toast.error(t('users.credentials.publicKey.addError'))
     }
   }
 
@@ -564,10 +574,10 @@ function PublicKeysTab({ userId }: { userId: string }) {
       return
     try {
       await deleteCred.mutateAsync(deleteTarget.id)
-      toast.success(`Key "${deleteTarget.label}" removed`)
+      toast.success(t('users.credentials.publicKey.removeSuccess'))
     }
     catch {
-      toast.error('Failed to remove public key')
+      toast.error(t('users.credentials.publicKey.removeError'))
     }
     finally {
       setDeleteTarget(null)
@@ -582,13 +592,13 @@ function PublicKeysTab({ userId }: { userId: string }) {
       <div className="flex justify-end">
         <Button size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Key
+          {t('users.credentials.publicKey.add')}
         </Button>
       </div>
 
       {!credentials || credentials.length === 0
         ? (
-            <EmptyState icon={ShieldCheck} title="No public keys" description="Add an SSH public key for this user." />
+            <EmptyState icon={ShieldCheck} title={t('users.credentials.publicKey.empty')} description={t('users.credentials.publicKey.emptyDescription')} />
           )
         : (
             <div className="space-y-2">
@@ -600,7 +610,7 @@ function PublicKeysTab({ userId }: { userId: string }) {
                       <span className="text-sm font-medium">{cred.label}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <CopyButton value={cred.openssh_public_key} label="Copy key" />
+                      <CopyButton value={cred.openssh_public_key} label={t('users.credentials.publicKey.copyKey')} />
                       <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(cred)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -609,7 +619,7 @@ function PublicKeysTab({ userId }: { userId: string }) {
                   <p className="text-xs font-mono text-muted-foreground truncate pl-6">{cred.openssh_public_key}</p>
                   {cred.last_used != null && cred.last_used !== '' && (
                     <p className="text-xs text-muted-foreground pl-6">
-                      Last used:
+                      {t('users.credentials.publicKey.lastUsed')}
                       {new Date(cred.last_used).toLocaleDateString()}
                     </p>
                   )}
@@ -620,7 +630,7 @@ function PublicKeysTab({ userId }: { userId: string }) {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Public Key</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('users.credentials.publicKey.addTitle')}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
@@ -628,7 +638,7 @@ function PublicKeysTab({ userId }: { userId: string }) {
                 name="label"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Label</FormLabel>
+                    <FormLabel>{t('users.credentials.publicKey.label')}</FormLabel>
                     <FormControl><Input placeholder="e.g. My laptop" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -639,7 +649,7 @@ function PublicKeysTab({ userId }: { userId: string }) {
                 name="openssh_public_key"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>OpenSSH Public Key</FormLabel>
+                    <FormLabel>{t('users.credentials.publicKey.opensshKey')}</FormLabel>
                     <FormControl>
                       <Textarea placeholder="ssh-ed25519 AAAA..." rows={4} className="font-mono text-xs" {...field} />
                     </FormControl>
@@ -648,8 +658,8 @@ function PublicKeysTab({ userId }: { userId: string }) {
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? 'Adding...' : 'Add'}</Button>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{tc('actions.cancel')}</Button>
+                <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? tc('actions.loading') : tc('actions.add')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -659,9 +669,9 @@ function PublicKeysTab({ userId }: { userId: string }) {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={open => !open && setDeleteTarget(null)}
-        title={`Remove key "${deleteTarget?.label}"?`}
-        description="This public key will be permanently removed."
-        confirmLabel="Remove"
+        title={t('users.credentials.publicKey.removeTitle')}
+        description={t('users.credentials.publicKey.removeDescription')}
+        confirmLabel={tc('actions.delete')}
         onConfirm={() => void handleDelete()}
       />
     </div>
@@ -676,6 +686,8 @@ interface OtpSetupState {
 }
 
 function OtpTab({ userId, username }: { userId: string, username: string }) {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { data: credentials, isLoading } = useOtpCredentialsQuery(userId)
   const createCred = useCreateOtpCredentialMutation(userId)
   const deleteCred = useDeleteOtpCredentialMutation(userId)
@@ -692,11 +704,11 @@ function OtpTab({ userId, username }: { userId: string, username: string }) {
       return
     try {
       await createCred.mutateAsync({ secret_key: Array.from(setup.secret) })
-      toast.success('OTP credential added')
+      toast.success(t('users.credentials.otpCred.addSuccess'))
       setSetup(null)
     }
     catch {
-      toast.error('Failed to add OTP credential')
+      toast.error(t('users.credentials.otpCred.addError'))
     }
   }
 
@@ -705,10 +717,10 @@ function OtpTab({ userId, username }: { userId: string, username: string }) {
       return
     try {
       await deleteCred.mutateAsync(deleteId)
-      toast.success('OTP credential removed')
+      toast.success(t('users.credentials.otpCred.removeSuccess'))
     }
     catch {
-      toast.error('Failed to remove OTP credential')
+      toast.error(t('users.credentials.otpCred.removeError'))
     }
     finally {
       setDeleteId(null)
@@ -723,13 +735,13 @@ function OtpTab({ userId, username }: { userId: string, username: string }) {
       <div className="flex justify-end">
         <Button size="sm" onClick={generateAndShow}>
           <Plus className="h-4 w-4 mr-2" />
-          Add OTP
+          {t('users.credentials.otpCred.add')}
         </Button>
       </div>
 
       {!credentials || credentials.length === 0
         ? (
-            <EmptyState icon={Smartphone} title="No OTP credentials" description="Add a TOTP authenticator for this user." />
+            <EmptyState icon={Smartphone} title={t('users.credentials.otpCred.empty')} description={t('users.credentials.otpCred.emptyDescription')} />
           )
         : (
             <div className="space-y-2">
@@ -751,27 +763,27 @@ function OtpTab({ userId, username }: { userId: string, username: string }) {
       <Dialog open={!!setup} onOpenChange={open => !open && setSetup(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add TOTP Authenticator</DialogTitle>
+            <DialogTitle>{t('users.credentials.otpCred.setupTitle')}</DialogTitle>
             <DialogDescription>
-              Scan the URI with your authenticator app or copy it manually. After confirming, the secret cannot be retrieved again.
+              {t('users.credentials.otpCred.setupDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="rounded-md border bg-muted p-3 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Provisioning URI</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('users.credentials.otpCred.provisioningUri')}</p>
               <div className="flex items-start gap-2">
                 <p className="text-xs font-mono break-all flex-1">{setup?.uri}</p>
-                {setup && <CopyButton value={setup.uri} label="Copy URI" />}
+                {setup && <CopyButton value={setup.uri} label={t('users.credentials.otpCred.copyUri')} />}
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              After clicking "Confirm", the secret is stored. Make sure the user has scanned this URI first.
+              {t('users.credentials.otpCred.afterConfirm')}
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSetup(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setSetup(null)}>{tc('actions.cancel')}</Button>
             <Button onClick={() => void confirmAdd()} disabled={createCred.isPending}>
-              {createCred.isPending ? 'Saving...' : 'Confirm & Save'}
+              {createCred.isPending ? tc('actions.loading') : t('users.credentials.otpCred.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -780,9 +792,9 @@ function OtpTab({ userId, username }: { userId: string, username: string }) {
       <ConfirmDialog
         open={deleteId != null}
         onOpenChange={open => !open && setDeleteId(null)}
-        title="Remove OTP credential?"
-        description="The user will no longer be able to authenticate with this TOTP credential."
-        confirmLabel="Remove"
+        title={t('users.credentials.otpCred.removeTitle')}
+        description={t('users.credentials.otpCred.removeDescription')}
+        confirmLabel={tc('actions.delete')}
         onConfirm={() => void handleDelete()}
       />
     </div>
@@ -798,6 +810,8 @@ const certIssueSchema = z.object({
 type CertIssueFormValues = z.infer<typeof certIssueSchema>
 
 function CertificatesTab({ userId }: { userId: string }) {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { data: credentials, isLoading } = useCertCredentialsQuery(userId)
   const issueCert = useIssueCertCredentialMutation(userId)
   const revokeCert = useRevokeCertCredentialMutation(userId)
@@ -818,7 +832,7 @@ function CertificatesTab({ userId }: { userId: string }) {
       setDialogOpen(false)
     }
     catch {
-      toast.error('Failed to issue certificate')
+      toast.error(t('users.credentials.certificate.issueError'))
     }
   }
 
@@ -827,10 +841,10 @@ function CertificatesTab({ userId }: { userId: string }) {
       return
     try {
       await revokeCert.mutateAsync(revokeTarget.id)
-      toast.success(`Certificate "${revokeTarget.label}" revoked`)
+      toast.success(t('users.credentials.certificate.revokeSuccess'))
     }
     catch {
-      toast.error('Failed to revoke certificate')
+      toast.error(t('users.credentials.certificate.revokeError'))
     }
     finally {
       setRevokeTarget(null)
@@ -845,13 +859,13 @@ function CertificatesTab({ userId }: { userId: string }) {
       <div className="flex justify-end">
         <Button size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Issue Certificate
+          {t('users.credentials.certificate.issue')}
         </Button>
       </div>
 
       {!credentials || credentials.length === 0
         ? (
-            <EmptyState icon={FileBadge} title="No certificates" description="Issue a certificate credential for this user." />
+            <EmptyState icon={FileBadge} title={t('users.credentials.certificate.empty')} description={t('users.credentials.certificate.emptyDescription')} />
           )
         : (
             <div className="space-y-2">
@@ -867,12 +881,12 @@ function CertificatesTab({ userId }: { userId: string }) {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground pl-6 font-mono">
-                    Fingerprint:
+                    {t('users.credentials.certificate.fingerprint')}
                     {cred.fingerprint}
                   </p>
                   {cred.date_added != null && cred.date_added !== '' && (
                     <p className="text-xs text-muted-foreground pl-6">
-                      Added:
+                      {t('users.credentials.certificate.dateAdded')}
                       {new Date(cred.date_added).toLocaleDateString()}
                     </p>
                   )}
@@ -885,8 +899,8 @@ function CertificatesTab({ userId }: { userId: string }) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Issue Certificate</DialogTitle>
-            <DialogDescription>Provide a label and the user's public key PEM to issue a signed certificate.</DialogDescription>
+            <DialogTitle>{t('users.credentials.certificate.issueTitle')}</DialogTitle>
+            <DialogDescription>{t('users.credentials.certificate.issueDescription')}</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={e => void form.handleSubmit(onIssue)(e)} className="space-y-4">
@@ -895,7 +909,7 @@ function CertificatesTab({ userId }: { userId: string }) {
                 name="label"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Label</FormLabel>
+                    <FormLabel>{t('users.credentials.certificate.label')}</FormLabel>
                     <FormControl><Input placeholder="e.g. Work laptop cert" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -906,7 +920,7 @@ function CertificatesTab({ userId }: { userId: string }) {
                 name="public_key_pem"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Public Key (PEM)</FormLabel>
+                    <FormLabel>{t('users.credentials.certificate.publicKeyPem')}</FormLabel>
                     <FormControl>
                       <Textarea placeholder="-----BEGIN PUBLIC KEY-----&#10;..." rows={5} className="font-mono text-xs" {...field} />
                     </FormControl>
@@ -915,8 +929,8 @@ function CertificatesTab({ userId }: { userId: string }) {
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={issueCert.isPending}>{issueCert.isPending ? 'Issuing...' : 'Issue'}</Button>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{tc('actions.cancel')}</Button>
+                <Button type="submit" disabled={issueCert.isPending}>{issueCert.isPending ? t('users.credentials.certificate.issuing') : t('users.credentials.certificate.issueButton')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -927,20 +941,20 @@ function CertificatesTab({ userId }: { userId: string }) {
       <Dialog open={!!issuedResult} onOpenChange={open => !open && setIssuedResult(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Certificate Issued</DialogTitle>
-            <DialogDescription>Save this certificate now — it will not be shown again.</DialogDescription>
+            <DialogTitle>{t('users.credentials.certificate.issuedTitle')}</DialogTitle>
+            <DialogDescription>{t('users.credentials.certificate.issuedDescription')}</DialogDescription>
           </DialogHeader>
           <div className="rounded-md border bg-muted p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Certificate PEM</p>
-              {issuedResult && <CopyButton value={issuedResult.certificate_pem} label="Copy certificate" />}
+              <p className="text-xs font-medium text-muted-foreground">{t('users.credentials.certificate.certificatePem')}</p>
+              {issuedResult && <CopyButton value={issuedResult.certificate_pem} label={t('users.credentials.certificate.copyCert')} />}
             </div>
             <pre className="text-xs font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
               {issuedResult?.certificate_pem}
             </pre>
           </div>
           <DialogFooter>
-            <Button onClick={() => setIssuedResult(null)}>Close</Button>
+            <Button onClick={() => setIssuedResult(null)}>{tc('actions.close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -948,9 +962,9 @@ function CertificatesTab({ userId }: { userId: string }) {
       <ConfirmDialog
         open={!!revokeTarget}
         onOpenChange={open => !open && setRevokeTarget(null)}
-        title={`Revoke certificate "${revokeTarget?.label}"?`}
-        description="This certificate will be permanently revoked and can no longer be used."
-        confirmLabel="Revoke"
+        title={t('users.credentials.certificate.revokeTitle')}
+        description={t('users.credentials.certificate.revokeDescription')}
+        confirmLabel={tc('actions.delete')}
         onConfirm={() => void handleRevoke()}
       />
     </div>
@@ -960,6 +974,8 @@ function CertificatesTab({ userId }: { userId: string }) {
 // ─── Roles Tab ────────────────────────────────────────────────────────────────
 
 function RolesTab({ userId }: { userId: string }) {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { data: userRoles, isLoading: rolesLoading } = useUserRoles(userId)
   const { data: allRoles, isLoading: allLoading } = useRoles()
   const addRole = useAddUserRole(userId)
@@ -970,13 +986,13 @@ function RolesTab({ userId }: { userId: string }) {
   const assignedIds = new Set(userRoles?.map(r => r.id) ?? [])
   const availableRoles = allRoles?.filter(r => !assignedIds.has(r.id)) ?? []
 
-  async function handleAdd(roleId: string, roleName: string) {
+  async function handleAdd(roleId: string) {
     try {
       await addRole.mutateAsync(roleId)
-      toast.success(`Role "${roleName}" added`)
+      toast.success(t('users.credentials.role.addSuccess'))
     }
     catch {
-      toast.error('Failed to add role')
+      toast.error(t('users.credentials.role.addError'))
     }
   }
 
@@ -985,10 +1001,10 @@ function RolesTab({ userId }: { userId: string }) {
       return
     try {
       await removeRole.mutateAsync(removeTarget.id)
-      toast.success(`Role "${removeTarget.name}" removed`)
+      toast.success(t('users.credentials.role.removeSuccess'))
     }
     catch {
-      toast.error('Failed to remove role')
+      toast.error(t('users.credentials.role.removeError'))
     }
     finally {
       setRemoveTarget(null)
@@ -1003,13 +1019,13 @@ function RolesTab({ userId }: { userId: string }) {
       <div className="flex justify-end">
         <Button size="sm" onClick={() => setAddDialogOpen(true)} disabled={availableRoles.length === 0 || allLoading}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Role
+          {t('users.credentials.role.add')}
         </Button>
       </div>
 
       {!userRoles || userRoles.length === 0
         ? (
-            <EmptyState icon={Award} title="No roles assigned" description="Assign roles to control what this user can access." />
+            <EmptyState icon={Award} title={t('users.credentials.role.empty')} description={t('users.credentials.role.emptyDescription')} />
           )
         : (
             <div className="space-y-2">
@@ -1031,13 +1047,13 @@ function RolesTab({ userId }: { userId: string }) {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Role</DialogTitle>
-            <DialogDescription>Select a role to assign to this user.</DialogDescription>
+            <DialogTitle>{t('users.credentials.role.addTitle')}</DialogTitle>
+            <DialogDescription>{t('users.credentials.role.addDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {availableRoles.length === 0
               ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No more roles available.</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">{t('users.credentials.role.noMore')}</p>
                 )
               : (
                   availableRoles.map(role => (
@@ -1051,19 +1067,19 @@ function RolesTab({ userId }: { userId: string }) {
                         variant="outline"
                         disabled={addRole.isPending}
                         onClick={() => {
-                          void handleAdd(role.id, role.name).then(() => {
+                          void handleAdd(role.id).then(() => {
                             setAddDialogOpen(false)
                           })
                         }}
                       >
-                        Add
+                        {tc('actions.add')}
                       </Button>
                     </div>
                   ))
                 )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>{tc('actions.close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1071,9 +1087,9 @@ function RolesTab({ userId }: { userId: string }) {
       <ConfirmDialog
         open={!!removeTarget}
         onOpenChange={open => !open && setRemoveTarget(null)}
-        title={`Remove role "${removeTarget?.name}"?`}
-        description="The user will lose access granted by this role."
-        confirmLabel="Remove"
+        title={t('users.credentials.role.removeTitle')}
+        description={t('users.credentials.role.removeDescription')}
+        confirmLabel={tc('actions.delete')}
         onConfirm={() => void handleRemove()}
       />
     </div>
@@ -1083,6 +1099,8 @@ function RolesTab({ userId }: { userId: string }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function Component() {
+  const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('common')
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: user, isLoading } = useUser(id!)
@@ -1094,11 +1112,11 @@ export function Component() {
       return
     try {
       await deleteUser.mutateAsync(user.id)
-      toast.success(`User "${user.username}" deleted`)
+      toast.success(t('users.deleted'))
       void navigate('/ui/admin/config/users')
     }
     catch {
-      toast.error('Failed to delete user')
+      toast.error(t('users.deleteError'))
     }
   }
 
@@ -1113,7 +1131,7 @@ export function Component() {
   }
 
   if (!user) {
-    return <EmptyState icon={User} title="User not found" description="The requested user does not exist." />
+    return <EmptyState icon={User} title={t('users.notFound')} />
   }
 
   return (
@@ -1124,7 +1142,7 @@ export function Component() {
         actions={(
           <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete User
+            {t('users.deleteUser')}
           </Button>
         )}
       />
@@ -1144,27 +1162,27 @@ export function Component() {
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="passwords">
             <KeyRound className="h-4 w-4 mr-1.5" />
-            Passwords
+            {t('users.credentials.passwords')}
           </TabsTrigger>
           <TabsTrigger value="public-keys">
             <ShieldCheck className="h-4 w-4 mr-1.5" />
-            Public Keys
+            {t('users.credentials.publicKeys')}
           </TabsTrigger>
           <TabsTrigger value="otp">
             <Smartphone className="h-4 w-4 mr-1.5" />
-            OTP
+            {t('users.credentials.otp')}
           </TabsTrigger>
           <TabsTrigger value="certificates">
             <FileBadge className="h-4 w-4 mr-1.5" />
-            Certificates
+            {t('users.credentials.certificates')}
           </TabsTrigger>
           <TabsTrigger value="sso">
             <Mail className="h-4 w-4 mr-1.5" />
-            SSO
+            {t('users.credentials.sso')}
           </TabsTrigger>
           <TabsTrigger value="roles">
             <Award className="h-4 w-4 mr-1.5" />
-            Roles
+            {t('users.credentials.roles')}
           </TabsTrigger>
         </TabsList>
 
@@ -1179,9 +1197,9 @@ export function Component() {
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title={`Delete user "${user.username}"?`}
-        description="This will permanently delete the user and all their credentials."
-        confirmLabel="Delete"
+        title={t('users.deleteTitle')}
+        description={t('users.deleteDescription')}
+        confirmLabel={tc('actions.delete')}
         onConfirm={() => void handleDeleteUser()}
       />
     </div>

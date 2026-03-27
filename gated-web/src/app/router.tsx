@@ -4,12 +4,12 @@ import { GatewayLayout } from '@/features/gateway/components/gateway-layout'
 import { RequireAdmin, RequireAuth } from '@/shared/components/auth-guard'
 
 export const router = createBrowserRouter([
+  { path: '/ui/login', lazy: async () => import('@/features/gateway/pages/login') },
+  { path: '/ui/otp', lazy: async () => import('@/features/gateway/pages/otp') },
   {
     path: '/ui',
     element: <GatewayLayout />,
     children: [
-      { path: 'login', handle: { breadcrumbKey: 'gateway:pages.login' }, lazy: async () => import('@/features/gateway/pages/login') },
-      { path: 'otp', handle: { breadcrumbKey: 'gateway:pages.otp' }, lazy: async () => import('@/features/gateway/pages/otp') },
       {
         element: <RequireAuth />,
         children: [

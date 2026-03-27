@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Layers, Server, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -61,16 +62,21 @@ const colorVariantMap: Record<string, string> = {
   Dark: 'bg-gray-800 text-white',
 }
 
-const schema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  color: z.string().optional(),
-})
-
-type FormValues = z.infer<typeof schema>
+interface FormValues {
+  name: string
+  description?: string
+  color?: string
+}
 
 function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: FormValues }) {
+  const { t } = useTranslation(['admin', 'common'])
   const updateGroup = useUpdateTargetGroupMutation()
+
+  const schema = z.object({
+    name: z.string().min(1, t('admin:targetGroups.form.nameRequired')),
+    description: z.string().optional(),
+    color: z.string().optional(),
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -87,10 +93,10 @@ function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: 
           color: values.color != null && values.color !== '' ? (values.color as BootstrapThemeColor) : undefined,
         },
       })
-      toast.success('Target group updated')
+      toast.success(t('admin:targetGroups.updated'))
     }
     catch {
-      toast.error('Failed to update target group')
+      toast.error(t('admin:targetGroups.updateError'))
     }
   }
 
@@ -102,7 +108,7 @@ function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: 
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel>{t('admin:targetGroups.form.name')}</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -116,7 +122,7 @@ function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: 
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{t('admin:targetGroups.form.description')}</FormLabel>
               <FormControl>
                 <Textarea rows={3} {...field} />
               </FormControl>
@@ -130,11 +136,11 @@ function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: 
           name="color"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Color</FormLabel>
+              <FormLabel>{t('admin:targetGroups.form.color')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="No color" />
+                    <SelectValue placeholder={t('admin:targetGroups.form.colorPlaceholder')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -150,7 +156,7 @@ function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: 
 
         <div className="pt-2">
           <Button type="submit" disabled={updateGroup.isPending}>
-            {updateGroup.isPending ? 'Saving...' : 'Save Changes'}
+            {updateGroup.isPending ? t('admin:targetGroups.saving') : t('admin:targetGroups.saveChanges')}
           </Button>
         </div>
       </form>
@@ -159,12 +165,13 @@ function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: 
 }
 
 function TargetsSection({ groupId }: { groupId: string }) {
+  const { t } = useTranslation(['admin', 'common'])
   const { data: targets, isLoading } = useTargetsByGroupQuery(groupId)
 
   const columns: ColumnDef<Target>[] = [
     {
       accessorKey: 'name',
-      header: 'Name',
+      header: t('admin:targetGroups.columns.name'),
       cell: ({ row }) => (
         <Link
           to={`/ui/admin/config/targets/${row.original.id}`}
@@ -177,14 +184,14 @@ function TargetsSection({ groupId }: { groupId: string }) {
     },
     {
       accessorKey: 'description',
-      header: 'Description',
+      header: t('admin:targetGroups.columns.description'),
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.description || '—'}</span>
       ),
     },
     {
       accessorKey: 'options.kind',
-      header: 'Type',
+      header: t('admin:targetGroups.columns.type'),
       cell: ({ row }) => (
         <Badge variant="secondary">{row.original.options.kind}</Badge>
       ),
@@ -197,7 +204,7 @@ function TargetsSection({ groupId }: { groupId: string }) {
   if (!targets || targets.length === 0) {
     return (
       <p className="text-sm text-muted-foreground text-center py-6">
-        No targets in this group.
+        {t('admin:targetGroups.noTargets')}
       </p>
     )
   }
@@ -206,12 +213,13 @@ function TargetsSection({ groupId }: { groupId: string }) {
     <DataTable
       columns={columns}
       data={targets}
-      searchPlaceholder="Search targets..."
+      searchPlaceholder={t('admin:targetGroups.searchTargets')}
     />
   )
 }
 
 export function Component() {
+  const { t } = useTranslation(['admin', 'common'])
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: group, isLoading } = useTargetGroupQuery(id!)
@@ -223,11 +231,11 @@ export function Component() {
       return
     try {
       await deleteGroup.mutateAsync(group.id)
-      toast.success(`Target group "${group.name}" deleted`)
+      toast.success(t('admin:targetGroups.deleted', { name: group.name }))
       void navigate('/ui/admin/config/target-groups')
     }
     catch {
-      toast.error('Failed to delete target group')
+      toast.error(t('admin:targetGroups.deleteError'))
     }
   }
 
@@ -241,7 +249,7 @@ export function Component() {
   }
 
   if (!group) {
-    return <p className="text-muted-foreground">Target group not found.</p>
+    return <p className="text-muted-foreground">{t('admin:targetGroups.notFound')}</p>
   }
 
   return (
@@ -263,7 +271,7 @@ export function Component() {
             onClick={() => setDeleteDialogOpen(true)}
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete Group
+            {t('admin:targetGroups.deleteGroup')}
           </Button>
         )}
       />
@@ -273,7 +281,7 @@ export function Component() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Layers className="h-4 w-4" />
-            Group Settings
+            {t('admin:targetGroups.groupSettings')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -292,16 +300,16 @@ export function Component() {
 
       {/* Targets in this group */}
       <div>
-        <h2 className="text-lg font-semibold mb-4">Associated Targets</h2>
+        <h2 className="text-lg font-semibold mb-4">{t('admin:targetGroups.associatedTargets')}</h2>
         <TargetsSection groupId={group.id} />
       </div>
 
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title={`Delete group "${group.name}"?`}
-        description="This will permanently delete the target group. Targets in this group will not be deleted."
-        confirmLabel="Delete"
+        title={t('admin:targetGroups.deleteTitle', { name: group.name })}
+        description={t('admin:targetGroups.deleteDescriptionDetail')}
+        confirmLabel={t('admin:common.delete')}
         onConfirm={() => void handleDelete()}
       />
     </div>

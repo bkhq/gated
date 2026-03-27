@@ -13,9 +13,8 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useLocation } from 'react-router'
-import { AppBreadcrumb } from '@/shared/components/app-breadcrumb'
+import { LanguageToggle } from '@/shared/components/language-toggle'
 import { ModeToggle } from '@/shared/components/mode-toggle'
-import { Separator } from '@/shared/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
@@ -29,9 +28,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
 } from '@/shared/components/ui/sidebar'
 import { UserMenu } from '@/shared/components/user-menu'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
@@ -97,7 +94,7 @@ export function AdminLayout() {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="none">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -158,15 +155,13 @@ export function AdminLayout() {
           </SidebarMenu>
         </SidebarFooter>
 
-        <SidebarRail />
       </Sidebar>
 
       <SidebarInset>
         <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <AppBreadcrumb />
-          <div className="ml-auto">
+          <h1 className="text-sm font-medium">{t('common:adminTitle')}</h1>
+          <div className="ml-auto flex items-center gap-1">
+            <LanguageToggle />
             <ModeToggle />
           </div>
         </header>

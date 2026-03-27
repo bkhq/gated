@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -26,6 +27,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function Component() {
+  const { t } = useTranslation(['admin', 'common'])
+  const tc = (key: string) => t(key, { ns: 'common' })
   const navigate = useNavigate()
   const createUser = useCreateUser()
 
@@ -40,17 +43,17 @@ export function Component() {
         username: values.username,
         description: values.description != null && values.description !== '' ? values.description : undefined,
       })
-      toast.success(`User "${user.username}" created`)
+      toast.success(t('users.created'))
       void navigate(`/ui/admin/config/users/${user.id}`)
     }
     catch {
-      toast.error('Failed to create user')
+      toast.error(t('users.createError'))
     }
   }
 
   return (
     <div className="max-w-lg">
-      <PageHeader title="Create User" description="Add a new user account" />
+      <PageHeader title={t('users.create')} description={t('users.createDescription')} />
 
       <Card>
         <CardContent className="pt-6">
@@ -61,9 +64,9 @@ export function Component() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>{t('users.fields.username')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. alice" {...field} />
+                      <Input placeholder={t('users.fields.usernamePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -75,9 +78,9 @@ export function Component() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('users.fields.description')}</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Optional description" rows={3} {...field} />
+                      <Textarea placeholder={t('users.fields.descriptionPlaceholder')} rows={3} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -86,14 +89,14 @@ export function Component() {
 
               <div className="flex gap-2 pt-2">
                 <Button type="submit" disabled={createUser.isPending}>
-                  {createUser.isPending ? 'Creating...' : 'Create User'}
+                  {createUser.isPending ? tc('actions.loading') : t('users.create')}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => void navigate('/ui/admin/config/users')}
                 >
-                  Cancel
+                  {tc('actions.cancel')}
                 </Button>
               </div>
             </form>

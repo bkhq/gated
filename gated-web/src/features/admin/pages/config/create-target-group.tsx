@@ -1,6 +1,7 @@
 import type { BootstrapThemeColor } from '@/features/admin/lib/api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -37,17 +38,18 @@ const COLORS: BootstrapThemeColor[] = [
   'Dark',
 ]
 
-const schema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  color: z.string().optional(),
-})
-
-type FormValues = z.infer<typeof schema>
-
 export function Component() {
+  const { t } = useTranslation(['admin', 'common'])
   const navigate = useNavigate()
   const createGroup = useCreateTargetGroupMutation()
+
+  const schema = z.object({
+    name: z.string().min(1, t('admin:targetGroups.form.nameRequired')),
+    description: z.string().optional(),
+    color: z.string().optional(),
+  })
+
+  type FormValues = z.infer<typeof schema>
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -61,17 +63,17 @@ export function Component() {
         description: values.description != null && values.description !== '' ? values.description : undefined,
         color: values.color != null && values.color !== '' ? (values.color as BootstrapThemeColor) : undefined,
       })
-      toast.success(`Target group "${group.name}" created`)
+      toast.success(t('admin:targetGroups.created', { name: group.name }))
       void navigate(`/ui/admin/config/target-groups/${group.id}`)
     }
     catch {
-      toast.error('Failed to create target group')
+      toast.error(t('admin:targetGroups.createError'))
     }
   }
 
   return (
     <div className="max-w-lg">
-      <PageHeader title="Create Target Group" description="Add a new target group" />
+      <PageHeader title={t('admin:targetGroups.createTitle')} description={t('admin:targetGroups.createDescription')} />
 
       <Card>
         <CardContent className="pt-6">
@@ -82,9 +84,9 @@ export function Component() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t('admin:targetGroups.form.name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. production-servers" {...field} />
+                      <Input placeholder={t('admin:targetGroups.form.namePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -96,9 +98,9 @@ export function Component() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('admin:targetGroups.form.description')}</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Optional description" rows={3} {...field} />
+                      <Textarea placeholder={t('admin:targetGroups.form.descriptionPlaceholder')} rows={3} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -110,11 +112,11 @@ export function Component() {
                 name="color"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Color</FormLabel>
+                    <FormLabel>{t('admin:targetGroups.form.color')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a color (optional)" />
+                          <SelectValue placeholder={t('admin:targetGroups.form.colorSelectPlaceholder')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -130,14 +132,14 @@ export function Component() {
 
               <div className="flex gap-2 pt-2">
                 <Button type="submit" disabled={createGroup.isPending}>
-                  {createGroup.isPending ? 'Creating...' : 'Create Group'}
+                  {createGroup.isPending ? t('admin:targetGroups.creating') : t('admin:targetGroups.createButton')}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => void navigate('/ui/admin/config/target-groups')}
                 >
-                  Cancel
+                  {t('admin:common.cancel')}
                 </Button>
               </div>
             </form>

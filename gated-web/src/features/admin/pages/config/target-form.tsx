@@ -2,6 +2,7 @@ import type { Target, TargetDataRequest, TargetGroup } from '@/features/admin/li
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -295,6 +296,7 @@ function TlsFields({
   form: ReturnType<typeof useTargetForm>
   prefix: 'k8s' | 'mysql' | 'pg' | 'api'
 }) {
+  const { t } = useTranslation('admin')
   const modeField = `${prefix}_tls_mode` as const
   const verifyField = `${prefix}_tls_verify` as const
 
@@ -305,7 +307,7 @@ function TlsFields({
         name={modeField}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>TLS Mode</FormLabel>
+            <FormLabel>{t('targets.tls.mode')}</FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <FormControl>
                 <SelectTrigger>
@@ -313,9 +315,9 @@ function TlsFields({
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="Disabled">Disabled</SelectItem>
-                <SelectItem value="Preferred">Preferred</SelectItem>
-                <SelectItem value="Required">Required</SelectItem>
+                <SelectItem value="Disabled">{t('targets.tls.disabled')}</SelectItem>
+                <SelectItem value="Preferred">{t('targets.tls.preferred')}</SelectItem>
+                <SelectItem value="Required">{t('targets.tls.required')}</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />
@@ -330,7 +332,7 @@ function TlsFields({
             <FormControl>
               <Switch checked={field.value} onCheckedChange={field.onChange} />
             </FormControl>
-            <FormLabel className="font-normal">Verify TLS</FormLabel>
+            <FormLabel className="font-normal">{t('targets.tls.verify')}</FormLabel>
           </FormItem>
         )}
       />
@@ -347,6 +349,7 @@ interface TargetFormFieldsProps {
 }
 
 export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetFormFieldsProps) {
+  const { t } = useTranslation('admin')
   const targetType = form.watch('target_type')
   const sshAuthType = form.watch('ssh_auth_type')
   const k8sAuthType = form.watch('k8s_auth_type')
@@ -360,7 +363,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
           name="target_type"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Type</FormLabel>
+              <FormLabel>{t('targets.form.type')}</FormLabel>
               <Select
                 onValueChange={field.onChange}
                 value={field.value}
@@ -372,12 +375,12 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="Ssh">SSH</SelectItem>
-                  <SelectItem value="Kubernetes">Kubernetes</SelectItem>
-                  <SelectItem value="MySql">MySQL</SelectItem>
-                  <SelectItem value="Postgres">PostgreSQL</SelectItem>
-                  <SelectItem value="WebAdmin">Web Admin</SelectItem>
-                  <SelectItem value="Api">API</SelectItem>
+                  <SelectItem value="Ssh">{t('targets.types.Ssh')}</SelectItem>
+                  <SelectItem value="Kubernetes">{t('targets.types.Kubernetes')}</SelectItem>
+                  <SelectItem value="MySql">{t('targets.types.MySql')}</SelectItem>
+                  <SelectItem value="Postgres">{t('targets.types.Postgres')}</SelectItem>
+                  <SelectItem value="WebAdmin">{t('targets.types.WebAdmin')}</SelectItem>
+                  <SelectItem value="Api">{t('targets.types.Api')}</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -389,9 +392,9 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel>{t('targets.form.name')}</FormLabel>
               <FormControl>
-                <Input placeholder="my-server" {...field} />
+                <Input placeholder={t('targets.form.namePlaceholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -404,9 +407,9 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Description</FormLabel>
+            <FormLabel>{t('targets.form.description')}</FormLabel>
             <FormControl>
-              <Input placeholder="Optional description" {...field} />
+              <Input placeholder={t('targets.form.descriptionPlaceholder')} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -419,15 +422,15 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
           name="group_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Group</FormLabel>
+              <FormLabel>{t('targets.form.group')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="No group" />
+                    <SelectValue placeholder={t('targets.form.noGroup')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="__none__">No group</SelectItem>
+                  <SelectItem value="__none__">{t('targets.form.noGroup')}</SelectItem>
                   {groups.map(g => (
                     <SelectItem key={g.id} value={g.id}>
                       {g.name}
@@ -444,9 +447,9 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
           name="rate_limit"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Rate Limit (bytes/s)</FormLabel>
+              <FormLabel>{t('targets.form.rateLimit')}</FormLabel>
               <FormControl>
-                <Input placeholder="Unlimited" type="number" {...field} />
+                <Input placeholder={t('targets.form.rateLimitPlaceholder')} type="number" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -457,14 +460,14 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
       {/* SSH fields */}
       {targetType === 'Ssh' && (
         <div className="space-y-4 rounded-md border p-4">
-          <h3 className="font-medium text-sm">SSH Connection</h3>
+          <h3 className="font-medium text-sm">{t('targets.ssh.section')}</h3>
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="ssh_host"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Host</FormLabel>
+                  <FormLabel>{t('targets.ssh.host')}</FormLabel>
                   <FormControl>
                     <Input placeholder="192.168.1.1" {...field} />
                   </FormControl>
@@ -477,7 +480,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="ssh_port"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Port</FormLabel>
+                  <FormLabel>{t('targets.ssh.port')}</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="22" {...field} />
                   </FormControl>
@@ -491,7 +494,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
             name="ssh_username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Username</FormLabel>
+                <FormLabel>{t('targets.ssh.username')}</FormLabel>
                 <FormControl>
                   <Input placeholder="root" {...field} />
                 </FormControl>
@@ -507,7 +510,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
                 <FormControl>
                   <Switch checked={field.value} onCheckedChange={field.onChange} />
                 </FormControl>
-                <FormLabel className="font-normal">Allow insecure algorithms</FormLabel>
+                <FormLabel className="font-normal">{t('targets.ssh.allowInsecureAlgos')}</FormLabel>
               </FormItem>
             )}
           />
@@ -516,7 +519,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
             name="ssh_auth_type"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Authentication</FormLabel>
+                <FormLabel>{t('targets.ssh.auth')}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -524,8 +527,8 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="PublicKey">Public Key</SelectItem>
-                    <SelectItem value="Password">Password</SelectItem>
+                    <SelectItem value="PublicKey">{t('targets.ssh.authPublicKey')}</SelectItem>
+                    <SelectItem value="Password">{t('targets.ssh.authPassword')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -538,7 +541,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="ssh_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>{t('targets.ssh.password')}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -553,15 +556,15 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
       {/* Kubernetes fields */}
       {targetType === 'Kubernetes' && (
         <div className="space-y-4 rounded-md border p-4">
-          <h3 className="font-medium text-sm">Kubernetes Connection</h3>
+          <h3 className="font-medium text-sm">{t('targets.kubernetes.section')}</h3>
           <FormField
             control={form.control}
             name="k8s_cluster_url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cluster URL</FormLabel>
+                <FormLabel>{t('targets.kubernetes.clusterUrl')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="https://kubernetes.example.com:6443" {...field} />
+                  <Input placeholder={t('targets.kubernetes.clusterUrlPlaceholder')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -573,7 +576,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
             name="k8s_auth_type"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Authentication</FormLabel>
+                <FormLabel>{t('targets.kubernetes.auth')}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -581,8 +584,8 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Token">Token</SelectItem>
-                    <SelectItem value="Certificate">Certificate</SelectItem>
+                    <SelectItem value="Token">{t('targets.kubernetes.authToken')}</SelectItem>
+                    <SelectItem value="Certificate">{t('targets.kubernetes.authCertificate')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -595,7 +598,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="k8s_token"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Token</FormLabel>
+                  <FormLabel>{t('targets.kubernetes.token')}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -611,7 +614,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
                 name="k8s_certificate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Certificate (PEM)</FormLabel>
+                    <FormLabel>{t('targets.kubernetes.certificate')}</FormLabel>
                     <FormControl>
                       <Input placeholder="-----BEGIN CERTIFICATE-----" {...field} />
                     </FormControl>
@@ -624,7 +627,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
                 name="k8s_private_key"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Private Key (PEM)</FormLabel>
+                    <FormLabel>{t('targets.kubernetes.privateKey')}</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="-----BEGIN PRIVATE KEY-----" {...field} />
                     </FormControl>
@@ -640,14 +643,14 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
       {/* MySQL fields */}
       {targetType === 'MySql' && (
         <div className="space-y-4 rounded-md border p-4">
-          <h3 className="font-medium text-sm">MySQL Connection</h3>
+          <h3 className="font-medium text-sm">{t('targets.mysql.section')}</h3>
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="mysql_host"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Host</FormLabel>
+                  <FormLabel>{t('targets.mysql.host')}</FormLabel>
                   <FormControl>
                     <Input placeholder="db.example.com" {...field} />
                   </FormControl>
@@ -660,7 +663,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="mysql_port"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Port</FormLabel>
+                  <FormLabel>{t('targets.mysql.port')}</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="3306" {...field} />
                   </FormControl>
@@ -675,7 +678,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="mysql_username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Username</FormLabel>
+                  <FormLabel>{t('targets.mysql.username')}</FormLabel>
                   <FormControl>
                     <Input placeholder="root" {...field} />
                   </FormControl>
@@ -688,7 +691,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="mysql_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>{t('targets.mysql.password')}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -703,9 +706,9 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
             name="mysql_default_database"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Default Database</FormLabel>
+                <FormLabel>{t('targets.mysql.defaultDatabase')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="Optional" {...field} />
+                  <Input placeholder={t('targets.form.optionalPlaceholder')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -717,14 +720,14 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
       {/* Postgres fields */}
       {targetType === 'Postgres' && (
         <div className="space-y-4 rounded-md border p-4">
-          <h3 className="font-medium text-sm">PostgreSQL Connection</h3>
+          <h3 className="font-medium text-sm">{t('targets.postgres.section')}</h3>
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="pg_host"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Host</FormLabel>
+                  <FormLabel>{t('targets.postgres.host')}</FormLabel>
                   <FormControl>
                     <Input placeholder="db.example.com" {...field} />
                   </FormControl>
@@ -737,7 +740,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="pg_port"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Port</FormLabel>
+                  <FormLabel>{t('targets.postgres.port')}</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="5432" {...field} />
                   </FormControl>
@@ -752,7 +755,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="pg_username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Username</FormLabel>
+                  <FormLabel>{t('targets.postgres.username')}</FormLabel>
                   <FormControl>
                     <Input placeholder="postgres" {...field} />
                   </FormControl>
@@ -765,7 +768,7 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="pg_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>{t('targets.postgres.password')}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -781,9 +784,9 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="pg_default_database"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Default Database</FormLabel>
+                  <FormLabel>{t('targets.postgres.defaultDatabase')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Optional" {...field} />
+                    <Input placeholder={t('targets.form.optionalPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -794,9 +797,9 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
               name="pg_idle_timeout"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Idle Timeout</FormLabel>
+                  <FormLabel>{t('targets.postgres.idleTimeout')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. 30s" {...field} />
+                    <Input placeholder={t('targets.postgres.idleTimeoutPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -809,15 +812,15 @@ export function TargetFormFields({ form, groups, typeReadOnly = false }: TargetF
       {/* API fields */}
       {targetType === 'Api' && (
         <div className="space-y-4 rounded-md border p-4">
-          <h3 className="font-medium text-sm">API Connection</h3>
+          <h3 className="font-medium text-sm">{t('targets.api.section')}</h3>
           <FormField
             control={form.control}
             name="api_url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>URL</FormLabel>
+                <FormLabel>{t('targets.api.url')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="https://api.example.com" {...field} />
+                  <Input placeholder={t('targets.api.urlPlaceholder')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -848,9 +851,10 @@ export function TargetForm({
   groups,
   onSubmit,
   isSubmitting,
-  submitLabel = 'Save',
+  submitLabel,
   typeReadOnly,
 }: TargetFormProps) {
+  const { t: tc } = useTranslation('common')
   const form = useTargetForm(defaultValues)
 
   return (
@@ -859,7 +863,7 @@ export function TargetForm({
         <TargetFormFields form={form} groups={groups} typeReadOnly={typeReadOnly} />
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {submitLabel}
+          {submitLabel ?? tc('actions.save')}
         </Button>
       </form>
     </Form>

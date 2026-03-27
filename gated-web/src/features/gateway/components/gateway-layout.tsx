@@ -2,6 +2,7 @@ import { Key, Server, ShieldCheck, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Outlet } from 'react-router'
 import { AppBreadcrumb } from '@/shared/components/app-breadcrumb'
+import { LanguageToggle } from '@/shared/components/language-toggle'
 import { ModeToggle } from '@/shared/components/mode-toggle'
 import { UserMenu } from '@/shared/components/user-menu'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
@@ -48,7 +49,8 @@ export function GatewayLayout() {
           </nav>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1">
+          <LanguageToggle />
           <ModeToggle />
           {isAuthenticated && <UserMenu variant="button" />}
         </div>

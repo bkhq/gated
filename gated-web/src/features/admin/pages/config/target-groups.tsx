@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import type { TargetGroup } from '@/features/admin/lib/api'
 import { Layers, MoreHorizontal, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useDeleteTargetGroupMutation, useTargetGroupsQuery } from '@/features/admin/api'
@@ -30,6 +31,7 @@ const colorClassMap: Record<string, string> = {
 }
 
 export function Component() {
+  const { t } = useTranslation(['admin', 'common'])
   const navigate = useNavigate()
   const { data: groups, isLoading } = useTargetGroupsQuery()
   const deleteGroup = useDeleteTargetGroupMutation()
@@ -38,7 +40,7 @@ export function Component() {
   const columns: ColumnDef<TargetGroup>[] = [
     {
       accessorKey: 'name',
-      header: 'Name',
+      header: t('admin:targetGroups.columns.name'),
       cell: ({ row }) => (
         <Link
           to={`/ui/admin/config/target-groups/${row.original.id}`}
@@ -51,14 +53,14 @@ export function Component() {
     },
     {
       accessorKey: 'description',
-      header: 'Description',
+      header: t('admin:targetGroups.columns.description'),
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.description || '—'}</span>
       ),
     },
     {
       accessorKey: 'color',
-      header: 'Color',
+      header: t('admin:targetGroups.columns.color'),
       cell: ({ row }) => {
         const color = row.original.color
         if (color == null)
@@ -83,13 +85,13 @@ export function Component() {
                 onClick={() =>
                   void navigate(`/ui/admin/config/target-groups/${row.original.id}`)}
               >
-                View details
+                {t('admin:targetGroups.actions.viewDetails')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
-                Delete
+                {t('admin:common.delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -103,10 +105,10 @@ export function Component() {
       return
     try {
       await deleteGroup.mutateAsync(deleteTarget.id)
-      toast.success(`Target group "${deleteTarget.name}" deleted`)
+      toast.success(t('admin:targetGroups.deleted', { name: deleteTarget.name }))
     }
     catch {
-      toast.error('Failed to delete target group')
+      toast.error(t('admin:targetGroups.deleteError'))
     }
     finally {
       setDeleteTarget(null)
@@ -116,12 +118,12 @@ export function Component() {
   return (
     <div>
       <PageHeader
-        title="Target Groups"
-        description="Organize targets into named groups"
+        title={t('admin:targetGroups.title')}
+        description={t('admin:targetGroups.description')}
         actions={(
           <Button render={<Link to="/ui/admin/config/target-groups/new" />}>
             <Plus className="h-4 w-4 mr-2" />
-            New Group
+            {t('admin:targetGroups.create')}
           </Button>
         )}
       />
@@ -138,16 +140,16 @@ export function Component() {
             <DataTable
               columns={columns}
               data={groups ?? []}
-              searchPlaceholder="Search target groups..."
+              searchPlaceholder={t('admin:targetGroups.searchPlaceholder')}
             />
           )}
 
       <ConfirmDialog
         open={deleteTarget != null}
         onOpenChange={open => !open && setDeleteTarget(null)}
-        title={`Delete group "${deleteTarget?.name}"?`}
-        description="This will permanently delete the target group."
-        confirmLabel="Delete"
+        title={t('admin:targetGroups.deleteTitle', { name: deleteTarget?.name })}
+        description={t('admin:targetGroups.deleteDescription')}
+        confirmLabel={t('admin:common.delete')}
         onConfirm={() => void handleDelete()}
       />
     </div>

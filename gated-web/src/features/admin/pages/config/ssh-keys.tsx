@@ -350,6 +350,7 @@ function HostKeyCheckTab() {
 function OwnKeysTab() {
   const { t } = useTranslation('admin')
   const { data: keys = [], isLoading } = useOwnKeysQuery()
+  const hostname = window.location.hostname
 
   if (isLoading)
     return <div className="py-8 text-center text-muted-foreground">{t('common.loading')}</div>
@@ -366,18 +367,21 @@ function OwnKeysTab() {
 
   return (
     <div className="space-y-3">
-      {keys.map((key: SSHKey) => (
-        <div key={key.kind} className="rounded-lg border p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-sm font-semibold">{key.kind}</span>
-            <CopyButton
-              value={`${key.kind} ${key.public_key_base64}`}
-              label={t('ssh.ownKeys.copyKey')}
-            />
+      {keys.map((key: SSHKey) => {
+        const fullKey = `${key.kind} ${key.public_key_base64} ${hostname}`
+        return (
+          <div key={key.kind} className="rounded-lg border p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-sm font-semibold">{key.kind}</span>
+              <CopyButton
+                value={fullKey}
+                label={t('ssh.ownKeys.copyKey')}
+              />
+            </div>
+            <pre className="font-mono text-xs text-muted-foreground break-all whitespace-pre-wrap bg-muted/50 rounded p-3">{fullKey}</pre>
           </div>
-          <p className="font-mono text-xs text-muted-foreground break-all">{key.public_key_base64}</p>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

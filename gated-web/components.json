@@ -1,12 +1,12 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "base-nova",
+  "style": "base-maia",
   "rsc": false,
   "tsx": true,
   "tailwind": {
     "config": "",
     "css": "src/styles/app.css",
-    "baseColor": "neutral",
+    "baseColor": "stone",
     "cssVariables": true
   },
   "iconLibrary": "lucide",
@@ -18,7 +18,7 @@
     "lib": "@/shared/lib",
     "hooks": "@/shared/hooks"
   },
-  "menuColor": "default",
+  "menuColor": "inverted",
   "menuAccent": "subtle",
   "registries": {}
 }

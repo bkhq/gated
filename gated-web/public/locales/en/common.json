@@ -19,10 +19,19 @@
     "system": "System",
     "toggle": "Toggle theme"
   },
+  "language": {
+    "toggle": "Switch language",
+    "zh-CN": "Chinese (Simplified)",
+    "en": "English"
+  },
   "actions": {
+    "add": "Add",
+    "close": "Close",
+    "copy": "Copy",
     "create": "Create",
     "edit": "Edit",
     "delete": "Delete",
+    "generate": "Generate",
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
