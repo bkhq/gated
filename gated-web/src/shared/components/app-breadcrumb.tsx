@@ -1,5 +1,5 @@
-import { Link, useMatches } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { Link, useMatches } from 'react-router'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,14 +18,15 @@ export function AppBreadcrumb() {
   const matches = useMatches()
 
   const crumbs = matches
-    .filter(m => (m.handle as BreadcrumbHandle | undefined)?.breadcrumbKey)
+    .filter(m => (m.handle as BreadcrumbHandle | undefined)?.breadcrumbKey != null && (m.handle as BreadcrumbHandle | undefined)?.breadcrumbKey !== '')
     .map(m => ({
       key: (m.handle as BreadcrumbHandle).breadcrumbKey,
       params: m.params as Record<string, string>,
       pathname: m.pathname,
     }))
 
-  if (crumbs.length === 0) return null
+  if (crumbs.length === 0)
+    return null
 
   return (
     <Breadcrumb>
@@ -34,13 +35,13 @@ export function AppBreadcrumb() {
           <span key={crumb.pathname} className="flex items-center gap-1.5">
             {i > 0 && <BreadcrumbSeparator />}
             <BreadcrumbItem>
-              {i === crumbs.length - 1 ? (
-                <BreadcrumbPage>{t(crumb.key, crumb.params)}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink asChild>
-                  <Link to={crumb.pathname}>{t(crumb.key, crumb.params)}</Link>
-                </BreadcrumbLink>
-              )}
+              {i === crumbs.length - 1
+                ? (
+                    <BreadcrumbPage>{t(crumb.key, crumb.params)}</BreadcrumbPage>
+                  )
+                : (
+                    <BreadcrumbLink render={<Link to={crumb.pathname} />}>{t(crumb.key, crumb.params)}</BreadcrumbLink>
+                  )}
             </BreadcrumbItem>
           </span>
         ))}

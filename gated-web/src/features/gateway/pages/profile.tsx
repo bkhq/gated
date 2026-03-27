@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Coins, KeyRound } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { KeyRound, Coins } from 'lucide-react'
+import { useChangePasswordMutation, useInfoQuery } from '@/features/gateway/api'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Separator } from '@/shared/components/ui/separator'
-import { useInfoQuery, useChangePasswordMutation } from '@/features/gateway/api'
 
 const changePasswordSchema = z.object({
   password: z.string().min(1),
@@ -37,7 +37,8 @@ export function Component() {
       await changePasswordMutation.mutateAsync(values.password)
       form.reset()
       toast.success(t('gateway:profile.changePassword.success'))
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:profile.changePassword.error'))
     }
   }
@@ -48,7 +49,7 @@ export function Component() {
     <div className="space-y-8 max-w-xl">
       <div>
         <h1 className="text-2xl font-heading font-semibold">{t('gateway:pages.profile')}</h1>
-        {username && (
+        {username != null && username !== '' && (
           <p className="text-muted-foreground mt-1">{t('gateway:profile.loggedInAs', { username })}</p>
         )}
       </div>
@@ -60,7 +61,7 @@ export function Component() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="password"
@@ -102,17 +103,13 @@ export function Component() {
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">{t('gateway:profile.securitySection')}</h2>
         <div className="flex flex-col gap-2">
-          <Button asChild variant="outline" className="justify-start gap-2 w-fit">
-            <Link to="/ui/profile/credentials">
-              <KeyRound className="size-4" />
-              {t('gateway:pages.credentials')}
-            </Link>
+          <Button render={<Link to="/ui/profile/credentials" />} variant="outline" className="justify-start gap-2 w-fit">
+            <KeyRound className="size-4" />
+            {t('gateway:pages.credentials')}
           </Button>
-          <Button asChild variant="outline" className="justify-start gap-2 w-fit">
-            <Link to="/ui/profile/api-tokens">
-              <Coins className="size-4" />
-              {t('gateway:pages.apiTokens')}
-            </Link>
+          <Button render={<Link to="/ui/profile/api-tokens" />} variant="outline" className="justify-start gap-2 w-fit">
+            <Coins className="size-4" />
+            {t('gateway:pages.apiTokens')}
           </Button>
         </div>
       </div>

@@ -1,14 +1,15 @@
+import type { ColumnDef } from '@tanstack/react-table'
+import type { Ticket } from '@/features/admin/lib/api'
+import { Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/shared/components/ui/button'
-import { DataTable } from '@/shared/components/data-table'
+import { useDeleteTicketMutation, useTicketsQuery } from '@/features/admin/api'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
+import { DataTable } from '@/shared/components/data-table'
 import { PageHeader } from '@/shared/components/page-header'
-import { useTicketsQuery, useDeleteTicketMutation } from '@/features/admin/api'
-import type { Ticket } from '@/features/admin/lib/api'
+import { TableSkeleton } from '@/shared/components/table-skeleton'
+import { Button } from '@/shared/components/ui/button'
 
 export function Component() {
   const { t } = useTranslation('admin')
@@ -24,7 +25,8 @@ export function Component() {
       header: t('tickets.table.id'),
       cell: ({ row }) => (
         <span className="font-mono text-xs text-muted-foreground">
-          {row.original.id.slice(0, 8)}...
+          {row.original.id.slice(0, 8)}
+          ...
         </span>
       ),
     },
@@ -55,7 +57,7 @@ export function Component() {
       header: t('tickets.table.expiry'),
       cell: ({ row }) => (
         <span className="text-sm">
-          {row.original.expiry ? new Date(row.original.expiry).toLocaleString() : '—'}
+          {row.original.expiry != null && row.original.expiry !== '' ? new Date(row.original.expiry).toLocaleString() : '—'}
         </span>
       ),
     },
@@ -84,31 +86,29 @@ export function Component() {
     },
   ]
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-32 text-muted-foreground">
-        {tc('actions.loading')}
-      </div>
-    )
-  }
-
   return (
     <div>
       <PageHeader
         title={t('pages.tickets')}
-        actions={
-          <Button onClick={() => void navigate('/ui/admin/config/tickets/new')}>
+        actions={(
+          <Button className="cursor-pointer" onClick={() => void navigate('/ui/admin/config/tickets/new')}>
             <Plus className="h-4 w-4 mr-2" />
             {t('tickets.create')}
           </Button>
-        }
+        )}
       />
 
-      <DataTable
-        columns={columns}
-        data={tickets}
-        searchPlaceholder={tc('table.search')}
-      />
+      {isLoading
+        ? (
+            <TableSkeleton columns={7} rows={5} />
+          )
+        : (
+            <DataTable
+              columns={columns}
+              data={tickets}
+              searchPlaceholder={tc('table.search')}
+            />
+          )}
 
       <ConfirmDialog
         open={deleteId !== null}
@@ -118,7 +118,7 @@ export function Component() {
         confirmLabel={tc('actions.delete')}
         cancelLabel={tc('actions.cancel')}
         onConfirm={() => {
-          if (deleteId) {
+          if (deleteId != null) {
             deleteMutation.mutate(deleteId, {
               onSettled: () => setDeleteId(null),
             })

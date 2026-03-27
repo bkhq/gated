@@ -41,7 +41,9 @@
     "search": "Search...",
     "noResults": "No results found.",
     "pagination": "Page {{page}} of {{total}}",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "previous": "Previous",
+    "next": "Next"
   },
   "confirm": {
     "deleteTitle": "Delete Confirmation",

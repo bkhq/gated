@@ -1,11 +1,13 @@
+import type { ColumnDef } from '@tanstack/react-table'
+import type { SSHKey, SSHKnownHost } from '@/features/admin/lib/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type ColumnDef } from '@tanstack/react-table'
 import { KeyRound, Plus, ServerCog, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { adminKeys } from '@/features/admin/api'
-import { api, type SSHKnownHost, type SSHKey } from '@/features/admin/lib/api'
+import { api } from '@/features/admin/lib/api'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import { CopyButton } from '@/shared/components/copy-button'
 import { DataTable } from '@/shared/components/data-table'
 import { EmptyState } from '@/shared/components/empty-state'
@@ -23,24 +25,23 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
-import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 
 // ─── API Hooks ───────────────────────────────────────────────────────────────
 
 function useKnownHostsQuery() {
   return useQuery({
     queryKey: adminKeys.knownHosts,
-    queryFn: () => api.getSshKnownHosts(),
+    queryFn: async () => api.getSshKnownHosts(),
   })
 }
 
 function useAddKnownHostMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (req: { host: string; port: number; key_type: string; key_base64: string }) =>
+    mutationFn: async (req: { host: string, port: number, key_type: string, key_base64: string }) =>
       api.addSshKnownHost(req),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: adminKeys.knownHosts })
+      void qc.invalidateQueries({ queryKey: adminKeys.knownHosts })
     },
   })
 }
@@ -48,23 +49,23 @@ function useAddKnownHostMutation() {
 function useDeleteKnownHostMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteSshKnownHost(id),
+    mutationFn: async (id: string) => api.deleteSshKnownHost(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: adminKeys.knownHosts })
+      void qc.invalidateQueries({ queryKey: adminKeys.knownHosts })
     },
   })
 }
 
 function useCheckHostKeyMutation() {
   return useMutation({
-    mutationFn: (req: { host: string; port: number }) => api.checkSshHostKey(req),
+    mutationFn: async (req: { host: string, port: number }) => api.checkSshHostKey(req),
   })
 }
 
 function useOwnKeysQuery() {
   return useQuery({
     queryKey: adminKeys.sshKeys,
-    queryFn: () => api.getSshOwnKeys(),
+    queryFn: async () => api.getSshOwnKeys(),
   })
 }
 
@@ -82,7 +83,7 @@ function AddKnownHostDialog() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     mutation.mutate(
-      { host, port: parseInt(port, 10), key_type: keyType, key_base64: keyBase64 },
+      { host, port: Number.parseInt(port, 10), key_type: keyType, key_base64: keyBase64 },
       {
         onSuccess: () => {
           toast.success(t('ssh.knownHosts.addSuccess'))
@@ -99,11 +100,9 @@ function AddKnownHostDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          {t('ssh.knownHosts.add')}
-        </Button>
+      <DialogTrigger render={<Button size="sm" />}>
+        <Plus className="h-4 w-4 mr-2" />
+        {t('ssh.knownHosts.add')}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -181,7 +180,9 @@ function KnownHostsTab() {
       header: t('ssh.fields.host'),
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {row.original.host}:{row.original.port}
+          {row.original.host}
+          :
+          {row.original.port}
         </span>
       ),
     },
@@ -198,7 +199,8 @@ function KnownHostsTab() {
       cell: ({ row }) => (
         <div className="flex items-center gap-1 max-w-xs">
           <span className="font-mono text-xs text-muted-foreground truncate">
-            {row.original.key_base64.slice(0, 32)}…
+            {row.original.key_base64.slice(0, 32)}
+            …
           </span>
           <CopyButton value={row.original.key_base64} label={t('common.copy')} />
         </div>
@@ -219,36 +221,42 @@ function KnownHostsTab() {
     },
   ]
 
-  if (isLoading) return <div className="py-8 text-center text-muted-foreground">{t('common.loading')}</div>
+  if (isLoading)
+    return <div className="py-8 text-center text-muted-foreground">{t('common.loading')}</div>
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <AddKnownHostDialog />
       </div>
-      {hosts.length === 0 ? (
-        <EmptyState
-          icon={KeyRound}
-          title={t('ssh.knownHosts.empty')}
-          description={t('ssh.knownHosts.emptyDescription')}
-          action={<AddKnownHostDialog />}
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={hosts}
-          searchPlaceholder={t('ssh.knownHosts.search')}
-        />
-      )}
+      {hosts.length === 0
+        ? (
+            <EmptyState
+              icon={KeyRound}
+              title={t('ssh.knownHosts.empty')}
+              description={t('ssh.knownHosts.emptyDescription')}
+              action={<AddKnownHostDialog />}
+            />
+          )
+        : (
+            <DataTable
+              columns={columns}
+              data={hosts}
+              searchPlaceholder={t('ssh.knownHosts.search')}
+            />
+          )}
       <ConfirmDialog
         open={deleteId !== null}
-        onOpenChange={open => { if (!open) setDeleteId(null) }}
+        onOpenChange={(open) => {
+          if (!open)
+            setDeleteId(null)
+        }}
         title={t('ssh.knownHosts.deleteTitle')}
         description={t('ssh.knownHosts.deleteDescription')}
         confirmLabel={t('common.delete')}
         cancelLabel={t('common.cancel')}
         onConfirm={() => {
-          if (deleteId) {
+          if (deleteId != null) {
             deleteMutation.mutate(deleteId, {
               onSuccess: () => {
                 toast.success(t('ssh.knownHosts.deleteSuccess'))
@@ -273,7 +281,7 @@ function HostKeyCheckTab() {
 
   const handleCheck = (e: React.FormEvent) => {
     e.preventDefault()
-    mutation.mutate({ host, port: parseInt(port, 10) })
+    mutation.mutate({ host, port: Number.parseInt(port, 10) })
   }
 
   return (
@@ -309,7 +317,7 @@ function HostKeyCheckTab() {
         </Button>
       </form>
 
-      {mutation.isSuccess && mutation.data && (
+      {mutation.isSuccess && mutation.data != null && (
         <div className="rounded-lg border p-4 space-y-3">
           <h3 className="font-semibold text-sm">{t('ssh.checkHostKey.result')}</h3>
           <div className="space-y-2">
@@ -343,7 +351,8 @@ function OwnKeysTab() {
   const { t } = useTranslation('admin')
   const { data: keys = [], isLoading } = useOwnKeysQuery()
 
-  if (isLoading) return <div className="py-8 text-center text-muted-foreground">{t('common.loading')}</div>
+  if (isLoading)
+    return <div className="py-8 text-center text-muted-foreground">{t('common.loading')}</div>
 
   if (keys.length === 0) {
     return (
@@ -357,8 +366,8 @@ function OwnKeysTab() {
 
   return (
     <div className="space-y-3">
-      {keys.map((key: SSHKey, idx: number) => (
-        <div key={idx} className="rounded-lg border p-4 space-y-2">
+      {keys.map((key: SSHKey) => (
+        <div key={key.kind} className="rounded-lg border p-4 space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-mono text-sm font-semibold">{key.kind}</span>
             <CopyButton

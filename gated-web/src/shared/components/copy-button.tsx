@@ -16,21 +16,22 @@ export function CopyButton({ value, label = 'Copy', className }: CopyButtonProps
   const handleCopy = async () => {
     await navigator.clipboard.writeText(value)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setTimeout(setCopied, 2000, false)
   }
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger render={(
         <Button
           variant="ghost"
           size="icon"
           className={cn('h-8 w-8', className)}
-          onClick={handleCopy}
-        >
-          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-          <span className="sr-only">{label}</span>
-        </Button>
+          onClick={() => void handleCopy()}
+        />
+      )}
+      >
+        {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+        <span className="sr-only">{label}</span>
       </TooltipTrigger>
       <TooltipContent>{copied ? 'Copied!' : label}</TooltipContent>
     </Tooltip>

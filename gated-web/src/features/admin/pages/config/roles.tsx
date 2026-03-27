@@ -1,15 +1,15 @@
+import type { ColumnDef } from '@tanstack/react-table'
+import type { Role } from '@/features/admin/lib/api-client'
+import { Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Plus, Trash2 } from 'lucide-react'
-import type { ColumnDef } from '@tanstack/react-table'
 import { toast } from 'sonner'
-import { PageHeader } from '@/shared/components/page-header'
-import { DataTable } from '@/shared/components/data-table'
-import { Button } from '@/shared/components/ui/button'
+import { useDeleteRoleMutation, useRoles } from '@/features/admin/api'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
-import { useRoles, useDeleteRoleMutation } from '@/features/admin/api'
-import type { Role } from '@/features/admin/lib/api-client'
+import { DataTable } from '@/shared/components/data-table'
+import { PageHeader } from '@/shared/components/page-header'
+import { Button } from '@/shared/components/ui/button'
 
 export function Component() {
   const { t } = useTranslation(['admin', 'common'])
@@ -26,7 +26,7 @@ export function Component() {
       cell: ({ row }) => (
         <button
           className="font-medium text-primary hover:underline text-left"
-          onClick={() => navigate(row.original.id)}
+          onClick={() => void navigate(row.original.id)}
         >
           {row.original.name}
         </button>
@@ -46,7 +46,7 @@ export function Component() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={e => {
+            onClick={(e) => {
               e.stopPropagation()
               setDeleteId(row.original.id)
             }}
@@ -59,13 +59,16 @@ export function Component() {
   ]
 
   const handleDelete = async () => {
-    if (!deleteId) return
+    if (deleteId == null)
+      return
     try {
       await deleteMutation.mutateAsync(deleteId)
       toast.success(t('roles.deleted'))
-    } catch {
+    }
+    catch {
       toast.error(t('roles.deleteError'))
-    } finally {
+    }
+    finally {
       setDeleteId(null)
     }
   }
@@ -74,31 +77,33 @@ export function Component() {
     <div>
       <PageHeader
         title={t('pages.roles')}
-        actions={
-          <Button onClick={() => navigate('new')}>
+        actions={(
+          <Button onClick={() => void navigate('new')}>
             <Plus className="h-4 w-4 mr-2" />
             {t('roles.create')}
           </Button>
-        }
+        )}
       />
 
-      {isLoading ? (
-        <p className="text-muted-foreground">{t('actions.loading', { ns: 'common' })}</p>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={roles}
-          searchPlaceholder={t('roles.searchPlaceholder')}
-        />
-      )}
+      {isLoading
+        ? (
+            <p className="text-muted-foreground">{t('actions.loading', { ns: 'common' })}</p>
+          )
+        : (
+            <DataTable
+              columns={columns}
+              data={roles}
+              searchPlaceholder={t('roles.searchPlaceholder')}
+            />
+          )}
 
       <ConfirmDialog
-        open={!!deleteId}
+        open={deleteId != null}
         onOpenChange={open => !open && setDeleteId(null)}
         title={t('roles.deleteTitle')}
         description={t('roles.deleteDescription')}
         confirmLabel={t('actions.delete', { ns: 'common' })}
-        onConfirm={handleDelete}
+        onConfirm={() => void handleDelete()}
       />
     </div>
   )

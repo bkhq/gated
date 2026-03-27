@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router'
-import { PageHeader } from '@/shared/components/page-header'
-import { TargetForm, EMPTY_DEFAULTS, buildRequest } from './target-form'
-import { useCreateTarget, useTargetGroupsQuery } from '@/features/admin/api'
 import type { FormValues } from './target-form'
+import { useNavigate } from 'react-router'
+import { useCreateTarget, useTargetGroupsQuery } from '@/features/admin/api'
+import { PageHeader } from '@/shared/components/page-header'
+import { buildRequest, EMPTY_DEFAULTS, TargetForm } from './target-form'
 
 export function Component() {
   const navigate = useNavigate()
@@ -11,7 +11,7 @@ export function Component() {
 
   function onSubmit(values: FormValues) {
     createMutation.mutate(buildRequest(values), {
-      onSuccess: target => {
+      onSuccess: (target) => {
         void navigate(`/ui/admin/config/targets/${target.id}`)
       },
     })

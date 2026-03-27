@@ -1,11 +1,11 @@
+import { FitAddon } from '@xterm/addon-fit'
+import { Terminal as XTerm } from '@xterm/xterm'
+import { RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
-import { Terminal as XTerm } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import { RefreshCw } from 'lucide-react'
-import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
+import { Button } from '@/shared/components/ui/button'
 import { useWebSocket } from '@/shared/hooks/use-web-socket'
 import '@xterm/xterm/css/xterm.css'
 
@@ -28,11 +28,12 @@ export function Component() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [reconnectKey, setReconnectKey] = useState(0)
 
-  const wsUrl = targetName ? buildWsUrl(targetName) : null
+  const wsUrl = targetName != null && targetName !== '' ? buildWsUrl(targetName) : null
 
   // Initialize xterm
   useEffect(() => {
-    if (!termDivRef.current) return
+    if (!termDivRef.current)
+      return
 
     const term = new XTerm({
       cursorBlink: true,
@@ -68,17 +69,19 @@ export function Component() {
 
   const handleClose = useCallback(() => {
     setStatus('disconnected')
-    xtermRef.current?.writeln('\r\n\x1b[31m[disconnected]\x1b[0m')
+    xtermRef.current?.writeln('\r\n\x1B[31m[disconnected]\x1B[0m')
   }, [])
 
   const handleMessage = useCallback((event: MessageEvent) => {
     if (typeof event.data === 'string') {
       xtermRef.current?.write(event.data)
-    } else if (event.data instanceof ArrayBuffer) {
+    }
+    else if (event.data instanceof ArrayBuffer) {
       const text = new TextDecoder().decode(event.data)
       xtermRef.current?.write(text)
-    } else if (event.data instanceof Blob) {
-      void event.data.arrayBuffer().then(buf => {
+    }
+    else if (event.data instanceof Blob) {
+      void event.data.arrayBuffer().then((buf) => {
         const text = new TextDecoder().decode(buf)
         xtermRef.current?.write(text)
       })
@@ -97,7 +100,8 @@ export function Component() {
   // Forward keyboard input
   useEffect(() => {
     const term = xtermRef.current
-    if (!term) return
+    if (!term)
+      return
     const disposable = term.onData((data) => {
       if (status === 'connected') {
         send(data)

@@ -1,14 +1,16 @@
 // TanStack Query hooks for the admin API
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, stringifyError, ResponseError, type CreateUserRequest, type UserDataRequest, type NewPasswordCredential, type NewSsoCredential, type NewPublicKeyCredential, type NewOtpCredential, type IssueCertificateCredentialRequest, type UpdateCertificateCredential, type RoleDataRequest, type ParameterUpdate, type CreateLdapServerRequest, type UpdateLdapServerRequest, type TestLdapServerRequest, type ImportLdapUsersRequest, type CreateTicketRequest, type GetLogsRequest, type TargetGroupDataRequest, type TargetDataRequest } from '@/features/admin/lib/api'
+import type { CreateLdapServerRequest, CreateTicketRequest, CreateUserRequest, GetLogsRequest, ImportLdapUsersRequest, IssueCertificateCredentialRequest, NewOtpCredential, NewPasswordCredential, NewPublicKeyCredential, NewSsoCredential, ParameterUpdate, RoleDataRequest, TargetDataRequest, TargetGroupDataRequest, TestLdapServerRequest, UpdateCertificateCredential, UpdateLdapServerRequest, UserDataRequest } from '@/features/admin/lib/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { toast } from 'sonner'
+import { api, ResponseError, stringifyError } from '@/features/admin/lib/api'
 
 function handleMutationError(err: unknown): void {
   if (err instanceof ResponseError) {
     void err.response.text().then(text => toast.error(`API error: ${text}`))
-  } else if (err instanceof Error) {
+  }
+  else if (err instanceof Error) {
     toast.error(err.message)
   }
 }
@@ -54,14 +56,14 @@ export const adminKeys = {
 export function useSessionsQuery(activeOnly?: boolean) {
   return useQuery({
     queryKey: adminKeys.sessions(activeOnly),
-    queryFn: () => api.getSessions({ active_only: activeOnly }),
+    queryFn: async () => api.getSessions({ active_only: activeOnly }),
   })
 }
 
 export function useSessionQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.session(id),
-    queryFn: () => api.getSession(id),
+    queryFn: async () => api.getSession(id),
     enabled: !!id,
   })
 }
@@ -69,7 +71,7 @@ export function useSessionQuery(id: string) {
 export function useSessionRecordingsQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.sessionRecordings(id),
-    queryFn: () => api.getSessionRecordings(id),
+    queryFn: async () => api.getSessionRecordings(id),
     enabled: !!id,
   })
 }
@@ -77,7 +79,7 @@ export function useSessionRecordingsQuery(id: string) {
 export function useCloseSessionMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.closeSession(id),
+    mutationFn: async (id: string) => api.closeSession(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'sessions'] })
     },
@@ -87,7 +89,7 @@ export function useCloseSessionMutation() {
 export function useCleanSessionsMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => api.closeAllSessions(),
+    mutationFn: async () => api.closeAllSessions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'sessions'] })
     },
@@ -101,7 +103,7 @@ export function useCleanSessionsMutation() {
 export function useRecordingQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.recording(id),
-    queryFn: () => api.getRecording(id),
+    queryFn: async () => api.getRecording(id),
     enabled: !!id,
   })
 }
@@ -109,7 +111,7 @@ export function useRecordingQuery(id: string) {
 export function useRecordingCastQuery(id: string, enabled: boolean) {
   return useQuery({
     queryKey: adminKeys.recordingCast(id),
-    queryFn: () => api.getRecordingCast(id),
+    queryFn: async () => api.getRecordingCast(id),
     enabled: !!id && enabled,
   })
 }
@@ -120,15 +122,15 @@ export function useRecordingCastQuery(id: string, enabled: boolean) {
 
 export function useUsers(search?: string) {
   return useQuery({
-    queryKey: search ? [...adminKeys.users, { search }] : adminKeys.users,
-    queryFn: () => api.getUsers(search),
+    queryKey: search != null && search !== '' ? [...adminKeys.users, { search }] : adminKeys.users,
+    queryFn: async () => api.getUsers(search),
   })
 }
 
 export function useUser(id: string) {
   return useQuery({
     queryKey: adminKeys.user(id),
-    queryFn: () => api.getUser(id),
+    queryFn: async () => api.getUser(id),
     enabled: !!id,
   })
 }
@@ -136,9 +138,9 @@ export function useUser(id: string) {
 export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: CreateUserRequest) => api.createUser(req),
+    mutationFn: async (req: CreateUserRequest) => api.createUser(req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.users })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.users })
     },
   })
 }
@@ -146,9 +148,9 @@ export function useCreateUser() {
 export function useUpdateUser(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: UserDataRequest) => api.updateUser(id, req),
+    mutationFn: async (req: UserDataRequest) => api.updateUser(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.user(id) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.user(id) })
     },
   })
 }
@@ -156,9 +158,9 @@ export function useUpdateUser(id: string) {
 export function useDeleteUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteUser(id),
+    mutationFn: async (id: string) => api.deleteUser(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.users })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.users })
     },
   })
 }
@@ -170,7 +172,7 @@ export function useDeleteUser() {
 export function useUserRoles(userId: string) {
   return useQuery({
     queryKey: adminKeys.userRoles(userId),
-    queryFn: () => api.getUserRoles(userId),
+    queryFn: async () => api.getUserRoles(userId),
     enabled: !!userId,
   })
 }
@@ -178,9 +180,9 @@ export function useUserRoles(userId: string) {
 export function useAddUserRole(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (roleId: string) => api.addUserRole(userId, roleId),
+    mutationFn: async (roleId: string) => api.addUserRole(userId, roleId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userRoles(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userRoles(userId) })
     },
   })
 }
@@ -188,9 +190,9 @@ export function useAddUserRole(userId: string) {
 export function useDeleteUserRole(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (roleId: string) => api.deleteUserRole(userId, roleId),
+    mutationFn: async (roleId: string) => api.deleteUserRole(userId, roleId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userRoles(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userRoles(userId) })
     },
   })
 }
@@ -202,7 +204,7 @@ export function useDeleteUserRole(userId: string) {
 export function usePasswordCredentials(userId: string) {
   return useQuery({
     queryKey: adminKeys.userPasswordCredentials(userId),
-    queryFn: () => api.getPasswordCredentials(userId),
+    queryFn: async () => api.getPasswordCredentials(userId),
     enabled: !!userId,
   })
 }
@@ -210,9 +212,9 @@ export function usePasswordCredentials(userId: string) {
 export function useCreatePasswordCredential(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: NewPasswordCredential) => api.createPasswordCredential(userId, req),
+    mutationFn: async (req: NewPasswordCredential) => api.createPasswordCredential(userId, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userPasswordCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userPasswordCredentials(userId) })
     },
   })
 }
@@ -220,9 +222,9 @@ export function useCreatePasswordCredential(userId: string) {
 export function useDeletePasswordCredential(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deletePasswordCredential(userId, id),
+    mutationFn: async (id: string) => api.deletePasswordCredential(userId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userPasswordCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userPasswordCredentials(userId) })
     },
   })
 }
@@ -234,7 +236,7 @@ export function useDeletePasswordCredential(userId: string) {
 export function useSsoCredentials(userId: string) {
   return useQuery({
     queryKey: adminKeys.userSsoCredentials(userId),
-    queryFn: () => api.getSsoCredentials(userId),
+    queryFn: async () => api.getSsoCredentials(userId),
     enabled: !!userId,
   })
 }
@@ -242,9 +244,9 @@ export function useSsoCredentials(userId: string) {
 export function useCreateSsoCredential(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: NewSsoCredential) => api.createSsoCredential(userId, req),
+    mutationFn: async (req: NewSsoCredential) => api.createSsoCredential(userId, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userSsoCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userSsoCredentials(userId) })
     },
   })
 }
@@ -252,9 +254,9 @@ export function useCreateSsoCredential(userId: string) {
 export function useDeleteSsoCredential(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteSsoCredential(userId, id),
+    mutationFn: async (id: string) => api.deleteSsoCredential(userId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userSsoCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userSsoCredentials(userId) })
     },
   })
 }
@@ -266,7 +268,7 @@ export function useDeleteSsoCredential(userId: string) {
 export function usePublicKeyCredentials(userId: string) {
   return useQuery({
     queryKey: adminKeys.userPublicKeyCredentials(userId),
-    queryFn: () => api.getPublicKeyCredentials(userId),
+    queryFn: async () => api.getPublicKeyCredentials(userId),
     enabled: !!userId,
   })
 }
@@ -274,9 +276,9 @@ export function usePublicKeyCredentials(userId: string) {
 export function useCreatePublicKeyCredential(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: NewPublicKeyCredential) => api.createPublicKeyCredential(userId, req),
+    mutationFn: async (req: NewPublicKeyCredential) => api.createPublicKeyCredential(userId, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userPublicKeyCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userPublicKeyCredentials(userId) })
     },
   })
 }
@@ -284,9 +286,9 @@ export function useCreatePublicKeyCredential(userId: string) {
 export function useDeletePublicKeyCredential(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deletePublicKeyCredential(userId, id),
+    mutationFn: async (id: string) => api.deletePublicKeyCredential(userId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userPublicKeyCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userPublicKeyCredentials(userId) })
     },
   })
 }
@@ -297,17 +299,17 @@ export function useDeletePublicKeyCredential(userId: string) {
 
 export function useRoles(search?: string) {
   return useQuery({
-    queryKey: search ? [...adminKeys.roles, { search }] : adminKeys.roles,
-    queryFn: () => api.getRoles(search),
+    queryKey: search != null && search !== '' ? [...adminKeys.roles, { search }] : adminKeys.roles,
+    queryFn: async () => api.getRoles(search),
   })
 }
 
 export function useCreateRole() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: RoleDataRequest) => api.createRole(req),
+    mutationFn: async (req: RoleDataRequest) => api.createRole(req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.roles })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.roles })
     },
   })
 }
@@ -315,7 +317,7 @@ export function useCreateRole() {
 export function useRoleQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.role(id),
-    queryFn: () => api.getRole(id),
+    queryFn: async () => api.getRole(id),
     enabled: !!id,
   })
 }
@@ -323,7 +325,7 @@ export function useRoleQuery(id: string) {
 export function useRoleUsersQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.roleUsers(id),
-    queryFn: () => api.getRoleUsers(id),
+    queryFn: async () => api.getRoleUsers(id),
     enabled: !!id,
   })
 }
@@ -331,7 +333,7 @@ export function useRoleUsersQuery(id: string) {
 export function useRoleTargetsQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.roleTargets(id),
-    queryFn: () => api.getRoleTargets(id),
+    queryFn: async () => api.getRoleTargets(id),
     enabled: !!id,
   })
 }
@@ -339,7 +341,7 @@ export function useRoleTargetsQuery(id: string) {
 export function useUpdateRoleMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: RoleDataRequest }) => api.updateRole(id, req),
+    mutationFn: async ({ id, req }: { id: string, req: RoleDataRequest }) => api.updateRole(id, req),
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.roles })
       void queryClient.invalidateQueries({ queryKey: adminKeys.role(id) })
@@ -350,7 +352,7 @@ export function useUpdateRoleMutation() {
 export function useDeleteRoleMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteRole(id),
+    mutationFn: async (id: string) => api.deleteRole(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.roles })
     },
@@ -364,14 +366,14 @@ export function useDeleteRoleMutation() {
 export function useTicketsQuery() {
   return useQuery({
     queryKey: adminKeys.tickets,
-    queryFn: () => api.getTickets(),
+    queryFn: async () => api.getTickets(),
   })
 }
 
 export function useCreateTicketMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: CreateTicketRequest) => api.createTicket(req),
+    mutationFn: async (req: CreateTicketRequest) => api.createTicket(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.tickets })
     },
@@ -381,7 +383,7 @@ export function useCreateTicketMutation() {
 export function useDeleteTicketMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteTicket(id),
+    mutationFn: async (id: string) => api.deleteTicket(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.tickets })
     },
@@ -395,14 +397,14 @@ export function useDeleteTicketMutation() {
 export function useParametersQuery() {
   return useQuery({
     queryKey: adminKeys.parameters,
-    queryFn: () => api.getParameters(),
+    queryFn: async () => api.getParameters(),
   })
 }
 
 export function useUpdateParametersMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: ParameterUpdate) => api.updateParameters(req),
+    mutationFn: async (req: ParameterUpdate) => api.updateParameters(req),
     onSuccess: (data) => {
       queryClient.setQueryData(adminKeys.parameters, data)
     },
@@ -415,15 +417,15 @@ export function useUpdateParametersMutation() {
 
 export function useLdapServersQuery(search?: string) {
   return useQuery({
-    queryKey: search ? [...adminKeys.ldapServers, { search }] : adminKeys.ldapServers,
-    queryFn: () => api.getLdapServers(search),
+    queryKey: search != null && search !== '' ? [...adminKeys.ldapServers, { search }] : adminKeys.ldapServers,
+    queryFn: async () => api.getLdapServers(search),
   })
 }
 
 export function useLdapServerQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.ldapServer(id),
-    queryFn: () => api.getLdapServer(id),
+    queryFn: async () => api.getLdapServer(id),
     enabled: !!id,
   })
 }
@@ -431,7 +433,7 @@ export function useLdapServerQuery(id: string) {
 export function useLdapUsersQuery(id: string, enabled = false) {
   return useQuery({
     queryKey: adminKeys.ldapUsers(id),
-    queryFn: () => api.getLdapUsers(id),
+    queryFn: async () => api.getLdapUsers(id),
     enabled: enabled && !!id,
   })
 }
@@ -439,9 +441,9 @@ export function useLdapUsersQuery(id: string, enabled = false) {
 export function useCreateLdapServerMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: CreateLdapServerRequest) => api.createLdapServer(req),
+    mutationFn: async (req: CreateLdapServerRequest) => api.createLdapServer(req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
     },
   })
 }
@@ -449,10 +451,10 @@ export function useCreateLdapServerMutation() {
 export function useUpdateLdapServerMutation(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: UpdateLdapServerRequest) => api.updateLdapServer(id, req),
+    mutationFn: async (req: UpdateLdapServerRequest) => api.updateLdapServer(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
-      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServer(id) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ldapServer(id) })
     },
   })
 }
@@ -460,25 +462,25 @@ export function useUpdateLdapServerMutation(id: string) {
 export function useDeleteLdapServerMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteLdapServer(id),
+    mutationFn: async (id: string) => api.deleteLdapServer(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ldapServers })
     },
   })
 }
 
 export function useTestLdapMutation() {
   return useMutation({
-    mutationFn: (req: TestLdapServerRequest) => api.testLdapServerConnection(req),
+    mutationFn: async (req: TestLdapServerRequest) => api.testLdapServerConnection(req),
   })
 }
 
 export function useImportLdapUsersMutation(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: ImportLdapUsersRequest) => api.importLdapUsers(id, req),
+    mutationFn: async (req: ImportLdapUsersRequest) => api.importLdapUsers(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.ldapUsers(id) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ldapUsers(id) })
     },
   })
 }
@@ -490,7 +492,7 @@ export function useImportLdapUsersMutation(id: string) {
 export function useLogsQuery(params: GetLogsRequest, options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: [...adminKeys.logs, params],
-    queryFn: () => api.getLogs(params),
+    queryFn: async () => api.getLogs(params),
     refetchInterval: options?.refetchInterval,
   })
 }
@@ -502,14 +504,14 @@ export function useLogsQuery(params: GetLogsRequest, options?: { refetchInterval
 export function useTargetGroupsQuery() {
   return useQuery({
     queryKey: adminKeys.targetGroups,
-    queryFn: () => api.listTargetGroups(),
+    queryFn: async () => api.listTargetGroups(),
   })
 }
 
 export function useTargetGroupQuery(id: string) {
   return useQuery({
     queryKey: adminKeys.targetGroup(id),
-    queryFn: () => api.getTargetGroup(id),
+    queryFn: async () => api.getTargetGroup(id),
     enabled: !!id,
   })
 }
@@ -517,7 +519,7 @@ export function useTargetGroupQuery(id: string) {
 export function useCreateTargetGroupMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: TargetGroupDataRequest) => api.createTargetGroup(req),
+    mutationFn: async (req: TargetGroupDataRequest) => api.createTargetGroup(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.targetGroups })
     },
@@ -527,7 +529,7 @@ export function useCreateTargetGroupMutation() {
 export function useUpdateTargetGroupMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: TargetGroupDataRequest }) =>
+    mutationFn: async ({ id, req }: { id: string, req: TargetGroupDataRequest }) =>
       api.updateTargetGroup(id, req),
     onSuccess: (_, { id }) => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.targetGroups })
@@ -539,7 +541,7 @@ export function useUpdateTargetGroupMutation() {
 export function useDeleteTargetGroupMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteTargetGroup(id),
+    mutationFn: async (id: string) => api.deleteTargetGroup(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.targetGroups })
     },
@@ -549,7 +551,7 @@ export function useDeleteTargetGroupMutation() {
 export function useTargetsByGroupQuery(groupId: string) {
   return useQuery({
     queryKey: adminKeys.targetsByGroup(groupId),
-    queryFn: () => api.getTargets({ group_id: groupId }),
+    queryFn: async () => api.getTargets({ group_id: groupId }),
     enabled: !!groupId,
   })
 }
@@ -558,17 +560,17 @@ export function useTargetsByGroupQuery(groupId: string) {
 // Targets
 // ============================================================
 
-export function useTargets(params?: { search?: string; group_id?: string }) {
+export function useTargets(params?: { search?: string, group_id?: string }) {
   return useQuery({
     queryKey: [...adminKeys.targets, params?.group_id ?? null],
-    queryFn: () => api.getTargets(params),
+    queryFn: async () => api.getTargets(params),
   })
 }
 
 export function useTarget(id: string) {
   return useQuery({
     queryKey: adminKeys.target(id),
-    queryFn: () => api.getTarget(id),
+    queryFn: async () => api.getTarget(id),
     enabled: !!id,
   })
 }
@@ -576,7 +578,7 @@ export function useTarget(id: string) {
 export function useTargetRoles(id: string) {
   return useQuery({
     queryKey: [...adminKeys.target(id), 'roles'],
-    queryFn: () => api.getTargetRoles(id),
+    queryFn: async () => api.getTargetRoles(id),
     enabled: !!id,
   })
 }
@@ -584,7 +586,7 @@ export function useTargetRoles(id: string) {
 export function useTargetSshHostKeys(id: string, enabled: boolean) {
   return useQuery({
     queryKey: [...adminKeys.target(id), 'ssh-host-keys'],
-    queryFn: () => api.getSshTargetKnownSshHostKeys(id),
+    queryFn: async () => api.getSshTargetKnownSshHostKeys(id),
     enabled: enabled && !!id,
   })
 }
@@ -592,7 +594,7 @@ export function useTargetSshHostKeys(id: string, enabled: boolean) {
 export function useCreateTarget() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: TargetDataRequest) => api.createTarget(req),
+    mutationFn: async (req: TargetDataRequest) => api.createTarget(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.targets })
       toast.success('Target created')
@@ -604,7 +606,7 @@ export function useCreateTarget() {
 export function useUpdateTarget() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: TargetDataRequest }) =>
+    mutationFn: async ({ id, req }: { id: string, req: TargetDataRequest }) =>
       api.updateTarget(id, req),
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.targets })
@@ -618,7 +620,7 @@ export function useUpdateTarget() {
 export function useDeleteTarget() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteTarget(id),
+    mutationFn: async (id: string) => api.deleteTarget(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminKeys.targets })
       toast.success('Target deleted')
@@ -630,7 +632,7 @@ export function useDeleteTarget() {
 export function useAddTargetRole() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ targetId, roleId }: { targetId: string; roleId: string }) =>
+    mutationFn: async ({ targetId, roleId }: { targetId: string, roleId: string }) =>
       api.addTargetRole(targetId, roleId),
     onSuccess: (_data, { targetId }) => {
       void queryClient.invalidateQueries({ queryKey: [...adminKeys.target(targetId), 'roles'] })
@@ -643,7 +645,7 @@ export function useAddTargetRole() {
 export function useRemoveTargetRole() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ targetId, roleId }: { targetId: string; roleId: string }) =>
+    mutationFn: async ({ targetId, roleId }: { targetId: string, roleId: string }) =>
       api.deleteTargetRole(targetId, roleId),
     onSuccess: (_data, { targetId }) => {
       void queryClient.invalidateQueries({ queryKey: [...adminKeys.target(targetId), 'roles'] })
@@ -660,7 +662,7 @@ export function useRemoveTargetRole() {
 export function useOtpCredentialsQuery(userId: string) {
   return useQuery({
     queryKey: adminKeys.userOtpCredentials(userId),
-    queryFn: () => api.getOtpCredentials(userId),
+    queryFn: async () => api.getOtpCredentials(userId),
     enabled: !!userId,
   })
 }
@@ -668,9 +670,9 @@ export function useOtpCredentialsQuery(userId: string) {
 export function useCreateOtpCredentialMutation(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: NewOtpCredential) => api.createOtpCredential(userId, req),
+    mutationFn: async (req: NewOtpCredential) => api.createOtpCredential(userId, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userOtpCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userOtpCredentials(userId) })
     },
   })
 }
@@ -678,9 +680,9 @@ export function useCreateOtpCredentialMutation(userId: string) {
 export function useDeleteOtpCredentialMutation(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteOtpCredential(userId, id),
+    mutationFn: async (id: string) => api.deleteOtpCredential(userId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userOtpCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userOtpCredentials(userId) })
     },
   })
 }
@@ -692,7 +694,7 @@ export function useDeleteOtpCredentialMutation(userId: string) {
 export function useCertCredentialsQuery(userId: string) {
   return useQuery({
     queryKey: adminKeys.userCertCredentials(userId),
-    queryFn: () => api.getCertificateCredentials(userId),
+    queryFn: async () => api.getCertificateCredentials(userId),
     enabled: !!userId,
   })
 }
@@ -700,9 +702,9 @@ export function useCertCredentialsQuery(userId: string) {
 export function useIssueCertCredentialMutation(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: IssueCertificateCredentialRequest) => api.issueCertificateCredential(userId, req),
+    mutationFn: async (req: IssueCertificateCredentialRequest) => api.issueCertificateCredential(userId, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userCertCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userCertCredentials(userId) })
     },
   })
 }
@@ -710,10 +712,10 @@ export function useIssueCertCredentialMutation(userId: string) {
 export function useUpdateCertCredentialMutation(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateCertificateCredential }) =>
+    mutationFn: async ({ id, req }: { id: string, req: UpdateCertificateCredential }) =>
       api.updateCertificateCredential(userId, id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userCertCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userCertCredentials(userId) })
     },
   })
 }
@@ -721,9 +723,9 @@ export function useUpdateCertCredentialMutation(userId: string) {
 export function useRevokeCertCredentialMutation(userId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.revokeCertificateCredential(userId, id),
+    mutationFn: async (id: string) => api.revokeCertificateCredential(userId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.userCertCredentials(userId) })
+      void queryClient.invalidateQueries({ queryKey: adminKeys.userCertCredentials(userId) })
     },
   })
 }
@@ -735,7 +737,7 @@ export function useRevokeCertCredentialMutation(userId: string) {
 export function useUnlinkUserFromLdapMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.unlinkUserFromLdap(id),
+    mutationFn: async (id: string) => api.unlinkUserFromLdap(id),
     onSuccess: (data) => {
       queryClient.setQueryData(adminKeys.user(data.id), data)
     },
@@ -745,7 +747,7 @@ export function useUnlinkUserFromLdapMutation() {
 export function useAutoLinkUserToLdapMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.autoLinkUserToLdap(id),
+    mutationFn: async (id: string) => api.autoLinkUserToLdap(id),
     onSuccess: (data) => {
       queryClient.setQueryData(adminKeys.user(data.id), data)
     },

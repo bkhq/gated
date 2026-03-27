@@ -1,13 +1,14 @@
+import type { RecordingMetadata } from '@/shared/lib/recordings'
+import { format } from 'date-fns'
+import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
-import { format } from 'date-fns'
-import { useRecordingQuery, useRecordingCastQuery } from '@/features/admin/api'
+import { useRecordingCastQuery, useRecordingQuery } from '@/features/admin/api'
 import { PageHeader } from '@/shared/components/page-header'
+import { TerminalPlayer } from '@/shared/components/terminal-player'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Skeleton } from '@/shared/components/ui/skeleton'
-import { TerminalPlayer } from '@/shared/components/terminal-player'
 import { recordingMetadataToFieldSet, recordingTypeLabel } from '@/shared/lib/recordings'
-import type { RecordingMetadata } from '@/shared/lib/recordings'
 
 function safeParseMetadata(raw: string): RecordingMetadata | null {
   try {
@@ -52,7 +53,7 @@ export function Component() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={recording.name || t('recording.title')} />
+      <PageHeader title={recording.name != null && recording.name !== '' ? recording.name : t('recording.title')} />
 
       {/* Metadata card */}
       <Card>
@@ -70,7 +71,7 @@ export function Component() {
             <dt className="text-muted-foreground">{t('recording.fields.started')}</dt>
             <dd>{format(new Date(recording.started), 'PPpp')}</dd>
 
-            {recording.ended && (
+            {recording.ended != null && recording.ended !== '' && (
               <>
                 <dt className="text-muted-foreground">{t('recording.fields.ended')}</dt>
                 <dd>{format(new Date(recording.ended), 'PPpp')}</dd>
@@ -81,10 +82,10 @@ export function Component() {
             <dd className="font-mono text-xs break-all">{recording.session_id}</dd>
 
             {metadataFields.map(([key, value]) => (
-              <>
-                <dt key={`k-${key}`} className="text-muted-foreground">{key}</dt>
-                <dd key={`v-${key}`}>{value}</dd>
-              </>
+              <Fragment key={key}>
+                <dt className="text-muted-foreground">{key}</dt>
+                <dd>{value}</dd>
+              </Fragment>
             ))}
           </dl>
         </CardContent>
@@ -101,7 +102,7 @@ export function Component() {
             {castQuery.isError && (
               <p className="text-destructive text-sm">{t('recording.castError')}</p>
             )}
-            {castQuery.data && (
+            {castQuery.data != null && castQuery.data !== '' && (
               <TerminalPlayer castText={castQuery.data} />
             )}
           </CardContent>

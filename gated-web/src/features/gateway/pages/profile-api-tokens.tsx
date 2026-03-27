@@ -1,18 +1,18 @@
-import { useState } from 'react'
+import type { ExistingApiToken } from '@/features/gateway/lib/api-client'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { Trash2, Plus } from 'lucide-react'
+import { useApiTokensQuery, useCreateApiTokenMutation, useDeleteApiTokenMutation } from '@/features/gateway/api'
+import { CopyButton } from '@/shared/components/copy-button'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/components/ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
-import { CopyButton } from '@/shared/components/copy-button'
-import { useApiTokensQuery, useCreateApiTokenMutation, useDeleteApiTokenMutation } from '@/features/gateway/api'
-import type { ExistingApiToken } from '@/features/gateway/lib/api-client'
 
 const createTokenSchema = z.object({
   label: z.string().min(1),
@@ -20,7 +20,7 @@ const createTokenSchema = z.object({
 })
 type CreateTokenForm = z.infer<typeof createTokenSchema>
 
-function TokenRow({ token, onDelete }: { token: ExistingApiToken; onDelete: (id: string) => void }) {
+function TokenRow({ token, onDelete }: { token: ExistingApiToken, onDelete: (id: string) => void }) {
   const { t } = useTranslation('gateway')
   return (
     <div className="flex items-center gap-2 py-3 border-b last:border-0">
@@ -39,7 +39,7 @@ function TokenRow({ token, onDelete }: { token: ExistingApiToken; onDelete: (id:
   )
 }
 
-function CreateTokenDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function CreateTokenDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const { t } = useTranslation(['gateway', 'common'])
   const createToken = useCreateApiTokenMutation()
   const [newSecret, setNewSecret] = useState<string | null>(null)
@@ -55,7 +55,8 @@ function CreateTokenDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     try {
       const result = await createToken.mutateAsync({ label: values.label, expiry: expiry.toISOString() })
       setNewSecret(result.secret)
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:apiTokens.createError'))
     }
   }
@@ -73,53 +74,55 @@ function CreateTokenDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           <DialogTitle>{t('gateway:apiTokens.createTitle')}</DialogTitle>
         </DialogHeader>
 
-        {newSecret ? (
-          <div className="space-y-4">
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">{t('gateway:apiTokens.secretWarning')}</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-muted px-3 py-2 rounded font-mono break-all">{newSecret}</code>
-              <CopyButton value={newSecret} label={t('common:actions.copy')} />
-            </div>
-            <DialogFooter>
-              <Button onClick={handleClose}>{t('common:actions.close')}</Button>
-            </DialogFooter>
-          </div>
-        ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="label"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('gateway:apiTokens.label')}</FormLabel>
-                    <FormControl><Input placeholder={t('gateway:apiTokens.labelPlaceholder')} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="expiryDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('gateway:apiTokens.expiryDays')}</FormLabel>
-                    <FormControl><Input type="number" min={1} max={365} {...field} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleClose}>
-                  {t('common:actions.cancel')}
-                </Button>
-                <Button type="submit" disabled={createToken.isPending}>
-                  {createToken.isPending ? t('common:actions.loading') : t('gateway:apiTokens.create')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        )}
+        {newSecret != null
+          ? (
+              <div className="space-y-4">
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400">{t('gateway:apiTokens.secretWarning')}</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs bg-muted px-3 py-2 rounded font-mono break-all">{newSecret}</code>
+                  <CopyButton value={newSecret} label={t('common:actions.copy')} />
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleClose}>{t('common:actions.close')}</Button>
+                </DialogFooter>
+              </div>
+            )
+          : (
+              <Form {...form}>
+                <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="label"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('gateway:apiTokens.label')}</FormLabel>
+                        <FormControl><Input placeholder={t('gateway:apiTokens.labelPlaceholder')} {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expiryDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('gateway:apiTokens.expiryDays')}</FormLabel>
+                        <FormControl><Input type="number" min={1} max={365} {...field} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={handleClose}>
+                      {t('common:actions.cancel')}
+                    </Button>
+                    <Button type="submit" disabled={createToken.isPending}>
+                      {createToken.isPending ? t('common:actions.loading') : t('gateway:apiTokens.create')}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            )}
       </DialogContent>
     </Dialog>
   )
@@ -137,7 +140,8 @@ export function Component() {
     try {
       await deleteToken.mutateAsync(id)
       toast.success(t('gateway:apiTokens.deleteSuccess'))
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:apiTokens.deleteError'))
     }
   }
@@ -162,7 +166,7 @@ export function Component() {
             <p className="text-sm text-muted-foreground">{t('gateway:apiTokens.empty')}</p>
           )}
           {tokens.map(token => (
-            <TokenRow key={token.id} token={token} onDelete={handleDelete} />
+            <TokenRow key={token.id} token={token} onDelete={id => void handleDelete(id)} />
           ))}
         </CardContent>
       </Card>

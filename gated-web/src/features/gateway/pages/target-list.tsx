@@ -1,29 +1,33 @@
+import type { TargetSnapshot } from '@/features/gateway/lib/api-client'
+import { Database, Globe, Search, Terminal } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { Terminal, Globe, Database } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
+import { useInfoQuery, useTargetsQuery } from '@/features/gateway/api'
+import { CardSkeleton } from '@/shared/components/card-skeleton'
+import { CopyButton } from '@/shared/components/copy-button'
+import { EmptyState } from '@/shared/components/empty-state'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
-import { CopyButton } from '@/shared/components/copy-button'
-import { useInfoQuery, useTargetsQuery } from '@/features/gateway/api'
 import { shellEscape } from '@/shared/lib/shell-escape'
-import type { TargetSnapshot } from '@/features/gateway/lib/api-client'
 
 function TargetIcon({ kind }: { kind: TargetSnapshot['kind'] }) {
-  if (kind === 'Ssh') return <Terminal className="size-4" />
-  if (kind === 'MySql' || kind === 'Postgres') return <Database className="size-4" />
+  if (kind === 'Ssh')
+    return <Terminal className="size-4" />
+  if (kind === 'MySql' || kind === 'Postgres')
+    return <Database className="size-4" />
   return <Globe className="size-4" />
 }
 
 function buildSshCommand(target: TargetSnapshot, externalHost?: string, sshPort?: number): string {
   const host = externalHost ?? 'gateway'
-  const portFlag = sshPort && sshPort !== 22 ? ['-p', String(sshPort)] : []
+  const portFlag = sshPort != null && sshPort !== 0 && sshPort !== 22 ? ['-p', String(sshPort)] : []
   return shellEscape(['ssh', ...portFlag, '-l', target.name, host])
 }
 
-function TargetCard({ target, infoData }: { target: TargetSnapshot; infoData: { external_host?: string; ports?: { ssh?: number } } | undefined }) {
+function TargetCard({ target, infoData }: { target: TargetSnapshot, infoData: { external_host?: string, ports?: { ssh?: number } } | undefined }) {
   const { t } = useTranslation('gateway')
 
   const isSsh = target.kind === 'Ssh'
@@ -41,24 +45,22 @@ function TargetCard({ target, infoData }: { target: TargetSnapshot; infoData: { 
           </div>
           <Badge variant="secondary" className="shrink-0">{target.kind}</Badge>
         </div>
-        {target.description && (
+        {target.description != null && target.description !== '' && (
           <p className="text-sm text-muted-foreground truncate">{target.description}</p>
         )}
       </CardHeader>
       <CardContent className="space-y-2">
-        {isSsh && sshCmd && (
+        {isSsh && sshCmd != null && sshCmd !== '' && (
           <div className="flex items-center gap-1">
             <code className="flex-1 text-xs bg-muted px-2 py-1 rounded font-mono truncate">{sshCmd}</code>
             <CopyButton value={sshCmd} label={t('targetList.copyCommand')} />
-            <Button asChild size="sm" variant="outline">
-              <Link to={`/ui/ssh/${encodeURIComponent(target.name)}`}>
-                <Terminal className="size-3.5 mr-1" />
-                {t('targetList.openTerminal')}
-              </Link>
+            <Button render={<Link to={`/ui/ssh/${encodeURIComponent(target.name)}`} />} size="sm" variant="outline">
+              <Terminal className="size-3.5 mr-1" />
+              {t('targetList.openTerminal')}
             </Button>
           </div>
         )}
-        {isHttp && infoData?.external_host && (
+        {isHttp && infoData?.external_host != null && infoData.external_host !== '' && (
           <a
             href={`https://${infoData.external_host}`}
             target="_blank"
@@ -87,21 +89,25 @@ export function Component() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-heading font-semibold">{t('pages.targetList')}</h1>
-        <Input
-          placeholder={t('targetList.search')}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
+        <h1 className="text-2xl font-semibold tracking-tight">{t('pages.targetList')}</h1>
+        <div className="relative max-w-xs w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t('targetList.search')}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      {targetsQuery.isPending && (
-        <div className="text-muted-foreground text-sm">{t('common:actions.loading')}</div>
-      )}
+      {targetsQuery.isPending && <CardSkeleton count={6} />}
 
       {targetsQuery.isSuccess && targets.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">{t('targetList.empty')}</div>
+        <EmptyState
+          icon={Terminal}
+          title={t('targetList.empty')}
+        />
       )}
 
       {targets.length > 0 && (

@@ -1,13 +1,15 @@
+import type { TicketAndSecret } from '@/features/admin/lib/api'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { AlertTriangle, ArrowLeft, KeyRound } from 'lucide-react'
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { AlertTriangle, ArrowLeft, KeyRound } from 'lucide-react'
+import { useCreateTicketMutation } from '@/features/admin/api'
+import { CopyButton } from '@/shared/components/copy-button'
+import { PageHeader } from '@/shared/components/page-header'
 import { Button } from '@/shared/components/ui/button'
-import { Input } from '@/shared/components/ui/input'
-import { Textarea } from '@/shared/components/ui/textarea'
 import {
   Form,
   FormControl,
@@ -16,10 +18,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/components/ui/form'
-import { CopyButton } from '@/shared/components/copy-button'
-import { PageHeader } from '@/shared/components/page-header'
-import { useCreateTicketMutation } from '@/features/admin/api'
-import type { TicketAndSecret } from '@/features/admin/lib/api'
+import { Input } from '@/shared/components/ui/input'
+import { Textarea } from '@/shared/components/ui/textarea'
 
 const schema = z.object({
   username: z.string().min(1),
@@ -50,17 +50,17 @@ export function Component() {
   })
 
   const onSubmit = (values: FormValues) => {
-    const numberOfUses = values.number_of_uses
-      ? parseInt(values.number_of_uses, 10)
+    const numberOfUses = values.number_of_uses != null && values.number_of_uses !== ''
+      ? Number.parseInt(values.number_of_uses, 10)
       : undefined
 
     createMutation.mutate(
       {
         username: values.username,
         target_name: values.target_name,
-        expiry: values.expiry || undefined,
+        expiry: values.expiry != null && values.expiry !== '' ? values.expiry : undefined,
         number_of_uses: Number.isFinite(numberOfUses) ? numberOfUses : undefined,
-        description: values.description || undefined,
+        description: values.description != null && values.description !== '' ? values.description : undefined,
       },
       {
         onSuccess: data => setResult(data),
@@ -73,7 +73,7 @@ export function Component() {
       <div>
         <PageHeader
           title={t('tickets.secret.title')}
-          actions={
+          actions={(
             <Button
               variant="outline"
               onClick={() => void navigate('/ui/admin/config/tickets')}
@@ -81,7 +81,7 @@ export function Component() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               {tc('actions.back')}
             </Button>
-          }
+          )}
         />
 
         <div className="max-w-xl space-y-6">
@@ -118,7 +118,7 @@ export function Component() {
               <span className="text-muted-foreground">{t('tickets.table.target')}</span>
               <span>{result.ticket.target}</span>
             </div>
-            {result.ticket.expiry && (
+            {result.ticket.expiry != null && result.ticket.expiry !== '' && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t('tickets.table.expiry')}</span>
                 <span>{new Date(result.ticket.expiry).toLocaleString()}</span>
@@ -140,7 +140,7 @@ export function Component() {
     <div>
       <PageHeader
         title={t('pages.createTicket')}
-        actions={
+        actions={(
           <Button
             variant="outline"
             onClick={() => void navigate('/ui/admin/config/tickets')}
@@ -148,17 +148,21 @@ export function Component() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             {tc('actions.back')}
           </Button>
-        }
+        )}
       />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl space-y-6">
+        <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="max-w-xl space-y-6">
           <FormField
             control={form.control}
             name="username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('tickets.form.username')} *</FormLabel>
+                <FormLabel>
+                  {t('tickets.form.username')}
+                  {' '}
+                  *
+                </FormLabel>
                 <FormControl>
                   <Input {...field} placeholder={t('tickets.form.usernamePlaceholder')} />
                 </FormControl>
@@ -172,7 +176,11 @@ export function Component() {
             name="target_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('tickets.form.targetName')} *</FormLabel>
+                <FormLabel>
+                  {t('tickets.form.targetName')}
+                  {' '}
+                  *
+                </FormLabel>
                 <FormControl>
                   <Input {...field} placeholder={t('tickets.form.targetNamePlaceholder')} />
                 </FormControl>

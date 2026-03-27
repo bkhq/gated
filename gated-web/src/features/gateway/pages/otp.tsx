@@ -1,15 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useLocation, Link } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { ResponseError, useOtpLoginMutation } from '@/features/gateway/api'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { useAuthStore } from '@/shared/stores/auth'
-import { useOtpLoginMutation, ResponseError } from '@/features/gateway/api'
 
 const otpSchema = z.object({
   otp: z.string().min(6).max(8),
@@ -23,7 +23,7 @@ export function Component() {
   const location = useLocation()
   const setAuth = useAuthStore(s => s.setAuth)
 
-  const state = location.state as { username?: string; from?: string } | null
+  const state = location.state as { username?: string, from?: string } | null
   const username = state?.username ?? ''
   const from = state?.from ?? '/ui'
 
@@ -37,13 +37,16 @@ export function Component() {
   async function onSubmit(values: OtpForm) {
     try {
       await otpMutation.mutateAsync(values)
-      if (username) setAuth(username, false)
+      if (username)
+        setAuth(username, false)
       void navigate(from, { replace: true })
-    } catch (err) {
+    }
+    catch (err) {
       if (err instanceof ResponseError && err.response.status === 401) {
         toast.error(t('gateway:otp.errors.invalid'))
         form.reset()
-      } else {
+      }
+      else {
         toast.error(t('gateway:otp.errors.failed'))
       }
     }
@@ -58,7 +61,7 @@ export function Component() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="otp"
@@ -82,8 +85,8 @@ export function Component() {
               </Button>
             </form>
           </Form>
-          <Button variant="ghost" size="sm" className="w-full" asChild>
-            <Link to="/ui/login">{t('gateway:otp.back')}</Link>
+          <Button variant="ghost" size="sm" className="w-full" render={<Link to="/ui/login" />}>
+            {t('gateway:otp.back')}
           </Button>
         </CardContent>
       </Card>

@@ -1,5 +1,3 @@
-import { Link, Outlet, useLocation } from 'react-router'
-import { useTranslation } from 'react-i18next'
 import {
   Activity,
   Building2,
@@ -13,6 +11,11 @@ import {
   Ticket,
   Users,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { Link, Outlet, useLocation } from 'react-router'
+import { AppBreadcrumb } from '@/shared/components/app-breadcrumb'
+import { ModeToggle } from '@/shared/components/mode-toggle'
+import { Separator } from '@/shared/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
@@ -30,9 +33,6 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/shared/components/ui/sidebar'
-import { Separator } from '@/shared/components/ui/separator'
-import { ModeToggle } from '@/shared/components/mode-toggle'
-import { AppBreadcrumb } from '@/shared/components/app-breadcrumb'
 import { UserMenu } from '@/shared/components/user-menu'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
 
@@ -59,12 +59,13 @@ const systemItems = [
 ]
 
 function isNavActive(pathname: string, to: string, end: boolean): boolean {
-  if (end) return pathname === to
-  return pathname === to || pathname.startsWith(to + '/')
+  if (end)
+    return pathname === to
+  return pathname === to || pathname.startsWith(`${to}/`)
 }
 
 interface NavGroupProps {
-  items: Array<{ to: string; key: string; icon: React.ElementType; end?: boolean }>
+  items: Array<{ to: string, key: string, icon: React.ElementType, end?: boolean }>
   pathname: string
   t: (key: string) => string
 }
@@ -75,14 +76,12 @@ function NavGroup({ items, pathname, t }: NavGroupProps) {
       {items.map(item => (
         <SidebarMenuItem key={item.to}>
           <SidebarMenuButton
-            asChild
+            render={<Link to={item.to} />}
             isActive={isNavActive(pathname, item.to, item.end ?? false)}
             tooltip={t(item.key)}
           >
-            <Link to={item.to}>
-              <item.icon />
-              <span>{t(item.key)}</span>
-            </Link>
+            <item.icon />
+            <span>{t(item.key)}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
@@ -102,11 +101,14 @@ export function AdminLayout() {
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild>
-                <Link to="/ui/admin">
-                  <ShieldCheck className="size-5 shrink-0" />
-                  <span className="font-heading font-semibold">{t('common:adminTitle')}</span>
-                </Link>
+              <SidebarMenuButton size="lg" render={<Link to="/ui/admin" className="gap-3" />}>
+                <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <ShieldCheck className="size-4" />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-semibold tracking-tight">Gated</span>
+                  <span className="text-xs text-sidebar-foreground/60">{t('common:adminTitle')}</span>
+                </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -160,7 +162,7 @@ export function AdminLayout() {
       </Sidebar>
 
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <AppBreadcrumb />
@@ -168,7 +170,7 @@ export function AdminLayout() {
             <ModeToggle />
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-4 overflow-auto">
           <Outlet />
         </main>
       </SidebarInset>

@@ -1,12 +1,22 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useParams, useNavigate } from 'react-router'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { toast } from 'sonner'
-import { Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import type { Target, User } from '@/features/admin/lib/api-client'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { useNavigate, useParams } from 'react-router'
+import { toast } from 'sonner'
+import { z } from 'zod'
+import {
+  useDeleteRoleMutation,
+  useRoleQuery,
+  useRoleTargetsQuery,
+  useRoleUsersQuery,
+  useUpdateRoleMutation,
+} from '@/features/admin/api'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
+import { DataTable } from '@/shared/components/data-table'
 import { PageHeader } from '@/shared/components/page-header'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -18,18 +28,8 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
-import { Textarea } from '@/shared/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
-import { DataTable } from '@/shared/components/data-table'
-import { ConfirmDialog } from '@/shared/components/confirm-dialog'
-import {
-  useRoleQuery,
-  useUpdateRoleMutation,
-  useDeleteRoleMutation,
-  useRoleUsersQuery,
-  useRoleTargetsQuery,
-} from '@/features/admin/api'
-import type { User, Target } from '@/features/admin/lib/api-client'
+import { Textarea } from '@/shared/components/ui/textarea'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -62,7 +62,8 @@ export function Component() {
         req: { name: values.name, description: values.description },
       })
       toast.success(t('roles.updated'))
-    } catch {
+    }
+    catch {
       toast.error(t('roles.updateError'))
     }
   }
@@ -71,8 +72,9 @@ export function Component() {
     try {
       await deleteMutation.mutateAsync(id!)
       toast.success(t('roles.deleted'))
-      navigate('..')
-    } catch {
+      void navigate('..')
+    }
+    catch {
       toast.error(t('roles.deleteError'))
     }
   }
@@ -122,28 +124,36 @@ export function Component() {
     <div>
       <PageHeader
         title={role.name}
-        actions={
+        actions={(
           <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             {t('actions.delete', { ns: 'common' })}
           </Button>
-        }
+        )}
       />
 
       <Tabs defaultValue="info">
         <TabsList>
           <TabsTrigger value="info">{t('roles.tabInfo')}</TabsTrigger>
           <TabsTrigger value="users">
-            {t('roles.tabUsers')} ({users.length})
+            {t('roles.tabUsers')}
+            {' '}
+            (
+            {users.length}
+            )
           </TabsTrigger>
           <TabsTrigger value="targets">
-            {t('roles.tabTargets')} ({targets.length})
+            {t('roles.tabTargets')}
+            {' '}
+            (
+            {targets.length}
+            )
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-lg">
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-6 max-w-lg">
               <FormField
                 control={form.control}
                 name="name"
@@ -207,7 +217,7 @@ export function Component() {
         title={t('roles.deleteTitle')}
         description={t('roles.deleteDescription')}
         confirmLabel={t('actions.delete', { ns: 'common' })}
-        onConfirm={handleDelete}
+        onConfirm={() => void handleDelete()}
       />
     </div>
   )

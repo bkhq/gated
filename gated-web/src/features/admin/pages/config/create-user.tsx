@@ -1,11 +1,12 @@
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { z } from 'zod'
 import { useCreateUser } from '@/features/admin/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { Button } from '@/shared/components/ui/button'
+import { Card, CardContent } from '@/shared/components/ui/card'
 import {
   Form,
   FormControl,
@@ -16,7 +17,6 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { Card, CardContent } from '@/shared/components/ui/card'
 
 const schema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -38,11 +38,12 @@ export function Component() {
     try {
       const user = await createUser.mutateAsync({
         username: values.username,
-        description: values.description || undefined,
+        description: values.description != null && values.description !== '' ? values.description : undefined,
       })
       toast.success(`User "${user.username}" created`)
-      navigate(`/ui/admin/config/users/${user.id}`)
-    } catch {
+      void navigate(`/ui/admin/config/users/${user.id}`)
+    }
+    catch {
       toast.error('Failed to create user')
     }
   }
@@ -54,7 +55,7 @@ export function Component() {
       <Card>
         <CardContent className="pt-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="username"
@@ -90,7 +91,7 @@ export function Component() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/ui/admin/config/users')}
+                  onClick={() => void navigate('/ui/admin/config/users')}
                 >
                   Cancel
                 </Button>

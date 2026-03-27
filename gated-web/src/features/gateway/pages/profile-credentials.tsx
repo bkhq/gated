@@ -1,25 +1,25 @@
-import { useState } from 'react'
+import type { ExistingCertificateCredential, ExistingOtpCredential, ExistingPublicKeyCredential } from '@/features/gateway/lib/api-client'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { Trash2, Plus } from 'lucide-react'
+import {
+  useAddOtpMutation,
+  useAddPublicKeyMutation,
+  useCredentialsQuery,
+  useDeleteOtpMutation,
+  useDeletePublicKeyMutation,
+} from '@/features/gateway/api'
+import { CopyButton } from '@/shared/components/copy-button'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/components/ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
-import { CopyButton } from '@/shared/components/copy-button'
-import {
-  useCredentialsQuery,
-  useAddPublicKeyMutation,
-  useDeletePublicKeyMutation,
-  useAddOtpMutation,
-  useDeleteOtpMutation,
-} from '@/features/gateway/api'
-import type { ExistingPublicKeyCredential, ExistingOtpCredential, ExistingCertificateCredential } from '@/features/gateway/lib/api-client'
 
 // ---- Public Keys ----
 
@@ -29,14 +29,14 @@ const addKeySchema = z.object({
 })
 type AddKeyForm = z.infer<typeof addKeySchema>
 
-function PublicKeyRow({ pk, onDelete }: { pk: ExistingPublicKeyCredential; onDelete: (id: string) => void }) {
+function PublicKeyRow({ pk, onDelete }: { pk: ExistingPublicKeyCredential, onDelete: (id: string) => void }) {
   const { t } = useTranslation('gateway')
   return (
     <div className="flex items-center gap-2 py-2 border-b last:border-0">
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm">{pk.label}</p>
         <p className="text-xs text-muted-foreground font-mono truncate">{pk.abbreviated}</p>
-        {pk.date_added && (
+        {pk.date_added != null && pk.date_added !== '' && (
           <p className="text-xs text-muted-foreground">{t('credentials.addedOn', { date: new Date(pk.date_added).toLocaleDateString() })}</p>
         )}
       </div>
@@ -47,7 +47,7 @@ function PublicKeyRow({ pk, onDelete }: { pk: ExistingPublicKeyCredential; onDel
   )
 }
 
-function AddPublicKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function AddPublicKeyDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const { t } = useTranslation(['gateway', 'common'])
   const addKey = useAddPublicKeyMutation()
 
@@ -62,7 +62,8 @@ function AddPublicKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       form.reset()
       onOpenChange(false)
       toast.success(t('gateway:credentials.publicKeys.addSuccess'))
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:credentials.publicKeys.addError'))
     }
   }
@@ -74,7 +75,7 @@ function AddPublicKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <DialogTitle>{t('gateway:credentials.publicKeys.addTitle')}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
             <FormField
               control={form.control}
               name="label"
@@ -120,7 +121,11 @@ function AddPublicKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 
 // ---- OTP ----
 
-function OtpRow({ otp, onDelete, index }: { otp: ExistingOtpCredential; onDelete: (id: string) => void; index: number }) {
+const RE_EQUALS = /=/g
+const RE_PLUS = /\+/g
+const RE_SLASH = /\//g
+
+function OtpRow({ otp, onDelete, index }: { otp: ExistingOtpCredential, onDelete: (id: string) => void, index: number }) {
   const { t } = useTranslation('gateway')
   return (
     <div className="flex items-center gap-2 py-2 border-b last:border-0">
@@ -135,7 +140,7 @@ function OtpRow({ otp, onDelete, index }: { otp: ExistingOtpCredential; onDelete
   )
 }
 
-function AddOtpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function AddOtpDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const { t } = useTranslation(['gateway', 'common'])
   const addOtp = useAddOtpMutation()
   const [provisioningUri, setProvisioningUri] = useState<string | null>(null)
@@ -152,11 +157,12 @@ function AddOtpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
       await addOtp.mutateAsync({ secret_key: secretKey })
       // Build a simple TOTP URI for display
       const base32 = btoa(String.fromCharCode(...secretKey))
-        .replace(/=/g, '')
-        .replace(/\+/g, 'A')
-        .replace(/\//g, 'B')
+        .replace(RE_EQUALS, '')
+        .replace(RE_PLUS, 'A')
+        .replace(RE_SLASH, 'B')
       setProvisioningUri(`otpauth://totp/Gated?secret=${base32}`)
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:credentials.otp.addError'))
     }
   }
@@ -172,31 +178,33 @@ function AddOtpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         <DialogHeader>
           <DialogTitle>{t('gateway:credentials.otp.addTitle')}</DialogTitle>
         </DialogHeader>
-        {provisioningUri ? (
-          <div className="space-y-4">
-            <p className="text-sm">{t('gateway:credentials.otp.addedInfo')}</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-muted px-2 py-1 rounded font-mono break-all">{provisioningUri}</code>
-              <CopyButton value={provisioningUri} label={t('common:actions.copy')} />
-            </div>
-            <p className="text-xs text-muted-foreground">{t('gateway:credentials.otp.scanOnce')}</p>
-            <DialogFooter>
-              <Button onClick={handleClose}>{t('common:actions.close')}</Button>
-            </DialogFooter>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm">{t('gateway:credentials.otp.addDescription')}</p>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose}>
-                {t('common:actions.cancel')}
-              </Button>
-              <Button onClick={handleAdd} disabled={addOtp.isPending}>
-                {addOtp.isPending ? t('common:actions.loading') : t('common:actions.generate')}
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
+        {provisioningUri != null
+          ? (
+              <div className="space-y-4">
+                <p className="text-sm">{t('gateway:credentials.otp.addedInfo')}</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs bg-muted px-2 py-1 rounded font-mono break-all">{provisioningUri}</code>
+                  <CopyButton value={provisioningUri} label={t('common:actions.copy')} />
+                </div>
+                <p className="text-xs text-muted-foreground">{t('gateway:credentials.otp.scanOnce')}</p>
+                <DialogFooter>
+                  <Button onClick={handleClose}>{t('common:actions.close')}</Button>
+                </DialogFooter>
+              </div>
+            )
+          : (
+              <div className="space-y-4">
+                <p className="text-sm">{t('gateway:credentials.otp.addDescription')}</p>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={handleClose}>
+                    {t('common:actions.cancel')}
+                  </Button>
+                  <Button onClick={() => void handleAdd()} disabled={addOtp.isPending}>
+                    {addOtp.isPending ? t('common:actions.loading') : t('common:actions.generate')}
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
       </DialogContent>
     </Dialog>
   )
@@ -211,7 +219,7 @@ function CertificateRow({ cert }: { cert: ExistingCertificateCredential }) {
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm">{cert.label}</p>
         <p className="text-xs text-muted-foreground font-mono truncate">{cert.fingerprint}</p>
-        {cert.date_added && (
+        {cert.date_added != null && cert.date_added !== '' && (
           <p className="text-xs text-muted-foreground">{t('credentials.addedOn', { date: new Date(cert.date_added).toLocaleDateString() })}</p>
         )}
       </div>
@@ -236,7 +244,8 @@ export function Component() {
     try {
       await deleteKey.mutateAsync(id)
       toast.success(t('gateway:credentials.publicKeys.deleteSuccess'))
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:credentials.publicKeys.deleteError'))
     }
   }
@@ -245,7 +254,8 @@ export function Component() {
     try {
       await deleteOtp.mutateAsync(id)
       toast.success(t('gateway:credentials.otp.deleteSuccess'))
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:credentials.otp.deleteError'))
     }
   }
@@ -276,7 +286,7 @@ export function Component() {
                 <p className="text-sm text-muted-foreground">{t('gateway:credentials.publicKeys.empty')}</p>
               )}
               {credentials?.public_keys.map(pk => (
-                <PublicKeyRow key={pk.id} pk={pk} onDelete={handleDeleteKey} />
+                <PublicKeyRow key={pk.id} pk={pk} onDelete={id => void handleDeleteKey(id)} />
               ))}
             </CardContent>
           </Card>
@@ -298,7 +308,7 @@ export function Component() {
                 <p className="text-sm text-muted-foreground">{t('gateway:credentials.otp.empty')}</p>
               )}
               {credentials?.otp.map((otp, i) => (
-                <OtpRow key={otp.id} otp={otp} index={i} onDelete={handleDeleteOtp} />
+                <OtpRow key={otp.id} otp={otp} index={i} onDelete={id => void handleDeleteOtp(id)} />
               ))}
             </CardContent>
           </Card>

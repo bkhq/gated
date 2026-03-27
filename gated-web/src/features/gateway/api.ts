@@ -1,6 +1,6 @@
+import type { NewApiToken, NewOtpCredential, NewPublicKeyCredential } from '@/features/gateway/lib/api-client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ResponseError } from '@/features/gateway/lib/api'
-import type { NewPublicKeyCredential, NewOtpCredential, NewApiToken } from '@/features/gateway/lib/api-client'
 
 export const gatewayKeys = {
   info: ['gateway', 'info'] as const,
@@ -13,7 +13,7 @@ export const gatewayKeys = {
 export function useInfoQuery() {
   return useQuery({
     queryKey: gatewayKeys.info,
-    queryFn: () => api.getInfo(),
+    queryFn: async () => api.getInfo(),
     retry: false,
   })
 }
@@ -21,7 +21,7 @@ export function useInfoQuery() {
 export function useSsoProvidersQuery() {
   return useQuery({
     queryKey: gatewayKeys.ssoProviders,
-    queryFn: () => api.getSsoProviders(),
+    queryFn: async () => api.getSsoProviders(),
     retry: false,
   })
 }
@@ -29,7 +29,7 @@ export function useSsoProvidersQuery() {
 export function useLoginMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: { username: string; password: string }) => api.login(req),
+    mutationFn: async (req: { username: string, password: string }) => api.login(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
     },
@@ -39,7 +39,7 @@ export function useLoginMutation() {
 export function useOtpLoginMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: { otp: string }) => api.otpLogin(req),
+    mutationFn: async (req: { otp: string }) => api.otpLogin(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
     },
@@ -49,7 +49,7 @@ export function useOtpLoginMutation() {
 export function useLogoutMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => api.logout(),
+    mutationFn: async () => api.logout(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
     },
@@ -58,14 +58,14 @@ export function useLogoutMutation() {
 
 export function useStartSsoMutation() {
   return useMutation({
-    mutationFn: ({ name, next }: { name: string; next?: string }) => api.startSso(name, next),
+    mutationFn: async ({ name, next }: { name: string, next?: string }) => api.startSso(name, next),
   })
 }
 
 export function useTargetsQuery(search?: string) {
   return useQuery({
     queryKey: [...gatewayKeys.targets, search],
-    queryFn: () => api.getTargets(search),
+    queryFn: async () => api.getTargets(search),
     retry: false,
   })
 }
@@ -73,7 +73,7 @@ export function useTargetsQuery(search?: string) {
 export function useCredentialsQuery() {
   return useQuery({
     queryKey: gatewayKeys.credentials,
-    queryFn: () => api.getMyCredentials(),
+    queryFn: async () => api.getMyCredentials(),
     retry: false,
   })
 }
@@ -81,7 +81,7 @@ export function useCredentialsQuery() {
 export function useChangePasswordMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (password: string) => api.changeMyPassword({ password }),
+    mutationFn: async (password: string) => api.changeMyPassword({ password }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.credentials })
     },
@@ -91,7 +91,7 @@ export function useChangePasswordMutation() {
 export function useAddPublicKeyMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: NewPublicKeyCredential) => api.addMyPublicKey(req),
+    mutationFn: async (req: NewPublicKeyCredential) => api.addMyPublicKey(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.credentials })
     },
@@ -101,7 +101,7 @@ export function useAddPublicKeyMutation() {
 export function useDeletePublicKeyMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteMyPublicKey(id),
+    mutationFn: async (id: string) => api.deleteMyPublicKey(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.credentials })
     },
@@ -111,7 +111,7 @@ export function useDeletePublicKeyMutation() {
 export function useAddOtpMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: NewOtpCredential) => api.addMyOtp(req),
+    mutationFn: async (req: NewOtpCredential) => api.addMyOtp(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.credentials })
     },
@@ -121,7 +121,7 @@ export function useAddOtpMutation() {
 export function useDeleteOtpMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteMyOtp(id),
+    mutationFn: async (id: string) => api.deleteMyOtp(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.credentials })
     },
@@ -131,7 +131,7 @@ export function useDeleteOtpMutation() {
 export function useApiTokensQuery() {
   return useQuery({
     queryKey: gatewayKeys.apiTokens,
-    queryFn: () => api.getMyApiTokens(),
+    queryFn: async () => api.getMyApiTokens(),
     retry: false,
   })
 }
@@ -139,7 +139,7 @@ export function useApiTokensQuery() {
 export function useCreateApiTokenMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (req: NewApiToken) => api.createApiToken(req),
+    mutationFn: async (req: NewApiToken) => api.createApiToken(req),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.apiTokens })
     },
@@ -149,7 +149,7 @@ export function useCreateApiTokenMutation() {
 export function useDeleteApiTokenMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteMyApiToken(id),
+    mutationFn: async (id: string) => api.deleteMyApiToken(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gatewayKeys.apiTokens })
     },

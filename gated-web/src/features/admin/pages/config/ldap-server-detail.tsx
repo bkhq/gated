@@ -1,21 +1,25 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useParams, useNavigate } from 'react-router'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { toast } from 'sonner'
-import { CheckCircle2, XCircle, Users, Download, Loader2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { PageHeader } from '@/shared/components/page-header'
+import type { LdapUserResponse, TestLdapServerResponse } from '@/features/admin/lib/api-client'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { CheckCircle2, Download, Loader2, Users, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { useNavigate, useParams } from 'react-router'
+import { toast } from 'sonner'
+import { z } from 'zod'
+import {
+  useImportLdapUsersMutation,
+  useLdapServerQuery,
+  useLdapUsersQuery,
+  useTestLdapMutation,
+  useUpdateLdapServerMutation,
+} from '@/features/admin/api'
 import { DataTable } from '@/shared/components/data-table'
-import { Button } from '@/shared/components/ui/button'
-import { Input } from '@/shared/components/ui/input'
-import { Switch } from '@/shared/components/ui/switch'
+import { PageHeader } from '@/shared/components/page-header'
 import { Badge } from '@/shared/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import { Separator } from '@/shared/components/ui/separator'
 import {
   Form,
   FormControl,
@@ -24,14 +28,10 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/components/ui/form'
-import {
-  useLdapServerQuery,
-  useUpdateLdapServerMutation,
-  useLdapUsersQuery,
-  useTestLdapMutation,
-  useImportLdapUsersMutation,
-} from '@/features/admin/api'
-import type { LdapUserResponse, TestLdapServerResponse } from '@/features/admin/lib/api-client'
+import { Input } from '@/shared/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import { Separator } from '@/shared/components/ui/separator'
+import { Switch } from '@/shared/components/ui/switch'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -59,7 +59,7 @@ export function Component() {
 
   const [testResult, setTestResult] = useState<TestLdapServerResponse | null>(null)
   const [usersEnabled, setUsersEnabled] = useState(false)
-  const [selectedDns, setSelectedDns] = useState<Set<string>>(new Set())
+  const [selectedDns, setSelectedDns] = useState<Set<string>>(() => new Set())
 
   const { data: server, isLoading } = useLdapServerQuery(id!)
   const { data: ldapUsers = [], isFetching: loadingUsers } = useLdapUsersQuery(id!, usersEnabled)
@@ -115,7 +115,7 @@ export function Component() {
         host: values.host,
         port: Number(values.port),
         bind_dn: values.bind_dn,
-        bind_password: values.bind_password || undefined,
+        bind_password: values.bind_password != null && values.bind_password !== '' ? values.bind_password : undefined,
         user_filter: values.user_filter,
         tls_mode: values.tls_mode,
         tls_verify: values.tls_verify,
@@ -249,7 +249,7 @@ export function Component() {
 
       <div className="space-y-6 max-w-2xl">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-6">
             {/* Connection */}
             <Card>
               <CardHeader>
@@ -497,7 +497,7 @@ export function Component() {
               <Button type="submit" disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? t('common.saving') : t('common.save')}
               </Button>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+              <Button type="button" variant="outline" onClick={() => void navigate(-1)}>
                 {t('actions.cancel', { ns: 'common' })}
               </Button>
             </div>
@@ -511,7 +511,7 @@ export function Component() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>{t('ldap.test.title')}</CardTitle>
-              <Button variant="outline" onClick={handleTest} disabled={testMutation.isPending}>
+              <Button variant="outline" onClick={() => void handleTest()} disabled={testMutation.isPending}>
                 {testMutation.isPending
                   ? (
                       <>
@@ -535,7 +535,10 @@ export function Component() {
                   </p>
                   {testResult.base_dns && testResult.base_dns.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">{t('ldap.test.baseDns')}:</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {t('ldap.test.baseDns')}
+                        :
+                      </p>
                       <div className="flex flex-wrap gap-1">
                         {testResult.base_dns.map(dn => (
                           <Badge key={dn} variant="secondary" className="font-mono text-xs">
@@ -565,7 +568,7 @@ export function Component() {
                 {usersEnabled && selectedDns.size > 0 && (
                   <Button
                     size="sm"
-                    onClick={handleImport}
+                    onClick={() => void handleImport()}
                     disabled={importMutation.isPending}
                   >
                     {importMutation.isPending

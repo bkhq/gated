@@ -1,22 +1,22 @@
-import { type ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
+import type { TargetGroup } from '@/features/admin/lib/api'
 import { Layers, MoreHorizontal, Plus } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { useState } from 'react'
-import { useTargetGroupsQuery, useDeleteTargetGroupMutation } from '@/features/admin/api'
-import { type TargetGroup } from '@/features/admin/lib/api'
+import { useDeleteTargetGroupMutation, useTargetGroupsQuery } from '@/features/admin/api'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import { DataTable } from '@/shared/components/data-table'
 import { PageHeader } from '@/shared/components/page-header'
-import { ConfirmDialog } from '@/shared/components/confirm-dialog'
-import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
-import { Skeleton } from '@/shared/components/ui/skeleton'
+import { Button } from '@/shared/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
+import { Skeleton } from '@/shared/components/ui/skeleton'
 
 const colorClassMap: Record<string, string> = {
   Primary: 'bg-blue-500 text-white',
@@ -61,7 +61,8 @@ export function Component() {
       header: 'Color',
       cell: ({ row }) => {
         const color = row.original.color
-        if (!color) return <span className="text-muted-foreground">—</span>
+        if (color == null)
+          return <span className="text-muted-foreground">—</span>
         return (
           <Badge className={colorClassMap[color] ?? ''}>
             {color}
@@ -74,16 +75,13 @@ export function Component() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="h-8 w-8 p-0" />}>
+              <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onClick={() =>
-                  navigate(`/ui/admin/config/target-groups/${row.original.id}`)
-                }
+                  void navigate(`/ui/admin/config/target-groups/${row.original.id}`)}
               >
                 View details
               </DropdownMenuItem>
@@ -101,13 +99,16 @@ export function Component() {
   ]
 
   async function handleDelete() {
-    if (!deleteTarget) return
+    if (deleteTarget == null)
+      return
     try {
       await deleteGroup.mutateAsync(deleteTarget.id)
       toast.success(`Target group "${deleteTarget.name}" deleted`)
-    } catch {
+    }
+    catch {
       toast.error('Failed to delete target group')
-    } finally {
+    }
+    finally {
       setDeleteTarget(null)
     }
   }
@@ -117,37 +118,37 @@ export function Component() {
       <PageHeader
         title="Target Groups"
         description="Organize targets into named groups"
-        actions={
-          <Button asChild>
-            <Link to="/ui/admin/config/target-groups/new">
-              <Plus className="h-4 w-4 mr-2" />
-              New Group
-            </Link>
+        actions={(
+          <Button render={<Link to="/ui/admin/config/target-groups/new" />}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Group
           </Button>
-        }
+        )}
       />
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={groups ?? []}
-          searchPlaceholder="Search target groups..."
-        />
-      )}
+      {isLoading
+        ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          )
+        : (
+            <DataTable
+              columns={columns}
+              data={groups ?? []}
+              searchPlaceholder="Search target groups..."
+            />
+          )}
 
       <ConfirmDialog
-        open={!!deleteTarget}
+        open={deleteTarget != null}
         onOpenChange={open => !open && setDeleteTarget(null)}
         title={`Delete group "${deleteTarget?.name}"?`}
         description="This will permanently delete the target group."
         confirmLabel="Delete"
-        onConfirm={handleDelete}
+        onConfirm={() => void handleDelete()}
       />
     </div>
   )

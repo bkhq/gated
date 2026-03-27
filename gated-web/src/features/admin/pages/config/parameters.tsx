@@ -1,15 +1,15 @@
+import type { ParameterUpdate } from '@/features/admin/lib/api'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { useParametersQuery, useUpdateParametersMutation } from '@/features/admin/api'
+import { PageHeader } from '@/shared/components/page-header'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Switch } from '@/shared/components/ui/switch'
-import { PageHeader } from '@/shared/components/page-header'
-import { useParametersQuery, useUpdateParametersMutation } from '@/features/admin/api'
-import type { ParameterUpdate } from '@/features/admin/lib/api'
 
 export function Component() {
   const { t } = useTranslation(['admin', 'common'])
@@ -45,12 +45,13 @@ export function Component() {
     try {
       await updateMutation.mutateAsync({
         ...values,
-        rate_limit_bytes_per_second: values.rate_limit_bytes_per_second
+        rate_limit_bytes_per_second: values.rate_limit_bytes_per_second != null && values.rate_limit_bytes_per_second !== 0
           ? Number(values.rate_limit_bytes_per_second)
           : undefined,
       })
       toast.success(t('admin:parameters.saved'))
-    } catch {
+    }
+    catch {
       toast.error(t('admin:parameters.saveFailed'))
     }
   }
@@ -69,7 +70,7 @@ export function Component() {
       />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-6">
           {/* Access Control */}
           <Card>
             <CardHeader>

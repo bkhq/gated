@@ -1,27 +1,24 @@
-import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router'
-import { useForm } from 'react-hook-form'
+import type { ColumnDef } from '@tanstack/react-table'
+import type { BootstrapThemeColor, Target } from '@/features/admin/lib/api'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { toast } from 'sonner'
 import { Layers, Server, Trash2 } from 'lucide-react'
-import { Link } from 'react-router'
-import { type ColumnDef } from '@tanstack/react-table'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { Link, useNavigate, useParams } from 'react-router'
+import { toast } from 'sonner'
+import { z } from 'zod'
 import {
-  useTargetGroupQuery,
-  useUpdateTargetGroupMutation,
   useDeleteTargetGroupMutation,
+  useTargetGroupQuery,
   useTargetsByGroupQuery,
+  useUpdateTargetGroupMutation,
 } from '@/features/admin/api'
-import { type BootstrapThemeColor, type Target } from '@/features/admin/lib/api'
-import { PageHeader } from '@/shared/components/page-header'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import { DataTable } from '@/shared/components/data-table'
+import { PageHeader } from '@/shared/components/page-header'
+import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import { Skeleton } from '@/shared/components/ui/skeleton'
-import { Separator } from '@/shared/components/ui/separator'
-import { Badge } from '@/shared/components/ui/badge'
 import {
   Form,
   FormControl,
@@ -31,7 +28,6 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
-import { Textarea } from '@/shared/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -39,9 +35,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select'
+import { Separator } from '@/shared/components/ui/separator'
+import { Skeleton } from '@/shared/components/ui/skeleton'
+import { Textarea } from '@/shared/components/ui/textarea'
 
 const COLORS: BootstrapThemeColor[] = [
-  'Primary', 'Secondary', 'Success', 'Danger', 'Warning', 'Info', 'Light', 'Dark',
+  'Primary',
+  'Secondary',
+  'Success',
+  'Danger',
+  'Warning',
+  'Info',
+  'Light',
+  'Dark',
 ]
 
 const colorVariantMap: Record<string, string> = {
@@ -63,7 +69,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-function EditForm({ groupId, defaultValues }: { groupId: string; defaultValues: FormValues }) {
+function EditForm({ groupId, defaultValues }: { groupId: string, defaultValues: FormValues }) {
   const updateGroup = useUpdateTargetGroupMutation()
 
   const form = useForm<FormValues>({
@@ -77,19 +83,20 @@ function EditForm({ groupId, defaultValues }: { groupId: string; defaultValues: 
         id: groupId,
         req: {
           name: values.name,
-          description: values.description || undefined,
-          color: (values.color as BootstrapThemeColor) || undefined,
+          description: values.description != null && values.description !== '' ? values.description : undefined,
+          color: values.color != null && values.color !== '' ? (values.color as BootstrapThemeColor) : undefined,
         },
       })
       toast.success('Target group updated')
-    } catch {
+    }
+    catch {
       toast.error('Failed to update target group')
     }
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -184,7 +191,8 @@ function TargetsSection({ groupId }: { groupId: string }) {
     },
   ]
 
-  if (isLoading) return <Skeleton className="h-24 w-full" />
+  if (isLoading)
+    return <Skeleton className="h-24 w-full" />
 
   if (!targets || targets.length === 0) {
     return (
@@ -211,12 +219,14 @@ export function Component() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   async function handleDelete() {
-    if (!group) return
+    if (!group)
+      return
     try {
       await deleteGroup.mutateAsync(group.id)
       toast.success(`Target group "${group.name}" deleted`)
-      navigate('/ui/admin/config/target-groups')
-    } catch {
+      void navigate('/ui/admin/config/target-groups')
+    }
+    catch {
       toast.error('Failed to delete target group')
     }
   }
@@ -237,16 +247,16 @@ export function Component() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={
+        title={(
           <span className="flex items-center gap-2">
-            {group.color && (
+            {group.color != null && (
               <Badge className={colorVariantMap[group.color] ?? ''}>{group.color}</Badge>
             )}
             {group.name}
           </span>
-        }
+        )}
         description={group.description || undefined}
-        actions={
+        actions={(
           <Button
             variant="destructive"
             size="sm"
@@ -255,7 +265,7 @@ export function Component() {
             <Trash2 className="h-4 w-4 mr-2" />
             Delete Group
           </Button>
-        }
+        )}
       />
 
       {/* Edit Card */}
@@ -292,7 +302,7 @@ export function Component() {
         title={`Delete group "${group.name}"?`}
         description="This will permanently delete the target group. Targets in this group will not be deleted."
         confirmLabel="Delete"
-        onConfirm={handleDelete}
+        onConfirm={() => void handleDelete()}
       />
     </div>
   )

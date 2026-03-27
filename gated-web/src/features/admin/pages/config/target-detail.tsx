@@ -1,10 +1,24 @@
+import type { FormValues } from './target-form'
+import { Key, Loader2, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Trash2, Plus, X, Key } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
-import { Button } from '@/shared/components/ui/button'
+import { useNavigate, useParams } from 'react-router'
+import {
+  useAddTargetRole,
+  useDeleteTarget,
+  useRemoveTargetRole,
+  useRoles,
+  useTarget,
+  useTargetGroupsQuery,
+  useTargetRoles,
+  useTargetSshHostKeys,
+  useUpdateTarget,
+} from '@/features/admin/api'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
+import { EmptyState } from '@/shared/components/empty-state'
+import { PageHeader } from '@/shared/components/page-header'
 import { Badge } from '@/shared/components/ui/badge'
+import { Button } from '@/shared/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -13,22 +27,8 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select'
 import { Skeleton } from '@/shared/components/ui/skeleton'
-import { PageHeader } from '@/shared/components/page-header'
-import { ConfirmDialog } from '@/shared/components/confirm-dialog'
-import { EmptyState } from '@/shared/components/empty-state'
-import { TargetForm, targetToFormValues, buildRequest } from './target-form'
-import type { FormValues } from './target-form'
-import {
-  useTarget,
-  useTargetRoles,
-  useTargetSshHostKeys,
-  useUpdateTarget,
-  useDeleteTarget,
-  useAddTargetRole,
-  useRemoveTargetRole,
-  useRoles,
-  useTargetGroupsQuery,
-} from '@/features/admin/api'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
+import { buildRequest, TargetForm, targetToFormValues } from './target-form'
 
 // ── Roles Tab ─────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,8 @@ function RolesTab({ targetId }: { targetId: string }) {
   const availableRoles = allRoles?.filter(r => !assignedIds.has(r.id)) ?? []
 
   function handleAdd() {
-    if (!selectedRoleId) return
+    if (selectedRoleId === '')
+      return
     addRole.mutate(
       { targetId, roleId: selectedRoleId },
       { onSuccess: () => setSelectedRoleId('') },
@@ -66,7 +67,7 @@ function RolesTab({ targetId }: { targetId: string }) {
     <div className="space-y-4">
       {/* Add role row */}
       <div className="flex gap-2">
-        <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+        <Select value={selectedRoleId} onValueChange={v => setSelectedRoleId(v ?? '')}>
           <SelectTrigger className="flex-1 max-w-xs">
             <SelectValue placeholder={t('targets.roles.addPlaceholder')} />
           </SelectTrigger>
@@ -80,51 +81,55 @@ function RolesTab({ targetId }: { targetId: string }) {
         </Select>
         <Button
           onClick={handleAdd}
-          disabled={!selectedRoleId || addRole.isPending}
+          disabled={selectedRoleId === '' || addRole.isPending}
           size="sm"
         >
-          {addRole.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
+          {addRole.isPending
+            ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )
+            : (
+                <Plus className="h-4 w-4" />
+              )}
           <span className="ml-1">{t('targets.roles.add')}</span>
         </Button>
       </div>
 
       {/* Assigned roles list */}
-      {!assignedRoles?.length ? (
-        <EmptyState
-          icon={Key}
-          title={t('targets.roles.empty')}
-          description={t('targets.roles.emptyDescription')}
-        />
-      ) : (
-        <ul className="space-y-2">
-          {assignedRoles.map(role => (
-            <li
-              key={role.id}
-              className="flex items-center justify-between rounded-md border px-3 py-2"
-            >
-              <div>
-                <span className="font-medium text-sm">{role.name}</span>
-                {role.description && (
-                  <span className="ml-2 text-xs text-muted-foreground">{role.description}</span>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-destructive hover:text-destructive"
-                disabled={removeRole.isPending}
-                onClick={() => removeRole.mutate({ targetId, roleId: role.id })}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {assignedRoles == null || assignedRoles.length === 0
+        ? (
+            <EmptyState
+              icon={Key}
+              title={t('targets.roles.empty')}
+              description={t('targets.roles.emptyDescription')}
+            />
+          )
+        : (
+            <ul className="space-y-2">
+              {assignedRoles.map(role => (
+                <li
+                  key={role.id}
+                  className="flex items-center justify-between rounded-md border px-3 py-2"
+                >
+                  <div>
+                    <span className="font-medium text-sm">{role.name}</span>
+                    {role.description && (
+                      <span className="ml-2 text-xs text-muted-foreground">{role.description}</span>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    disabled={removeRole.isPending}
+                    onClick={() => removeRole.mutate({ targetId, roleId: role.id })}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
     </div>
   )
 }
@@ -145,7 +150,7 @@ function SshHostKeysTab({ targetId }: { targetId: string }) {
     )
   }
 
-  if (!hostKeys?.length) {
+  if (hostKeys == null || hostKeys.length === 0) {
     return (
       <EmptyState
         icon={Key}
@@ -162,7 +167,9 @@ function SshHostKeysTab({ targetId }: { targetId: string }) {
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{key.key_type}</Badge>
             <span className="text-sm font-medium">
-              {key.host}:{key.port}
+              {key.host}
+              :
+              {key.port}
             </span>
           </div>
           <p className="font-mono text-xs text-muted-foreground break-all">{key.key_base64}</p>
@@ -186,12 +193,14 @@ export function Component() {
   const deleteMutation = useDeleteTarget()
 
   function onSubmit(values: FormValues) {
-    if (!id) return
+    if (id == null || id === '')
+      return
     updateMutation.mutate({ id, req: buildRequest(values) })
   }
 
   function handleDelete() {
-    if (!id) return
+    if (id == null || id === '')
+      return
     deleteMutation.mutate(id, {
       onSuccess: () => void navigate('/ui/admin/config/targets'),
     })
@@ -212,11 +221,11 @@ export function Component() {
       <EmptyState
         title={t('targets.notFound')}
         description={t('targets.emptyDescription')}
-        action={
+        action={(
           <Button variant="outline" onClick={() => void navigate('/ui/admin/config/targets')}>
             {t('targets.title')}
           </Button>
-        }
+        )}
       />
     )
   }
@@ -228,7 +237,7 @@ export function Component() {
       <PageHeader
         title={target.name}
         description={target.description || undefined}
-        actions={
+        actions={(
           <Button
             variant="destructive"
             size="sm"
@@ -238,7 +247,7 @@ export function Component() {
             <Trash2 className="mr-2 h-4 w-4" />
             {t('common.delete')}
           </Button>
-        }
+        )}
       />
 
       <Tabs defaultValue="details" className="space-y-4">

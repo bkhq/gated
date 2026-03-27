@@ -1,6 +1,9 @@
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import type { Target, TargetDataRequest, TargetGroup } from '@/features/admin/lib/api'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { Button } from '@/shared/components/ui/button'
 import {
   Form,
   FormControl,
@@ -10,8 +13,6 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
-import { Button } from '@/shared/components/ui/button'
-import { Switch } from '@/shared/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -19,11 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select'
-import { Loader2 } from 'lucide-react'
-import type { Target, TargetDataRequest, TargetGroup } from '@/features/admin/lib/api'
+import { Switch } from '@/shared/components/ui/switch'
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const formSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string(),
@@ -78,6 +79,7 @@ export type FormValues = z.infer<typeof formSchema>
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const EMPTY_DEFAULTS: FormValues = {
   name: '',
   description: '',
@@ -119,6 +121,7 @@ export const EMPTY_DEFAULTS: FormValues = {
 
 // ── Converter: Target → FormValues ─────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function targetToFormValues(target: Target): FormValues {
   const opts = target.options
   const base: FormValues = {
@@ -189,12 +192,13 @@ export function targetToFormValues(target: Target): FormValues {
 
 // ── Converter: FormValues → TargetDataRequest ─────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function buildRequest(values: FormValues): TargetDataRequest {
   const base = {
     name: values.name,
-    description: values.description || undefined,
-    group_id: (values.group_id && values.group_id !== '__none__') ? values.group_id : undefined,
-    rate_limit_bytes_per_second: values.rate_limit ? parseInt(values.rate_limit, 10) : undefined,
+    description: values.description !== '' ? values.description : undefined,
+    group_id: (values.group_id !== '' && values.group_id !== '__none__') ? values.group_id : undefined,
+    rate_limit_bytes_per_second: values.rate_limit !== '' ? Number.parseInt(values.rate_limit, 10) : undefined,
   }
 
   switch (values.target_type) {
@@ -204,7 +208,7 @@ export function buildRequest(values: FormValues): TargetDataRequest {
         options: {
           kind: 'Ssh',
           host: values.ssh_host,
-          port: parseInt(values.ssh_port, 10) || 22,
+          port: Number.parseInt(values.ssh_port, 10) || 22,
           username: values.ssh_username,
           allow_insecure_algos: values.ssh_allow_insecure_algos || undefined,
           auth:
@@ -236,7 +240,7 @@ export function buildRequest(values: FormValues): TargetDataRequest {
         options: {
           kind: 'MySql',
           host: values.mysql_host,
-          port: parseInt(values.mysql_port, 10) || 3306,
+          port: Number.parseInt(values.mysql_port, 10) || 3306,
           username: values.mysql_username,
           password: values.mysql_password || undefined,
           tls: { mode: values.mysql_tls_mode, verify: values.mysql_tls_verify },
@@ -249,7 +253,7 @@ export function buildRequest(values: FormValues): TargetDataRequest {
         options: {
           kind: 'Postgres',
           host: values.pg_host,
-          port: parseInt(values.pg_port, 10) || 5432,
+          port: Number.parseInt(values.pg_port, 10) || 5432,
           username: values.pg_username,
           password: values.pg_password || undefined,
           tls: { mode: values.pg_tls_mode, verify: values.pg_tls_verify },
@@ -274,6 +278,7 @@ export function buildRequest(values: FormValues): TargetDataRequest {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTargetForm(defaultValues: FormValues) {
   return useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -850,7 +855,7 @@ export function TargetForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-6">
         <TargetFormFields form={form} groups={groups} typeReadOnly={typeReadOnly} />
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

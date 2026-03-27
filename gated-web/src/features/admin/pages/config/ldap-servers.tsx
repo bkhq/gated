@@ -1,17 +1,17 @@
+import type { ColumnDef } from '@tanstack/react-table'
+import type { LdapServerResponse } from '@/features/admin/lib/api-client'
+import { Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Plus, Trash2 } from 'lucide-react'
-import type { ColumnDef } from '@tanstack/react-table'
 import { toast } from 'sonner'
-import { PageHeader } from '@/shared/components/page-header'
-import { DataTable } from '@/shared/components/data-table'
-import { Button } from '@/shared/components/ui/button'
-import { Badge } from '@/shared/components/ui/badge'
+import { useDeleteLdapServerMutation, useLdapServersQuery } from '@/features/admin/api'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
+import { DataTable } from '@/shared/components/data-table'
 import { EmptyState } from '@/shared/components/empty-state'
-import { useLdapServersQuery, useDeleteLdapServerMutation } from '@/features/admin/api'
-import type { LdapServerResponse } from '@/features/admin/lib/api-client'
+import { PageHeader } from '@/shared/components/page-header'
+import { Badge } from '@/shared/components/ui/badge'
+import { Button } from '@/shared/components/ui/button'
 
 export function Component() {
   const { t } = useTranslation(['admin', 'common'])
@@ -22,7 +22,8 @@ export function Component() {
   const deleteMutation = useDeleteLdapServerMutation()
 
   const handleDelete = async () => {
-    if (!deleteId) return
+    if (deleteId == null)
+      return
     try {
       await deleteMutation.mutateAsync(deleteId)
       toast.success(t('ldap.deleted'))
@@ -42,7 +43,7 @@ export function Component() {
       cell: ({ row }) => (
         <button
           className="font-medium text-primary hover:underline text-left"
-          onClick={() => navigate(row.original.id)}
+          onClick={() => void navigate(row.original.id)}
         >
           {row.original.name}
         </button>
@@ -84,7 +85,7 @@ export function Component() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={e => {
+            onClick={(e) => {
               e.stopPropagation()
               setDeleteId(row.original.id)
             }}
@@ -102,7 +103,7 @@ export function Component() {
         title={t('pages.ldapServers')}
         description={t('ldap.description')}
         actions={(
-          <Button onClick={() => navigate('new')}>
+          <Button onClick={() => void navigate('new')}>
             <Plus className="h-4 w-4 mr-2" />
             {t('ldap.create')}
           </Button>
@@ -119,7 +120,7 @@ export function Component() {
                 title={t('ldap.emptyTitle')}
                 description={t('ldap.emptyDescription')}
                 action={(
-                  <Button onClick={() => navigate('new')}>
+                  <Button onClick={() => void navigate('new')}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t('ldap.create')}
                   </Button>
@@ -135,12 +136,12 @@ export function Component() {
             )}
 
       <ConfirmDialog
-        open={!!deleteId}
+        open={deleteId != null}
         onOpenChange={open => !open && setDeleteId(null)}
         title={t('ldap.deleteTitle')}
         description={t('ldap.deleteDescription')}
         confirmLabel={t('actions.delete', { ns: 'common' })}
-        onConfirm={handleDelete}
+        onConfirm={() => void handleDelete()}
       />
     </div>
   )

@@ -9,12 +9,14 @@ export function useAuthInit() {
   useEffect(() => {
     if (infoQuery.isSuccess) {
       const info = infoQuery.data
-      if (info.username) {
+      if (info.username != null && info.username !== '') {
         setAuth(info.username, info.admin ?? false)
-      } else {
+      }
+      else {
         clearAuth()
       }
-    } else if (infoQuery.isError) {
+    }
+    else if (infoQuery.isError) {
       clearAuth()
     }
   }, [infoQuery.isSuccess, infoQuery.isError, infoQuery.data, setAuth, clearAuth])

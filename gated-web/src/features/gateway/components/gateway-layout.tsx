@@ -1,18 +1,19 @@
+import { Key, Server, ShieldCheck, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Outlet } from 'react-router'
-import { Key, Server, User } from 'lucide-react'
-import { ModeToggle } from '@/shared/components/mode-toggle'
 import { AppBreadcrumb } from '@/shared/components/app-breadcrumb'
+import { ModeToggle } from '@/shared/components/mode-toggle'
 import { UserMenu } from '@/shared/components/user-menu'
-import { useAuthStore } from '@/shared/stores/auth'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
+import { useAuthStore } from '@/shared/stores/auth'
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-1.5 text-sm px-2 py-1 rounded transition-colors ${
+function navLinkClass({ isActive }: { isActive: boolean }) {
+  return `flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md transition-colors ${
     isActive
-      ? 'text-foreground font-medium'
-      : 'text-muted-foreground hover:text-foreground'
+      ? 'bg-primary/10 text-primary font-medium'
+      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
   }`
+}
 
 export function GatewayLayout() {
   const { t } = useTranslation(['gateway', 'common'])
@@ -22,9 +23,12 @@ export function GatewayLayout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="border-b border-border px-6 h-14 flex items-center gap-4">
-        <Link to="/ui" className="text-lg font-heading font-semibold shrink-0 mr-2">
-          {t('common:appName')}
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 h-12 flex items-center gap-4">
+        <Link to="/ui" className="flex items-center gap-2 shrink-0 mr-2">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <ShieldCheck className="size-3.5" />
+          </div>
+          <span className="text-lg font-semibold tracking-tight">{t('common:appName')}</span>
         </Link>
 
         {isAuthenticated && (
@@ -51,12 +55,12 @@ export function GatewayLayout() {
       </header>
 
       {isAuthenticated && (
-        <div className="border-b border-border px-6 h-9 flex items-center">
+        <div className="border-b border-border px-4 h-8 flex items-center">
           <AppBreadcrumb />
         </div>
       )}
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
         <Outlet />
       </main>
     </div>

@@ -1,10 +1,17 @@
-import { useState } from 'react'
-import { Link } from 'react-router'
-import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, Trash2, Server } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/shared/components/ui/button'
+import type { Target, TargetOptions } from '@/features/admin/lib/api'
+import { Pencil, Plus, Server, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
+import { useDeleteTarget, useTargetGroupsQuery, useTargets } from '@/features/admin/api'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
+import { DataTable } from '@/shared/components/data-table'
+import { EmptyState } from '@/shared/components/empty-state'
+import { PageHeader } from '@/shared/components/page-header'
+import { TableSkeleton } from '@/shared/components/table-skeleton'
 import { Badge } from '@/shared/components/ui/badge'
+import { Button } from '@/shared/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -12,13 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select'
-import { Skeleton } from '@/shared/components/ui/skeleton'
-import { PageHeader } from '@/shared/components/page-header'
-import { DataTable } from '@/shared/components/data-table'
-import { ConfirmDialog } from '@/shared/components/confirm-dialog'
-import { EmptyState } from '@/shared/components/empty-state'
-import type { Target, TargetOptions } from '@/features/admin/lib/api'
-import { useTargets, useTargetGroupsQuery, useDeleteTarget } from '@/features/admin/api'
 import { cn } from '@/shared/lib/utils'
 
 const TYPE_CLASS: Record<string, string> = {
@@ -100,10 +100,10 @@ export function Component() {
     },
     {
       id: 'group',
-      accessorFn: row => row.group_id ? (groupMap.get(row.group_id) ?? row.group_id) : '',
+      accessorFn: row => row.group_id != null && row.group_id !== '' ? (groupMap.get(row.group_id) ?? row.group_id) : '',
       header: t('targets.columns.group'),
       cell: ({ row }) => {
-        const name = row.original.group_id ? groupMap.get(row.original.group_id) : undefined
+        const name = row.original.group_id != null && row.original.group_id !== '' ? groupMap.get(row.original.group_id) : undefined
         return <span className="text-muted-foreground">{name ?? '—'}</span>
       },
     },
@@ -112,10 +112,8 @@ export function Component() {
       header: '',
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to={`/ui/admin/config/targets/${row.original.id}`}>
-              <Pencil className="h-4 w-4" />
-            </Link>
+          <Button variant="ghost" size="icon" render={<Link to={`/ui/admin/config/targets/${row.original.id}`} />}>
+            <Pencil className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -135,18 +133,16 @@ export function Component() {
       <PageHeader
         title={t('targets.title')}
         description={t('targets.description')}
-        actions={
-          <Button asChild>
-            <Link to="/ui/admin/config/targets/new">
-              <Plus className="mr-2 h-4 w-4" />
-              {t('targets.create')}
-            </Link>
+        actions={(
+          <Button render={<Link to="/ui/admin/config/targets/new" />}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('targets.create')}
           </Button>
-        }
+        )}
       />
 
       <div className="mb-4">
-        <Select value={groupId || 'all'} onValueChange={val => setGroupId(val === 'all' ? '' : val)}>
+        <Select value={groupId || 'all'} onValueChange={val => setGroupId((val ?? 'all') === 'all' ? '' : (val ?? 'all'))}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder={t('targets.allGroups')} />
           </SelectTrigger>
@@ -161,44 +157,43 @@ export function Component() {
         </Select>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }, (_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : !targets?.length ? (
-        <EmptyState
-          icon={Server}
-          title={t('targets.empty')}
-          description={t('targets.emptyDescription')}
-          action={
-            <Button asChild>
-              <Link to="/ui/admin/config/targets/new">
-                <Plus className="mr-2 h-4 w-4" />
-                {t('targets.create')}
-              </Link>
-            </Button>
-          }
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={targets}
-          searchPlaceholder={t('targets.searchPlaceholder')}
-        />
-      )}
+      {isLoading
+        ? (
+            <TableSkeleton columns={5} rows={5} />
+          )
+        : targets == null || targets.length === 0
+          ? (
+              <EmptyState
+                icon={Server}
+                title={t('targets.empty')}
+                description={t('targets.emptyDescription')}
+                action={(
+                  <Button render={<Link to="/ui/admin/config/targets/new" />}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t('targets.create')}
+                  </Button>
+                )}
+              />
+            )
+          : (
+              <DataTable
+                columns={columns}
+                data={targets}
+                searchPlaceholder={t('targets.searchPlaceholder')}
+              />
+            )}
 
       <ConfirmDialog
-        open={!!deleteId}
-        onOpenChange={open => {
-          if (!open) setDeleteId(null)
+        open={deleteId != null}
+        onOpenChange={(open) => {
+          if (!open)
+            setDeleteId(null)
         }}
         title={t('targets.deleteTitle')}
         description={t('targets.deleteDescription')}
         confirmLabel={t('common.delete')}
         onConfirm={() => {
-          if (deleteId) {
+          if (deleteId != null) {
             deleteMutation.mutate(deleteId, { onSuccess: () => setDeleteId(null) })
           }
         }}

@@ -1,12 +1,15 @@
-import { type ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
+import type { User } from '@/features/admin/lib/api'
 import { MoreHorizontal, Plus, UserCircle } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { useUsers, useDeleteUser } from '@/features/admin/api'
-import { type User } from '@/features/admin/lib/api'
+import { useDeleteUser, useUsers } from '@/features/admin/api'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import { DataTable } from '@/shared/components/data-table'
 import { PageHeader } from '@/shared/components/page-header'
-import { ConfirmDialog } from '@/shared/components/confirm-dialog'
+import { TableSkeleton } from '@/shared/components/table-skeleton'
 import { Button } from '@/shared/components/ui/button'
 import {
   DropdownMenu,
@@ -14,10 +17,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
-import { Skeleton } from '@/shared/components/ui/skeleton'
-import { useState } from 'react'
 
 export function Component() {
+  const { t } = useTranslation('admin')
   const navigate = useNavigate()
   const { data: users, isLoading } = useUsers()
   const deleteUser = useDeleteUser()
@@ -26,7 +28,7 @@ export function Component() {
   const columns: ColumnDef<User>[] = [
     {
       accessorKey: 'username',
-      header: 'Username',
+      header: t('users.columns.username'),
       cell: ({ row }) => (
         <Link
           to={`/ui/admin/config/users/${row.original.id}`}
@@ -39,17 +41,17 @@ export function Component() {
     },
     {
       accessorKey: 'description',
-      header: 'Description',
+      header: t('users.columns.description'),
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.description || '—'}</span>
       ),
     },
     {
       id: 'ldap',
-      header: 'LDAP',
+      header: t('users.columns.ldap'),
       cell: ({ row }) => (
         <span className="text-muted-foreground text-sm">
-          {row.original.ldap_server_id ? 'Linked' : '—'}
+          {row.original.ldap_server_id != null && row.original.ldap_server_id !== '' ? t('users.ldap.linked') : '—'}
         </span>
       ),
     },
@@ -58,20 +60,18 @@ export function Component() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer" />}>
+              <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/ui/admin/config/users/${row.original.id}`)}>
-                View details
+              <DropdownMenuItem className="cursor-pointer" onClick={() => void navigate(`/ui/admin/config/users/${row.original.id}`)}>
+                {t('sessions.actions.viewDetail')}
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
+                className="text-destructive focus:text-destructive cursor-pointer"
                 onClick={() => setDeleteTarget(row.original)}
               >
-                Delete
+                {t('common.delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -81,13 +81,16 @@ export function Component() {
   ]
 
   async function handleDelete() {
-    if (!deleteTarget) return
+    if (deleteTarget == null)
+      return
     try {
       await deleteUser.mutateAsync(deleteTarget.id)
-      toast.success(`User "${deleteTarget.username}" deleted`)
-    } catch {
-      toast.error('Failed to delete user')
-    } finally {
+      toast.success(t('users.deleted'))
+    }
+    catch {
+      toast.error(t('users.deleteError'))
+    }
+    finally {
       setDeleteTarget(null)
     }
   }
@@ -95,39 +98,35 @@ export function Component() {
   return (
     <div>
       <PageHeader
-        title="Users"
-        description="Manage user accounts and credentials"
-        actions={
-          <Button asChild>
-            <Link to="/ui/admin/config/users/new">
-              <Plus className="h-4 w-4 mr-2" />
-              New User
-            </Link>
+        title={t('users.title')}
+        description={t('users.description')}
+        actions={(
+          <Button render={<Link to="/ui/admin/config/users/new" />} className="cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            {t('users.create')}
           </Button>
-        }
+        )}
       />
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={users ?? []}
-          searchPlaceholder="Search users..."
-        />
-      )}
+      {isLoading
+        ? (
+            <TableSkeleton columns={4} rows={5} />
+          )
+        : (
+            <DataTable
+              columns={columns}
+              data={users ?? []}
+              searchPlaceholder={t('users.searchPlaceholder')}
+            />
+          )}
 
       <ConfirmDialog
-        open={!!deleteTarget}
+        open={deleteTarget != null}
         onOpenChange={open => !open && setDeleteTarget(null)}
-        title={`Delete user "${deleteTarget?.username}"?`}
-        description="This will permanently delete the user and all their credentials."
-        confirmLabel="Delete"
-        onConfirm={handleDelete}
+        title={t('users.deleteTitle')}
+        description={t('users.deleteDescription')}
+        confirmLabel={t('common.delete')}
+        onConfirm={() => void handleDelete()}
       />
     </div>
   )

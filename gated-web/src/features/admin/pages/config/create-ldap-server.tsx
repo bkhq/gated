@@ -1,14 +1,12 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+import { z } from 'zod'
+import { useCreateLdapServerMutation } from '@/features/admin/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { Button } from '@/shared/components/ui/button'
-import { Input } from '@/shared/components/ui/input'
-import { Switch } from '@/shared/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import {
   Form,
@@ -18,7 +16,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/components/ui/form'
-import { useCreateLdapServerMutation } from '@/features/admin/api'
+import { Input } from '@/shared/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import { Switch } from '@/shared/components/ui/switch'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -68,10 +68,10 @@ export function Component() {
     try {
       const server = await createMutation.mutateAsync({
         ...values,
-        port: values.port ? Number(values.port) : undefined,
+        port: values.port != null && values.port !== '' ? Number(values.port) : undefined,
       })
       toast.success(t('ldap.created'))
-      navigate(`../${server.id}`)
+      void navigate(`../${server.id}`)
     }
     catch {
       toast.error(t('ldap.createError'))
@@ -83,7 +83,7 @@ export function Component() {
       <PageHeader title={t('pages.createLdapServer')} />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+        <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-6 max-w-2xl">
           {/* Connection Info */}
           <Card>
             <CardHeader>
@@ -326,7 +326,7 @@ export function Component() {
             <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending ? t('common.saving') : t('actions.create', { ns: 'common' })}
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+            <Button type="button" variant="outline" onClick={() => void navigate(-1)}>
               {t('actions.cancel', { ns: 'common' })}
             </Button>
           </div>

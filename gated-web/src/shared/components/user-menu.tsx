@@ -1,7 +1,8 @@
+import { ChevronsUpDown, ExternalLink, LogOut, ShieldCheck, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { ChevronsUpDown, ExternalLink, LogOut, ShieldCheck, User } from 'lucide-react'
+import { useLogoutMutation } from '@/features/gateway/api'
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -15,7 +16,6 @@ import {
   SidebarMenuButton,
 } from '@/shared/components/ui/sidebar'
 import { useAuthStore } from '@/shared/stores/auth'
-import { useLogoutMutation } from '@/features/gateway/api'
 
 interface UserMenuProps {
   /** 'sidebar' renders as a SidebarMenuButton (for AdminLayout footer) */
@@ -28,7 +28,7 @@ export function UserMenu({ variant = 'button' }: UserMenuProps) {
   const { username, isAdmin, clearAuth } = useAuthStore()
   const logoutMutation = useLogoutMutation()
 
-  const userInitials = username ? username.slice(0, 2).toUpperCase() : 'U'
+  const userInitials = username != null && username !== '' ? username.slice(0, 2).toUpperCase() : 'U'
 
   function handleLogout() {
     logoutMutation.mutate(undefined, {
@@ -48,19 +48,15 @@ export function UserMenu({ variant = 'button' }: UserMenuProps) {
       align={variant === 'sidebar' ? 'start' : 'end'}
       className="w-56"
     >
-      <DropdownMenuItem asChild>
-        <Link to="/ui/profile">
-          <User className="mr-2 size-4" />
-          {t('user.profile')}
-        </Link>
+      <DropdownMenuItem render={<Link to="/ui/profile" />}>
+        <User className="mr-2 size-4" />
+        {t('user.profile')}
       </DropdownMenuItem>
       {isAdmin && (
-        <DropdownMenuItem asChild>
-          <Link to="/ui/admin">
-            <ShieldCheck className="mr-2 size-4" />
-            {t('user.adminPanel')}
-            <ExternalLink className="ml-auto size-3.5 text-muted-foreground" />
-          </Link>
+        <DropdownMenuItem render={<Link to="/ui/admin" />}>
+          <ShieldCheck className="mr-2 size-4" />
+          {t('user.adminPanel')}
+          <ExternalLink className="ml-auto size-3.5 text-muted-foreground" />
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />
@@ -74,19 +70,20 @@ export function UserMenu({ variant = 'button' }: UserMenuProps) {
   if (variant === 'sidebar') {
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger render={(
           <SidebarMenuButton
             size="lg"
             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-          >
-            <Avatar className="size-8 rounded-lg">
-              <AvatarFallback className="rounded-lg text-xs">{userInitials}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 text-left text-sm leading-tight truncate">
-              <span className="font-medium">{username ?? 'Admin'}</span>
-            </div>
-            <ChevronsUpDown className="ml-auto size-4 shrink-0" />
-          </SidebarMenuButton>
+          />
+        )}
+        >
+          <Avatar className="size-8 rounded-lg">
+            <AvatarFallback className="rounded-lg text-xs">{userInitials}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 text-left text-sm leading-tight truncate">
+            <span className="font-medium">{username ?? 'Admin'}</span>
+          </div>
+          <ChevronsUpDown className="ml-auto size-4 shrink-0" />
         </DropdownMenuTrigger>
         {menuContent}
       </DropdownMenu>
@@ -95,14 +92,12 @@ export function UserMenu({ variant = 'button' }: UserMenuProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 h-9 px-2">
-          <Avatar className="size-7">
-            <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
-          </Avatar>
-          <span className="text-sm hidden sm:inline">{username}</span>
-          <ChevronsUpDown className="size-3.5 text-muted-foreground" />
-        </Button>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="gap-2 h-9 px-2" />}>
+        <Avatar className="size-7">
+          <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
+        </Avatar>
+        <span className="text-sm hidden sm:inline">{username}</span>
+        <ChevronsUpDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       {menuContent}
     </DropdownMenu>

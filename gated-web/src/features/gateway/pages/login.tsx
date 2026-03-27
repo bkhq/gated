@@ -1,17 +1,18 @@
+import type { LoginFailureResponse } from '@/features/gateway/lib/api'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2, ShieldCheck } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useLocation } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { ResponseError, useLoginMutation, useSsoProvidersQuery, useStartSsoMutation } from '@/features/gateway/api'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Separator } from '@/shared/components/ui/separator'
 import { useAuthStore } from '@/shared/stores/auth'
-import { useLoginMutation, useStartSsoMutation, useSsoProvidersQuery, ResponseError } from '@/features/gateway/api'
-import type { LoginFailureResponse } from '@/features/gateway/lib/api'
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -42,7 +43,8 @@ export function Component() {
       await loginMutation.mutateAsync(values)
       setAuth(values.username, false)
       void navigate(from, { replace: true })
-    } catch (err) {
+    }
+    catch (err) {
       if (err instanceof ResponseError) {
         if (err.response.status === 401) {
           try {
@@ -51,12 +53,14 @@ export function Component() {
               void navigate('/ui/otp', { state: { username: values.username, from } })
               return
             }
-          } catch {
+          }
+          catch {
             // ignore parse error
           }
         }
         toast.error(t('gateway:login.errors.invalid'))
-      } else {
+      }
+      else {
         toast.error(t('gateway:login.errors.failed'))
       }
     }
@@ -66,7 +70,8 @@ export function Component() {
     try {
       const result = await startSsoMutation.mutateAsync({ name, next: from })
       window.location.href = result.url
-    } catch {
+    }
+    catch {
       toast.error(t('gateway:login.errors.ssoFailed'))
     }
   }
@@ -74,15 +79,20 @@ export function Component() {
   const ssoProviders = ssoProvidersQuery.data ?? []
 
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>{t('gateway:pages.login')}</CardTitle>
+    <div className="flex items-center justify-center min-h-[70vh]">
+      <Card className="w-full max-w-sm shadow-lg border-border/60">
+        <CardHeader className="text-center pb-2">
+          <div className="flex justify-center mb-3">
+            <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <ShieldCheck className="size-6" />
+            </div>
+          </div>
+          <CardTitle className="text-xl">{t('gateway:pages.login')}</CardTitle>
           <CardDescription>{t('gateway:login.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="username"
@@ -109,7 +119,8 @@ export function Component() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+              <Button type="submit" className="w-full cursor-pointer" disabled={loginMutation.isPending}>
+                {loginMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
                 {loginMutation.isPending ? t('common:actions.loading') : t('gateway:login.submit')}
               </Button>
             </form>
@@ -127,10 +138,11 @@ export function Component() {
                   <Button
                     key={provider.name}
                     variant="outline"
-                    className="w-full"
-                    onClick={() => handleSso(provider.name)}
+                    className="w-full cursor-pointer"
+                    onClick={() => void handleSso(provider.name)}
                     disabled={startSsoMutation.isPending}
                   >
+                    {startSsoMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
                     {t('gateway:login.loginWith', { name: provider.label })}
                   </Button>
                 ))}

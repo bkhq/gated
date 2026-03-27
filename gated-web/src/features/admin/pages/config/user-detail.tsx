@@ -1,9 +1,5 @@
-import { useState, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router'
-import { useForm } from 'react-hook-form'
+import type { ExistingCertificateCredential, ExistingPublicKeyCredential, ExistingSsoCredential, IssuedCertificateCredential } from '@/features/admin/lib/api'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { toast } from 'sonner'
 import {
   Award,
   FileBadge,
@@ -19,55 +15,51 @@ import {
   User,
   UserCog,
 } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useNavigate, useParams } from 'react-router'
+import { toast } from 'sonner'
+import { z } from 'zod'
 import {
-  useUser,
-  useUpdateUser,
-  useDeleteUser,
-  useRoles,
-  useUserRoles,
   useAddUserRole,
-  useDeleteUserRole,
-  usePasswordCredentials,
-  useCreatePasswordCredential,
-  useDeletePasswordCredential,
-  useSsoCredentials,
-  useCreateSsoCredential,
-  useDeleteSsoCredential,
-  usePublicKeyCredentials,
-  useCreatePublicKeyCredential,
-  useDeletePublicKeyCredential,
-  useOtpCredentialsQuery,
-  useCreateOtpCredentialMutation,
-  useDeleteOtpCredentialMutation,
-  useCertCredentialsQuery,
-  useIssueCertCredentialMutation,
-  useRevokeCertCredentialMutation,
-  useUnlinkUserFromLdapMutation,
   useAutoLinkUserToLdapMutation,
+  useCertCredentialsQuery,
+  useCreateOtpCredentialMutation,
+  useCreatePasswordCredential,
+  useCreatePublicKeyCredential,
+  useCreateSsoCredential,
+  useDeleteOtpCredentialMutation,
+  useDeletePasswordCredential,
+  useDeletePublicKeyCredential,
+  useDeleteSsoCredential,
+  useDeleteUser,
+  useDeleteUserRole,
+  useIssueCertCredentialMutation,
+  useOtpCredentialsQuery,
+  usePasswordCredentials,
+  usePublicKeyCredentials,
+  useRevokeCertCredentialMutation,
+  useRoles,
+  useSsoCredentials,
+  useUnlinkUserFromLdapMutation,
+  useUpdateUser,
+  useUser,
+  useUserRoles,
 } from '@/features/admin/api'
-import {
-  type ExistingSsoCredential,
-  type ExistingPublicKeyCredential,
-  type ExistingCertificateCredential,
-  type IssuedCertificateCredential,
-} from '@/features/admin/lib/api'
-import { PageHeader } from '@/shared/components/page-header'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
-import { EmptyState } from '@/shared/components/empty-state'
 import { CopyButton } from '@/shared/components/copy-button'
+import { EmptyState } from '@/shared/components/empty-state'
+import { PageHeader } from '@/shared/components/page-header'
+import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
-import { Skeleton } from '@/shared/components/ui/skeleton'
-import { Badge } from '@/shared/components/ui/badge'
-import { Separator } from '@/shared/components/ui/separator'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/shared/components/ui/dialog'
 import {
   Form,
@@ -78,6 +70,9 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
+import { Separator } from '@/shared/components/ui/separator'
+import { Skeleton } from '@/shared/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
 import { Textarea } from '@/shared/components/ui/textarea'
 
 // ─── Base32 encoder (RFC 4648) for TOTP provisioning URI ─────────────────────
@@ -138,19 +133,21 @@ function EditUserCard({ userId }: { userId: string }) {
     try {
       await updateUser.mutateAsync({
         username: values.username,
-        description: values.description || undefined,
+        description: values.description != null && values.description !== '' ? values.description : undefined,
         rate_limit_bytes_per_second:
           values.rate_limit_bytes_per_second === '' || values.rate_limit_bytes_per_second === undefined
             ? undefined
             : Number(values.rate_limit_bytes_per_second),
       })
       toast.success('User updated')
-    } catch {
+    }
+    catch {
       toast.error('Failed to update user')
     }
   }
 
-  if (isLoading) return <Skeleton className="h-32 w-full" />
+  if (isLoading)
+    return <Skeleton className="h-32 w-full" />
 
   return (
     <Card>
@@ -162,7 +159,7 @@ function EditUserCard({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -224,7 +221,8 @@ function LdapCard({ userId }: { userId: string }) {
     try {
       await autoLink.mutateAsync(userId)
       toast.success('Auto-linked to LDAP')
-    } catch {
+    }
+    catch {
       toast.error('Auto-link failed')
     }
   }
@@ -233,9 +231,11 @@ function LdapCard({ userId }: { userId: string }) {
     try {
       await unlink.mutateAsync(userId)
       toast.success('Unlinked from LDAP')
-    } catch {
+    }
+    catch {
       toast.error('Unlink failed')
-    } finally {
+    }
+    finally {
       setConfirmUnlink(false)
     }
   }
@@ -249,26 +249,28 @@ function LdapCard({ userId }: { userId: string }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {user?.ldap_server_id ? (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Linked</p>
-              <p className="text-xs text-muted-foreground font-mono">{user.ldap_server_id}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setConfirmUnlink(true)}>
-              <Link2Off className="h-4 w-4 mr-2" />
-              Unlink
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Not linked to LDAP</p>
-            <Button variant="outline" size="sm" onClick={handleAutoLink} disabled={autoLink.isPending}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {autoLink.isPending ? 'Linking...' : 'Auto-Link'}
-            </Button>
-          </div>
-        )}
+        {user?.ldap_server_id != null && user.ldap_server_id !== ''
+          ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Linked</p>
+                  <p className="text-xs text-muted-foreground font-mono">{user.ldap_server_id}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setConfirmUnlink(true)}>
+                  <Link2Off className="h-4 w-4 mr-2" />
+                  Unlink
+                </Button>
+              </div>
+            )
+          : (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Not linked to LDAP</p>
+                <Button variant="outline" size="sm" onClick={() => void handleAutoLink()} disabled={autoLink.isPending}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {autoLink.isPending ? 'Linking...' : 'Auto-Link'}
+                </Button>
+              </div>
+            )}
       </CardContent>
       <ConfirmDialog
         open={confirmUnlink}
@@ -276,7 +278,7 @@ function LdapCard({ userId }: { userId: string }) {
         title="Unlink from LDAP?"
         description="This will remove the LDAP association. The user will no longer sync with LDAP."
         confirmLabel="Unlink"
-        onConfirm={handleUnlink}
+        onConfirm={() => void handleUnlink()}
       />
     </Card>
   )
@@ -307,24 +309,29 @@ function PasswordsTab({ userId }: { userId: string }) {
       toast.success('Password set')
       form.reset()
       setDialogOpen(false)
-    } catch {
+    }
+    catch {
       toast.error('Failed to set password')
     }
   }
 
   async function handleDelete() {
-    if (!deleteId) return
+    if (deleteId == null)
+      return
     try {
       await deleteCred.mutateAsync(deleteId)
       toast.success('Password removed')
-    } catch {
+    }
+    catch {
       toast.error('Failed to remove password')
-    } finally {
+    }
+    finally {
       setDeleteId(null)
     }
   }
 
-  if (isLoading) return <Skeleton className="h-24 w-full" />
+  if (isLoading)
+    return <Skeleton className="h-24 w-full" />
 
   return (
     <div className="space-y-4">
@@ -335,36 +342,42 @@ function PasswordsTab({ userId }: { userId: string }) {
         </Button>
       </div>
 
-      {!credentials || credentials.length === 0 ? (
-        <EmptyState icon={KeyRound} title="No password set" description="Set a password for this user." />
-      ) : (
-        <div className="space-y-2">
-          {credentials.map(cred => (
-            <div key={cred.id} className="flex items-center justify-between p-3 rounded-md border">
-              <div className="flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-mono text-muted-foreground">{cred.id}</span>
-              </div>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(cred.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+      {!credentials || credentials.length === 0
+        ? (
+            <EmptyState icon={KeyRound} title="No password set" description="Set a password for this user." />
+          )
+        : (
+            <div className="space-y-2">
+              {credentials.map(cred => (
+                <div key={cred.id} className="flex items-center justify-between p-3 rounded-md border">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-mono text-muted-foreground">{cred.id}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(cred.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Set Password</DialogTitle></DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField control={form.control} name="password" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl><Input type="password" placeholder="New password" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl><Input type="password" placeholder="New password" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? 'Saving...' : 'Save'}</Button>
@@ -374,9 +387,14 @@ function PasswordsTab({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}
-        title="Remove password?" description="The password credential will be deleted."
-        confirmLabel="Remove" onConfirm={handleDelete} />
+      <ConfirmDialog
+        open={deleteId != null}
+        onOpenChange={open => !open && setDeleteId(null)}
+        title="Remove password?"
+        description="The password credential will be deleted."
+        confirmLabel="Remove"
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   )
 }
@@ -403,73 +421,91 @@ function SsoTab({ userId }: { userId: string }) {
 
   async function onSubmit(values: SsoFormValues) {
     try {
-      await createCred.mutateAsync({ email: values.email, provider: values.provider || undefined })
+      await createCred.mutateAsync({ email: values.email, provider: values.provider != null && values.provider !== '' ? values.provider : undefined })
       toast.success('SSO credential added')
       form.reset()
       setDialogOpen(false)
-    } catch {
+    }
+    catch {
       toast.error('Failed to add SSO credential')
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget)
+      return
     try {
       await deleteCred.mutateAsync(deleteTarget.id)
       toast.success('SSO credential removed')
-    } catch {
+    }
+    catch {
       toast.error('Failed to remove SSO credential')
-    } finally {
+    }
+    finally {
       setDeleteTarget(null)
     }
   }
 
-  if (isLoading) return <Skeleton className="h-24 w-full" />
+  if (isLoading)
+    return <Skeleton className="h-24 w-full" />
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Add SSO</Button>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add SSO
+        </Button>
       </div>
 
-      {!credentials || credentials.length === 0 ? (
-        <EmptyState icon={Mail} title="No SSO credentials" description="Add an SSO identity for this user." />
-      ) : (
-        <div className="space-y-2">
-          {credentials.map(cred => (
-            <div key={cred.id} className="flex items-center justify-between p-3 rounded-md border">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{cred.email}</span>
-                {cred.provider && <Badge variant="secondary" className="text-xs">{cred.provider}</Badge>}
-              </div>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(cred)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+      {!credentials || credentials.length === 0
+        ? (
+            <EmptyState icon={Mail} title="No SSO credentials" description="Add an SSO identity for this user." />
+          )
+        : (
+            <div className="space-y-2">
+              {credentials.map(cred => (
+                <div key={cred.id} className="flex items-center justify-between p-3 rounded-md border">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{cred.email}</span>
+                    {cred.provider != null && cred.provider !== '' && <Badge variant="secondary" className="text-xs">{cred.provider}</Badge>}
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(cred)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add SSO Credential</DialogTitle></DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl><Input type="email" placeholder="user@example.com" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="provider" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Provider (optional)</FormLabel>
-                  <FormControl><Input placeholder="e.g. google, github" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl><Input type="email" placeholder="user@example.com" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="provider"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Provider (optional)</FormLabel>
+                    <FormControl><Input placeholder="e.g. google, github" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? 'Adding...' : 'Add'}</Button>
@@ -479,10 +515,14 @@ function SsoTab({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={open => !open && setDeleteTarget(null)}
         title={`Remove SSO credential "${deleteTarget?.email}"?`}
         description="This SSO credential will be permanently removed."
-        confirmLabel="Remove" onConfirm={handleDelete} />
+        confirmLabel="Remove"
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   )
 }
@@ -513,79 +553,100 @@ function PublicKeysTab({ userId }: { userId: string }) {
       toast.success('Public key added')
       form.reset()
       setDialogOpen(false)
-    } catch {
+    }
+    catch {
       toast.error('Failed to add public key')
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget)
+      return
     try {
       await deleteCred.mutateAsync(deleteTarget.id)
       toast.success(`Key "${deleteTarget.label}" removed`)
-    } catch {
+    }
+    catch {
       toast.error('Failed to remove public key')
-    } finally {
+    }
+    finally {
       setDeleteTarget(null)
     }
   }
 
-  if (isLoading) return <Skeleton className="h-24 w-full" />
+  if (isLoading)
+    return <Skeleton className="h-24 w-full" />
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Key</Button>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Key
+        </Button>
       </div>
 
-      {!credentials || credentials.length === 0 ? (
-        <EmptyState icon={ShieldCheck} title="No public keys" description="Add an SSH public key for this user." />
-      ) : (
-        <div className="space-y-2">
-          {credentials.map(cred => (
-            <div key={cred.id} className="p-3 rounded-md border space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{cred.label}</span>
+      {!credentials || credentials.length === 0
+        ? (
+            <EmptyState icon={ShieldCheck} title="No public keys" description="Add an SSH public key for this user." />
+          )
+        : (
+            <div className="space-y-2">
+              {credentials.map(cred => (
+                <div key={cred.id} className="p-3 rounded-md border space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{cred.label}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <CopyButton value={cred.openssh_public_key} label="Copy key" />
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(cred)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs font-mono text-muted-foreground truncate pl-6">{cred.openssh_public_key}</p>
+                  {cred.last_used != null && cred.last_used !== '' && (
+                    <p className="text-xs text-muted-foreground pl-6">
+                      Last used:
+                      {new Date(cred.last_used).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <CopyButton value={cred.openssh_public_key} label="Copy key" />
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(cred)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs font-mono text-muted-foreground truncate pl-6">{cred.openssh_public_key}</p>
-              {cred.last_used && (
-                <p className="text-xs text-muted-foreground pl-6">Last used: {new Date(cred.last_used).toLocaleDateString()}</p>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add Public Key</DialogTitle></DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField control={form.control} name="label" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Label</FormLabel>
-                  <FormControl><Input placeholder="e.g. My laptop" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="openssh_public_key" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>OpenSSH Public Key</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="ssh-ed25519 AAAA..." rows={4} className="font-mono text-xs" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="label"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Label</FormLabel>
+                    <FormControl><Input placeholder="e.g. My laptop" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="openssh_public_key"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>OpenSSH Public Key</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="ssh-ed25519 AAAA..." rows={4} className="font-mono text-xs" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={createCred.isPending}>{createCred.isPending ? 'Adding...' : 'Add'}</Button>
@@ -595,10 +656,14 @@ function PublicKeysTab({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={open => !open && setDeleteTarget(null)}
         title={`Remove key "${deleteTarget?.label}"?`}
         description="This public key will be permanently removed."
-        confirmLabel="Remove" onConfirm={handleDelete} />
+        confirmLabel="Remove"
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   )
 }
@@ -610,7 +675,7 @@ interface OtpSetupState {
   uri: string
 }
 
-function OtpTab({ userId, username }: { userId: string; username: string }) {
+function OtpTab({ userId, username }: { userId: string, username: string }) {
   const { data: credentials, isLoading } = useOtpCredentialsQuery(userId)
   const createCred = useCreateOtpCredentialMutation(userId)
   const deleteCred = useDeleteOtpCredentialMutation(userId)
@@ -623,53 +688,64 @@ function OtpTab({ userId, username }: { userId: string; username: string }) {
   }, [username])
 
   async function confirmAdd() {
-    if (!setup) return
+    if (!setup)
+      return
     try {
       await createCred.mutateAsync({ secret_key: Array.from(setup.secret) })
       toast.success('OTP credential added')
       setSetup(null)
-    } catch {
+    }
+    catch {
       toast.error('Failed to add OTP credential')
     }
   }
 
   async function handleDelete() {
-    if (!deleteId) return
+    if (deleteId == null)
+      return
     try {
       await deleteCred.mutateAsync(deleteId)
       toast.success('OTP credential removed')
-    } catch {
+    }
+    catch {
       toast.error('Failed to remove OTP credential')
-    } finally {
+    }
+    finally {
       setDeleteId(null)
     }
   }
 
-  if (isLoading) return <Skeleton className="h-24 w-full" />
+  if (isLoading)
+    return <Skeleton className="h-24 w-full" />
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={generateAndShow}><Plus className="h-4 w-4 mr-2" />Add OTP</Button>
+        <Button size="sm" onClick={generateAndShow}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add OTP
+        </Button>
       </div>
 
-      {!credentials || credentials.length === 0 ? (
-        <EmptyState icon={Smartphone} title="No OTP credentials" description="Add a TOTP authenticator for this user." />
-      ) : (
-        <div className="space-y-2">
-          {credentials.map(cred => (
-            <div key={cred.id} className="flex items-center justify-between p-3 rounded-md border">
-              <div className="flex items-center gap-2">
-                <Smartphone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-mono text-muted-foreground">{cred.id}</span>
-              </div>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(cred.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+      {!credentials || credentials.length === 0
+        ? (
+            <EmptyState icon={Smartphone} title="No OTP credentials" description="Add a TOTP authenticator for this user." />
+          )
+        : (
+            <div className="space-y-2">
+              {credentials.map(cred => (
+                <div key={cred.id} className="flex items-center justify-between p-3 rounded-md border">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-mono text-muted-foreground">{cred.id}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(cred.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
       {/* OTP Setup Dialog */}
       <Dialog open={!!setup} onOpenChange={open => !open && setSetup(null)}>
@@ -694,17 +770,21 @@ function OtpTab({ userId, username }: { userId: string; username: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSetup(null)}>Cancel</Button>
-            <Button onClick={confirmAdd} disabled={createCred.isPending}>
+            <Button onClick={() => void confirmAdd()} disabled={createCred.isPending}>
               {createCred.isPending ? 'Saving...' : 'Confirm & Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}
+      <ConfirmDialog
+        open={deleteId != null}
+        onOpenChange={open => !open && setDeleteId(null)}
         title="Remove OTP credential?"
         description="The user will no longer be able to authenticate with this TOTP credential."
-        confirmLabel="Remove" onConfirm={handleDelete} />
+        confirmLabel="Remove"
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   )
 }
@@ -736,54 +816,70 @@ function CertificatesTab({ userId }: { userId: string }) {
       setIssuedResult(result)
       form.reset()
       setDialogOpen(false)
-    } catch {
+    }
+    catch {
       toast.error('Failed to issue certificate')
     }
   }
 
   async function handleRevoke() {
-    if (!revokeTarget) return
+    if (!revokeTarget)
+      return
     try {
       await revokeCert.mutateAsync(revokeTarget.id)
       toast.success(`Certificate "${revokeTarget.label}" revoked`)
-    } catch {
+    }
+    catch {
       toast.error('Failed to revoke certificate')
-    } finally {
+    }
+    finally {
       setRevokeTarget(null)
     }
   }
 
-  if (isLoading) return <Skeleton className="h-24 w-full" />
+  if (isLoading)
+    return <Skeleton className="h-24 w-full" />
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Issue Certificate</Button>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Issue Certificate
+        </Button>
       </div>
 
-      {!credentials || credentials.length === 0 ? (
-        <EmptyState icon={FileBadge} title="No certificates" description="Issue a certificate credential for this user." />
-      ) : (
-        <div className="space-y-2">
-          {credentials.map(cred => (
-            <div key={cred.id} className="p-3 rounded-md border space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileBadge className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{cred.label}</span>
+      {!credentials || credentials.length === 0
+        ? (
+            <EmptyState icon={FileBadge} title="No certificates" description="Issue a certificate credential for this user." />
+          )
+        : (
+            <div className="space-y-2">
+              {credentials.map(cred => (
+                <div key={cred.id} className="p-3 rounded-md border space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileBadge className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{cred.label}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRevokeTarget(cred)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-6 font-mono">
+                    Fingerprint:
+                    {cred.fingerprint}
+                  </p>
+                  {cred.date_added != null && cred.date_added !== '' && (
+                    <p className="text-xs text-muted-foreground pl-6">
+                      Added:
+                      {new Date(cred.date_added).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
-                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRevokeTarget(cred)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground pl-6 font-mono">Fingerprint: {cred.fingerprint}</p>
-              {cred.date_added && (
-                <p className="text-xs text-muted-foreground pl-6">Added: {new Date(cred.date_added).toLocaleDateString()}</p>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
       {/* Issue Certificate Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -793,23 +889,31 @@ function CertificatesTab({ userId }: { userId: string }) {
             <DialogDescription>Provide a label and the user's public key PEM to issue a signed certificate.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onIssue)} className="space-y-4">
-              <FormField control={form.control} name="label" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Label</FormLabel>
-                  <FormControl><Input placeholder="e.g. Work laptop cert" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="public_key_pem" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Public Key (PEM)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="-----BEGIN PUBLIC KEY-----&#10;..." rows={5} className="font-mono text-xs" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            <form onSubmit={e => void form.handleSubmit(onIssue)(e)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="label"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Label</FormLabel>
+                    <FormControl><Input placeholder="e.g. Work laptop cert" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="public_key_pem"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Public Key (PEM)</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="-----BEGIN PUBLIC KEY-----&#10;..." rows={5} className="font-mono text-xs" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={issueCert.isPending}>{issueCert.isPending ? 'Issuing...' : 'Issue'}</Button>
@@ -841,10 +945,14 @@ function CertificatesTab({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!revokeTarget} onOpenChange={open => !open && setRevokeTarget(null)}
+      <ConfirmDialog
+        open={!!revokeTarget}
+        onOpenChange={open => !open && setRevokeTarget(null)}
         title={`Revoke certificate "${revokeTarget?.label}"?`}
         description="This certificate will be permanently revoked and can no longer be used."
-        confirmLabel="Revoke" onConfirm={handleRevoke} />
+        confirmLabel="Revoke"
+        onConfirm={() => void handleRevoke()}
+      />
     </div>
   )
 }
@@ -857,7 +965,7 @@ function RolesTab({ userId }: { userId: string }) {
   const addRole = useAddUserRole(userId)
   const removeRole = useDeleteUserRole(userId)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<{ id: string, name: string } | null>(null)
 
   const assignedIds = new Set(userRoles?.map(r => r.id) ?? [])
   const availableRoles = allRoles?.filter(r => !assignedIds.has(r.id)) ?? []
@@ -866,24 +974,29 @@ function RolesTab({ userId }: { userId: string }) {
     try {
       await addRole.mutateAsync(roleId)
       toast.success(`Role "${roleName}" added`)
-    } catch {
+    }
+    catch {
       toast.error('Failed to add role')
     }
   }
 
   async function handleRemove() {
-    if (!removeTarget) return
+    if (!removeTarget)
+      return
     try {
       await removeRole.mutateAsync(removeTarget.id)
       toast.success(`Role "${removeTarget.name}" removed`)
-    } catch {
+    }
+    catch {
       toast.error('Failed to remove role')
-    } finally {
+    }
+    finally {
       setRemoveTarget(null)
     }
   }
 
-  if (rolesLoading) return <Skeleton className="h-24 w-full" />
+  if (rolesLoading)
+    return <Skeleton className="h-24 w-full" />
 
   return (
     <div className="space-y-4">
@@ -894,23 +1007,25 @@ function RolesTab({ userId }: { userId: string }) {
         </Button>
       </div>
 
-      {!userRoles || userRoles.length === 0 ? (
-        <EmptyState icon={Award} title="No roles assigned" description="Assign roles to control what this user can access." />
-      ) : (
-        <div className="space-y-2">
-          {userRoles.map(role => (
-            <div key={role.id} className="flex items-center justify-between p-3 rounded-md border">
-              <div>
-                <p className="text-sm font-medium">{role.name}</p>
-                {role.description && <p className="text-xs text-muted-foreground">{role.description}</p>}
-              </div>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRemoveTarget({ id: role.id, name: role.name })}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+      {!userRoles || userRoles.length === 0
+        ? (
+            <EmptyState icon={Award} title="No roles assigned" description="Assign roles to control what this user can access." />
+          )
+        : (
+            <div className="space-y-2">
+              {userRoles.map(role => (
+                <div key={role.id} className="flex items-center justify-between p-3 rounded-md border">
+                  <div>
+                    <p className="text-sm font-medium">{role.name}</p>
+                    {role.description && <p className="text-xs text-muted-foreground">{role.description}</p>}
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRemoveTarget({ id: role.id, name: role.name })}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
       {/* Add Role Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
@@ -920,27 +1035,32 @@ function RolesTab({ userId }: { userId: string }) {
             <DialogDescription>Select a role to assign to this user.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {availableRoles.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No more roles available.</p>
-            ) : (
-              availableRoles.map(role => (
-                <div key={role.id} className="flex items-center justify-between p-3 rounded-md border hover:bg-muted/50">
-                  <div>
-                    <p className="text-sm font-medium">{role.name}</p>
-                    {role.description && <p className="text-xs text-muted-foreground">{role.description}</p>}
-                  </div>
-                  <Button size="sm" variant="outline"
-                    disabled={addRole.isPending}
-                    onClick={async () => {
-                      await handleAdd(role.id, role.name)
-                      setAddDialogOpen(false)
-                    }}
-                  >
-                    Add
-                  </Button>
-                </div>
-              ))
-            )}
+            {availableRoles.length === 0
+              ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No more roles available.</p>
+                )
+              : (
+                  availableRoles.map(role => (
+                    <div key={role.id} className="flex items-center justify-between p-3 rounded-md border hover:bg-muted/50">
+                      <div>
+                        <p className="text-sm font-medium">{role.name}</p>
+                        {role.description && <p className="text-xs text-muted-foreground">{role.description}</p>}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={addRole.isPending}
+                        onClick={() => {
+                          void handleAdd(role.id, role.name).then(() => {
+                            setAddDialogOpen(false)
+                          })
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  ))
+                )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Close</Button>
@@ -948,10 +1068,14 @@ function RolesTab({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!removeTarget} onOpenChange={open => !open && setRemoveTarget(null)}
+      <ConfirmDialog
+        open={!!removeTarget}
+        onOpenChange={open => !open && setRemoveTarget(null)}
         title={`Remove role "${removeTarget?.name}"?`}
         description="The user will lose access granted by this role."
-        confirmLabel="Remove" onConfirm={handleRemove} />
+        confirmLabel="Remove"
+        onConfirm={() => void handleRemove()}
+      />
     </div>
   )
 }
@@ -966,12 +1090,14 @@ export function Component() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   async function handleDeleteUser() {
-    if (!user) return
+    if (!user)
+      return
     try {
       await deleteUser.mutateAsync(user.id)
       toast.success(`User "${user.username}" deleted`)
-      navigate('/ui/admin/config/users')
-    } catch {
+      void navigate('/ui/admin/config/users')
+    }
+    catch {
       toast.error('Failed to delete user')
     }
   }
@@ -995,12 +1121,12 @@ export function Component() {
       <PageHeader
         title={user.username}
         description={user.description || undefined}
-        actions={
+        actions={(
           <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Delete User
           </Button>
-        }
+        )}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1016,12 +1142,30 @@ export function Component() {
 
       <Tabs defaultValue="passwords">
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="passwords"><KeyRound className="h-4 w-4 mr-1.5" />Passwords</TabsTrigger>
-          <TabsTrigger value="public-keys"><ShieldCheck className="h-4 w-4 mr-1.5" />Public Keys</TabsTrigger>
-          <TabsTrigger value="otp"><Smartphone className="h-4 w-4 mr-1.5" />OTP</TabsTrigger>
-          <TabsTrigger value="certificates"><FileBadge className="h-4 w-4 mr-1.5" />Certificates</TabsTrigger>
-          <TabsTrigger value="sso"><Mail className="h-4 w-4 mr-1.5" />SSO</TabsTrigger>
-          <TabsTrigger value="roles"><Award className="h-4 w-4 mr-1.5" />Roles</TabsTrigger>
+          <TabsTrigger value="passwords">
+            <KeyRound className="h-4 w-4 mr-1.5" />
+            Passwords
+          </TabsTrigger>
+          <TabsTrigger value="public-keys">
+            <ShieldCheck className="h-4 w-4 mr-1.5" />
+            Public Keys
+          </TabsTrigger>
+          <TabsTrigger value="otp">
+            <Smartphone className="h-4 w-4 mr-1.5" />
+            OTP
+          </TabsTrigger>
+          <TabsTrigger value="certificates">
+            <FileBadge className="h-4 w-4 mr-1.5" />
+            Certificates
+          </TabsTrigger>
+          <TabsTrigger value="sso">
+            <Mail className="h-4 w-4 mr-1.5" />
+            SSO
+          </TabsTrigger>
+          <TabsTrigger value="roles">
+            <Award className="h-4 w-4 mr-1.5" />
+            Roles
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="passwords" className="mt-4"><PasswordsTab userId={user.id} /></TabsContent>
@@ -1038,7 +1182,7 @@ export function Component() {
         title={`Delete user "${user.username}"?`}
         description="This will permanently delete the user and all their credentials."
         confirmLabel="Delete"
-        onConfirm={handleDeleteUser}
+        onConfirm={() => void handleDeleteUser()}
       />
     </div>
   )

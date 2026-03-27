@@ -1,12 +1,13 @@
-import { useForm } from 'react-hook-form'
+import type { BootstrapThemeColor } from '@/features/admin/lib/api'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { z } from 'zod'
 import { useCreateTargetGroupMutation } from '@/features/admin/api'
-import { type BootstrapThemeColor } from '@/features/admin/lib/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { Button } from '@/shared/components/ui/button'
+import { Card, CardContent } from '@/shared/components/ui/card'
 import {
   Form,
   FormControl,
@@ -16,8 +17,6 @@ import {
   FormMessage,
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
-import { Textarea } from '@/shared/components/ui/textarea'
-import { Card, CardContent } from '@/shared/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -25,9 +24,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select'
+import { Textarea } from '@/shared/components/ui/textarea'
 
 const COLORS: BootstrapThemeColor[] = [
-  'Primary', 'Secondary', 'Success', 'Danger', 'Warning', 'Info', 'Light', 'Dark',
+  'Primary',
+  'Secondary',
+  'Success',
+  'Danger',
+  'Warning',
+  'Info',
+  'Light',
+  'Dark',
 ]
 
 const schema = z.object({
@@ -51,12 +58,13 @@ export function Component() {
     try {
       const group = await createGroup.mutateAsync({
         name: values.name,
-        description: values.description || undefined,
-        color: (values.color as BootstrapThemeColor) || undefined,
+        description: values.description != null && values.description !== '' ? values.description : undefined,
+        color: values.color != null && values.color !== '' ? (values.color as BootstrapThemeColor) : undefined,
       })
       toast.success(`Target group "${group.name}" created`)
-      navigate(`/ui/admin/config/target-groups/${group.id}`)
-    } catch {
+      void navigate(`/ui/admin/config/target-groups/${group.id}`)
+    }
+    catch {
       toast.error('Failed to create target group')
     }
   }
@@ -68,7 +76,7 @@ export function Component() {
       <Card>
         <CardContent className="pt-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -127,7 +135,7 @@ export function Component() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/ui/admin/config/target-groups')}
+                  onClick={() => void navigate('/ui/admin/config/target-groups')}
                 >
                   Cancel
                 </Button>

@@ -1,9 +1,10 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+import { z } from 'zod'
+import { useCreateRole } from '@/features/admin/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -16,7 +17,6 @@ import {
 } from '@/shared/components/ui/form'
 import { Input } from '@/shared/components/ui/input'
 import { Textarea } from '@/shared/components/ui/textarea'
-import { useCreateRole } from '@/features/admin/api'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -42,8 +42,9 @@ export function Component() {
         description: values.description,
       })
       toast.success(t('roles.created'))
-      navigate(`../${role.id}`)
-    } catch {
+      void navigate(`../${role.id}`)
+    }
+    catch {
       toast.error(t('roles.createError'))
     }
   }
@@ -53,7 +54,7 @@ export function Component() {
       <PageHeader title={t('pages.createRole')} />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-lg">
+        <form onSubmit={e => void form.handleSubmit(onSubmit)(e)} className="space-y-6 max-w-lg">
           <FormField
             control={form.control}
             name="name"
@@ -86,7 +87,7 @@ export function Component() {
             <Button type="submit" disabled={createMutation.isPending}>
               {t('actions.create', { ns: 'common' })}
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+            <Button type="button" variant="outline" onClick={() => void navigate(-1)}>
               {t('actions.cancel', { ns: 'common' })}
             </Button>
           </div>

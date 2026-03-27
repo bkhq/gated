@@ -1,17 +1,20 @@
+import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import {
-  type ColumnDef,
+
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  type SortingState,
+
   useReactTable,
 } from '@tanstack/react-table'
-import { ChevronDown, ChevronUp, ChevronsUpDown, Search } from 'lucide-react'
+import { ChevronDown, ChevronsUpDown, ChevronUp, Search } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 import {
   Table,
   TableBody,
@@ -20,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/components/ui/table'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData>[]
@@ -33,9 +35,10 @@ interface DataTableProps<TData> {
 export function DataTable<TData>({
   columns,
   data,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder,
   pageSize = 20,
 }: DataTableProps<TData>) {
+  const { t } = useTranslation('common')
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize })
@@ -58,7 +61,7 @@ export function DataTable<TData>({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder={searchPlaceholder}
+          placeholder={searchPlaceholder ?? t('table.search')}
           value={globalFilter}
           onChange={e => setGlobalFilter(e.target.value)}
           className="pl-9"
@@ -72,53 +75,57 @@ export function DataTable<TData>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
                   <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : (
-                      <div
-                        className={header.column.getCanSort() ? 'flex items-center gap-1 cursor-pointer select-none' : ''}
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getCanSort() && (
-                          <span className="text-muted-foreground">
-                            {header.column.getIsSorted() === 'asc'
-                              ? <ChevronUp className="h-4 w-4" />
-                              : header.column.getIsSorted() === 'desc'
-                                ? <ChevronDown className="h-4 w-4" />
-                                : <ChevronsUpDown className="h-4 w-4" />}
-                          </span>
+                    {header.isPlaceholder
+                      ? null
+                      : (
+                          <div
+                            className={header.column.getCanSort() ? 'flex items-center gap-1 cursor-pointer select-none' : ''}
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getCanSort() && (
+                              <span className="text-muted-foreground">
+                                {header.column.getIsSorted() === 'asc'
+                                  ? <ChevronUp className="h-4 w-4" />
+                                  : header.column.getIsSorted() === 'desc'
+                                    ? <ChevronDown className="h-4 w-4" />
+                                    : <ChevronsUpDown className="h-4 w-4" />}
+                              </span>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
                   </TableHead>
                 ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map(row => (
-                <TableRow key={row.id} data-state={row.getIsSelected() ? 'selected' : undefined}>
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            {table.getRowModel().rows.length
+              ? (
+                  table.getRowModel().rows.map(row => (
+                    <TableRow key={row.id} data-state={row.getIsSelected() ? 'selected' : undefined}>
+                      {row.getVisibleCells().map(cell => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )
+              : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                      {t('table.noResults')}
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
+                  </TableRow>
+                )}
           </TableBody>
         </Table>
       </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Rows per page</span>
+          <span>{t('table.rowsPerPage')}</span>
           <Select
             value={String(table.getState().pagination.pageSize)}
             onValueChange={val => table.setPageSize(Number(val))}
@@ -136,23 +143,28 @@ export function DataTable<TData>({
 
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            {t('table.pagination', {
+              page: table.getState().pagination.pageIndex + 1,
+              total: table.getPageCount(),
+            })}
           </span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
+            className="cursor-pointer"
           >
-            Previous
+            {t('table.previous')}
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
+            className="cursor-pointer"
           >
-            Next
+            {t('table.next')}
           </Button>
         </div>
       </div>
