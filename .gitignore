@@ -31,6 +31,9 @@ dhat-heap.json
 cdx.xml
 *.cdx.xml
 
+# npm lock (project uses bun)
+package-lock.json
+
 # OS / editor
 .DS_Store
 *.swp

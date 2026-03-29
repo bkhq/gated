@@ -130,7 +130,7 @@ export function DataTable<TData>({
             value={String(table.getState().pagination.pageSize)}
             onValueChange={val => table.setPageSize(Number(val))}
           >
-            <SelectTrigger className="h-8 w-16">
+            <SelectTrigger className="h-8 w-20">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

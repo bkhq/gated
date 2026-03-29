@@ -5,7 +5,7 @@ use poem::{Endpoint, EndpointExt, FromRequest, IntoResponse};
 use poem_openapi::param::Path;
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, Enum, Object, OpenApi};
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Set};
 use uuid::Uuid;
 use gated_common::{User, UserPasswordCredential, UserRequireCredentialsPolicy, GatedError};
 use gated_core::Services;
@@ -480,6 +480,25 @@ impl Api {
         };
 
         model.delete(&*db).await?;
+
+        // If no OTP credentials remain, remove OTP from the user's credential policy
+        let remaining = entities::OtpCredential::Entity::find()
+            .filter(entities::OtpCredential::Column::UserId.eq(user_model.id))
+            .count(&*db)
+            .await?;
+
+        if remaining == 0 {
+            let policy: Option<gated_common::UserRequireCredentialsPolicy> =
+                serde_json::from_value(user_model.credential_policy.clone()).ok().flatten();
+            if let Some(policy) = policy {
+                let new_policy = policy.downgrade_from_otp();
+                let mut active: entities::User::ActiveModel = user_model.into();
+                active.credential_policy =
+                    sea_orm::ActiveValue::Set(serde_json::to_value(&new_policy).unwrap_or_default());
+                active.update(&*db).await?;
+            }
+        }
+
         Ok(DeleteCredentialResponse::Deleted)
     }
 

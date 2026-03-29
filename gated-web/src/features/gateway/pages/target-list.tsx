@@ -4,13 +4,20 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useInfoQuery, useTargetsQuery } from '@/features/gateway/api'
-import { CardSkeleton } from '@/shared/components/card-skeleton'
 import { CopyButton } from '@/shared/components/copy-button'
 import { EmptyState } from '@/shared/components/empty-state'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
+import { Skeleton } from '@/shared/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/ui/table'
 import { shellEscape } from '@/shared/lib/shell-escape'
 
 function TargetIcon({ kind }: { kind: TargetSnapshot['kind'] }) {
@@ -27,54 +34,84 @@ function buildSshCommand(target: TargetSnapshot, externalHost?: string, sshPort?
   return shellEscape(['ssh', ...portFlag, '-l', target.name, host])
 }
 
-function TargetCard({ target, infoData }: { target: TargetSnapshot, infoData: { external_host?: string, ports?: { ssh?: number } } | undefined }) {
+function TargetRow({ target, infoData }: { target: TargetSnapshot, infoData: { external_host?: string, ports?: { ssh?: number } } | undefined }) {
   const { t } = useTranslation('gateway')
 
   const isSsh = target.kind === 'Ssh'
   const isHttp = target.kind === 'Api' || target.kind === 'WebAdmin'
-
   const sshCmd = isSsh ? buildSshCommand(target, infoData?.external_host, infoData?.ports?.ssh) : null
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <TargetIcon kind={target.kind} />
-            <CardTitle className="text-base truncate">{target.name}</CardTitle>
-          </div>
-          <Badge variant="secondary" className="shrink-0">{target.kind}</Badge>
+    <TableRow>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <TargetIcon kind={target.kind} />
+          <span className="font-medium">{target.name}</span>
         </div>
-        {target.description != null && target.description !== '' && (
-          <p className="text-sm text-muted-foreground truncate">{target.description}</p>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {isSsh && sshCmd != null && sshCmd !== '' && (
-          <div className="flex items-center gap-1">
-            <code className="flex-1 text-xs bg-muted px-2 py-1 rounded font-mono truncate">{sshCmd}</code>
-            <CopyButton value={sshCmd} label={t('targetList.copyCommand')} />
-            <Button render={<Link to={`/ui/ssh/${encodeURIComponent(target.name)}`} />} size="sm" variant="outline">
-              <Terminal className="size-3.5 mr-1" />
-              {t('targetList.openTerminal')}
-            </Button>
-          </div>
-        )}
-        {isHttp && infoData?.external_host != null && infoData.external_host !== '' && (
-          <a
-            href={`https://${infoData.external_host}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-primary underline-offset-2 hover:underline"
-          >
-            {`https://${infoData.external_host}`}
-          </a>
-        )}
-        {target.group && (
+      </TableCell>
+      <TableCell>
+        <Badge variant="secondary">{target.kind}</Badge>
+      </TableCell>
+      <TableCell className="text-muted-foreground text-sm">
+        {target.description ?? ''}
+      </TableCell>
+      <TableCell>
+        {target.group != null && (
           <Badge variant="outline" className="text-xs">{target.group.name}</Badge>
         )}
-      </CardContent>
-    </Card>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          {isSsh && sshCmd != null && sshCmd !== '' && (
+            <>
+              <code className="text-xs bg-muted px-2 py-1 rounded font-mono truncate max-w-[200px] hidden lg:inline-block">{sshCmd}</code>
+              <CopyButton value={sshCmd} label={t('targetList.copyCommand')} />
+              <Button render={<Link to={`/ui/ssh/${encodeURIComponent(target.name)}`} />} size="sm" variant="outline">
+                <Terminal className="size-3.5 mr-1" />
+                {t('targetList.openTerminal')}
+              </Button>
+            </>
+          )}
+          {isHttp && infoData?.external_host != null && infoData.external_host !== '' && (
+            <a
+              href={`https://${infoData.external_host}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary underline-offset-2 hover:underline"
+            >
+              {`https://${infoData.external_host}`}
+            </a>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
+function TableSkeleton() {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+          <TableHead><Skeleton className="h-4 w-12" /></TableHead>
+          <TableHead><Skeleton className="h-4 w-32" /></TableHead>
+          <TableHead><Skeleton className="h-4 w-16" /></TableHead>
+          <TableHead />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <TableRow key={`skeleton-${String(i)}`}>
+            <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+            <TableCell><Skeleton className="h-5 w-12 rounded-full" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+            <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+            <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
@@ -84,12 +121,12 @@ export function Component() {
   const targetsQuery = useTargetsQuery(search || undefined)
   const infoQuery = useInfoQuery()
 
-  const targets = targetsQuery.data ?? []
+  const targets = (targetsQuery.data ?? []).filter(t => t.kind !== 'WebAdmin')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('pages.targetList')}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t('pages.targetList')}</h1>
         <div className="relative max-w-xs w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -101,7 +138,7 @@ export function Component() {
         </div>
       </div>
 
-      {targetsQuery.isPending && <CardSkeleton count={6} />}
+      {targetsQuery.isPending && <TableSkeleton />}
 
       {targetsQuery.isSuccess && targets.length === 0 && (
         <EmptyState
@@ -111,11 +148,22 @@ export function Component() {
       )}
 
       {targets.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {targets.map(target => (
-            <TargetCard key={target.name} target={target} infoData={infoQuery.data} />
-          ))}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('targetList.colName', 'Name')}</TableHead>
+              <TableHead>{t('targetList.colType', 'Type')}</TableHead>
+              <TableHead>{t('targetList.colDescription', 'Description')}</TableHead>
+              <TableHead>{t('targetList.colGroup', 'Group')}</TableHead>
+              <TableHead className="text-right">{t('targetList.colActions', 'Actions')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {targets.map(target => (
+              <TargetRow key={target.name} target={target} infoData={infoQuery.data} />
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   )

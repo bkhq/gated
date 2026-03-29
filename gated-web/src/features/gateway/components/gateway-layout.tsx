@@ -1,70 +1,169 @@
-import { Key, Server, ShieldCheck, User } from 'lucide-react'
+import { ChevronRight, Key, Server, ShieldCheck, Terminal, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link, NavLink, Outlet } from 'react-router'
-import { AppBreadcrumb } from '@/shared/components/app-breadcrumb'
+import { Link, Outlet, useLocation } from 'react-router'
+import { useTargetsQuery } from '@/features/gateway/api'
 import { LanguageToggle } from '@/shared/components/language-toggle'
 import { ModeToggle } from '@/shared/components/mode-toggle'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarSeparator,
+} from '@/shared/components/ui/sidebar'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible'
 import { UserMenu } from '@/shared/components/user-menu'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
-import { useAuthStore } from '@/shared/stores/auth'
 
-function navLinkClass({ isActive }: { isActive: boolean }) {
-  return `flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md transition-colors ${
-    isActive
-      ? 'bg-primary/10 text-primary font-medium'
-      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-  }`
+function isNavActive(pathname: string, to: string, end: boolean): boolean {
+  if (end)
+    return pathname === to
+  return pathname === to || pathname.startsWith(`${to}/`)
 }
+
+function TargetsNavGroup() {
+  const { t } = useTranslation('gateway')
+  const location = useLocation()
+  const { data: targets = [] } = useTargetsQuery()
+
+  const sshTargets = targets.filter(tgt => tgt.kind === 'Ssh')
+  const isTargetsActive = location.pathname === '/ui' || location.pathname.startsWith('/ui/ssh/')
+
+  return (
+    <Collapsible defaultOpen={isTargetsActive} className="group/collapsible">
+      <SidebarMenuItem>
+        <CollapsibleTrigger
+          render={(
+            <SidebarMenuButton
+              isActive={isTargetsActive}
+              tooltip={t('nav.targets')}
+            />
+          )}
+        >
+          <Server />
+          <span>{t('nav.targets')}</span>
+          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {sshTargets.map(target => (
+              <SidebarMenuSubItem key={target.name}>
+                <SidebarMenuSubButton
+                  render={<Link to={`/ui/ssh/${encodeURIComponent(target.name)}`} />}
+                  isActive={location.pathname === `/ui/ssh/${encodeURIComponent(target.name)}`}
+                >
+                  <Terminal className="size-3.5" />
+                  <span>{target.name}</span>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+            {sshTargets.length === 0 && (
+              <SidebarMenuSubItem>
+                <span className="px-2 py-1 text-xs text-muted-foreground">{t('targetList.empty')}</span>
+              </SidebarMenuSubItem>
+            )}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  )
+}
+
+const accountItems = [
+  { to: '/ui/profile', key: 'gateway:nav.profile', icon: User, end: true },
+  { to: '/ui/profile/api-tokens', key: 'gateway:pages.apiTokens', icon: Key, end: false },
+]
 
 export function GatewayLayout() {
   const { t } = useTranslation(['gateway', 'common'])
-  const { isAuthenticated } = useAuthStore()
+  const location = useLocation()
 
   useAuthInit()
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 h-12 flex items-center gap-4">
-        <Link to="/ui" className="flex items-center gap-2 shrink-0 mr-2">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <ShieldCheck className="size-3.5" />
+    <SidebarProvider>
+      <Sidebar collapsible="none">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" render={<Link to="/ui" className="gap-3" />}>
+                <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <ShieldCheck className="size-4" />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-semibold tracking-tight">{t('common:appName')}</span>
+                  <span className="text-xs text-sidebar-foreground/60">Gateway</span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>{t('gateway:nav.targets')}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <TargetsNavGroup />
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarSeparator />
+
+          <SidebarGroup>
+            <SidebarGroupLabel>{t('gateway:nav.profile')}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {accountItems.map(item => (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      render={<Link to={item.to} />}
+                      isActive={isNavActive(location.pathname, item.to, item.end)}
+                      tooltip={t(item.key)}
+                    >
+                      <item.icon />
+                      <span>{t(item.key)}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <UserMenu variant="sidebar" />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
+          <h1 className="text-sm font-medium">{t('common:appName')}</h1>
+          <div className="ml-auto flex items-center gap-1">
+            <LanguageToggle />
+            <ModeToggle />
           </div>
-          <span className="text-lg font-semibold tracking-tight">{t('common:appName')}</span>
-        </Link>
-
-        {isAuthenticated && (
-          <nav className="flex items-center gap-1">
-            <NavLink to="/ui" end className={navLinkClass}>
-              <Server className="size-4" />
-              <span>{t('gateway:nav.targets')}</span>
-            </NavLink>
-            <NavLink to="/ui/profile" end className={navLinkClass}>
-              <User className="size-4" />
-              <span>{t('gateway:nav.profile')}</span>
-            </NavLink>
-            <NavLink to="/ui/profile/api-tokens" className={navLinkClass}>
-              <Key className="size-4" />
-              <span>{t('gateway:pages.apiTokens')}</span>
-            </NavLink>
-          </nav>
-        )}
-
-        <div className="ml-auto flex items-center gap-1">
-          <LanguageToggle />
-          <ModeToggle />
-          {isAuthenticated && <UserMenu variant="button" />}
-        </div>
-      </header>
-
-      {isAuthenticated && (
-        <div className="border-b border-border px-4 h-8 flex items-center">
-          <AppBreadcrumb />
-        </div>
-      )}
-
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
-        <Outlet />
-      </main>
-    </div>
+        </header>
+        <main className="flex-1 p-4 overflow-auto">
+          <Outlet />
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

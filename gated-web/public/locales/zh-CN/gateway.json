@@ -42,7 +42,12 @@
     "search": "搜索目标...",
     "empty": "暂无可用目标",
     "copyCommand": "复制 SSH 命令",
-    "openTerminal": "打开终端"
+    "openTerminal": "打开终端",
+    "colName": "名称",
+    "colType": "类型",
+    "colDescription": "描述",
+    "colGroup": "分组",
+    "colActions": "操作"
   },
   "profile": {
     "loggedInAs": "当前登录：{{username}}",

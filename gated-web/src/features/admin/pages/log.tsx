@@ -1,7 +1,7 @@
 import type { GetLogsRequest } from '@/features/admin/lib/api-client'
 import { format } from 'date-fns'
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLogsQuery } from '@/features/admin/api'
 import { PageHeader } from '@/shared/components/page-header'
@@ -44,12 +44,12 @@ export function Component() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
 
-  const params: GetLogsRequest = {
+  const params: GetLogsRequest = useMemo(() => ({
     after: getAfterTime(timeRange),
     username: usernameFilter || undefined,
     search: searchFilter || undefined,
     limit: 500,
-  }
+  }), [timeRange, usernameFilter, searchFilter])
 
   const { data: logs = [], isLoading, isFetching, refetch } = useLogsQuery(params, {
     refetchInterval: autoRefresh ? 10_000 : false,

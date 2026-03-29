@@ -42,7 +42,12 @@
     "search": "Search targets...",
     "empty": "No targets available",
     "copyCommand": "Copy SSH command",
-    "openTerminal": "Open Terminal"
+    "openTerminal": "Open Terminal",
+    "colName": "Name",
+    "colType": "Type",
+    "colDescription": "Description",
+    "colGroup": "Group",
+    "colActions": "Actions"
   },
   "profile": {
     "loggedInAs": "Logged in as {{username}}",

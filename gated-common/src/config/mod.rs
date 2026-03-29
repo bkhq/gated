@@ -138,6 +138,59 @@ impl UserRequireCredentialsPolicy {
         }
         copy
     }
+
+    /// Remove OTP requirement from all protocol policies.
+    /// Returns `None` if the resulting policy is empty (all protocols default).
+    #[must_use]
+    pub fn downgrade_from_otp(&self) -> Option<Self> {
+        let mut copy = self.clone();
+
+        fn remove_otp(kinds: &mut Vec<CredentialKind>) {
+            kinds.retain(|k| *k != CredentialKind::Totp);
+        }
+
+        if let Some(ref mut policy) = copy.http {
+            remove_otp(policy);
+            if policy.is_empty() {
+                copy.http = None;
+            }
+        }
+        if let Some(ref mut policy) = copy.ssh {
+            remove_otp(policy);
+            if policy.is_empty() {
+                copy.ssh = None;
+            }
+        }
+        if let Some(ref mut policy) = copy.kubernetes {
+            remove_otp(policy);
+            if policy.is_empty() {
+                copy.kubernetes = None;
+            }
+        }
+        if let Some(ref mut policy) = copy.mysql {
+            remove_otp(policy);
+            if policy.is_empty() {
+                copy.mysql = None;
+            }
+        }
+        if let Some(ref mut policy) = copy.postgres {
+            remove_otp(policy);
+            if policy.is_empty() {
+                copy.postgres = None;
+            }
+        }
+
+        if copy.http.is_none()
+            && copy.ssh.is_none()
+            && copy.kubernetes.is_none()
+            && copy.mysql.is_none()
+            && copy.postgres.is_none()
+        {
+            None
+        } else {
+            Some(copy)
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Object)]

@@ -5,12 +5,13 @@ use poem_openapi::param::Path;
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, Object, OpenApi};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, PaginatorTrait,
+    QueryFilter, Set,
 };
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use gated_common::{UserTotpCredential, GatedError};
-use gated_db_entities::OtpCredential;
+use gated_common::{UserRequireCredentialsPolicy, UserTotpCredential, GatedError};
+use gated_db_entities::{OtpCredential, User};
 
 use super::AnySecurityScheme;
 
@@ -130,7 +131,7 @@ impl DetailApi {
     ) -> Result<DeleteCredentialResponse, GatedError> {
         let db = db.lock().await;
 
-        let Some(role) = OtpCredential::Entity::find_by_id(id.0)
+        let Some(cred) = OtpCredential::Entity::find_by_id(id.0)
             .filter(OtpCredential::Column::UserId.eq(*user_id))
             .one(&*db)
             .await?
@@ -138,7 +139,28 @@ impl DetailApi {
             return Ok(DeleteCredentialResponse::NotFound);
         };
 
-        role.delete(&*db).await?;
+        cred.delete(&*db).await?;
+
+        // If no OTP credentials remain, remove OTP from the user's credential policy
+        let remaining = OtpCredential::Entity::find()
+            .filter(OtpCredential::Column::UserId.eq(*user_id))
+            .count(&*db)
+            .await?;
+
+        if remaining == 0 {
+            if let Some(user) = User::Entity::find_by_id(*user_id).one(&*db).await? {
+                let policy: Option<UserRequireCredentialsPolicy> =
+                    serde_json::from_value(user.credential_policy.clone()).ok().flatten();
+                if let Some(policy) = policy {
+                    let new_policy = policy.downgrade_from_otp();
+                    let mut active: User::ActiveModel = user.into();
+                    active.credential_policy =
+                        Set(serde_json::to_value(&new_policy).unwrap_or_default());
+                    active.update(&*db).await?;
+                }
+            }
+        }
+
         Ok(DeleteCredentialResponse::Deleted)
     }
 }
