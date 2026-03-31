@@ -74,10 +74,13 @@ pub fn log_request_result(
     client_ip: Option<&str>,
     status: &StatusCode,
 ) {
+    if is_static_resource(url) {
+        return;
+    }
     let client_ip = client_ip.unwrap_or("<unknown>");
     if status.is_server_error() || status.is_client_error() {
         warn!(%method, %url, %status, %client_ip, "Request failed");
-    } else if !is_static_resource(url) {
+    } else {
         info!(%method, %url, %status, %client_ip, "Request");
     }
 }
