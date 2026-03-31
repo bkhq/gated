@@ -28,18 +28,19 @@ function TargetIcon({ kind }: { kind: TargetSnapshot['kind'] }) {
   return <Globe className="size-4" />
 }
 
-function buildSshCommand(target: TargetSnapshot, externalHost?: string, sshPort?: number): string {
+function buildSshCommand(target: TargetSnapshot, username?: string, externalHost?: string, sshPort?: number): string {
   const host = externalHost ?? 'gateway'
   const portFlag = sshPort != null && sshPort !== 0 && sshPort !== 22 ? ['-p', String(sshPort)] : []
-  return shellEscape(['ssh', ...portFlag, '-l', target.name, host])
+  const loginName = username != null && username !== '' ? `${username}:${target.name}` : target.name
+  return shellEscape(['ssh', ...portFlag, '-l', loginName, host])
 }
 
-function TargetRow({ target, infoData }: { target: TargetSnapshot, infoData: { external_host?: string, ports?: { ssh?: number } } | undefined }) {
+function TargetRow({ target, infoData }: { target: TargetSnapshot, infoData: { username?: string, external_host?: string, ports?: { ssh?: number } } | undefined }) {
   const { t } = useTranslation('gateway')
 
   const isSsh = target.kind === 'Ssh'
   const isHttp = target.kind === 'Api' || target.kind === 'WebAdmin'
-  const sshCmd = isSsh ? buildSshCommand(target, infoData?.external_host, infoData?.ports?.ssh) : null
+  const sshCmd = isSsh ? buildSshCommand(target, infoData?.username, infoData?.external_host, infoData?.ports?.ssh) : null
 
   return (
     <TableRow>

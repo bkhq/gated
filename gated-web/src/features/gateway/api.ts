@@ -31,7 +31,7 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: async (req: { username: string, password: string }) => api.login(req),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
+      queryClient.removeQueries({ queryKey: gatewayKeys.info })
     },
   })
 }
@@ -41,7 +41,7 @@ export function useOtpLoginMutation() {
   return useMutation({
     mutationFn: async (req: { otp: string }) => api.otpLogin(req),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: gatewayKeys.info })
+      queryClient.removeQueries({ queryKey: gatewayKeys.info })
     },
   })
 }

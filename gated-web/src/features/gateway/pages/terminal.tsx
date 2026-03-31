@@ -11,10 +11,14 @@ import '@xterm/xterm/css/xterm.css'
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 
+// Binary frame protocol constants — must match backend
+const MSG_TERMINAL_DATA = 0x00
+const MSG_RESIZE = 0x01
+
 function buildWsUrl(targetName: string): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  return `${protocol}//${host}/api/targets/${encodeURIComponent(targetName)}/terminal`
+  return `${protocol}//${host}/api/ssh/terminal/${encodeURIComponent(targetName)}`
 }
 
 export function Component() {
@@ -62,9 +66,24 @@ export function Component() {
     }
   }, [reconnectKey])
 
+  const sendRef = useRef<(data: string | ArrayBuffer) => void>(() => {})
+
   const handleOpen = useCallback(() => {
     setStatus('connected')
     xtermRef.current?.clear()
+
+    // Send initial resize
+    const fitAddon = fitAddonRef.current
+    const term = xtermRef.current
+    if (fitAddon != null && term != null) {
+      const resizePayload = JSON.stringify({ cols: term.cols, rows: term.rows })
+      const encoder = new TextEncoder()
+      const payload = encoder.encode(resizePayload)
+      const frame = new Uint8Array(1 + payload.length)
+      frame[0] = MSG_RESIZE
+      frame.set(payload, 1)
+      sendRef.current(frame.buffer)
+    }
   }, [])
 
   const handleClose = useCallback(() => {
@@ -73,17 +92,40 @@ export function Component() {
   }, [])
 
   const handleMessage = useCallback((event: MessageEvent) => {
-    if (typeof event.data === 'string') {
-      xtermRef.current?.write(event.data)
-    }
-    else if (event.data instanceof ArrayBuffer) {
-      const text = new TextDecoder().decode(event.data)
-      xtermRef.current?.write(text)
+    if (event.data instanceof ArrayBuffer) {
+      const view = new Uint8Array(event.data)
+      if (view.length === 0)
+        return
+      const msgType = view[0]
+      const payload = view.slice(1)
+
+      if (msgType === MSG_TERMINAL_DATA) {
+        const text = new TextDecoder().decode(payload)
+        xtermRef.current?.write(text)
+      }
+      else {
+        // Status or other message — parse JSON payload
+        try {
+          const text = new TextDecoder().decode(payload)
+          const msg = JSON.parse(text) as { status?: string, message?: string }
+          if (msg.status === 'error' || msg.status === 'closed') {
+            xtermRef.current?.writeln(`\r\n\x1B[33m[${msg.message ?? msg.status}]\x1B[0m`)
+          }
+          else if (msg.status === 'connected') {
+            // SSH session established
+          }
+          else if (msg.status != null) {
+            xtermRef.current?.writeln(`\r\n\x1B[36m[${msg.message ?? msg.status}]\x1B[0m`)
+          }
+        }
+        catch {
+          // ignore parse errors
+        }
+      }
     }
     else if (event.data instanceof Blob) {
       void event.data.arrayBuffer().then((buf) => {
-        const text = new TextDecoder().decode(buf)
-        xtermRef.current?.write(text)
+        handleMessage({ data: buf } as MessageEvent)
       })
     }
   }, [])
@@ -97,18 +139,59 @@ export function Component() {
     reconnect: false,
   })
 
-  // Forward keyboard input
+  // Keep sendRef up to date
+  useEffect(() => {
+    sendRef.current = send
+  }, [send])
+
+  // Forward keyboard input with binary frame protocol
   useEffect(() => {
     const term = xtermRef.current
     if (!term)
       return
     const disposable = term.onData((data) => {
       if (status === 'connected') {
-        send(data)
+        const encoder = new TextEncoder()
+        const payload = encoder.encode(data)
+        const frame = new Uint8Array(1 + payload.length)
+        frame[0] = MSG_TERMINAL_DATA
+        frame.set(payload, 1)
+        send(frame.buffer)
       }
     })
     return () => disposable.dispose()
   }, [send, status, reconnectKey])
+
+  // Send resize when terminal dimensions change
+  useEffect(() => {
+    const term = xtermRef.current
+    if (!term || status !== 'connected')
+      return
+    const disposable = term.onResize(({ cols, rows }) => {
+      const resizePayload = JSON.stringify({ cols, rows })
+      const encoder = new TextEncoder()
+      const payload = encoder.encode(resizePayload)
+      const frame = new Uint8Array(1 + payload.length)
+      frame[0] = MSG_RESIZE
+      frame.set(payload, 1)
+      send(frame.buffer)
+    })
+    return () => disposable.dispose()
+  }, [send, status, reconnectKey])
+
+  // Re-fit and send resize on window resize
+  useEffect(() => {
+    if (status !== 'connected')
+      return
+    const handleWindowResize = () => {
+      const fitAddon = fitAddonRef.current
+      if (fitAddon != null) {
+        fitAddon.fit()
+      }
+    }
+    window.addEventListener('resize', handleWindowResize)
+    return () => window.removeEventListener('resize', handleWindowResize)
+  }, [status])
 
   function handleReconnect() {
     setStatus('connecting')

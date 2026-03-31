@@ -367,9 +367,8 @@ async fn establish_ssh_session(
 
     let channel_id = wait_for_connection(handles, sink, source, host_key_mode).await?;
 
-    if !wait_for_success(handles, sink, channel_id, "Failed to open SSH channel").await {
-        return None;
-    }
+    // Note: OpenShell completes via the oneshot reply mechanism, not via RCEvent::Success.
+    // The channel is ready to use immediately after wait_for_connection returns.
 
     // Request PTY
     if !send_channel_command(
