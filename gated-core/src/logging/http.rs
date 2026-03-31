@@ -63,6 +63,11 @@ pub async fn span_for_request(
     })
 }
 
+fn is_static_resource(url: &Uri) -> bool {
+    let path = url.path();
+    path == "/ui" || path.starts_with("/ui/")
+}
+
 pub fn log_request_result(
     method: &Method,
     url: &Uri,
@@ -72,7 +77,7 @@ pub fn log_request_result(
     let client_ip = client_ip.unwrap_or("<unknown>");
     if status.is_server_error() || status.is_client_error() {
         warn!(%method, %url, %status, %client_ip, "Request failed");
-    } else {
+    } else if !is_static_resource(url) {
         info!(%method, %url, %status, %client_ip, "Request");
     }
 }

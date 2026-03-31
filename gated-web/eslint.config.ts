@@ -10,6 +10,7 @@ export default antfu({
     'src/features/*/lib/api-client/**',
     'src/features/*/lib/api.ts',
     'src/shared/components/ui/**',
+    'public/mockServiceWorker.js',
     'dist/**',
   ],
 })

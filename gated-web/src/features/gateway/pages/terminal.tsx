@@ -1,9 +1,9 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal as XTerm } from '@xterm/xterm'
-import { RefreshCw } from 'lucide-react'
+import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { useWebSocket } from '@/shared/hooks/use-web-socket'
@@ -205,18 +205,23 @@ export function Component() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] gap-2">
-      <div className="flex items-center justify-between shrink-0">
-        <h1 className="text-lg font-heading font-semibold">
-          {t('gateway:pages.terminal', { targetName: targetName ?? '' })}
-        </h1>
+    <div className="flex flex-col h-screen bg-[#1a1a1a]">
+      <div className="flex items-center justify-between shrink-0 px-3 h-10 bg-background border-b border-border">
         <div className="flex items-center gap-2">
-          <Badge variant={statusColor[status]}>
+          <Button size="icon" variant="ghost" className="size-7" render={<Link to="/ui" />}>
+            <ArrowLeft className="size-3.5" />
+          </Button>
+          <span className="text-sm font-medium text-foreground">
+            {targetName ?? ''}
+          </span>
+          <Badge variant={statusColor[status]} className="text-xs">
             {t(`gateway:terminal.status.${status}`)}
           </Badge>
+        </div>
+        <div className="flex items-center gap-1">
           {status === 'disconnected' && (
-            <Button size="sm" variant="outline" onClick={handleReconnect}>
-              <RefreshCw className="size-3.5 mr-1" />
+            <Button size="sm" variant="ghost" onClick={handleReconnect} className="h-7 text-xs">
+              <RefreshCw className="size-3 mr-1" />
               {t('gateway:terminal.reconnect')}
             </Button>
           )}
@@ -224,7 +229,7 @@ export function Component() {
       </div>
       <div
         ref={termDivRef}
-        className="flex-1 rounded-lg overflow-hidden bg-[#1a1a1a]"
+        className="flex-1 overflow-hidden"
         style={{ minHeight: 0 }}
       />
     </div>

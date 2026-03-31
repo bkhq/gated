@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { useTargetsQuery } from '@/features/gateway/api'
 import { LanguageToggle } from '@/shared/components/language-toggle'
 import { ModeToggle } from '@/shared/components/mode-toggle'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible'
 import {
   Sidebar,
   SidebarContent,
@@ -22,37 +23,25 @@ import {
   SidebarProvider,
   SidebarSeparator,
 } from '@/shared/components/ui/sidebar'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible'
 import { UserMenu } from '@/shared/components/user-menu'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
 
-function isNavActive(pathname: string, to: string, end: boolean): boolean {
-  if (end)
-    return pathname === to
-  return pathname === to || pathname.startsWith(`${to}/`)
-}
-
-function TargetsNavGroup() {
+function SshTargetsGroup() {
   const { t } = useTranslation('gateway')
-  const location = useLocation()
   const { data: targets = [] } = useTargetsQuery()
 
   const sshTargets = targets.filter(tgt => tgt.kind === 'Ssh')
-  const isTargetsActive = location.pathname === '/ui' || location.pathname.startsWith('/ui/ssh/')
 
   return (
-    <Collapsible defaultOpen={isTargetsActive} className="group/collapsible">
+    <Collapsible defaultOpen className="group/collapsible">
       <SidebarMenuItem>
         <CollapsibleTrigger
           render={(
-            <SidebarMenuButton
-              isActive={isTargetsActive}
-              tooltip={t('nav.targets')}
-            />
+            <SidebarMenuButton tooltip="SSH" />
           )}
         >
-          <Server />
-          <span>{t('nav.targets')}</span>
+          <Terminal className="size-4" />
+          <span>SSH</span>
           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -60,10 +49,9 @@ function TargetsNavGroup() {
             {sshTargets.map(target => (
               <SidebarMenuSubItem key={target.name}>
                 <SidebarMenuSubButton
-                  render={<Link to={`/ui/ssh/${encodeURIComponent(target.name)}`} />}
-                  isActive={location.pathname === `/ui/ssh/${encodeURIComponent(target.name)}`}
+                  render={<Link to={`/ui/ssh/${encodeURIComponent(target.name)}`} target="_blank" />}
                 >
-                  <Terminal className="size-3.5" />
+                  <Server className="size-3" />
                   <span>{target.name}</span>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
@@ -78,6 +66,12 @@ function TargetsNavGroup() {
       </SidebarMenuItem>
     </Collapsible>
   )
+}
+
+function isNavActive(pathname: string, to: string, end: boolean): boolean {
+  if (end)
+    return pathname === to
+  return pathname === to || pathname.startsWith(`${to}/`)
 }
 
 const accountItems = [
@@ -115,7 +109,25 @@ export function GatewayLayout() {
             <SidebarGroupLabel>{t('gateway:nav.targets')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <TargetsNavGroup />
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link to="/ui" />}
+                    isActive={location.pathname === '/ui'}
+                    tooltip={t('gateway:nav.targets')}
+                  >
+                    <Server />
+                    <span>{t('gateway:nav.allTargets')}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>{t('gateway:nav.terminals')}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SshTargetsGroup />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

@@ -7,6 +7,13 @@ export const router = createBrowserRouter([
   { path: '/ui/login', lazy: async () => import('@/features/gateway/pages/login') },
   { path: '/ui/otp', lazy: async () => import('@/features/gateway/pages/otp') },
   {
+    path: '/ui/ssh/:targetName',
+    element: <RequireAuth />,
+    children: [
+      { index: true, lazy: async () => import('@/features/gateway/pages/terminal') },
+    ],
+  },
+  {
     path: '/ui',
     element: <GatewayLayout />,
     children: [
@@ -14,7 +21,6 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           { index: true, handle: { breadcrumbKey: 'gateway:pages.targetList' }, lazy: async () => import('@/features/gateway/pages/target-list') },
-          { path: 'ssh/:targetName', handle: { breadcrumbKey: 'gateway:pages.terminal' }, lazy: async () => import('@/features/gateway/pages/terminal') },
           { path: 'profile', handle: { breadcrumbKey: 'gateway:pages.profile' }, lazy: async () => import('@/features/gateway/pages/profile') },
           { path: 'profile/credentials', handle: { breadcrumbKey: 'gateway:pages.credentials' }, lazy: async () => import('@/features/gateway/pages/profile-credentials') },
           { path: 'profile/api-tokens', handle: { breadcrumbKey: 'gateway:pages.apiTokens' }, lazy: async () => import('@/features/gateway/pages/profile-api-tokens') },

@@ -5,10 +5,19 @@ import { Providers } from '@/app/providers'
 import { router } from '@/app/router'
 import '@/styles/app.css'
 
-createRoot(document.getElementById('app')!).render(
-  <StrictMode>
-    <Providers>
-      <RouterProvider router={router} />
-    </Providers>
-  </StrictMode>,
-)
+async function bootstrap() {
+  if (import.meta.env.DEV) {
+    const { worker } = await import('@/mocks/browser')
+    await worker.start({ onUnhandledRequest: 'bypass' })
+  }
+
+  createRoot(document.getElementById('app')!).render(
+    <StrictMode>
+      <Providers>
+        <RouterProvider router={router} />
+      </Providers>
+    </StrictMode>,
+  )
+}
+
+void bootstrap()
