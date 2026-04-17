@@ -45,3 +45,5 @@ package-lock.json
 
 # Claude Code
 .claude/
+# Added by code-review-graph
+.code-review-graph/
