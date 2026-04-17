@@ -8,7 +8,10 @@ import '@/styles/app.css'
 async function bootstrap() {
   if (import.meta.env.DEV) {
     const { worker } = await import('@/mocks/browser')
-    await worker.start({ onUnhandledRequest: 'bypass' })
+    await worker.start({
+      onUnhandledRequest: 'bypass',
+      serviceWorker: { url: '/ui/mockServiceWorker.js' },
+    })
   }
 
   createRoot(document.getElementById('app')!).render(

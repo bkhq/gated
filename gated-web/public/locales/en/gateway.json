@@ -119,5 +119,13 @@
       "disconnected": "Disconnected"
     },
     "reconnect": "Reconnect"
+  },
+  "client": {
+    "newTab": "New terminal tab",
+    "noTabs": "No terminal sessions open",
+    "selectServer": "Select a server from the sidebar to connect",
+    "connect": "Connect",
+    "newConnection": "New connection",
+    "backToHome": "Back to home"
   }
 }

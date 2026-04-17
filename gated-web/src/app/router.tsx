@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { AdminLayout } from '@/features/admin/components/admin-layout'
+import { ClientLayout } from '@/features/client/components/client-layout'
 import { GatewayLayout } from '@/features/gateway/components/gateway-layout'
 import { RequireAdmin, RequireAuth } from '@/shared/components/auth-guard'
 
@@ -7,10 +8,10 @@ export const router = createBrowserRouter([
   { path: '/ui/login', lazy: async () => import('@/features/gateway/pages/login') },
   { path: '/ui/otp', lazy: async () => import('@/features/gateway/pages/otp') },
   {
-    path: '/ui/ssh/:targetName',
+    path: '/ui/client',
     element: <RequireAuth />,
     children: [
-      { index: true, lazy: async () => import('@/features/gateway/pages/terminal') },
+      { index: true, element: <ClientLayout /> },
     ],
   },
   {

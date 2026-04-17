@@ -119,5 +119,13 @@
       "disconnected": "已断开"
     },
     "reconnect": "重新连接"
+  },
+  "client": {
+    "newTab": "新建终端标签",
+    "noTabs": "没有打开的终端会话",
+    "selectServer": "从侧边栏选择服务器以连接",
+    "connect": "连接",
+    "newConnection": "新建连接",
+    "backToHome": "返回首页"
   }
 }

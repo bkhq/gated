@@ -417,7 +417,8 @@
     "tabs": {
       "details": "Details",
       "roles": "Roles",
-      "sshHostKeys": "SSH Host Keys"
+      "sshHostKeys": "SSH Host Keys",
+      "logs": "Audit Logs"
     },
     "form": {
       "type": "Type",

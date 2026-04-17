@@ -140,6 +140,7 @@ export interface GetLogsRequest {
   session_id?: string
   username?: string
   search?: string
+  target_name?: string
 }
 
 export interface Tls {

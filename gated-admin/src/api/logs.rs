@@ -8,7 +8,7 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOr
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use gated_common::GatedError;
-use gated_db_entities::LogEntry;
+use gated_db_entities::{LogEntry, Session};
 
 use super::AnySecurityScheme;
 
@@ -28,6 +28,7 @@ struct GetLogsRequest {
     session_id: Option<Uuid>,
     username: Option<String>,
     search: Option<String>,
+    target_name: Option<String>,
 }
 
 #[OpenApi]
@@ -59,6 +60,30 @@ impl Api {
         }
         if let Some(ref username) = body.username {
             q = q.filter(LogEntry::Column::SessionId.eq(username.clone()));
+        }
+        if let Some(ref target_name) = body.target_name {
+            // Find session IDs whose target_snapshot contains this target name
+            let session_ids: Vec<Uuid> = Session::Entity::find()
+                .filter(Session::Column::TargetSnapshot.contains(target_name))
+                .all(&*db)
+                .await?
+                .into_iter()
+                .filter(|s| {
+                    // Parse the target_snapshot JSON to verify the exact name match
+                    s.target_snapshot
+                        .as_deref()
+                        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+                        .and_then(|v| v.get("name")?.as_str().map(|n| n == target_name))
+                        .unwrap_or(false)
+                })
+                .map(|s| s.id)
+                .collect();
+
+            if session_ids.is_empty() {
+                return Ok(GetLogsResponse::Ok(Json(vec![])));
+            }
+
+            q = q.filter(LogEntry::Column::SessionId.is_in(session_ids));
         }
         if let Some(ref search) = body.search {
             q = q.filter(

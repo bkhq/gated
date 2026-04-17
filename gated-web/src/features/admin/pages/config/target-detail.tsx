@@ -1,11 +1,14 @@
+import type { GetLogsRequest } from '@/features/admin/lib/api-client'
 import type { FormValues } from './target-form'
-import { Key, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { useState } from 'react'
+import { format } from 'date-fns'
+import { ChevronDown, ChevronRight, Key, Loader2, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { Fragment, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import {
   useAddTargetRole,
   useDeleteTarget,
+  useLogsQuery,
   useRemoveTargetRole,
   useRoles,
   useTarget,
@@ -19,6 +22,7 @@ import { EmptyState } from '@/shared/components/empty-state'
 import { PageHeader } from '@/shared/components/page-header'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -27,6 +31,14 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select'
 import { Skeleton } from '@/shared/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs'
 import { buildRequest, TargetForm, targetToFormValues } from './target-form'
 
@@ -179,6 +191,195 @@ function SshHostKeysTab({ targetId }: { targetId: string }) {
   )
 }
 
+// ── Logs Tab ─────────────────────────────────────────────────────────────────
+
+type TimeRange = 'all' | '1h' | '24h' | '7d'
+
+function getAfterTime(range: TimeRange): string | undefined {
+  const now = new Date()
+  if (range === '1h')
+    return new Date(now.getTime() - 60 * 60 * 1000).toISOString()
+  if (range === '24h')
+    return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+  if (range === '7d')
+    return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  return undefined
+}
+
+const LOG_PAGE_SIZE = 50
+
+function TargetLogsTab({ targetName }: { targetName: string }) {
+  const { t } = useTranslation('admin')
+
+  const [timeRange, setTimeRange] = useState<TimeRange>('24h')
+  const [searchFilter, setSearchFilter] = useState('')
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState(0)
+
+  const params: GetLogsRequest = useMemo(() => ({
+    after: getAfterTime(timeRange),
+    search: searchFilter || undefined,
+    target_name: targetName,
+    limit: 500,
+  }), [timeRange, searchFilter, targetName])
+
+  const { data: logs = [], isLoading, isFetching, refetch } = useLogsQuery(params)
+
+  const totalPages = Math.max(1, Math.ceil(logs.length / LOG_PAGE_SIZE))
+  const pagedLogs = logs.slice(page * LOG_PAGE_SIZE, (page + 1) * LOG_PAGE_SIZE)
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id))
+        next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={timeRange} onValueChange={(v) => { setTimeRange(v as TimeRange); setPage(0) }}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1h">{t('log.last1h')}</SelectItem>
+            <SelectItem value="24h">{t('log.last24h')}</SelectItem>
+            <SelectItem value="7d">{t('log.last7d')}</SelectItem>
+            <SelectItem value="all">{t('log.all')}</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Input
+          placeholder={t('log.search')}
+          value={searchFilter}
+          onChange={(e) => { setSearchFilter(e.target.value); setPage(0) }}
+          className="w-56"
+        />
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+        </Button>
+
+        {!isLoading && (
+          <span className="text-sm text-muted-foreground ml-auto">
+            {t('log.showing', { count: logs.length })}
+          </span>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8" />
+              <TableHead className="w-44">{t('log.columns.timestamp')}</TableHead>
+              <TableHead className="w-32">{t('log.columns.username')}</TableHead>
+              <TableHead>{t('log.columns.message')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading
+              ? Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={4}>
+                      <Skeleton className="h-5 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              : pagedLogs.length === 0
+                ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                        {t('log.noLogs')}
+                      </TableCell>
+                    </TableRow>
+                  )
+                : pagedLogs.map((entry) => {
+                    const isExpanded = expandedIds.has(entry.id)
+                    return (
+                      <Fragment key={entry.id}>
+                        <TableRow
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => toggleExpand(entry.id)}
+                        >
+                          <TableCell className="text-muted-foreground">
+                            {isExpanded
+                              ? <ChevronDown className="h-4 w-4" />
+                              : <ChevronRight className="h-4 w-4" />}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                            {format(new Date(entry.timestamp), 'yyyy-MM-dd HH:mm:ss')}
+                          </TableCell>
+                          <TableCell>
+                            {entry.username != null && entry.username !== ''
+                              ? <Badge variant="secondary">{entry.username}</Badge>
+                              : <span className="text-muted-foreground text-sm">—</span>}
+                          </TableCell>
+                          <TableCell className="text-sm">{entry.text}</TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow className="bg-muted/20 hover:bg-muted/20">
+                            <TableCell />
+                            <TableCell colSpan={3} className="py-3">
+                              <pre className="text-xs font-mono bg-background rounded border p-3 overflow-auto max-h-48 whitespace-pre-wrap">
+                                {JSON.stringify(entry.values, null, 2)}
+                              </pre>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    )
+                  })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {!isLoading && logs.length > LOG_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            {page * LOG_PAGE_SIZE + 1}
+            –
+            {Math.min((page + 1) * LOG_PAGE_SIZE, logs.length)}
+            {' '}
+            /
+            {logs.length}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => p - 1)}
+              disabled={page === 0}
+            >
+              {t('log.prev')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= totalPages - 1}
+            >
+              {t('log.next')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function Component() {
@@ -255,6 +456,7 @@ export function Component() {
           <TabsTrigger value="details">{t('targets.tabs.details')}</TabsTrigger>
           <TabsTrigger value="roles">{t('targets.tabs.roles')}</TabsTrigger>
           {isSsh && <TabsTrigger value="ssh-keys">{t('targets.tabs.sshHostKeys')}</TabsTrigger>}
+          <TabsTrigger value="logs">{t('targets.tabs.logs')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details">
@@ -282,6 +484,10 @@ export function Component() {
             </div>
           </TabsContent>
         )}
+
+        <TabsContent value="logs">
+          <TargetLogsTab targetName={target.name} />
+        </TabsContent>
       </Tabs>
 
       <ConfirmDialog

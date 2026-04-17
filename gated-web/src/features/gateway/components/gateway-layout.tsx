@@ -1,10 +1,8 @@
-import { ChevronRight, Key, Server, ShieldCheck, Terminal, User } from 'lucide-react'
+import { Key, Server, ShieldCheck, Terminal, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useLocation } from 'react-router'
-import { useTargetsQuery } from '@/features/gateway/api'
 import { LanguageToggle } from '@/shared/components/language-toggle'
 import { ModeToggle } from '@/shared/components/mode-toggle'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible'
 import {
   Sidebar,
   SidebarContent,
@@ -17,56 +15,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarProvider,
   SidebarSeparator,
 } from '@/shared/components/ui/sidebar'
 import { UserMenu } from '@/shared/components/user-menu'
 import { useAuthInit } from '@/shared/hooks/use-auth-init'
-
-function SshTargetsGroup() {
-  const { t } = useTranslation('gateway')
-  const { data: targets = [] } = useTargetsQuery()
-
-  const sshTargets = targets.filter(tgt => tgt.kind === 'Ssh')
-
-  return (
-    <Collapsible defaultOpen className="group/collapsible">
-      <SidebarMenuItem>
-        <CollapsibleTrigger
-          render={(
-            <SidebarMenuButton tooltip="SSH" />
-          )}
-        >
-          <Terminal className="size-4" />
-          <span>SSH</span>
-          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <SidebarMenuSub>
-            {sshTargets.map(target => (
-              <SidebarMenuSubItem key={target.name}>
-                <SidebarMenuSubButton
-                  render={<Link to={`/ui/ssh/${encodeURIComponent(target.name)}`} target="_blank" />}
-                >
-                  <Server className="size-3" />
-                  <span>{target.name}</span>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))}
-            {sshTargets.length === 0 && (
-              <SidebarMenuSubItem>
-                <span className="px-2 py-1 text-xs text-muted-foreground">{t('targetList.empty')}</span>
-              </SidebarMenuSubItem>
-            )}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
-  )
-}
 
 function isNavActive(pathname: string, to: string, end: boolean): boolean {
   if (end)
@@ -127,7 +80,15 @@ export function GatewayLayout() {
             <SidebarGroupLabel>{t('gateway:nav.terminals')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SshTargetsGroup />
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link to="/ui/client" />}
+                    tooltip={t('gateway:nav.terminals')}
+                  >
+                    <Terminal />
+                    <span>{t('gateway:nav.terminals')}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

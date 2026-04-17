@@ -417,7 +417,8 @@
     "tabs": {
       "details": "详情",
       "roles": "角色",
-      "sshHostKeys": "SSH 主机密钥"
+      "sshHostKeys": "SSH 主机密钥",
+      "logs": "审计日志"
     },
     "form": {
       "type": "类型",
