@@ -404,13 +404,13 @@ async fn send_upstream_request(
 
     for (name, value) in headers {
         let header_name_lower = name.to_lowercase();
-        if !STRIP_UPSTREAM_HEADERS.contains(&header_name_lower.as_str()) {
-            if let (Ok(header_name), Ok(header_value)) = (
+        if !STRIP_UPSTREAM_HEADERS.contains(&header_name_lower.as_str())
+            && let (Ok(header_name), Ok(header_value)) = (
                 http::HeaderName::from_bytes(name.as_bytes()),
                 http::HeaderValue::from_str(value),
-            ) {
-                request_builder = request_builder.header(header_name, header_value);
-            }
+            )
+        {
+            request_builder = request_builder.header(header_name, header_value);
         }
     }
 
@@ -477,8 +477,8 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
         }
     };
 
-    if let Some(ref mut recorder) = recorder_opt {
-        if let Err(e) = recorder
+    if let Some(recorder) = recorder_opt
+        && let Err(e) = recorder
             .record_response(
                 method,
                 full_url.as_ref(),
@@ -488,9 +488,8 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
                 body_for_recording.unwrap_or_default().as_ref(),
             )
             .await
-        {
-            warn!("Failed to record response: {}", e);
-        }
+    {
+        warn!("Failed to record response: {}", e);
     }
 
     let mut poem_response = Response::builder().status(status);
@@ -527,10 +526,10 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
             }
             continue;
         }
-        if let Ok(poem_name) = poem::http::HeaderName::from_bytes(name_str.as_bytes()) {
-            if let Ok(poem_value) = poem::http::HeaderValue::from_bytes(value.as_bytes()) {
-                poem_response = poem_response.header(poem_name, poem_value);
-            }
+        if let Ok(poem_name) = poem::http::HeaderName::from_bytes(name_str.as_bytes())
+            && let Ok(poem_value) = poem::http::HeaderValue::from_bytes(value.as_bytes())
+        {
+            poem_response = poem_response.header(poem_name, poem_value);
         }
     }
 
@@ -589,14 +588,14 @@ mod tests {
     use std::rc::Rc;
 
     use bytes::Bytes;
-    use futures::{stream, StreamExt};
+    use futures::{StreamExt, stream};
     use poem::Request;
 
     use url::Url;
 
     use super::{
-        cap_body_stream, collect_capped_body, collect_forwarded_headers, sanitize_location,
-        sanitize_set_cookie, FlavorHook,
+        FlavorHook, cap_body_stream, collect_capped_body, collect_forwarded_headers,
+        sanitize_location, sanitize_set_cookie,
     };
 
     /// Client-supplied forwarding/identity headers must

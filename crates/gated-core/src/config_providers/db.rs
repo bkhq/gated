@@ -288,7 +288,7 @@ impl ConfigProvider for DatabaseConfigProvider {
                     .iter()
                     .any(|credential| match credential {
                         UserAuthCredential::PublicKey(UserPublicKeyCredential {
-                            key: ref user_key,
+                            key: user_key,
                         }) => &openssh_public_key == user_key.expose_secret(),
                         _ => false,
                     }))
@@ -299,7 +299,7 @@ impl ConfigProvider for DatabaseConfigProvider {
                     .iter()
                     .any(|credential| match credential {
                         UserAuthCredential::Password(UserPasswordCredential {
-                            hash: ref user_password_hash,
+                            hash: user_password_hash,
                         }) => verify_password_hash(
                             client_password.expose_secret(),
                             user_password_hash.expose_secret(),
@@ -319,9 +319,9 @@ impl ConfigProvider for DatabaseConfigProvider {
                     .credentials
                     .iter()
                     .any(|credential| match credential {
-                        UserAuthCredential::Totp(UserTotpCredential {
-                            key: ref user_otp_key,
-                        }) => verify_totp(client_otp.expose_secret(), user_otp_key),
+                        UserAuthCredential::Totp(UserTotpCredential { key: user_otp_key }) => {
+                            verify_totp(client_otp.expose_secret(), user_otp_key)
+                        }
                         _ => false,
                     }))
             }
@@ -334,15 +334,11 @@ impl ConfigProvider for DatabaseConfigProvider {
                 // not provider/email. Credentials with a NULL iss/sub cannot
                 // be authenticated via OIDC.
                 for credential in user_details.credentials.iter() {
-                    if let UserAuthCredential::Sso(UserSsoCredential {
-                        ref iss, ref sub, ..
-                    }) = credential
+                    if let UserAuthCredential::Sso(UserSsoCredential { iss, sub, .. }) = credential
+                        && iss.as_deref() == Some(client_iss.as_str())
+                        && sub.as_deref() == Some(client_sub.as_str())
                     {
-                        if iss.as_deref() == Some(client_iss.as_str())
-                            && sub.as_deref() == Some(client_sub.as_str())
-                        {
-                            return Ok(true);
-                        }
+                        return Ok(true);
                     }
                 }
                 Ok(false)
@@ -700,11 +696,12 @@ mod tests {
         assert_eq!(resolved.map(|u| u.username), Some("alice".to_string()));
 
         // The stored hash is not itself a valid token.
-        assert!(cp
-            .validate_api_token(&stored.secret)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            cp.validate_api_token(&stored.secret)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     // A ticket secret is stored as a hash, never as plaintext, and is

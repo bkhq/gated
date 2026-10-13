@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result, ensure};
 use dialoguer::Password;
 use gated_common::{GlobalParams, Secret};
 use gated_core::encryption::migration::{
-    detect_existing_database, ExistingSqliteDatabase, MigrationOptions,
+    ExistingSqliteDatabase, MigrationOptions, detect_existing_database,
 };
 use gated_core::encryption::{EncryptionRuntime, EncryptionStatus};
 use secrecy::SecretString;

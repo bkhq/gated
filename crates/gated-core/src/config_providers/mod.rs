@@ -83,11 +83,11 @@ pub async fn authorize_ticket(
                 return Ok(None);
             }
 
-            if let Some(datetime) = ticket.expiry {
-                if datetime < chrono::Utc::now() {
-                    warn!("Ticket has expired: {}", &ticket.id);
-                    return Ok(None);
-                }
+            if let Some(datetime) = ticket.expiry
+                && datetime < chrono::Utc::now()
+            {
+                warn!("Ticket has expired: {}", &ticket.id);
+                return Ok(None);
             }
             let Some(ticket_user) = e::User::Entity::find()
                 .filter(e::User::Column::Username.eq(ticket.username.clone()))

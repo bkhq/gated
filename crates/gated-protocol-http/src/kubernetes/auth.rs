@@ -6,8 +6,8 @@
 //! shared listener (see `crate::server`).
 
 use gated_ca::{deserialize_certificate, serialize_certificate_serial};
-use gated_common::auth::AuthStateUserInfo;
 use gated_common::User;
+use gated_common::auth::AuthStateUserInfo;
 use gated_core::Services;
 use gated_db_entities::{CertificateCredential, CertificateRevocation};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
@@ -80,8 +80,8 @@ pub async fn validate_client_certificate(
 }
 
 fn der_to_pem(der_bytes: &[u8]) -> anyhow::Result<String> {
-    use base64::engine::general_purpose;
     use base64::Engine as _;
+    use base64::engine::general_purpose;
     let cert_b64 = general_purpose::STANDARD.encode(der_bytes);
     let cert_lines: Vec<String> = cert_b64
         .chars()

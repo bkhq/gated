@@ -144,19 +144,19 @@ impl DetailApi {
             .count(&db)
             .await?;
 
-        if remaining == 0 {
-            if let Some(user) = User::Entity::find_by_id(*user_id).one(&db).await? {
-                let policy: Option<UserRequireCredentialsPolicy> =
-                    serde_json::from_value(user.credential_policy.clone())
-                        .ok()
-                        .flatten();
-                if let Some(policy) = policy {
-                    let new_policy = policy.downgrade_from_otp();
-                    let mut active: User::ActiveModel = user.into();
-                    active.credential_policy =
-                        Set(serde_json::to_value(&new_policy).unwrap_or_default());
-                    active.update(&db).await?;
-                }
+        if remaining == 0
+            && let Some(user) = User::Entity::find_by_id(*user_id).one(&db).await?
+        {
+            let policy: Option<UserRequireCredentialsPolicy> =
+                serde_json::from_value(user.credential_policy.clone())
+                    .ok()
+                    .flatten();
+            if let Some(policy) = policy {
+                let new_policy = policy.downgrade_from_otp();
+                let mut active: User::ActiveModel = user.into();
+                active.credential_policy =
+                    Set(serde_json::to_value(&new_policy).unwrap_or_default());
+                active.update(&db).await?;
             }
         }
 

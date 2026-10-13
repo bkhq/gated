@@ -62,10 +62,10 @@ fn validate(body: &CommandAclRuleRequest) -> Result<(), String> {
     if !ACTIONS.contains(&body.action.as_str()) {
         return Err(format!("action must be one of {ACTIONS:?}"));
     }
-    if body.match_type == "regex" {
-        if let Err(e) = Regex::new(&body.pattern) {
-            return Err(format!("invalid regex pattern: {e}"));
-        }
+    if body.match_type == "regex"
+        && let Err(e) = Regex::new(&body.pattern)
+    {
+        return Err(format!("invalid regex pattern: {e}"));
     }
     Ok(())
 }

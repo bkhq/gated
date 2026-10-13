@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use gated_common::helpers::hash::generate_ticket_secret;
 use gated_common::GatedError;
+use gated_common::helpers::hash::generate_ticket_secret;
 use gated_core::{ConfigProvider, Services};
 use gated_db_entities::Ticket;
 use poem::web::Data;
@@ -11,7 +11,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrde
 use uuid::Uuid;
 
 use super::common::{get_user, is_ticket_auth};
-use crate::http_service::common::{endpoint_auth, RequestAuthorization};
+use crate::http_service::common::{RequestAuthorization, endpoint_auth};
 
 pub struct Api;
 
@@ -135,19 +135,19 @@ impl Api {
                 "target_name is required".into(),
             )));
         }
-        if let Some(exp) = body.expiry {
-            if exp <= Utc::now() {
-                return Ok(CreateTicketResponse::BadRequest(Json(
-                    "expiry must be in the future".into(),
-                )));
-            }
+        if let Some(exp) = body.expiry
+            && exp <= Utc::now()
+        {
+            return Ok(CreateTicketResponse::BadRequest(Json(
+                "expiry must be in the future".into(),
+            )));
         }
-        if let Some(uses) = body.number_of_uses {
-            if uses <= 0 {
-                return Ok(CreateTicketResponse::BadRequest(Json(
-                    "number_of_uses must be positive".into(),
-                )));
-            }
+        if let Some(uses) = body.number_of_uses
+            && uses <= 0
+        {
+            return Ok(CreateTicketResponse::BadRequest(Json(
+                "number_of_uses must be positive".into(),
+            )));
         }
 
         let username = {

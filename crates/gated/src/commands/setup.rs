@@ -1,6 +1,6 @@
 #![allow(clippy::collapsible_else_if)]
 
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::io::Write;
 use std::net::{Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
@@ -310,8 +310,8 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
                     admin_password
                 } else {
                     error!(
-                    "You must supply the admin password either through the --admin-password option"
-                );
+                        "You must supply the admin password either through the --admin-password option"
+                    );
                     error!("or the GATED_ADMIN_PASSWORD environment variable.");
                     std::process::exit(1);
                 }

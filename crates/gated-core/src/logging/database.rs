@@ -1,10 +1,10 @@
 use gated_db_entities::{LogEntry, ManagementAudit};
-use sea_orm::query::JsonValue;
 use sea_orm::ActiveModelTrait;
+use sea_orm::query::JsonValue;
 use std::sync::OnceLock;
 use tracing::*;
-use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::Layer;
+use tracing_subscriber::registry::LookupSpan;
 use uuid::Uuid;
 
 use super::layer::ValuesLogLayer;
@@ -20,10 +20,10 @@ where
 {
     let _ = LOG_SENDER.set(tokio::sync::broadcast::channel(1024).0);
     ValuesLogLayer::new(|values| {
-        if let Some(sender) = LOG_SENDER.get() {
-            if let Some(entry) = values_to_log_entry_data(values) {
-                let _ = sender.send(entry);
-            }
+        if let Some(sender) = LOG_SENDER.get()
+            && let Some(entry) = values_to_log_entry_data(values)
+        {
+            let _ = sender.send(entry);
         }
     })
 }

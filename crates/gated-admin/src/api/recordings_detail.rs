@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use futures::{SinkExt, StreamExt};
-use gated_core::recordings::{AsciiCast, SessionRecordings, TerminalRecordingItem};
 use gated_core::SharedDatabaseConnection;
+use gated_core::recordings::{AsciiCast, SessionRecordings, TerminalRecordingItem};
 use gated_db_entities::Recording::{self, RecordingKind};
 use gated_protocol_http::recording::{HttpProxyRecordingItem, HttpProxyRecordingItemApiObject};
 use poem::error::{InternalServerError, NotFoundError};
-use poem::web::websocket::{Message, WebSocket};
 use poem::web::Data;
-use poem::{handler, Body, IntoResponse};
+use poem::web::websocket::{Message, WebSocket};
+use poem::{Body, IntoResponse, handler};
 use poem_openapi::param::Path;
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, OpenApi};
@@ -200,7 +200,7 @@ pub async fn api_get_recording_stream(
     ws: WebSocket,
     recordings: Data<&Arc<Mutex<SessionRecordings>>>,
     id: poem::web::Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse + use<> {
     let recordings = recordings.lock().await;
     let receiver = recordings.subscribe_live(&id).await;
 

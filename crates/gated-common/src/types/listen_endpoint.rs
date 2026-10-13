@@ -85,8 +85,8 @@ impl ListenEndpoint {
 
     pub async fn tcp_accept_stream(
         &self,
-    ) -> Result<impl Stream<Item = std::io::Result<TcpStream>>, GatedError> {
-        use futures::stream::{iter, StreamExt};
+    ) -> Result<impl Stream<Item = std::io::Result<TcpStream>> + use<>, GatedError> {
+        use futures::stream::{StreamExt, iter};
         Ok(iter(
             self.tcp_listeners()
                 .await?

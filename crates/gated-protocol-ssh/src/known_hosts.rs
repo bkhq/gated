@@ -1,5 +1,5 @@
 use gated_common::GatedError;
-use gated_core::{db_required, SharedDatabaseConnection};
+use gated_core::{SharedDatabaseConnection, db_required};
 use gated_db_entities::KnownHost;
 use russh::keys::{PublicKey, PublicKeyBase64};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};

@@ -4,11 +4,11 @@ use bytes::Bytes;
 
 use crate::io::{Decode, Encode};
 use crate::mysql::io::MySqlBufExt;
+use crate::mysql::protocol::Capabilities;
 use crate::mysql::protocol::auth::AuthPlugin;
 use crate::mysql::protocol::connect::{AuthSwitchRequest, Handshake, HandshakeResponse};
 use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket};
 use crate::mysql::protocol::text::{ColumnDefinition, Query};
-use crate::mysql::protocol::Capabilities;
 
 /// Decodes the full packet and every strict prefix of it. The full packet
 /// must decode; the empty prefix must be an error; nothing may panic.

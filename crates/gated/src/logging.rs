@@ -5,7 +5,7 @@ use gated_common::{GatedConfig, LogConfig, LogFileRotation, LogFormat};
 use gated_core::logging::{
     make_database_logger_layer, make_json_console_logger_layer, make_socket_logger_layer,
 };
-use time::{format_description, UtcOffset};
+use time::{UtcOffset, format_description};
 use tracing::Subscriber;
 use tracing_log::LogTracer;
 use tracing_subscriber::filter::dynamic_filter_fn;
@@ -30,10 +30,10 @@ pub struct LoggingGuards {
 impl LoggingGuards {
     pub fn shutdown(self) {
         #[cfg(feature = "otel")]
-        if let Some(provider) = self.otel_provider {
-            if let Err(e) = provider.shutdown() {
-                eprintln!("OTel tracer shutdown failed: {e:?}");
-            }
+        if let Some(provider) = self.otel_provider
+            && let Err(e) = provider.shutdown()
+        {
+            eprintln!("OTel tracer shutdown failed: {e:?}");
         }
     }
 }
@@ -285,7 +285,7 @@ fn prepare_file_sink(
     })
 }
 
-fn file_json_layer<S>(prep: &FileSinkPrep) -> Option<impl Layer<S>>
+fn file_json_layer<S>(prep: &FileSinkPrep) -> Option<impl Layer<S> + use<S>>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
@@ -302,7 +302,7 @@ where
     )
 }
 
-fn file_text_layer<S>(prep: &FileSinkPrep, offset: UtcOffset) -> Option<impl Layer<S>>
+fn file_text_layer<S>(prep: &FileSinkPrep, offset: UtcOffset) -> Option<impl Layer<S> + use<S>>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
@@ -340,11 +340,11 @@ fn prepare_otel_sink(
     default_filter: &Arc<EnvFilter>,
 ) -> Result<OtelSinkPrep> {
     use gated_common::OtlpProtocol;
-    use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::KeyValue;
+    use opentelemetry::trace::TracerProvider as _;
     use opentelemetry_otlp::{SpanExporter, WithExportConfig};
-    use opentelemetry_sdk::trace::TracerProvider;
     use opentelemetry_sdk::Resource;
+    use opentelemetry_sdk::trace::TracerProvider;
 
     let Some(otlp_cfg) = log_cfg.and_then(|c| c.otlp.as_ref()) else {
         return Ok(OtelSinkPrep {
@@ -410,7 +410,7 @@ fn prepare_otel_sink(
 }
 
 #[cfg(feature = "otel")]
-fn otel_layer<S>(prep: &OtelSinkPrep) -> Option<impl Layer<S>>
+fn otel_layer<S>(prep: &OtelSinkPrep) -> Option<impl Layer<S> + use<S>>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {

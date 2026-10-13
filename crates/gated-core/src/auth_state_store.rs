@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use gated_common::auth::{AuthResult, AuthState, CredentialKind};
 use gated_common::{GatedError, SessionId};
 use std::sync::LazyLock;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 use uuid::Uuid;
 
 use crate::{ConfigProvider, ConfigProviderEnum};

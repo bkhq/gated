@@ -178,13 +178,13 @@ fn strip_comments_and_strings(sql: &str, preserve_identifiers: bool) -> String {
                     continue;
                 }
                 // Dollar-quoted string $tag$...$tag$
-                if ch == '$' {
-                    if let Some(tag) = parse_dollar_tag(&sql[i..]) {
-                        out.push(' ');
-                        i += tag.len();
-                        state = State::DollarQuote(tag);
-                        continue;
-                    }
+                if ch == '$'
+                    && let Some(tag) = parse_dollar_tag(&sql[i..])
+                {
+                    out.push(' ');
+                    i += tag.len();
+                    state = State::DollarQuote(tag);
+                    continue;
                 }
                 match ch {
                     '\'' => {

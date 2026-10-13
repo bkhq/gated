@@ -27,13 +27,13 @@ const MAX_DNS_LABEL_LEN: usize = 63;
 /// but the variant is preserved for structured logging.
 #[derive(Debug, Error)]
 pub enum ResolveError {
-    #[error(
-        "target not identified: provide X-Gated-Target header or Host: <target>.<base_domain>"
-    )]
+    #[error("target not identified: provide X-Gated-Target header or Host: <target>.<base_domain>")]
     NotIdentified,
     #[error("target '{name}' not found")]
     NotFound { name: String },
-    #[error("invalid target name '{name}' (must be a valid DNS label: lowercase a-z0-9 plus hyphen, 1–63 chars, no leading/trailing hyphen)")]
+    #[error(
+        "invalid target name '{name}' (must be a valid DNS label: lowercase a-z0-9 plus hyphen, 1–63 chars, no leading/trailing hyphen)"
+    )]
     InvalidName { name: String },
     #[error("listing targets: {0}")]
     ListTargets(#[source] anyhow::Error),
@@ -77,13 +77,12 @@ pub fn target_name_from_request(
         .headers()
         .get(http::header::HOST)
         .and_then(|v| v.to_str().ok())
+        && let Some(label) = parse_host_label(host, &config.base_domain)
     {
-        if let Some(label) = parse_host_label(host, &config.base_domain) {
-            if !is_valid_dns_label(&label) {
-                return Err(ResolveError::InvalidName { name: label });
-            }
-            return Ok(label);
+        if !is_valid_dns_label(&label) {
+            return Err(ResolveError::InvalidName { name: label });
         }
+        return Ok(label);
     }
 
     Err(ResolveError::NotIdentified)

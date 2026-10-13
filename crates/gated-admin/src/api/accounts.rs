@@ -17,7 +17,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Set,
 };
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
@@ -266,7 +266,7 @@ impl ListApi {
                 Err(StepUpFailure::BadRequest) => {
                     return Ok(CreateAccountResponse::BadRequest(Json(
                         "confirmation is required".into(),
-                    )))
+                    )));
                 }
                 Err(StepUpFailure::Unauthorized) => return Ok(CreateAccountResponse::Unauthorized),
                 Err(StepUpFailure::RateLimited) => return Ok(CreateAccountResponse::RateLimited),
@@ -383,7 +383,7 @@ impl DetailApi {
                     Some(merged)
                 }
                 Err(message) => {
-                    return Ok(UpdateAccountResponse::UnprocessableEntity(Json(message)))
+                    return Ok(UpdateAccountResponse::UnprocessableEntity(Json(message)));
                 }
             },
             None => None,
@@ -402,7 +402,7 @@ impl DetailApi {
             Err(StepUpFailure::BadRequest) => {
                 return Ok(UpdateAccountResponse::BadRequest(Json(
                     "confirmation is required".into(),
-                )))
+                )));
             }
             Err(StepUpFailure::Unauthorized) => return Ok(UpdateAccountResponse::Unauthorized),
             Err(StepUpFailure::RateLimited) => return Ok(UpdateAccountResponse::RateLimited),
@@ -776,11 +776,7 @@ fn merge_credentials(
     incoming: AccountCredentials,
 ) -> AccountCredentials {
     fn keep(new: String, old: &str) -> String {
-        if new.is_empty() {
-            old.to_owned()
-        } else {
-            new
-        }
+        if new.is_empty() { old.to_owned() } else { new }
     }
     fn keep_opt(new: Option<String>, old: &Option<String>) -> Option<String> {
         match new {
@@ -814,14 +810,13 @@ fn merge_credentials(
         }
         (AccountCredentials::HttpHeaders(old), AccountCredentials::HttpHeaders(mut new)) => {
             for header in &mut new.headers {
-                if header.value.is_empty() {
-                    if let Some(previous) = old
+                if header.value.is_empty()
+                    && let Some(previous) = old
                         .headers
                         .iter()
                         .find(|h| h.name.eq_ignore_ascii_case(&header.name))
-                    {
-                        header.value = previous.value.clone();
-                    }
+                {
+                    header.value = previous.value.clone();
                 }
             }
             AccountCredentials::HttpHeaders(new)

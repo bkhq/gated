@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use gated_common::GatedError;
-use gated_core::recordings::{SessionRecordings, ShellCommandRecordingItem, SqlAuditRecordingItem};
 use gated_core::SharedDatabaseConnection;
+use gated_core::recordings::{SessionRecordings, ShellCommandRecordingItem, SqlAuditRecordingItem};
 use gated_db_entities::Recording::{self, RecordingKind};
 use gated_db_entities::Session;
 use poem::web::Data;
@@ -136,7 +136,7 @@ impl Api {
             Err(e) => {
                 return Ok(ListResponse::BadRequest(Json(format!(
                     "invalid `from`: {e}"
-                ))))
+                ))));
             }
         };
         let to_ts = match parse_ts(to.0.as_deref()) {
@@ -206,10 +206,10 @@ impl Api {
         let username_needle = username.0.as_deref().map(str::to_ascii_lowercase);
         let q_needle = q.0.as_deref().map(str::to_ascii_lowercase);
         records.retain(|r| {
-            if let Some(uid) = user_id.0 {
-                if r.user_id != Some(uid) {
-                    return false;
-                }
+            if let Some(uid) = user_id.0
+                && r.user_id != Some(uid)
+            {
+                return false;
             }
             if let Some(ref needle) = username_needle {
                 match &r.username {
@@ -217,25 +217,25 @@ impl Api {
                     _ => return false,
                 }
             }
-            if let Some(tid) = target_id.0 {
-                if r.target_id != Some(tid) {
-                    return false;
-                }
+            if let Some(tid) = target_id.0
+                && r.target_id != Some(tid)
+            {
+                return false;
             }
-            if let Some(from) = from_ts {
-                if r.timestamp < from {
-                    return false;
-                }
+            if let Some(from) = from_ts
+                && r.timestamp < from
+            {
+                return false;
             }
-            if let Some(to) = to_ts {
-                if r.timestamp > to {
-                    return false;
-                }
+            if let Some(to) = to_ts
+                && r.timestamp > to
+            {
+                return false;
             }
-            if let Some(ref needle) = q_needle {
-                if !r.command.to_ascii_lowercase().contains(needle) {
-                    return false;
-                }
+            if let Some(ref needle) = q_needle
+                && !r.command.to_ascii_lowercase().contains(needle)
+            {
+                return false;
             }
             true
         });

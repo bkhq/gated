@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, ensure, Context, Result};
+use anyhow::{Context, Result, anyhow, ensure};
 use base64ct::{Base64, Encoding};
 use sea_orm::{
     ConnectionTrait, Database, DatabaseConnection, DbBackend, Statement, TransactionTrait,
@@ -8,7 +8,7 @@ use sea_orm::{
 use uuid::Uuid;
 
 use super::crypto::{
-    decode_array, make_verifier, verify, wrap_dek, KdfParams, Verifier, WrappedDek, DEK_AAD,
+    DEK_AAD, KdfParams, Verifier, WrappedDek, decode_array, make_verifier, verify, wrap_dek,
 };
 
 const SCHEMA_VERSION: u32 = 1;
@@ -350,10 +350,12 @@ mod tests {
         let reopened = MetaDb::open(&dir).await.unwrap();
         let loaded = reopened.load().await.unwrap().unwrap();
         assert_eq!(loaded.dek_version, 1);
-        assert!(reopened
-            .verifier_accepts(kek.expose_secret())
-            .await
-            .unwrap());
+        assert!(
+            reopened
+                .verifier_accepts(kek.expose_secret())
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]
@@ -366,9 +368,11 @@ mod tests {
             Ok(_) => panic!("expected schema mismatch error"),
             Err(error) => error,
         };
-        assert!(error
-            .to_string()
-            .contains("unsupported meta.db schema version"));
+        assert!(
+            error
+                .to_string()
+                .contains("unsupported meta.db schema version")
+        );
     }
 
     #[tokio::test]

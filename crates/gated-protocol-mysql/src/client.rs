@@ -3,13 +3,13 @@ use std::sync::Arc;
 use bytes::{Bytes, BytesMut};
 use gated_common::TargetMySqlOptions;
 use gated_database_protocols::io::Decode;
+use gated_database_protocols::mysql::protocol::Capabilities;
 use gated_database_protocols::mysql::protocol::auth::AuthPlugin;
 use gated_database_protocols::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse, SslRequest,
 };
 use gated_database_protocols::mysql::protocol::response::ErrPacket;
-use gated_database_protocols::mysql::protocol::Capabilities;
-use gated_tls::{configure_tls_connector, TlsMode};
+use gated_tls::{TlsMode, configure_tls_connector};
 use rsa::pkcs8::DecodePublicKey;
 use rsa::{Oaep, RsaPublicKey};
 use tokio::net::TcpStream;

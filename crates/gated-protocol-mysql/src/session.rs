@@ -12,15 +12,15 @@ use gated_common::{Secret, TargetMySqlOptions, TargetOptions};
 use gated_core::command_acl::AclAction;
 use gated_core::command_acl_loader::DbCommandAclEnforcer;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
-use gated_core::{authorize_ticket, consume_ticket, ConfigProvider, GatedServerHandle, Services};
+use gated_core::{ConfigProvider, GatedServerHandle, Services, authorize_ticket, consume_ticket};
 use gated_database_protocols::io::{BufExt, Decode};
+use gated_database_protocols::mysql::protocol::Capabilities;
 use gated_database_protocols::mysql::protocol::auth::AuthPlugin;
 use gated_database_protocols::mysql::protocol::connect::{
     AuthSwitchRequest, Handshake, HandshakeResponse,
 };
 use gated_database_protocols::mysql::protocol::response::{ErrPacket, OkPacket, Status};
 use gated_database_protocols::mysql::protocol::text::Query;
-use gated_database_protocols::mysql::protocol::Capabilities;
 use rand::Rng;
 use rustls::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -94,7 +94,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                 | Capabilities::DEPRECATE_EOF
                 | Capabilities::SECURE_CONNECTION
                 | Capabilities::SSL,
-            challenge: get_crypto_rng().gen(),
+            challenge: get_crypto_rng().r#gen(),
             tls_config: Arc::new(tls_config),
             username: None,
             database: None,
@@ -154,11 +154,11 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             }
         };
 
-        if resp.auth_plugin == Some(AuthPlugin::MySqlClearPassword) {
-            if let Some(mut response) = resp.auth_response.clone() {
-                let password = Secret::new(response.get_str_nul()?);
-                return self.run_authorization(resp, password).await;
-            }
+        if resp.auth_plugin == Some(AuthPlugin::MySqlClearPassword)
+            && let Some(mut response) = resp.auth_response.clone()
+        {
+            let password = Secret::new(response.get_str_nul()?);
+            return self.run_authorization(resp, password).await;
         }
 
         let req = AuthSwitchRequest {
@@ -668,10 +668,10 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             trace!(?response, "client got packet");
             self.stream.push(&&response[..], ())?;
             self.stream.flush().await?;
-            if let Some(com) = response.first() {
-                if com == &0 || com == &0xff || com == &0xfe {
-                    break;
-                }
+            if let Some(com) = response.first()
+                && (com == &0 || com == &0xff || com == &0xfe)
+            {
+                break;
             }
         }
         Ok(())

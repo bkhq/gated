@@ -3,11 +3,11 @@
 [workspace]
 members = ["crates/*"]
 default-members = ["crates/gated"]
-resolver = "2"
+resolver = "3"
 exclude = ["vendor/poem", "vendor/poem-openapi"]
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 rust-version = "1.95"
 
 [workspace.lints.rust]

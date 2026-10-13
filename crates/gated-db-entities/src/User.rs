@@ -1,7 +1,7 @@
 use gated_common::{GatedError, User, UserDetails};
 use poem_openapi::Object;
-use sea_orm::entity::prelude::*;
 use sea_orm::Set;
+use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
 

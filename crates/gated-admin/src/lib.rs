@@ -7,9 +7,9 @@ use gated_core::Services;
 use poem::{EndpointExt, IntoEndpoint, Route};
 use poem_openapi::OpenApiService;
 
-pub use http_service::{spa, HTTPProtocolServer};
+pub use http_service::{HTTPProtocolServer, spa};
 
-pub fn admin_api_app(services: &Services) -> impl IntoEndpoint {
+pub fn admin_api_app(services: &Services) -> impl IntoEndpoint + use<> {
     let api_service = OpenApiService::new(crate::api::get(), "Gated admin API", gated_version())
         .server("/admin/api");
 

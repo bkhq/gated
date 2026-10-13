@@ -8,6 +8,7 @@ use gated_db_migrations::migrate_database;
 use sea_orm::{Database, DatabaseConnection};
 use tokio::sync::{Mutex, Notify, RwLock};
 
+use crate::ConfigProvider;
 use crate::db::{connect_to_db, make_sqlcipher_connect_options, populate_db};
 use crate::db_pool_registry::DbPoolRegistry;
 use crate::encryption::{BootstrapToken, EncryptionRuntime};
@@ -15,7 +16,6 @@ use crate::metrics::MetricsHandle;
 use crate::rate_limiting::RateLimiterRegistry;
 use crate::recordings::SessionRecordings;
 use crate::sql_console_rate_limit::SqlConsoleRateLimiter;
-use crate::ConfigProvider;
 use crate::{
     AuthStateStore, CommandReviewStore, ConfigProviderEnum, DatabaseConfigProvider, State,
 };

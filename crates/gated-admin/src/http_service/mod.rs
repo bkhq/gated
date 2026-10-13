@@ -16,7 +16,7 @@ use crate::admin_api_app;
 use crate::http_service::spa::SpaEndpoint;
 use anyhow::{Context, Result};
 use common::inject_request_authorization;
-pub use common::{SsoLoginState, PROTOCOL_NAME};
+pub use common::{PROTOCOL_NAME, SsoLoginState};
 use gated_common::http_headers::scrub_secret_query_params;
 use gated_common::version::gated_version;
 use gated_common::{GatedConfig, GlobalParams, ListenEndpoint};
@@ -39,7 +39,7 @@ use tokio::sync::Mutex;
 use tracing::*;
 
 use crate::http_service::common::{
-    endpoint_admin_auth, endpoint_auth, page_auth, SESSION_COOKIE_NAME,
+    SESSION_COOKIE_NAME, endpoint_admin_auth, endpoint_auth, page_auth,
 };
 use crate::http_service::error::error_page;
 use crate::http_service::middleware::{CookieHostMiddleware, DbLockMiddleware, TicketMiddleware};
@@ -150,12 +150,17 @@ impl ProtocolServer for HTTPProtocolServer {
                         );
                         Some(domain)
                     } else {
-                        tracing::warn!("Failed to determine cookie domain - external_host may not be configured. Cookies will be scoped to request host, which may prevent cross-subdomain authentication.");
+                        tracing::warn!(
+                            "Failed to determine cookie domain - external_host may not be configured. Cookies will be scoped to request host, which may prevent cross-subdomain authentication."
+                        );
                         None
                     }
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to construct external URL for cookie domain: {:?}. Cookies will be scoped to request host.", e);
+                    tracing::warn!(
+                        "Failed to construct external URL for cookie domain: {:?}. Cookies will be scoped to request host.",
+                        e
+                    );
                     None
                 }
             }

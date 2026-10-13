@@ -1,8 +1,8 @@
 use gated_common::{SessionId, TargetSSHOptions};
 use gated_core::Services;
+use russh::Channel;
 use russh::client::{ChannelOpenHandle, Msg, Session};
 use russh::keys::{PublicKey, PublicKeyBase64, PublicKeyOrCertificate};
-use russh::Channel;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 use tracing::*;

@@ -25,7 +25,7 @@ use tracing::*;
 use uuid::Uuid;
 
 use super::super::common::{RequestAuthorization, SessionAuthorization};
-use super::common::{TerminalSessionHandle, TERMINAL_CLOSED_MESSAGE};
+use super::common::{TERMINAL_CLOSED_MESSAGE, TerminalSessionHandle};
 
 /// Maximum allowed length for target names
 const MAX_TARGET_NAME_LEN: usize = 128;
@@ -232,11 +232,10 @@ async fn resolve_and_authorize(
             })?
     };
 
-    if let Some(account_id) = account_id {
-        if let Ok(db) = gated_core::db_required(&services.db).await {
-            let _ =
-                gated_core::account_credentials::update_account_last_used_at(&db, account_id).await;
-        }
+    if let Some(account_id) = account_id
+        && let Ok(db) = gated_core::db_required(&services.db).await
+    {
+        let _ = gated_core::account_credentials::update_account_last_used_at(&db, account_id).await;
     }
 
     Ok((target, ssh_options, user_info))
@@ -262,12 +261,11 @@ async fn prompt_host_key_via_websocket(
     // Wait for user response with timeout
     match tokio::time::timeout(HOST_KEY_VERIFY_TIMEOUT, async {
         while let Some(Ok(msg)) = source.next().await {
-            if let Message::Binary(data) = msg {
-                if let Some((&MSG_HOST_KEY_VERIFY, payload)) = data.split_first() {
-                    if let Ok(resp) = serde_json::from_slice::<HostKeyVerifyResponse>(payload) {
-                        return resp.accepted;
-                    }
-                }
+            if let Message::Binary(data) = msg
+                && let Some((&MSG_HOST_KEY_VERIFY, payload)) = data.split_first()
+                && let Ok(resp) = serde_json::from_slice::<HostKeyVerifyResponse>(payload)
+            {
+                return resp.accepted;
             }
         }
         false

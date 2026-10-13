@@ -1,17 +1,17 @@
 use bytes::BytesMut;
-use chrono::format::SecondsFormat;
 use chrono::Local;
+use chrono::format::SecondsFormat;
 use gated_common::GatedConfig;
 use tokio::net::UnixDatagram;
 use tracing::*;
-use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::Layer;
+use tracing_subscriber::registry::LookupSpan;
 
 use super::layer::ValuesLogLayer;
 
 static SKIP_KEY: &str = "is_socket_logging_error";
 
-pub async fn make_socket_logger_layer<S>(config: &GatedConfig) -> impl Layer<S>
+pub async fn make_socket_logger_layer<S>(config: &GatedConfig) -> impl Layer<S> + use<S>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {

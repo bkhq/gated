@@ -7,7 +7,7 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::rate_limiting::{stack_rate_limiters, RateLimiterRegistry};
+use crate::rate_limiting::{RateLimiterRegistry, stack_rate_limiters};
 use crate::{SessionState, SharedDatabaseConnection, State};
 
 pub trait SessionHandle {
@@ -123,10 +123,10 @@ impl GatedServerHandle {
             "Target connected");
     }
 
-    pub async fn wrap_stream(
+    pub async fn wrap_stream<S: AsyncRead + AsyncWrite + Unpin + Send>(
         &mut self,
-        stream: impl AsyncRead + AsyncWrite + Unpin + Send,
-    ) -> Result<impl AsyncRead + AsyncWrite + Unpin + Send, GatedError> {
+        stream: S,
+    ) -> Result<impl AsyncRead + AsyncWrite + Unpin + Send + use<S>, GatedError> {
         let (stream, mut handle) = stack_rate_limiters(stream);
         let mut ss = self.session_state.lock().await;
         self.rate_limiters_registry

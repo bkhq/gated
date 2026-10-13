@@ -113,7 +113,7 @@ impl ListApi {
             {
                 return Ok(CreateUserResponse::BadRequest(Json(
                     "Username already exists".into(),
-                )))
+                )));
             }
             Err(error) => return Err(error.into()),
         };
@@ -220,7 +220,7 @@ impl DetailApi {
                     Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
                 ) =>
             {
-                return Ok(UpdateUserResponse::BadRequest)
+                return Ok(UpdateUserResponse::BadRequest);
             }
             Err(error) => return Err(error.into()),
         };

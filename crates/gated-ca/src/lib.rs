@@ -4,8 +4,8 @@ use std::time::{Duration, SystemTime};
 use aws_lc_rs::error::KeyRejected;
 use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 use aws_lc_rs::signature::{
-    EcdsaKeyPair, UnparsedPublicKey, ECDSA_P256_SHA256_ASN1, ECDSA_P384_SHA384_ASN1,
-    ECDSA_P384_SHA384_ASN1_SIGNING,
+    ECDSA_P256_SHA256_ASN1, ECDSA_P384_SHA384_ASN1, ECDSA_P384_SHA384_ASN1_SIGNING, EcdsaKeyPair,
+    UnparsedPublicKey,
 };
 use data_encoding::BASE64;
 use der::{Decode, DecodePem, Encode};
@@ -164,8 +164,8 @@ pub fn issue_client_certificate_from_csr(
 /// unsupported key/signature algorithms (ECDSA P-256/SHA-256 and
 /// P-384/SHA-384 are accepted, matching the rest of the system).
 fn verify_csr_signature(csr: &CertReq) -> Result<(), CaError> {
-    use const_oid::db::rfc5912;
     use const_oid::ObjectIdentifier;
+    use const_oid::db::rfc5912;
 
     // Only EC public keys are supported.
     if csr.info.public_key.algorithm.oid != rfc5912::ID_EC_PUBLIC_KEY {
@@ -214,8 +214,8 @@ fn build_client_certificate(
     use const_oid::db::{rfc4519, rfc5280, rfc5912};
     use der::asn1::{OctetString, SetOfVec, Utf8StringRef};
     use x509_cert::attr::AttributeTypeAndValue;
-    use x509_cert::ext::pkix::{BasicConstraints, ExtendedKeyUsage, KeyUsage, KeyUsages};
     use x509_cert::ext::Extension;
+    use x509_cert::ext::pkix::{BasicConstraints, ExtendedKeyUsage, KeyUsage, KeyUsages};
     use x509_cert::name::{RdnSequence, RelativeDistinguishedName};
 
     // Sign with ECDSA-P384/SHA-384 to match the `ecdsa-with-SHA384` algorithm
@@ -338,8 +338,8 @@ pub fn certificate_to_pem(certificate: &Certificate) -> Result<String, CaError> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use const_oid::db::rfc5280;
     use const_oid::ObjectIdentifier;
+    use const_oid::db::rfc5280;
     use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256};
     use x509_cert::ext::pkix::ExtendedKeyUsage;
 

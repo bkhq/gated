@@ -12,13 +12,13 @@ use poem::http::StatusCode;
 use poem::web::websocket::{Message, WebSocket, WebSocketStream};
 use poem::web::{Data, Path};
 use poem::{IntoResponse, Request, Response};
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 use tracing::*;
 
 use super::super::common::{RequestAuthorization, SessionAuthorization};
-use super::common::{TerminalSessionHandle, TERMINAL_CLOSED_MESSAGE};
+use super::common::{TERMINAL_CLOSED_MESSAGE, TerminalSessionHandle};
 
 const MAX_TARGET_NAME_LEN: usize = 128;
 const WS_PING_INTERVAL: Duration = Duration::from_secs(30);

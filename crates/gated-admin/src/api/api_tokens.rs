@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use gated_common::helpers::hash::generate_ticket_secret;
 use gated_common::GatedError;
+use gated_common::helpers::hash::generate_ticket_secret;
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::ApiToken;
 use poem::web::Data;

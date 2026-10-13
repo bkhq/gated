@@ -9,7 +9,7 @@ use gated_core::{AuthStateStore, ConfigProvider, Services};
 use gated_sso::CoreIdToken;
 use http::header::HOST;
 use http::{HeaderName, StatusCode};
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use poem::session::Session;
 use poem::web::{Data, Redirect};
 use poem::{Endpoint, EndpointExt, FromRequest, IntoResponse, Request, Response};
@@ -240,10 +240,10 @@ pub(crate) async fn inject_request_authorization<E: Endpoint + 'static>(
 
                 if !is_authorized {
                     tracing::warn!(
-                            "Session cookie rejected: request host '{}' is not authorized (base host: '{}'). Clearing session.",
-                            host,
-                            base_host
-                        );
+                        "Session cookie rejected: request host '{}' is not authorized (base host: '{}'). Clearing session.",
+                        host,
+                        base_host
+                    );
                     session.clear();
                     session_auth = None;
                 }
@@ -344,10 +344,10 @@ pub async fn get_auth_state_for_request(
     session: &Session,
     store: &mut AuthStateStore,
 ) -> Result<Arc<Mutex<AuthState>>, GatedError> {
-    if let Some(id) = session.get_auth_state_id() {
-        if !store.contains_key(&id.0) {
-            session.remove(AUTH_STATE_ID_SESSION_KEY)
-        }
+    if let Some(id) = session.get_auth_state_id()
+        && !store.contains_key(&id.0)
+    {
+        session.remove(AUTH_STATE_ID_SESSION_KEY)
     }
 
     if let Some(id) = session.get_auth_state_id() {

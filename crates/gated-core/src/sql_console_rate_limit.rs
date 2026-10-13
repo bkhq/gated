@@ -102,15 +102,15 @@ impl SqlConsoleRateLimiter {
     pub fn check(&self, user_id: Uuid, target_id: Uuid) -> Result<(), SqlConsoleRateLimitError> {
         #[allow(clippy::unwrap_used, reason = "panic on poison")]
         let guard = self.inner.read().unwrap();
-        if let Some(limiter) = &guard.per_user {
-            if limiter.check_key(&user_id).is_err() {
-                return Err(SqlConsoleRateLimitError::PerUser);
-            }
+        if let Some(limiter) = &guard.per_user
+            && limiter.check_key(&user_id).is_err()
+        {
+            return Err(SqlConsoleRateLimitError::PerUser);
         }
-        if let Some(limiter) = &guard.per_target {
-            if limiter.check_key(&target_id).is_err() {
-                return Err(SqlConsoleRateLimitError::PerTarget);
-            }
+        if let Some(limiter) = &guard.per_target
+            && limiter.check_key(&target_id).is_err()
+        {
+            return Err(SqlConsoleRateLimitError::PerTarget);
         }
         Ok(())
     }

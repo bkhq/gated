@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use gated_common::hash_secret;
+use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::ForeignKeyAction;
-use sea_orm::ActiveValue;
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -70,10 +70,8 @@ impl ActiveModelBehavior for ActiveModel {
     where
         C: ConnectionTrait,
     {
-        if insert {
-            if let ActiveValue::Set(secret) = self.secret {
-                self.secret = ActiveValue::Set(hash_secret(&secret));
-            }
+        if insert && let ActiveValue::Set(secret) = self.secret {
+            self.secret = ActiveValue::Set(hash_secret(&secret));
         }
         Ok(self)
     }

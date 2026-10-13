@@ -2,22 +2,22 @@ use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
 use gated_common::GatedError;
-use gated_core::recordings::SessionRecordings;
 use gated_core::SharedDatabaseConnection;
+use gated_core::recordings::SessionRecordings;
 use gated_core::{SessionSnapshot, State};
 use poem::session::Session;
-use poem::web::websocket::{Message, WebSocket};
 use poem::web::Data;
-use poem::{handler, IntoResponse};
+use poem::web::websocket::{Message, WebSocket};
+use poem::{IntoResponse, handler};
 use poem_openapi::param::Query;
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, OpenApi};
 use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
 use tokio::sync::{Mutex, RwLock};
 
+use super::AnySecurityScheme;
 use super::pagination::{PaginatedResponse, PaginationParams};
 use super::sessions_detail::write_session_delete_audit;
-use super::AnySecurityScheme;
 use crate::http_service::common::RequestAuthorization;
 
 pub struct Api;
@@ -181,7 +181,7 @@ impl Api {
 pub async fn api_get_sessions_changes_stream(
     ws: WebSocket,
     state: Data<&Arc<RwLock<State>>>,
-) -> impl IntoResponse {
+) -> impl IntoResponse + use<> {
     let mut receiver = state.write().await.subscribe();
 
     ws.on_upgrade(|socket| async move {

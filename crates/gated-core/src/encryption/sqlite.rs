@@ -1,4 +1,4 @@
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 use sea_orm::ConnectOptions;
 
 pub fn make_connect_options(url: &str, dek_hex: &str) -> Result<ConnectOptions> {

@@ -8,7 +8,7 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 
 use super::common::get_user;
 use crate::http_service::api::AnySecurityScheme;
-use crate::http_service::common::{endpoint_auth, RequestAuthorization};
+use crate::http_service::common::{RequestAuthorization, endpoint_auth};
 
 pub struct Api;
 

@@ -1,4 +1,4 @@
-use gated_common::{auth::AuthCredential, Secret};
+use gated_common::{Secret, auth::AuthCredential};
 use poem_openapi::Object;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

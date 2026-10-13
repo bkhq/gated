@@ -852,13 +852,13 @@ impl GatedConfig {
             return Err(GatedError::ExternalHostUnknown);
         };
 
-        if let Some(list) = domain_whitelist {
-            if !list.contains(&host) {
-                return Err(GatedError::ExternalHostNotWhitelisted(
-                    host.clone(),
-                    list.iter().map(|x| x.to_string()).collect(),
-                ));
-            }
+        if let Some(list) = domain_whitelist
+            && !list.contains(&host)
+        {
+            return Err(GatedError::ExternalHostNotWhitelisted(
+                host.clone(),
+                list.iter().map(|x| x.to_string()).collect(),
+            ));
         }
 
         let mut url = format!("{scheme}://{host}");
@@ -872,11 +872,15 @@ impl GatedConfig {
     }
 
     pub fn validate(&self) {
-        if let Some(ref ext) = self.store.external_host {
-            if ext.contains(':') {
-                warn!("Looks like your `external_host` config option contains a port - it will be ignored.");
-                warn!("Set the external port via the `http.external_port`, `ssh.external_port` or `mysql.external_port` options.");
-            }
+        if let Some(ref ext) = self.store.external_host
+            && ext.contains(':')
+        {
+            warn!(
+                "Looks like your `external_host` config option contains a port - it will be ignored."
+            );
+            warn!(
+                "Set the external port via the `http.external_port`, `ssh.external_port` or `mysql.external_port` options."
+            );
         }
     }
 }

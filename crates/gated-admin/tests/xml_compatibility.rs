@@ -1,4 +1,4 @@
-use poem::{http::StatusCode, web::Xml, IntoResponse};
+use poem::{IntoResponse, http::StatusCode, web::Xml};
 use serde::Serialize;
 
 #[tokio::test]

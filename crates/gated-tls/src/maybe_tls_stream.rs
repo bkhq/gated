@@ -56,11 +56,12 @@ where
         mut self,
         tls_config: S::UpgradeConfig,
     ) -> Result<Self, MaybeTlsStreamError> {
-        if let Self::Raw(stream) = std::mem::replace(&mut self, Self::Upgrading) {
-            let stream = stream.upgrade(tls_config).await?;
-            Ok(MaybeTlsStream::Tls(stream))
-        } else {
-            Err(MaybeTlsStreamError::AlreadyUpgraded)
+        match std::mem::replace(&mut self, Self::Upgrading) {
+            Self::Raw(stream) => {
+                let stream = stream.upgrade(tls_config).await?;
+                Ok(MaybeTlsStream::Tls(stream))
+            }
+            _ => Err(MaybeTlsStreamError::AlreadyUpgraded),
         }
     }
 }

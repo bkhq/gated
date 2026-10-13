@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use anyhow::{Context, Result};
 use gated_common::GlobalParams;
 use gated_core::db::open_db_connection;
-use gated_core::healthcheck::{deep_check, DeepHealthOptions, DeepHealthStatus};
+use gated_core::healthcheck::{DeepHealthOptions, DeepHealthStatus, deep_check};
 use tokio::time::timeout;
 
 use crate::config::load_config;

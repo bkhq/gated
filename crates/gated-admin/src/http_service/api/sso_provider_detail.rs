@@ -1,9 +1,9 @@
 use gated_common::GatedError;
 use gated_core::Services;
 use gated_sso::{SsoClient, SsoLoginRequest};
+use poem::Request;
 use poem::session::Session;
 use poem::web::Data;
-use poem::Request;
 use poem_openapi::param::{Path, Query};
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, Object, OpenApi};

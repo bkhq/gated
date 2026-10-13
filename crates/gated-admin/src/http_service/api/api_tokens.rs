@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use gated_common::helpers::hash::generate_ticket_secret;
 use gated_common::GatedError;
+use gated_common::helpers::hash::generate_ticket_secret;
 use gated_core::Services;
 use gated_db_entities::ApiToken;
 use poem::web::Data;
@@ -11,7 +11,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, ModelTrait, QueryFilter, Set};
 use uuid::Uuid;
 
 use super::common::get_user;
-use crate::http_service::common::{endpoint_auth, RequestAuthorization};
+use crate::http_service::common::{RequestAuthorization, endpoint_auth};
 
 pub struct Api;
 

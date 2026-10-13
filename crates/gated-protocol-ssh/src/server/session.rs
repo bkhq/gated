@@ -4,8 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, SocketAddr};
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::Poll;
 
 use ansi_term::Colour;
@@ -21,22 +21,22 @@ use gated_common::{
     GatedError, Secret, SessionId, SshHostKeyVerificationMode, Target, TargetOptions,
     TargetSSHOptions,
 };
-use gated_core::command_acl::{evaluate, AclAction, AclContext, AclDecision, CommandAclRuleView};
+use gated_core::command_acl::{AclAction, AclContext, AclDecision, CommandAclRuleView, evaluate};
 use gated_core::recordings::{
     self, CommandAuditRecorder, ConnectionRecorder, ShellCommandRecordingItem,
     ShellCommandSessionMetadata, TerminalRecorder, TerminalRecordingStreamId,
     TrafficConnectionParams, TrafficRecorder,
 };
 use gated_core::{
-    authorize_ticket, consume_ticket, CommandReviewDecision, CommandReviewInfo, ConfigProvider,
-    GatedServerHandle, Services, COMMAND_REVIEW_TIMEOUT,
+    COMMAND_REVIEW_TIMEOUT, CommandReviewDecision, CommandReviewInfo, ConfigProvider,
+    GatedServerHandle, Services, authorize_ticket, consume_ticket,
 };
 use gated_db_entities::CommandAclRule;
 use russh::keys::{PublicKey, PublicKeyBase64};
 use russh::{MethodKind, MethodSet, Sig};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::{broadcast, oneshot, Mutex};
+use tokio::sync::{Mutex, broadcast, oneshot};
 use tracing::*;
 use uuid::Uuid;
 
@@ -228,7 +228,7 @@ impl ServerSession {
         server_handle: Arc<Mutex<GatedServerHandle>>,
         mut session_handle_rx: UnboundedReceiver<SessionHandleCommand>,
         mut handler_event_rx: UnboundedReceiver<ServerHandlerEvent>,
-    ) -> Result<impl Future<Output = Result<()>>> {
+    ) -> Result<impl Future<Output = Result<()>> + use<>> {
         let id = server_handle.lock().await.id();
 
         let _span = info_span!("SSH", session=%id);
@@ -564,21 +564,20 @@ impl ServerSession {
                         Ok(())
                     }
                     Err(x) => Err(x.into()),
-                }
+                };
             }
 
             ServerHandlerEvent::PtyRequest(server_channel_id, request, reply) => {
                 let channel_id = self.map_channel(&server_channel_id)?;
                 self.channel_pty_size_map
                     .insert(channel_id, request.clone());
-                if let Some(recorder) = self.channel_recorders.get_mut(&channel_id) {
-                    if let Err(error) = recorder
+                if let Some(recorder) = self.channel_recorders.get_mut(&channel_id)
+                    && let Err(error) = recorder
                         .write_pty_resize(request.col_width, request.row_height)
                         .await
-                    {
-                        error!(%channel_id, ?error, "Failed to record terminal data");
-                        self.channel_recorders.remove(&channel_id);
-                    }
+                {
+                    error!(%channel_id, ?error, "Failed to record terminal data");
+                    self.channel_recorders.remove(&channel_id);
                 }
                 self.send_command_and_wait(RCCommand::Channel(
                     channel_id,
@@ -818,21 +817,20 @@ impl ServerSession {
                 self.disconnect_server().await;
             }
             RCEvent::Output(channel, data) => {
-                if let Some(recorder) = self.channel_recorders.get_mut(&channel) {
-                    if let Err(error) = recorder
+                if let Some(recorder) = self.channel_recorders.get_mut(&channel)
+                    && let Err(error) = recorder
                         .write(TerminalRecordingStreamId::Output, &data)
                         .await
-                    {
-                        error!(%channel, ?error, "Failed to record terminal data");
-                        self.channel_recorders.remove(&channel);
-                    }
+                {
+                    error!(%channel, ?error, "Failed to record terminal data");
+                    self.channel_recorders.remove(&channel);
                 }
 
-                if let Some(recorder) = self.traffic_connection_recorders.get_mut(&channel) {
-                    if let Err(error) = recorder.write_rx(&data).await {
-                        error!(%channel, ?error, "Failed to record traffic data");
-                        self.traffic_connection_recorders.remove(&channel);
-                    }
+                if let Some(recorder) = self.traffic_connection_recorders.get_mut(&channel)
+                    && let Err(error) = recorder.write_rx(&data).await
+                {
+                    error!(%channel, ?error, "Failed to record traffic data");
+                    self.traffic_connection_recorders.remove(&channel);
                 }
 
                 let server_channel_id = self.map_channel_reverse(&channel)?;
@@ -930,14 +928,13 @@ impl ServerSession {
             }
             RCEvent::Done => {}
             RCEvent::ExtendedData { channel, data, ext } => {
-                if let Some(recorder) = self.channel_recorders.get_mut(&channel) {
-                    if let Err(error) = recorder
+                if let Some(recorder) = self.channel_recorders.get_mut(&channel)
+                    && let Err(error) = recorder
                         .write(TerminalRecordingStreamId::Error, &data)
                         .await
-                    {
-                        error!(%channel, ?error, "Failed to record session data");
-                        self.channel_recorders.remove(&channel);
-                    }
+                {
+                    error!(%channel, ?error, "Failed to record session data");
+                    self.channel_recorders.remove(&channel);
                 }
                 let server_channel_id = self.map_channel_reverse(&channel)?;
                 if let Some(session) = self.session_handle.clone() {
@@ -1091,7 +1088,9 @@ impl ServerSession {
         }
 
         if self.pty_channels.is_empty() {
-            warn!("Target host key is not trusted, but there is no active PTY channel to show the trust prompt on.");
+            warn!(
+                "Target host key is not trusted, but there is no active PTY channel to show the trust prompt on."
+            );
             warn!(
                 "Connect to this target with an interactive session once to accept the host key."
             );
@@ -1269,14 +1268,13 @@ impl ServerSession {
         let channel_id = self.map_channel(&server_channel_id)?;
         self.channel_pty_size_map
             .insert(channel_id, request.clone());
-        if let Some(recorder) = self.channel_recorders.get_mut(&channel_id) {
-            if let Err(error) = recorder
+        if let Some(recorder) = self.channel_recorders.get_mut(&channel_id)
+            && let Err(error) = recorder
                 .write_pty_resize(request.col_width, request.row_height)
                 .await
-            {
-                error!(%channel_id, ?error, "Failed to record terminal data");
-                self.channel_recorders.remove(&channel_id);
-            }
+        {
+            error!(%channel_id, ?error, "Failed to record terminal data");
+            self.channel_recorders.remove(&channel_id);
         }
         self.send_command_and_wait(RCCommand::Channel(
             channel_id,
@@ -1820,21 +1818,20 @@ impl ServerSession {
             return Ok(());
         }
 
-        if let Some(recorder) = self.channel_recorders.get_mut(&channel_id) {
-            if let Err(error) = recorder
+        if let Some(recorder) = self.channel_recorders.get_mut(&channel_id)
+            && let Err(error) = recorder
                 .write(TerminalRecordingStreamId::Input, &data)
                 .await
-            {
-                error!(channel=%channel_id, ?error, "Failed to record terminal data");
-                self.channel_recorders.remove(&channel_id);
-            }
+        {
+            error!(channel=%channel_id, ?error, "Failed to record terminal data");
+            self.channel_recorders.remove(&channel_id);
         }
 
-        if let Some(recorder) = self.traffic_connection_recorders.get_mut(&channel_id) {
-            if let Err(error) = recorder.write_tx(&data).await {
-                error!(channel=%channel_id, ?error, "Failed to record traffic data");
-                self.traffic_connection_recorders.remove(&channel_id);
-            }
+        if let Some(recorder) = self.traffic_connection_recorders.get_mut(&channel_id)
+            && let Err(error) = recorder.write_tx(&data).await
+        {
+            error!(channel=%channel_id, ?error, "Failed to record traffic data");
+            self.traffic_connection_recorders.remove(&channel_id);
         }
 
         if self.pty_channels.contains(&channel_id) {
@@ -2159,12 +2156,12 @@ impl ServerSession {
                         name: Cow::Borrowed("Gated authentication"),
                         instructions: Cow::Owned(format!(
                             concat!(
-                            "-----------------------------------------------------------------------\n",
-                            "Gated authentication: please open the following URL in your browser:\n",
-                            "{}\n\n",
-                            "Make sure you're seeing this security key: {}\n",
-                            "-----------------------------------------------------------------------\n"
-                        ),
+                                "-----------------------------------------------------------------------\n",
+                                "Gated authentication: please open the following URL in your browser:\n",
+                                "{}\n\n",
+                                "Make sure you're seeing this security key: {}\n",
+                                "-----------------------------------------------------------------------\n"
+                            ),
                             login_url,
                             identification_string
                                 .chars()
@@ -2289,15 +2286,14 @@ impl ServerSession {
                 let state_arc = self.get_auth_state(username).await?;
                 let mut state = state_arc.lock().await;
 
-                if let Some(credential) = credential {
-                    if cp
+                if let Some(credential) = credential
+                    && cp
                         .lock()
                         .await
                         .validate_credential(username, &credential)
                         .await?
-                    {
-                        state.add_valid_credential(credential);
-                    }
+                {
+                    state.add_valid_credential(credential);
                 }
 
                 let user_auth_result = state.verify();
@@ -2457,7 +2453,7 @@ impl ServerSession {
     }
 
     fn send_command(&mut self, command: RCCommand) -> Result<(), RCCommand> {
-        self.rc_tx.send((command, None)).map_err(|e| e.0 .0)
+        self.rc_tx.send((command, None)).map_err(|e| e.0.0)
     }
 
     async fn send_command_and_wait(&mut self, command: RCCommand) -> Result<(), SshClientError> {
@@ -2553,7 +2549,7 @@ impl Future for PendingCommand {
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         match self.get_mut() {
-            PendingCommand::Waiting(ref mut rx) => match Pin::new(rx).poll(cx) {
+            PendingCommand::Waiting(rx) => match Pin::new(rx).poll(cx) {
                 Poll::Ready(result) => {
                     Poll::Ready(result.unwrap_or(Err(SshClientError::MpscError)))
                 }

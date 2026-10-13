@@ -8,7 +8,7 @@ use gated_common::auth::AuthStateUserInfo;
 use gated_common::{GatedError, ProtocolName, SessionId, Target};
 use gated_db_entities::Session;
 use sea_orm::{ActiveModelTrait, EntityTrait};
-use tokio::sync::{broadcast, Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, broadcast};
 use tracing::*;
 use uuid::Uuid;
 

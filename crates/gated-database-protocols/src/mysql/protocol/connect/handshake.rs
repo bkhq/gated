@@ -4,9 +4,9 @@ use bytes::{Buf, BufMut, Bytes};
 use crate::err_protocol;
 use crate::error::Error;
 use crate::io::{BufExt, BufMutExt, Decode, Encode};
+use crate::mysql::protocol::Capabilities;
 use crate::mysql::protocol::auth::AuthPlugin;
 use crate::mysql::protocol::response::Status;
-use crate::mysql::protocol::Capabilities;
 
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::Handshake
 // https://mariadb.com/kb/en/connection/#initial-handshake-packet
@@ -124,10 +124,10 @@ impl Encode<'_, ()> for Handshake {
             buf.put_u8(0);
         }
 
-        if self.server_capabilities.contains(Capabilities::PLUGIN_AUTH) {
-            if let Some(auth_plugin) = self.auth_plugin {
-                buf.put_str_nul(auth_plugin.name());
-            }
+        if self.server_capabilities.contains(Capabilities::PLUGIN_AUTH)
+            && let Some(auth_plugin) = self.auth_plugin
+        {
+            buf.put_str_nul(auth_plugin.name());
         }
     }
 }
@@ -183,7 +183,9 @@ fn test_decode_handshake_mysql_8_0_18() {
 
     assert_eq!(
         &*p.auth_plugin_data.into_iter().collect::<Vec<_>>(),
-        &[17, 52, 97, 66, 48, 99, 6, 103, 116, 76, 3, 115, 15, 91, 52, 13, 108, 52, 46, 32,]
+        &[
+            17, 52, 97, 66, 48, 99, 6, 103, 116, 76, 3, 115, 15, 91, 52, 13, 108, 52, 46, 32,
+        ]
     );
 }
 
@@ -237,6 +239,8 @@ fn test_decode_handshake_mariadb_10_4_7() {
 
     assert_eq!(
         &*p.auth_plugin_data.into_iter().collect::<Vec<_>>(),
-        &[116, 54, 76, 92, 106, 34, 100, 83, 85, 49, 52, 79, 112, 104, 57, 34, 60, 72, 53, 110,]
+        &[
+            116, 54, 76, 92, 106, 34, 100, 83, 85, 49, 52, 79, 112, 104, 57, 34, 60, 72, 53, 110,
+        ]
     );
 }

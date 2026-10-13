@@ -1,13 +1,13 @@
 use std::ops::DerefMut;
 use std::sync::Arc;
 
-use gated_common::auth::{AuthCredential, AuthResult};
 use gated_common::GatedError;
+use gated_common::auth::{AuthCredential, AuthResult};
 use gated_core::{ConfigProvider, Services};
 use gated_sso::{SsoClient, SsoInternalProviderConfig};
+use poem::Request;
 use poem::session::Session;
 use poem::web::{Data, Form};
-use poem::Request;
 use poem_openapi::param::Query;
 use poem_openapi::payload::{Html, Json, Response};
 use poem_openapi::{ApiResponse, Enum, Object, OpenApi};
@@ -15,11 +15,11 @@ use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::*;
 
-use super::sso_provider_detail::{SsoContext, SSO_CONTEXT_SESSION_KEY};
-use crate::http_service::api::common::logout;
-use crate::http_service::common::{authorize_session, get_auth_state_for_request, SessionExt};
-use crate::http_service::session::SessionStore;
+use super::sso_provider_detail::{SSO_CONTEXT_SESSION_KEY, SsoContext};
 use crate::http_service::SsoLoginState;
+use crate::http_service::api::common::logout;
+use crate::http_service::common::{SessionExt, authorize_session, get_auth_state_for_request};
+use crate::http_service::session::SessionStore;
 
 pub struct Api;
 
@@ -355,7 +355,9 @@ impl Api {
             let (managed_role_names, active_role_names) =
                 compute_sso_role_sync(mappings.as_ref(), &remote_groups);
 
-            debug!("SSO role mappings for {username}: active={active_role_names:?}, managed={managed_role_names:?}");
+            debug!(
+                "SSO role mappings for {username}: active={active_role_names:?}, managed={managed_role_names:?}"
+            );
             cp.apply_sso_role_mappings(&username, Some(managed_role_names), active_role_names)
                 .await?;
         }

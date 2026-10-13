@@ -92,7 +92,7 @@ mod tests {
     async fn completion_record_failure_keeps_the_action_result() {
         use gated_common::{GatedConfig, GlobalParams};
         use poem::http::{Method, StatusCode};
-        use poem::{handler, EndpointExt};
+        use poem::{EndpointExt, handler};
 
         let root = std::env::temp_dir().join(format!("gated-mgmt-audit-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
@@ -179,10 +179,12 @@ mod tests {
         assert_eq!(entry.session_id, Uuid::nil());
         assert_eq!(entry.values["actor"], "operator-b");
         assert_eq!(entry.values["phase"], "completed");
-        assert!(gated_db_entities::LogEntry::Entity::find()
-            .all(&db)
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            gated_db_entities::LogEntry::Entity::find()
+                .all(&db)
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 }

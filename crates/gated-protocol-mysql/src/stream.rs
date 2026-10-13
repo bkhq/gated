@@ -1,8 +1,8 @@
 use bytes::{Bytes, BytesMut};
 use gated_database_protocols::io::Encode;
 use gated_tls::{MaybeTlsStream, MaybeTlsStreamError, UpgradableStream};
-use mysql_common::proto::codec::error::PacketCodecError;
 use mysql_common::proto::codec::PacketCodec;
+use mysql_common::proto::codec::error::PacketCodecError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::*;
 

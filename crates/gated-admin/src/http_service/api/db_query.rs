@@ -34,7 +34,7 @@ use tracing::*;
 use uuid::Uuid;
 
 use crate::http_service::api::AnySecurityScheme;
-use crate::http_service::common::{endpoint_auth, RequestAuthorization, SessionAuthorization};
+use crate::http_service::common::{RequestAuthorization, SessionAuthorization, endpoint_auth};
 
 const MAX_TARGET_NAME_LEN: usize = 128;
 const DEFAULT_LIMIT: i64 = 1000;
@@ -896,30 +896,28 @@ impl Api {
         let recording_name = "sql-console";
         ensure_sql_console_group_session(&services, session_id, &username, &target).await?;
 
-        if readonly {
-            if let Err(violation) = super::sql_validation::validate_readonly_sql(&sql) {
-                record_sql_console_request(
-                    &services,
-                    session_id,
-                    recording_name,
-                    &target,
-                    &sql,
-                    statement_kind,
-                    readonly,
-                    0,
-                    false,
-                    Some(violation.to_string()),
-                )
-                .await;
-                warn!(
-                    %username,
-                    target = %target.name,
-                    kind = %statement_kind,
-                    violation = %violation,
-                    "sql_console_readonly_violation"
-                );
-                return Err(DbError::forbidden(violation.to_string()));
-            }
+        if readonly && let Err(violation) = super::sql_validation::validate_readonly_sql(&sql) {
+            record_sql_console_request(
+                &services,
+                session_id,
+                recording_name,
+                &target,
+                &sql,
+                statement_kind,
+                readonly,
+                0,
+                false,
+                Some(violation.to_string()),
+            )
+            .await;
+            warn!(
+                %username,
+                target = %target.name,
+                kind = %statement_kind,
+                violation = %violation,
+                "sql_console_readonly_violation"
+            );
+            return Err(DbError::forbidden(violation.to_string()));
         }
 
         let sql_hash = {

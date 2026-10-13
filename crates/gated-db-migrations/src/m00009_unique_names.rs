@@ -21,7 +21,9 @@ impl MigrationTrait for Migration {
                 format!("SELECT COUNT(*) AS n FROM {table} GROUP BY {column} HAVING COUNT(*) > 1 LIMIT 1"),
             )).await?;
             if duplicates.is_some() {
-                return Err(DbErr::Custom(format!("Cannot enforce unique {table}.{column}: duplicate names exist; resolve duplicates explicitly and retry migration")));
+                return Err(DbErr::Custom(format!(
+                    "Cannot enforce unique {table}.{column}: duplicate names exist; resolve duplicates explicitly and retry migration"
+                )));
             }
         }
         for (table, column, index) in names {
@@ -93,12 +95,13 @@ mod tests {
             db.execute_unprepared(&format!("INSERT INTO {table} ({column}) VALUES ('other')"))
                 .await
                 .unwrap();
-            assert!(db
-                .execute_unprepared(&format!(
+            assert!(
+                db.execute_unprepared(&format!(
                     "UPDATE {table} SET {column} = 'shared' WHERE {column} = 'other'"
                 ))
                 .await
-                .is_err());
+                .is_err()
+            );
         }
         Migration.down(&SchemaManager::new(&db)).await.unwrap();
         db.execute_unprepared("INSERT INTO users (username) VALUES ('shared')")

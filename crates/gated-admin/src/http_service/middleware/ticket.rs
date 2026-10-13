@@ -1,5 +1,5 @@
 use gated_common::Secret;
-use gated_core::{authorize_ticket, consume_ticket, Services};
+use gated_core::{Services, authorize_ticket, consume_ticket};
 use poem::session::Session;
 use poem::web::{Data, FromRequest};
 use poem::{Endpoint, Middleware, Request};
@@ -50,11 +50,11 @@ impl<E: Endpoint> Endpoint for TicketMiddlewareEndpoint<E> {
             }
             for h in req.headers().get_all(http::header::AUTHORIZATION) {
                 let header_value = h.to_str().unwrap_or("").to_string();
-                if let Some((token_type, token_value)) = header_value.split_once(' ') {
-                    if &token_type.to_lowercase() == "gated" {
-                        ticket_value = Some(token_value.to_string());
-                        session_is_temporary = true;
-                    }
+                if let Some((token_type, token_value)) = header_value.split_once(' ')
+                    && &token_type.to_lowercase() == "gated"
+                {
+                    ticket_value = Some(token_value.to_string());
+                    session_is_temporary = true;
                 }
             }
 

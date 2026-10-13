@@ -14,7 +14,7 @@ use gated_db_entities::{CommandAclRule, UserRoleAssignment};
 use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder};
 use uuid::Uuid;
 
-use crate::command_acl::{evaluate, AclContext, AclDecision, CommandAclRuleView};
+use crate::command_acl::{AclContext, AclDecision, CommandAclRuleView, evaluate};
 
 /// Map a `command_acl_rule` row into the DB-free matcher view. The entity's
 /// `i32` id widens to the view's `i64`; every other column maps 1:1.

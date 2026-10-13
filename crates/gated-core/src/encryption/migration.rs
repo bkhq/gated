@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result, ensure};
 use gated_common::helpers::fs::secure_file;
 use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
 

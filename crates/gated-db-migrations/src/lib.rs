@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 use sea_orm::DatabaseConnection;
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::MigrationTrait;
+use sea_orm_migration::prelude::*;
 
 mod m00001_initial;
 mod m00002_sql_console_rate_limits;

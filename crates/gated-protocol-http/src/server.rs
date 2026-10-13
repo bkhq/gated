@@ -20,25 +20,25 @@ use gated_tls::{
     SingleCertResolver, TlsCertificateAndPrivateKey, TlsCertificateBundle, TlsPrivateKey,
 };
 use poem::listener::Listener;
-use poem::web::websocket::WebSocket;
 use poem::web::Data;
-use poem::{handler, Body, EndpointExt, IntoResponse, Request, Response, Route, Server};
+use poem::web::websocket::WebSocket;
+use poem::{Body, EndpointExt, IntoResponse, Request, Response, Route, Server, handler};
 use rustls::ServerConfig;
 use tokio::sync::{Mutex, RwLock};
 use tracing::*;
 
 use crate::engine::{
-    build_http_client, injected_header_names, proxy_to_upstream as engine_proxy, FlavorHook,
+    FlavorHook, build_http_client, injected_header_names, proxy_to_upstream as engine_proxy,
 };
 use crate::kubernetes::auth::validate_client_certificate;
 use crate::kubernetes::client_certs::{
-    build_client_cert_verifier, CertificateCapturingAcceptor, CertificateExtractorMiddleware,
-    RequestCertificateExt,
+    CertificateCapturingAcceptor, CertificateExtractorMiddleware, RequestCertificateExt,
+    build_client_cert_verifier,
 };
 use crate::kubernetes::correlator::RequestCorrelator;
 use crate::kubernetes::websocket::handle_websocket_request;
 use crate::recording::start_recording;
-use crate::resolver::{resolve_target, ResolverConfig};
+use crate::resolver::{ResolverConfig, resolve_target};
 use crate::session_handle::ApiSessionHandle;
 
 const UNAUTHORIZED_BODY: &str = "unauthorized";
@@ -254,14 +254,13 @@ async fn authenticate_request(
     req: &Request,
     services: &Services,
 ) -> Result<AuthStateUserInfo, poem::Error> {
-    if let Some(auth_header) = req.headers().get(http::header::AUTHORIZATION) {
-        if let Ok(auth_str) = auth_header.to_str() {
-            if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                let mut cp = services.config_provider.lock().await;
-                if let Ok(Some(user)) = cp.validate_api_token(token).await {
-                    return Ok((&user).into());
-                }
-            }
+    if let Some(auth_header) = req.headers().get(http::header::AUTHORIZATION)
+        && let Ok(auth_str) = auth_header.to_str()
+        && let Some(token) = auth_str.strip_prefix("Bearer ")
+    {
+        let mut cp = services.config_provider.lock().await;
+        if let Ok(Some(user)) = cp.validate_api_token(token).await {
+            return Ok((&user).into());
         }
     }
 
@@ -363,8 +362,8 @@ async fn dispatch(
     };
 
     let result = async {
-        let response = if let (Some(ws), HttpProxyFlavor::Kubernetes) = (ws, flavor) {
-            handle_websocket_request(
+        let response = match (ws, flavor) {
+            (Some(ws), HttpProxyFlavor::Kubernetes) => handle_websocket_request(
                 ws,
                 req,
                 &http_options,
@@ -374,36 +373,37 @@ async fn dispatch(
                 recordings,
             )
             .await
-            .map(IntoResponse::into_response)
-        } else {
-            let client = build_http_client(&http_options).map_err(GatedError::from)?;
-            let injected = injected_header_names(&http_options.upstream_auth);
+            .map(IntoResponse::into_response),
+            _ => {
+                let client = build_http_client(&http_options).map_err(GatedError::from)?;
+                let injected = injected_header_names(&http_options.upstream_auth);
 
-            let recorder_opt = {
-                let enabled = {
-                    let config = services.config.read().await;
-                    config.store.recordings.enable
+                let recorder_opt = {
+                    let enabled = {
+                        let config = services.config.read().await;
+                        config.store.recordings.enable
+                    };
+                    if enabled {
+                        start_recording(&session_id, recordings, flavor).await.ok()
+                    } else {
+                        None
+                    }
                 };
-                if enabled {
-                    start_recording(&session_id, recordings, flavor).await.ok()
-                } else {
-                    None
-                }
-            };
 
-            engine_proxy(
-                req,
-                body,
-                &http_options.url,
-                &client,
-                FlavorHook::from(flavor),
-                &injected,
-                path,
-                recorder_opt,
-            )
-            .await
-            .map(IntoResponse::into_response)
-            .context("handling HTTP-proxy request")
+                engine_proxy(
+                    req,
+                    body,
+                    &http_options.url,
+                    &client,
+                    FlavorHook::from(flavor),
+                    &injected,
+                    path,
+                    recorder_opt,
+                )
+                .await
+                .map(IntoResponse::into_response)
+                .context("handling HTTP-proxy request")
+            }
         };
 
         if let Some(account_id) = account_id {

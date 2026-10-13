@@ -1,20 +1,20 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use futures::StreamExt;
 use gated_common::helpers::websocket::pump_websocket;
 use gated_common::{SessionId, TargetHttpOptions};
-use gated_core::recordings::{SessionRecordings, TerminalRecorder, TerminalRecordingStreamId};
 use gated_core::Services;
+use gated_core::recordings::{SessionRecordings, TerminalRecorder, TerminalRecordingStreamId};
 use poem::web::websocket::{WebSocket, WebSocketStream};
 use poem::{IntoResponse, Request};
 use reqwest_websocket::Upgrade;
 use serde::Deserialize;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 use tokio_tungstenite::tungstenite;
 use tracing::*;
 
-use crate::engine::{construct_target_url, FlavorHook};
+use crate::engine::{FlavorHook, construct_target_url};
 
 use super::recording::{deduce_exec_recording_metadata, start_recording_exec};
 
@@ -68,7 +68,7 @@ pub async fn handle_websocket_request(
     session_id: SessionId,
     services: &Services,
     recordings: &Arc<Mutex<SessionRecordings>>,
-) -> anyhow::Result<impl IntoResponse> {
+) -> anyhow::Result<impl IntoResponse + use<>> {
     let mut full_url = construct_target_url(req, path, &options.url, FlavorHook::Kubernetes)?;
     if full_url.scheme() == "https" {
         let _ = full_url.set_scheme("wss");

@@ -8,8 +8,8 @@ use rand::Rng;
 use tokio::time::Instant;
 use tracing::*;
 
-use super::writer::RecordingWriter;
 use super::Recorder;
+use super::writer::RecordingWriter;
 
 pub struct TrafficRecorder {
     writer: RecordingWriter,
@@ -62,8 +62,8 @@ impl ConnectionRecorder {
             params,
             writer,
             started_at,
-            seq_rx: rand::thread_rng().gen(),
-            seq_tx: rand::thread_rng().gen(),
+            seq_rx: rand::thread_rng().r#gen(),
+            seq_tx: rand::thread_rng().r#gen(),
         }
     }
 

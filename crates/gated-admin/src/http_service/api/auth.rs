@@ -11,9 +11,9 @@ use gated_core::{ConfigProvider, Services};
 use governor::{DefaultKeyedRateLimiter, Quota};
 use poem::http::StatusCode;
 use poem::session::Session;
-use poem::web::websocket::{Message, WebSocket};
 use poem::web::Data;
-use poem::{handler, IntoResponse, Request, Response};
+use poem::web::websocket::{Message, WebSocket};
+use poem::{IntoResponse, Request, Response, handler};
 use poem_openapi::param::Path;
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, Enum, Object, OpenApi};
@@ -23,8 +23,8 @@ use uuid::Uuid;
 
 use super::common::logout;
 use crate::http_service::common::{
-    authorize_session, endpoint_auth, get_auth_state_for_request, RequestAuthorization,
-    SessionAuthorization, SessionExt,
+    RequestAuthorization, SessionAuthorization, SessionExt, authorize_session, endpoint_auth,
+    get_auth_state_for_request,
 };
 use crate::http_service::session::SessionStore;
 

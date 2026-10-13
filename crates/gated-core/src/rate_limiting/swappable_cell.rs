@@ -2,8 +2,8 @@ use gated_common::GatedError;
 use governor::clock::QuantaInstant;
 use tokio::sync::watch;
 
-use super::shared_limiter::SharedGatedRateLimiter;
 use super::RateLimiterDirection;
+use super::shared_limiter::SharedGatedRateLimiter;
 
 pub struct SwappableLimiterCellHandle {
     sender: watch::Sender<Option<SharedGatedRateLimiter>>,

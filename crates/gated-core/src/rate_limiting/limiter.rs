@@ -2,8 +2,8 @@ use std::fmt::Debug;
 use std::num::{NonZero, NonZeroU32};
 
 use gated_common::GatedError;
-use governor::clock::{Clock, QuantaClock, QuantaInstant};
 use governor::Quota;
+use governor::clock::{Clock, QuantaClock, QuantaInstant};
 
 use super::shared_limiter::SharedGatedRateLimiter;
 use super::{InnerRateLimiter, RateLimiterDirection};

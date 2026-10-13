@@ -30,7 +30,7 @@ static CONSUMED_TOTP: LazyLock<Mutex<HashMap<(u64, u64), u64>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub fn generate_key() -> OtpSecretKey {
-    Secret::new(get_crypto_rng().gen::<[u8; 32]>().into())
+    Secret::new(get_crypto_rng().r#gen::<[u8; 32]>().into())
 }
 
 pub fn generate_setup_url(key: &OtpSecretKey, label: &str) -> Secret<String> {

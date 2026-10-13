@@ -9,7 +9,7 @@ use gated_common::{GatedConfig, GlobalParams, RecordingsConfig, SessionId};
 use gated_db_entities::Recording::{self, RecordingKind};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
 use serde::Serialize;
-use tokio::sync::{broadcast, watch, Mutex};
+use tokio::sync::{Mutex, broadcast, watch};
 use tracing::*;
 use uuid::Uuid;
 
@@ -162,15 +162,14 @@ impl SessionRecordings {
     pub async fn remove(&self, session_id: &SessionId, name: &str) -> Result<()> {
         let path = self.path_for(session_id, name);
         tokio::fs::remove_file(&path).await?;
-        if let Some(parent) = path.parent() {
-            if tokio::fs::read_dir(parent)
+        if let Some(parent) = path.parent()
+            && tokio::fs::read_dir(parent)
                 .await?
                 .next_entry()
                 .await?
                 .is_none()
-            {
-                tokio::fs::remove_dir(parent).await?;
-            }
+        {
+            tokio::fs::remove_dir(parent).await?;
         }
         Ok(())
     }

@@ -1,22 +1,22 @@
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
-use gated_core::encryption::migration::{
-    detect_existing_database, ExistingSqliteDatabase, MigrationOptions,
-};
-use gated_core::encryption::EncryptionStatus;
-use gated_core::logging::http::get_client_ip;
 use gated_core::Services;
+use gated_core::encryption::EncryptionStatus;
+use gated_core::encryption::migration::{
+    ExistingSqliteDatabase, MigrationOptions, detect_existing_database,
+};
+use gated_core::logging::http::get_client_ip;
 use governor::{DefaultKeyedRateLimiter, Quota};
 use http::StatusCode;
 use poem::web::{Data, Json};
-use poem::{handler, EndpointExt, IntoEndpoint, IntoResponse, Request, Response, Route};
+use poem::{EndpointExt, IntoEndpoint, IntoResponse, Request, Response, Route, handler};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::{error, info, warn};
 
-use crate::http_service::common::{is_user_admin, RequestAuthorization};
+use crate::http_service::common::{RequestAuthorization, is_user_admin};
 
 const RETRY_AFTER_SECS: u64 = 60;
 
@@ -453,10 +453,10 @@ fn error_response(status: StatusCode, code: &'static str, message: &'static str)
         "code": code,
         "message": message,
     });
-    if status == StatusCode::TOO_MANY_REQUESTS {
-        if let Some(object) = body.as_object_mut() {
-            object.insert("retry_after".into(), json!(RETRY_AFTER_SECS));
-        }
+    if status == StatusCode::TOO_MANY_REQUESTS
+        && let Some(object) = body.as_object_mut()
+    {
+        object.insert("retry_after".into(), json!(RETRY_AFTER_SECS));
     }
     json_response(status, &body).into_response()
 }
@@ -468,7 +468,7 @@ mod tests {
     use http::{Method, StatusCode};
     use poem::{Body, Endpoint, EndpointExt, IntoEndpoint, Request};
     use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     use uuid::Uuid;
 
     use super::*;

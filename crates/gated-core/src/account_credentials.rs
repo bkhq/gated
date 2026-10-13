@@ -118,10 +118,10 @@ pub async fn ssh_options_with_account(
         }
     }
 
-    if options.username.is_empty() {
-        if let Some(username) = fallback_username {
-            options.username = username.to_string();
-        }
+    if options.username.is_empty()
+        && let Some(username) = fallback_username
+    {
+        options.username = username.to_string();
     }
     Ok((options, None))
 }

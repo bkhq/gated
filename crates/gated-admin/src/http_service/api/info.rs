@@ -2,15 +2,15 @@ use anyhow::Context;
 use gated_common::version::gated_version;
 use gated_core::{ConfigProvider, Services};
 use gated_db_entities::Parameters;
+use poem::Request;
 use poem::session::Session;
 use poem::web::Data;
-use poem::Request;
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, Object, OpenApi};
 use serde::Serialize;
 
 use crate::http_service::common::{
-    is_user_admin, RequestAuthorization, SessionAuthorization, SessionExt,
+    RequestAuthorization, SessionAuthorization, SessionExt, is_user_admin,
 };
 
 pub struct Api;

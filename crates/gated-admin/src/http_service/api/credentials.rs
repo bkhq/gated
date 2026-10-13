@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use gated_common::auth::AuthCredential;
-use gated_common::helpers::otp::{generate_key, generate_setup_url, verify_totp, OtpSecretKey};
+use gated_common::helpers::otp::{OtpSecretKey, generate_key, generate_setup_url, verify_totp};
 use gated_common::{
     GatedError, Secret, User, UserPasswordCredential, UserRequireCredentialsPolicy,
 };
@@ -28,7 +28,7 @@ use uuid::Uuid;
 
 use super::common::{get_user, is_ticket_auth};
 use crate::http_service::api::AnySecurityScheme;
-use crate::http_service::common::{endpoint_auth, RequestAuthorization};
+use crate::http_service::common::{RequestAuthorization, endpoint_auth};
 use crate::http_service::session::SessionStore;
 
 pub struct Api;

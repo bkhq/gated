@@ -2,15 +2,15 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
-use gated_core::recordings::{AsciiCast, SessionRecordings, TerminalRecordingItem};
 use gated_core::SharedDatabaseConnection;
+use gated_core::recordings::{AsciiCast, SessionRecordings, TerminalRecordingItem};
 use gated_db_entities::Recording::{self, RecordingKind};
 use poem::web::websocket::{Message, WebSocket};
 use poem::web::{Data, Path};
-use poem::{handler, IntoResponse};
+use poem::{IntoResponse, handler};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 use serde_json::json;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 use tracing::*;
 use uuid::Uuid;
 
@@ -32,7 +32,7 @@ pub async fn api_session_monitor(
     db: Data<&SharedDatabaseConnection>,
     recordings: Data<&Arc<Mutex<SessionRecordings>>>,
     Path(session_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> impl IntoResponse + use<> {
     // Resolve the session's live terminal feed before the upgrade so we can
     // report liveness in the opening frame.
     let receiver = resolve_live_terminal(&db, &recordings, session_id).await;

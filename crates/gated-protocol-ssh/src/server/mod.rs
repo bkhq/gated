@@ -181,7 +181,9 @@ pub(crate) async fn get_allowed_auth_methods(services: &Services) -> Result<Meth
     }
 
     if methods_vec.is_empty() {
-        warn!("All SSH authentication methods are disabled in parameters. Enabling all methods as fallback.");
+        warn!(
+            "All SSH authentication methods are disabled in parameters. Enabling all methods as fallback."
+        );
     }
 
     Ok(MethodSet::from(&methods_vec[..]))

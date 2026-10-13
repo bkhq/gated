@@ -1,5 +1,5 @@
 use poem::web::Redirect;
-use poem::{handler, IntoResponse, Response};
+use poem::{IntoResponse, Response, handler};
 
 pub fn target_select_redirect() -> Response {
     Redirect::temporary("/ui/").into_response()

@@ -137,10 +137,10 @@ impl ListApi {
                 "Name already exists".into(),
             )));
         }
-        if let Some(accounts) = bound_accounts {
-            if let Err(error) = validate_target_accounts(&db, &options, accounts).await {
-                return Ok(CreateTargetResponse::UnprocessableEntity(Json(error)));
-            }
+        if let Some(accounts) = bound_accounts
+            && let Err(error) = validate_target_accounts(&db, &options, accounts).await
+        {
+            return Ok(CreateTargetResponse::UnprocessableEntity(Json(error)));
         }
 
         let txn = db.begin().await?;
@@ -164,7 +164,7 @@ impl ListApi {
             {
                 return Ok(CreateTargetResponse::Conflict(Json(
                     "Target name already exists".into(),
-                )))
+                )));
             }
             Err(error) => return Err(error.into()),
         };
@@ -296,10 +296,10 @@ impl DetailApi {
         } else if let Ok(stored) = serde_json::from_value::<TargetOptions>(target.options.clone()) {
             keep_stored_secrets(&mut options, &stored);
         }
-        if let Some(accounts) = bound_accounts {
-            if let Err(error) = validate_target_accounts(&db, &options, accounts).await {
-                return Ok(UpdateTargetResponse::UnprocessableEntity(Json(error)));
-            }
+        if let Some(accounts) = bound_accounts
+            && let Err(error) = validate_target_accounts(&db, &options, accounts).await
+        {
+            return Ok(UpdateTargetResponse::UnprocessableEntity(Json(error)));
         }
 
         let txn = db.begin().await?;
@@ -317,7 +317,7 @@ impl DetailApi {
                     Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
                 ) =>
             {
-                return Ok(UpdateTargetResponse::BadRequest)
+                return Ok(UpdateTargetResponse::BadRequest);
             }
             Err(error) => return Err(error.into()),
         };
@@ -723,10 +723,10 @@ fn keep_stored_secrets(options: &mut TargetOptions, stored: &TargetOptions) {
             match (&mut options.upstream_auth, &stored.upstream_auth) {
                 (UpstreamAuth::Headers(auth), UpstreamAuth::Headers(stored)) => {
                     for (name, value) in auth.headers.iter_mut() {
-                        if value.expose_secret().is_empty() {
-                            if let Some(stored) = stored.headers.get(name) {
-                                *value = stored.clone();
-                            }
+                        if value.expose_secret().is_empty()
+                            && let Some(stored) = stored.headers.get(name)
+                        {
+                            *value = stored.clone();
                         }
                     }
                 }
@@ -1168,12 +1168,16 @@ mod tests {
         let _b = insert_ssh_target(&db, "b", "host.internal", 22).await;
         let c = insert_ssh_target(&db, "c", "other.internal", 22).await;
 
-        assert!(ssh_endpoint_still_referenced(&db, a, "host.internal", 22)
-            .await
-            .expect("query"));
-        assert!(!ssh_endpoint_still_referenced(&db, c, "other.internal", 22)
-            .await
-            .expect("query"));
+        assert!(
+            ssh_endpoint_still_referenced(&db, a, "host.internal", 22)
+                .await
+                .expect("query")
+        );
+        assert!(
+            !ssh_endpoint_still_referenced(&db, c, "other.internal", 22)
+                .await
+                .expect("query")
+        );
     }
 
     async fn setup_db() -> DatabaseConnection {

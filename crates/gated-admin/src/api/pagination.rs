@@ -1,6 +1,6 @@
 use gated_common::GatedError;
-use poem_openapi::types::{ParseFromJSON, ToJSON};
 use poem_openapi::Object;
+use poem_openapi::types::{ParseFromJSON, ToJSON};
 use sea_orm::{ConnectionTrait, EntityTrait, FromQueryResult, PaginatorTrait, QuerySelect, Select};
 
 #[derive(Object)]

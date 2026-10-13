@@ -1,5 +1,5 @@
 use gated_web::Assets;
-use poem::http::{header, StatusCode};
+use poem::http::{StatusCode, header};
 use poem::{Endpoint, Request, Response, Result};
 
 /// Serves embedded static files with SPA fallback.

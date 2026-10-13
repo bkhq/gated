@@ -1,17 +1,17 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{Result, anyhow, ensure};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use tokio::sync::{Mutex, RwLock};
 use zeroize::Zeroize;
 
 use super::crypto::{
-    derive_kek, generate_dek, generate_salt, make_verifier, unwrap_dek, verify, wrap_dek,
-    KdfParams, DEK_AAD,
+    DEK_AAD, KdfParams, derive_kek, generate_dek, generate_salt, make_verifier, unwrap_dek, verify,
+    wrap_dek,
 };
 use super::meta::MetaDb;
-use super::migration::{migrate_plaintext_database, MigrationOptions, MigrationReport};
+use super::migration::{MigrationOptions, MigrationReport, migrate_plaintext_database};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EncryptionStatus {
@@ -306,25 +306,29 @@ mod tests {
             .unwrap();
         let missing_database = dir.join("db.sqlite3");
 
-        assert!(runtime
-            .init_with_plaintext_migration(
-                SecretString::from("master-password"),
-                &missing_database,
-                &crate::encryption::migration::MigrationOptions {
-                    auto_delete_plaintext: false,
-                    secure_files: false,
-                },
-            )
-            .await
-            .is_err());
+        assert!(
+            runtime
+                .init_with_plaintext_migration(
+                    SecretString::from("master-password"),
+                    &missing_database,
+                    &crate::encryption::migration::MigrationOptions {
+                        auto_delete_plaintext: false,
+                        secure_files: false,
+                    },
+                )
+                .await
+                .is_err()
+        );
 
         assert_eq!(runtime.status().await, EncryptionStatus::Uninitialized);
         assert!(runtime.dek_hex().is_none());
-        assert!(!super::MetaDb::open(&dir.join("encryption"))
-            .await
-            .unwrap()
-            .is_initialized()
-            .await
-            .unwrap());
+        assert!(
+            !super::MetaDb::open(&dir.join("encryption"))
+                .await
+                .unwrap()
+                .is_initialized()
+                .await
+                .unwrap()
+        );
     }
 }

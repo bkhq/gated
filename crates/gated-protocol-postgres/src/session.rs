@@ -10,7 +10,7 @@ use gated_common::{Secret, TargetOptions, TargetPostgresOptions};
 use gated_core::command_acl::AclAction;
 use gated_core::command_acl_loader::DbCommandAclEnforcer;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
-use gated_core::{authorize_ticket, consume_ticket, ConfigProvider, GatedServerHandle, Services};
+use gated_core::{ConfigProvider, GatedServerHandle, Services, authorize_ticket, consume_ticket};
 use pgwire::error::ErrorInfo;
 use pgwire::messages::response::{ReadyForQuery, TransactionStatus};
 use pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
@@ -866,8 +866,8 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
 #[cfg(test)]
 mod tests {
     use bytes::BytesMut;
-    use pgwire::messages::response::ErrorResponse;
     use pgwire::messages::Message;
+    use pgwire::messages::response::ErrorResponse;
     use tokio::io::AsyncReadExt;
     use tokio_rustls::server::TlsStream;
 

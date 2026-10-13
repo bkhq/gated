@@ -8,7 +8,7 @@ pub mod resolver;
 pub mod server;
 pub mod session_handle;
 
-pub use engine::{build_http_client, FlavorHook, HttpProxyRecorder};
+pub use engine::{FlavorHook, HttpProxyRecorder, build_http_client};
 pub use recording::start_recording;
 
 pub static PROTOCOL_NAME: ProtocolName = "Http";

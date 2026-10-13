@@ -4,7 +4,7 @@ use std::io::Write;
 use std::sync::Arc;
 
 use gated_common::TargetPostgresOptions;
-use gated_tls::{configure_tls_connector, TlsMode};
+use gated_tls::{TlsMode, configure_tls_connector};
 use pgwire::messages::PgWireBackendMessage;
 use rsasl::config::SASLConfig;
 use rsasl::prelude::{Mechname, SASLClient};

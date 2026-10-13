@@ -15,8 +15,8 @@ use gated_core::{ProtocolServer, Services, SessionStateInit, State};
 use gated_tls::{
     ResolveServerCert, TlsCertificateAndPrivateKey, TlsCertificateBundle, TlsPrivateKey,
 };
-use rustls::server::NoClientAuth;
 use rustls::ServerConfig;
+use rustls::server::NoClientAuth;
 use tracing::*;
 
 use crate::session::MySqlSession;

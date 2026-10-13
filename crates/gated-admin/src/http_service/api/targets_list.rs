@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use gated_common::{GatedError, TargetOptions};
 use gated_core::{ConfigProvider, Services};
 use gated_db_entities::TargetGroup::BootstrapThemeColor;
@@ -13,7 +13,7 @@ use sea_orm::EntityTrait;
 use serde::Serialize;
 
 use crate::http_service::api::AnySecurityScheme;
-use crate::http_service::common::{endpoint_auth, RequestAuthorization, SessionAuthorization};
+use crate::http_service::common::{RequestAuthorization, SessionAuthorization, endpoint_auth};
 
 pub struct Api;
 
