@@ -305,6 +305,7 @@ fn target_kind_name(target: &Target) -> &'static str {
     }
 }
 
+#[allow(clippy::too_many_arguments, reason = "flat audit record fields")]
 async fn record_sql_console_request(
     services: &Services,
     session_id: Uuid,

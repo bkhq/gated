@@ -1,11 +1,11 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-tls"
 version = "0.21.1"
 
 [dependencies]
-once_cell = { version = "1.17", default-features = false }
 poem.workspace = true
 poem-openapi.workspace = true
 rustls-native-certs = { version = "0.8", default-features = false }
@@ -18,3 +18,6 @@ tokio.workspace = true
 tracing.workspace = true
 webpki = { version = "0.22", default-features = false }
 x509-parser = "0.17.0"
+
+[lints]
+workspace = true

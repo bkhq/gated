@@ -46,7 +46,7 @@ pub struct ForwardedStreamlocalParams {
 
 #[derive(Clone, Debug)]
 pub struct X11Request {
-    pub single_conection: bool,
+    pub single_connection: bool,
     pub x11_auth_protocol: String,
     pub x11_auth_cookie: String,
     pub x11_screen_number: u32,

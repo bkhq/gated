@@ -126,7 +126,9 @@ impl<'a> BufTruncator<'a> {
         self.buf.resize(self.filled_len + space, 0);
     }
     async fn read<S: AsyncRead + Unpin>(&mut self, stream: &mut S) -> Result<usize, Error> {
-        let n = stream.read(&mut self.buf[self.filled_len..]).await?;
+        let n = stream
+            .read(self.buf.get_mut(self.filled_len..).unwrap_or_default())
+            .await?;
         self.filled_len += n;
         Ok(n)
     }

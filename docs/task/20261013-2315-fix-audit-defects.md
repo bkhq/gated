@@ -1,6 +1,6 @@
 # 20261013-2315-fix-audit-defects Fix audit defects and turn CI green
 
-- **status**: in_progress
+- **status**: completed
 - **priority**: P0
 - **owner**: worker/9zjkmujd
 - **createdAt**: 2026-10-13 23:15
@@ -23,3 +23,5 @@ Fixing audit defects
 Plan: [20261013-2315-fix-audit-defects](../plan/20261013-2315-fix-audit-defects.md)
 
 - unclaim: Owner identifier corrected.
+
+- complete: Decoder regression tests, workspace clippy and 216 tests passed locally; Docker image build verification still running.

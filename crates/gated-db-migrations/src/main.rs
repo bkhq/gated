@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use gated_db_migrations::Migrator;
 use sea_orm_migration::prelude::*;
 

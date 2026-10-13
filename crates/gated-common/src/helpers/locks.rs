@@ -5,11 +5,11 @@ mod deadlock_detecting_mutex {
     use std::ops::{Deref, DerefMut};
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    use once_cell::sync::Lazy;
+    use std::sync::LazyLock;
     use tokio::task::Id;
 
-    static LOCK_IDENTITIES: Lazy<std::sync::Mutex<HashMap<Option<Id>, Vec<String>>>> =
-        Lazy::new(|| std::sync::Mutex::new(HashMap::new()));
+    static LOCK_IDENTITIES: LazyLock<std::sync::Mutex<HashMap<Option<Id>, Vec<String>>>> =
+        LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
 
     fn log_state() {
         eprintln!("Tokio task: {:?}", tokio::task::try_id());

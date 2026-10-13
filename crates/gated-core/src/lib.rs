@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 pub mod account_credentials;
 mod auth_state_store;
 pub mod command_acl;

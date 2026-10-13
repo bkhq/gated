@@ -92,7 +92,7 @@ impl SessionChannel {
                         Some(ChannelOperation::RequestX11(request)) => {
                             self.client_channel.request_x11(
                                 true,
-                                request.single_conection,
+                                request.single_connection,
                                 request.x11_auth_protocol,
                                 request.x11_auth_cookie,
                                 request.x11_screen_number,

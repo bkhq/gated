@@ -1,8 +1,8 @@
 # 20261013-2315-adopt-quality-gates Adopt workspace lint policy and quality gates
 
-- **status**: pending
+- **status**: in_progress
 - **priority**: P1
-- **owner**: (unassigned)
+- **owner**: worker/9zjkmujd
 - **createdAt**: 2026-10-13 23:15
 
 ## Description

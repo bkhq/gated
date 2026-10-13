@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-db-migrations"
 publish = false
@@ -25,3 +26,6 @@ async-trait = "0.1"
 postgres = ["sea-orm/sqlx-postgres", "sea-orm-migration/sqlx-postgres"]
 mysql = ["sea-orm/sqlx-mysql", "sea-orm-migration/sqlx-mysql"]
 sqlite = ["sea-orm/sqlx-sqlite", "sea-orm-migration/sqlx-sqlite"]
+
+[lints]
+workspace = true

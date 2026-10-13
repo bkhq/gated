@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 
 use data_encoding::BASE64;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use openidconnect::{AuthType, ClientId, ClientSecret, IssuerUrl};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
 use crate::SsoError;
 
 #[allow(clippy::unwrap_used, reason = "static URL literal is known-valid")]
-pub static GOOGLE_ISSUER_URL: Lazy<IssuerUrl> =
-    Lazy::new(|| IssuerUrl::new("https://accounts.google.com".to_string()).unwrap());
+pub static GOOGLE_ISSUER_URL: LazyLock<IssuerUrl> =
+    LazyLock::new(|| IssuerUrl::new("https://accounts.google.com".to_string()).unwrap());
 
 #[allow(clippy::unwrap_used, reason = "static URL literal is known-valid")]
-pub static APPLE_ISSUER_URL: Lazy<IssuerUrl> =
-    Lazy::new(|| IssuerUrl::new("https://appleid.apple.com".to_string()).unwrap());
+pub static APPLE_ISSUER_URL: LazyLock<IssuerUrl> =
+    LazyLock::new(|| IssuerUrl::new("https://appleid.apple.com".to_string()).unwrap());
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SsoProviderConfig {

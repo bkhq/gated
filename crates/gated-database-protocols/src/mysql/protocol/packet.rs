@@ -29,13 +29,14 @@ where
         // determine the length of the encoded payload
         // and write to our reserved space
         let len = buf.len() - offset - 4;
-        let header = &mut buf[offset..];
 
         // Packets of 16 MiB or more are not supported.
         assert!(len < 0xFF_FF_FF);
 
-        header[..4].copy_from_slice(&(len as u32).to_le_bytes());
-        header[3] = *sequence_id;
+        let [len_0, len_1, len_2, _] = (len as u32).to_le_bytes();
+        if let Some(header) = buf.get_mut(offset..offset + 4) {
+            header.copy_from_slice(&[len_0, len_1, len_2, *sequence_id]);
+        }
 
         *sequence_id = sequence_id.wrapping_add(1);
     }

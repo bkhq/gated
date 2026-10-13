@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-common"
 version = "0.21.1"
@@ -20,7 +21,6 @@ futures.workspace = true
 git-version = { version = "0.3.9", default-features = false }
 governor.workspace = true
 humantime-serde = { version = "1.1", default-features = false }
-once_cell = { version = "1.17", default-features = false }
 password-hash.workspace = true
 poem.workspace = true
 poem-openapi.workspace = true
@@ -53,3 +53,6 @@ gated-tls = { version = "*", path = "../gated-tls", default-features = false }
 # humantime-serde: Referenced by serde with-attributes for duration fields.
 # password-hash: Enables std support for the password-hash API re-exported by Argon2.
 ignored = ["humantime-serde", "password-hash"]
+
+[lints]
+workspace = true

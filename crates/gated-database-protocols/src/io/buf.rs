@@ -58,14 +58,14 @@ impl BufExt for Bytes {
     }
 
     fn get_str(&mut self, len: usize) -> Result<String, Error> {
-        if len > self.len() {
-            return Err(err_protocol!(
+        let bytes = self.get(..len).ok_or_else(|| {
+            err_protocol!(
                 "expected {len} bytes but only {} remain in buffer",
                 self.len()
-            ));
-        }
+            )
+        })?;
 
-        let v = from_utf8(&self[..len])
+        let v = from_utf8(bytes)
             .map_err(|err| err_protocol!("{}", err))
             .map(ToOwned::to_owned)?;
 

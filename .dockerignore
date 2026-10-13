@@ -24,7 +24,6 @@ data
 config.*.yaml
 config.yaml
 
-gated-web/dist
-gated-web/node_modules
-gated-web/src/admin/lib/api-client/
-gated-web/src/gateway/lib/api-client/
+web/dist
+web/node_modules
+.tmp

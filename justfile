@@ -15,7 +15,7 @@ fix *ARGS:
     for p in {{workspace_packages}}; do CARGO_BUILD_TARGET={{cargo_target}} cargo fix --target {{cargo_target}} --all-features -p "$p" {{ARGS}}; done
 
 clippy *ARGS:
-    CARGO_BUILD_TARGET={{cargo_target}} cargo cranky --target {{cargo_target}} --workspace --all-features {{ARGS}}
+    CARGO_BUILD_TARGET={{cargo_target}} cargo clippy --target {{cargo_target}} --workspace --all-features {{ARGS}}
 
 test *ARGS:
     CARGO_BUILD_TARGET={{cargo_target}} cargo test --target {{cargo_target}} --workspace --all-features {{ARGS}}

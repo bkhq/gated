@@ -1,0 +1,14 @@
+[files]
+extend-exclude = [
+    "vendor/",
+    "*.lock",
+    "*.snapshot.json",
+    "web/src/shared/lib/api/",
+    "tests/certs/",
+    "tests/ssh-keys/",
+]
+
+[default.extend-words]
+# CVE Numbering Authority
+CNA = "CNA"
+unparseable = "unparseable"

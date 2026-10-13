@@ -10,8 +10,9 @@ pub struct Row {
 
 impl Row {
     pub(crate) fn get(&self, index: usize) -> Option<&[u8]> {
-        self.values[index]
+        self.values
+            .get(index)?
             .as_ref()
-            .map(|col| &self.storage[col.start..col.end])
+            .and_then(|col| self.storage.get(col.start..col.end))
     }
 }

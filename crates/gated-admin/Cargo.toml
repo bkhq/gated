@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-admin"
 version = "0.21.1"
@@ -48,3 +49,6 @@ gated-protocol-http = { version = "*", path = "../gated-protocol-http" }
 gated-protocol-ssh = { version = "*", path = "../gated-protocol-ssh" }
 gated-sso = { version = "*", path = "../gated-sso" }
 gated-web = { version = "*", path = "../gated-web" }
+
+[lints]
+workspace = true

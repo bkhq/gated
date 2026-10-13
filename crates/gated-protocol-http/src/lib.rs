@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use gated_common::ProtocolName;
 
 pub mod engine;

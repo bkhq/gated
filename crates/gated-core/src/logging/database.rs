@@ -1,5 +1,5 @@
 use gated_db_entities::{LogEntry, ManagementAudit};
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 use sea_orm::query::JsonValue;
 use sea_orm::ActiveModelTrait;
 use tracing::*;
@@ -11,8 +11,8 @@ use super::layer::ValuesLogLayer;
 use super::values::SerializedRecordValues;
 use crate::SharedDatabaseConnection;
 
-static LOG_SENDER: OnceCell<tokio::sync::broadcast::Sender<LogEntry::ActiveModel>> =
-    OnceCell::new();
+static LOG_SENDER: OnceLock<tokio::sync::broadcast::Sender<LogEntry::ActiveModel>> =
+    OnceLock::new();
 
 pub fn make_database_logger_layer<S>() -> impl Layer<S>
 where

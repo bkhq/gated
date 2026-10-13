@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-ca"
 version = "0.21.1"
@@ -18,3 +19,6 @@ const-oid = "0.9"
 uuid.workspace = true
 
 hex = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true

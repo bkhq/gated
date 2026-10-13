@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-db-entities"
 version = "0.21.1"
@@ -17,3 +18,6 @@ serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 gated-common = { version = "*", path = "../gated-common", default-features = false }
+
+[lints]
+workspace = true

@@ -3,7 +3,8 @@ name = "gated-database-protocols"
 version = "0.21.1"
 description = "Core of SQLx, the rust SQL toolkit. Just the database protocol parts."
 license = "MIT OR Apache-2.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 authors = [
     "Ryan Leckey <leckey.ryan@gmail.com>",
     "Austin Bonander <austin.bonander@gmail.com>",
@@ -22,3 +23,6 @@ futures-util = { version = "0.3", default-features = false, features = [
 ] }
 memchr = { version = "2.5", default-features = false }
 thiserror.workspace = true
+
+[lints]
+workspace = true

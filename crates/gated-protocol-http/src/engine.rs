@@ -284,11 +284,10 @@ pub fn collect_forwarded_headers(
     let mut headers = HashMap::new();
 
     for (name, value) in req.headers() {
-        if DONT_FORWARD_HEADERS.contains(name) {
-            if !(flavor == FlavorHook::Kubernetes && name == http::header::ACCEPT_ENCODING) {
+        if DONT_FORWARD_HEADERS.contains(name)
+            && !(flavor == FlavorHook::Kubernetes && name == http::header::ACCEPT_ENCODING) {
                 continue;
             }
-        }
         if name == X_GATED_TARGET || name == X_GATED_TOKEN {
             continue;
         }

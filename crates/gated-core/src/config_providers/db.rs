@@ -534,7 +534,8 @@ impl ConfigProvider for DatabaseConfigProvider {
     }
 }
 
-#[cfg(all(test, feature = "sqlite"))]
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
 mod tests {
     use std::sync::Arc;
 

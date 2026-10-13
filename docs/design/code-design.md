@@ -274,7 +274,7 @@ embeds `web/dist` (the built React app) as `Assets`. Used only by
 ### 2.1 `Services` — the composition root
 
 `Services` (`crates/gated-core/src/services.rs:58-79`) is a cheaply
-clonable bundle of `Arc`-wrapped shared state handed to every protocol
+cloneable bundle of `Arc`-wrapped shared state handed to every protocol
 server:
 
 - `db: SharedDatabaseConnection` — `Arc<RwLock<Option<DatabaseConnection>>>`

@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 mod cert;
 mod error;
 mod maybe_tls_stream;

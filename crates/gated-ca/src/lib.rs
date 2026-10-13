@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use std::time::{Duration, SystemTime};
 
 use aws_lc_rs::error::KeyRejected;

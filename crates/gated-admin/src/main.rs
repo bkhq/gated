@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use poem_openapi::OpenApiService;
 use regex::Regex;
 

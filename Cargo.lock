@@ -2058,7 +2058,6 @@ dependencies = [
  "git-version",
  "governor",
  "humantime-serde",
- "once_cell",
  "password-hash 0.5.0",
  "poem",
  "poem-openapi",
@@ -2111,7 +2110,6 @@ dependencies = [
  "libsqlite3-sys",
  "metrics",
  "metrics-exporter-prometheus",
- "once_cell",
  "packet",
  "password-hash 0.5.0",
  "poem",
@@ -2291,7 +2289,6 @@ dependencies = [
  "data-encoding",
  "futures",
  "jsonwebtoken",
- "once_cell",
  "openidconnect",
  "reqwest 0.12.28",
  "schemars 0.9.0",
@@ -2304,7 +2301,6 @@ dependencies = [
 name = "gated-tls"
 version = "0.21.1"
 dependencies = [
- "once_cell",
  "poem",
  "poem-openapi",
  "rustls",

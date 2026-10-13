@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-protocol-http"
 version = "0.21.1"
@@ -34,3 +35,6 @@ gated-common = { version = "*", path = "../gated-common", default-features = fal
 gated-tls = { version = "*", path = "../gated-tls", default-features = false }
 gated-core = { version = "*", path = "../gated-core", default-features = false }
 gated-db-entities = { version = "*", path = "../gated-db-entities", default-features = false }
+
+[lints]
+workspace = true

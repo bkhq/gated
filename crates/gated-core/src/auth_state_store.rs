@@ -5,13 +5,13 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use gated_common::auth::{AuthResult, AuthState, CredentialKind};
 use gated_common::{GatedError, SessionId};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use tokio::sync::{broadcast, Mutex};
 use uuid::Uuid;
 
 use crate::{ConfigProvider, ConfigProviderEnum};
 
-pub static TIMEOUT: Lazy<Duration> = Lazy::new(|| Duration::from_secs(60 * 10));
+pub static TIMEOUT: LazyLock<Duration> = LazyLock::new(|| Duration::from_secs(60 * 10));
 
 /// How long an `action=review` command-review request stays pending before it
 /// is treated as a reject (audit outcome `review-timeout`). The paused SSH
@@ -19,7 +19,7 @@ pub static TIMEOUT: Lazy<Duration> = Lazy::new(|| Duration::from_secs(60 * 10));
 ///
 /// Bounded and configurable: `GATED_COMMAND_REVIEW_TIMEOUT_SECS` (a positive
 /// integer) overrides the 5-minute default. Read once on first use.
-pub static COMMAND_REVIEW_TIMEOUT: Lazy<Duration> = Lazy::new(|| {
+pub static COMMAND_REVIEW_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
     let secs = std::env::var("GATED_COMMAND_REVIEW_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
@@ -126,70 +126,6 @@ impl CommandReviewStore {
     pub fn vacuum(&mut self) {
         self.pending
             .retain(|_, p| p.created_at.elapsed() < *COMMAND_REVIEW_TIMEOUT);
-    }
-}
-
-#[cfg(test)]
-mod command_review_tests {
-    use super::*;
-
-    fn info(id: Uuid, command: &str) -> CommandReviewInfo {
-        CommandReviewInfo {
-            id,
-            session_id: None,
-            user_id: None,
-            username: Some("alice".into()),
-            target_id: None,
-            target_name: "web".into(),
-            origin: "exec".into(),
-            command: command.into(),
-            acl_rule_id: Some(1),
-            acl_rule_name: Some("review-rule".into()),
-            requested_at: Utc::now(),
-        }
-    }
-
-    #[tokio::test]
-    async fn approve_releases_paused_receiver() {
-        let mut store = CommandReviewStore::new();
-        let id = Uuid::new_v4();
-        let mut rx = store.create(info(id, "hostname"));
-
-        assert_eq!(store.list().len(), 1);
-        assert!(store.complete(&id, CommandReviewDecision::Approved));
-        assert_eq!(rx.recv().await.unwrap(), CommandReviewDecision::Approved);
-        // Entry is gone; a second decision finds nothing.
-        assert!(store.list().is_empty());
-        assert!(!store.complete(&id, CommandReviewDecision::Approved));
-    }
-
-    #[tokio::test]
-    async fn reject_releases_with_rejected() {
-        let mut store = CommandReviewStore::new();
-        let id = Uuid::new_v4();
-        let mut rx = store.create(info(id, "rm -rf /"));
-
-        assert!(store.complete(&id, CommandReviewDecision::Rejected));
-        assert_eq!(rx.recv().await.unwrap(), CommandReviewDecision::Rejected);
-    }
-
-    #[tokio::test]
-    async fn remove_closes_channel_like_a_timeout() {
-        let mut store = CommandReviewStore::new();
-        let id = Uuid::new_v4();
-        let mut rx = store.create(info(id, "hostname"));
-
-        // Dropping the entry without a decision (timeout/vacuum) closes the
-        // sender: the awaiting session observes a RecvError and fails safe.
-        store.remove(&id);
-        assert!(rx.recv().await.is_err());
-        assert!(store.list().is_empty());
-    }
-
-    #[test]
-    fn complete_unknown_id_is_false() {
-        let mut store = CommandReviewStore::new();
-        assert!(!store.complete(&Uuid::new_v4(), CommandReviewDecision::Approved));
     }
 }
 
@@ -340,5 +276,69 @@ impl AuthStateStore {
 
         self.completion_signals
             .retain(|_, signal| !signal.is_expired());
+    }
+}
+
+#[cfg(test)]
+mod command_review_tests {
+    use super::*;
+
+    fn info(id: Uuid, command: &str) -> CommandReviewInfo {
+        CommandReviewInfo {
+            id,
+            session_id: None,
+            user_id: None,
+            username: Some("alice".into()),
+            target_id: None,
+            target_name: "web".into(),
+            origin: "exec".into(),
+            command: command.into(),
+            acl_rule_id: Some(1),
+            acl_rule_name: Some("review-rule".into()),
+            requested_at: Utc::now(),
+        }
+    }
+
+    #[tokio::test]
+    async fn approve_releases_paused_receiver() {
+        let mut store = CommandReviewStore::new();
+        let id = Uuid::new_v4();
+        let mut rx = store.create(info(id, "hostname"));
+
+        assert_eq!(store.list().len(), 1);
+        assert!(store.complete(&id, CommandReviewDecision::Approved));
+        assert_eq!(rx.recv().await.unwrap(), CommandReviewDecision::Approved);
+        // Entry is gone; a second decision finds nothing.
+        assert!(store.list().is_empty());
+        assert!(!store.complete(&id, CommandReviewDecision::Approved));
+    }
+
+    #[tokio::test]
+    async fn reject_releases_with_rejected() {
+        let mut store = CommandReviewStore::new();
+        let id = Uuid::new_v4();
+        let mut rx = store.create(info(id, "rm -rf /"));
+
+        assert!(store.complete(&id, CommandReviewDecision::Rejected));
+        assert_eq!(rx.recv().await.unwrap(), CommandReviewDecision::Rejected);
+    }
+
+    #[tokio::test]
+    async fn remove_closes_channel_like_a_timeout() {
+        let mut store = CommandReviewStore::new();
+        let id = Uuid::new_v4();
+        let mut rx = store.create(info(id, "hostname"));
+
+        // Dropping the entry without a decision (timeout/vacuum) closes the
+        // sender: the awaiting session observes a RecvError and fails safe.
+        store.remove(&id);
+        assert!(rx.recv().await.is_err());
+        assert!(store.list().is_empty());
+    }
+
+    #[test]
+    fn complete_unknown_id_is_false() {
+        let mut store = CommandReviewStore::new();
+        assert!(!store.complete(&Uuid::new_v4(), CommandReviewDecision::Approved));
     }
 }

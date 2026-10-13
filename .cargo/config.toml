@@ -6,11 +6,7 @@ target = "x86_64-unknown-linux-musl"
 
 # https://github.com/rust-lang/cargo/issues/5376#issuecomment-2163350032
 [target.'cfg(all())']
-rustflags = [
-    "--cfg", "tokio_unstable",
-    "--remap-path-prefix=$HOME=/reproducible-home",
-    "--remap-path-prefix=$PWD=/reproducible-pwd",
-]
+rustflags = ["--cfg", "tokio_unstable"]
 
 # Use the musl-aware gcc wrapper for both native and cross musl targets.
 #

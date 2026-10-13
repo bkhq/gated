@@ -1,6 +1,6 @@
 # 20261013-2315-adopt-quality-gates Adopt workspace lint policy and quality gates
 
-- **status**: draft
+- **status**: implementing
 - **createdAt**: 2026-10-13 23:15
 - **approvedAt**: 2026-10-13 23:15
 - **relatedTask**: 20261013-2315-adopt-quality-gates

@@ -461,7 +461,7 @@ impl russh::server::Handler for ServerHandler {
     async fn x11_request(
         &mut self,
         channel: ChannelId,
-        single_conection: bool,
+        single_connection: bool,
         x11_auth_protocol: &str,
         x11_auth_cookie: &str,
         x11_screen_number: u32,
@@ -473,7 +473,7 @@ impl russh::server::Handler for ServerHandler {
         self.send_event(ServerHandlerEvent::X11Request(
             ServerChannelId(channel),
             X11Request {
-                single_conection,
+                single_connection,
                 x11_auth_protocol,
                 x11_auth_cookie,
                 x11_screen_number,

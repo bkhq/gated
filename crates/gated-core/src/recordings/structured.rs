@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::writer::RecordingWriter;
 use super::{Error, Recorder, Result};
 
+#[allow(clippy::enum_variant_names, reason = "variant names mirror the serialized type tags")]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum SqlAuditSessionMetadata {

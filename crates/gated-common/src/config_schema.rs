@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use schemars::schema_for;
 
 #[allow(

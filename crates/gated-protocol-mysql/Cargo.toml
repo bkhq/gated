@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-protocol-mysql"
 version = "0.21.1"
@@ -25,3 +26,6 @@ password-hash.workspace = true
 rustls.workspace = true
 tokio-rustls.workspace = true
 thiserror.workspace = true
+
+[lints]
+workspace = true

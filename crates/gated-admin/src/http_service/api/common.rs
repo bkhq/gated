@@ -46,6 +46,22 @@ pub fn is_ticket_auth(auth: &RequestAuthorization) -> bool {
     )
 }
 
+/// Status message sent to a web terminal client when its session is closed
+/// from the gateway side (admin close, credential revocation, lost
+/// authorization).
+pub(crate) const TERMINAL_CLOSED_MESSAGE: &str = "Session closed by the gateway";
+
+/// Session handle for web terminals. `close()` wakes the terminal bridge,
+/// which then tears down the upstream connection and the WebSocket. A close
+/// requested before the bridge starts is remembered and ends it immediately.
+pub(crate) struct TerminalSessionHandle(pub(crate) std::sync::Arc<tokio::sync::Notify>);
+
+impl gated_core::SessionHandle for TerminalSessionHandle {
+    fn close(&mut self) {
+        self.0.notify_one();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,21 +99,5 @@ mod tests {
         assert!(!is_ticket_auth(&token));
 
         assert!(!is_ticket_auth(&RequestAuthorization::AdminToken));
-    }
-}
-
-/// Status message sent to a web terminal client when its session is closed
-/// from the gateway side (admin close, credential revocation, lost
-/// authorization).
-pub(crate) const TERMINAL_CLOSED_MESSAGE: &str = "Session closed by the gateway";
-
-/// Session handle for web terminals. `close()` wakes the terminal bridge,
-/// which then tears down the upstream connection and the WebSocket. A close
-/// requested before the bridge starts is remembered and ends it immediately.
-pub(crate) struct TerminalSessionHandle(pub(crate) std::sync::Arc<tokio::sync::Notify>);
-
-impl gated_core::SessionHandle for TerminalSessionHandle {
-    fn close(&mut self) {
-        self.0.notify_one();
     }
 }

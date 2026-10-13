@@ -6,6 +6,22 @@ default-members = ["crates/gated"]
 resolver = "2"
 exclude = ["vendor/poem", "vendor/poem-openapi"]
 
+[workspace.package]
+edition = "2021"
+rust-version = "1.95"
+
+[workspace.lints.rust]
+warnings = { level = "deny", priority = -2 }
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+dbg_macro = "deny"
+result_large_err = "allow"
+
 [patch.crates-io]
 # Remove when Poem releases support for quick-xml >= 0.41 (see docs/decisions).
 poem = { path = "vendor/poem" }

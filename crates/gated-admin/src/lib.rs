@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 pub mod api;
 pub mod http_service;
 

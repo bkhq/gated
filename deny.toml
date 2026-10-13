@@ -109,6 +109,8 @@ allow = [
 deny = [
     # SQLCipher needs OpenSSL for storage encryption; network TLS must use rustls.
     { crate = "openssl-sys", wrappers = ["libsqlite3-sys"], reason = "Only the SQLCipher SQLite binding may use OpenSSL" },
+    { crate = "openssl", reason = "Network TLS must use rustls" },
+    { crate = "native-tls", reason = "Network TLS must use rustls" },
     #"ansi_term@0.11.0",
     #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason it is banned" },
     # Wrapper crates can optionally be specified to allow the crate when it
@@ -165,10 +167,10 @@ deny = ["rustls-tls-webpki-roots"]
 [sources]
 # Lint level for what to happen when a crate from a crate registry that is not
 # in the allow list is encountered
-unknown-registry = "warn"
+unknown-registry = "deny"
 # Lint level for what to happen when a crate from a git repository that is not
 # in the allow list is encountered
-unknown-git = "warn"
+unknown-git = "deny"
 # List of URLs for allowed crate registries. Defaults to the crates.io index
 # if not specified. If it is specified but empty, no registries are allowed.
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]

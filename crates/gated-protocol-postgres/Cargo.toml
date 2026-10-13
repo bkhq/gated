@@ -1,5 +1,6 @@
 [package]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-protocol-postgres"
 version = "0.21.1"
@@ -30,3 +31,6 @@ rsasl = { version = "2.1.0", default-features = false, features = [
 futures.workspace = true
 humantime = { version = "2.1", default-features = false }
 socket2 = { version = "0.5", features = ["all"] }
+
+[lints]
+workspace = true

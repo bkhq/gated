@@ -128,6 +128,7 @@ pub struct TargetPostgresOptions {
 /// behaviour (channel.k8s.io WebSocket, watch streaming, exec/attach
 /// recording enrichment).
 #[derive(Debug, Deserialize, Serialize, Clone, Object)]
+#[derive(Default)]
 pub struct TargetHttpOptions {
     /// Upstream base URL (e.g. `https://kubernetes.example.com` for K8s,
     /// or any http(s) origin for generic targets).
@@ -154,17 +155,6 @@ pub struct TargetHttpOptions {
     pub flavor: HttpProxyFlavor,
 }
 
-impl Default for TargetHttpOptions {
-    fn default() -> Self {
-        Self {
-            url: String::new(),
-            tls: Tls::default(),
-            ca_certificate: None,
-            upstream_auth: UpstreamAuth::default(),
-            flavor: HttpProxyFlavor::default(),
-        }
-    }
-}
 
 /// Empty marker for the `none` variant of [`UpstreamAuth`].
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, Default)]
@@ -172,17 +162,11 @@ impl Default for TargetHttpOptions {
 pub struct NoUpstreamAuth {}
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Default)]
 pub struct HeadersUpstreamAuth {
     pub headers: HashMap<String, Secret<String>>,
 }
 
-impl Default for HeadersUpstreamAuth {
-    fn default() -> Self {
-        Self {
-            headers: HashMap::new(),
-        }
-    }
-}
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
 pub struct BearerTokenUpstreamAuth {
