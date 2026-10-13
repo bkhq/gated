@@ -181,6 +181,25 @@ impl Services {
     /// Close every live session whose user is no longer authorized for its
     /// target. A session whose check fails with an error is left open and
     /// logged. Returns the number of sessions closed.
+    /// Closes live sessions and waits, up to `timeout` in total, for them to
+    /// deregister and for their recordings to reach the disk.
+    pub async fn shutdown(&self, timeout: Duration) {
+        let deadline = tokio::time::Instant::now() + timeout;
+
+        let remaining = State::close_all_sessions(&self.state, timeout).await;
+        if remaining > 0 {
+            tracing::warn!(remaining, "Sessions still open at shutdown");
+        }
+
+        let mut writers = self.recordings.lock().await.active_writers();
+        if tokio::time::timeout_at(deadline, writers.wait_for(|count| *count == 0))
+            .await
+            .is_err()
+        {
+            tracing::warn!("Recordings still being written at shutdown");
+        }
+    }
+
     pub async fn revalidate_sessions(&self) -> usize {
         let state = self.state.read().await;
         let mut config_provider = self.config_provider.lock().await;
@@ -447,5 +466,121 @@ mod revalidation_tests {
         assert_eq!(services.revalidate_sessions().await, 1);
         assert!(!alice.load(Ordering::SeqCst));
         assert!(bob.load(Ordering::SeqCst));
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
+mod shutdown_tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use gated_common::Secret;
+    use gated_db_entities::Recording;
+    use sea_orm::EntityTrait;
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::recordings::{TerminalRecorder, TerminalRecordingStreamId};
+    use crate::{GatedServerHandle, SessionHandle, SessionStateInit};
+
+    struct FlagHandle(Arc<AtomicBool>);
+
+    impl SessionHandle for FlagHandle {
+        fn close(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+
+    async fn services_with_recordings() -> Services {
+        let root = std::env::temp_dir().join(format!("gated-shutdown-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).expect("create temp root");
+        let config_path = root.join("config.yaml");
+        std::fs::write(&config_path, "").expect("write config");
+        let mut config = GatedConfig {
+            store: Default::default(),
+        };
+        config.store.database_url = Secret::new("sqlite:data/db".to_owned());
+        config.store.recordings.enable = true;
+        let params = GlobalParams::new(config_path, false).expect("global params");
+        let services = Services::new(config, None, params, None)
+            .await
+            .expect("services");
+        services.open_db_legacy().await.expect("open db");
+        services
+    }
+
+    /// The session stays registered until the returned handle is dropped.
+    async fn register_session(
+        services: &Services,
+    ) -> (Arc<Mutex<GatedServerHandle>>, Arc<AtomicBool>) {
+        let closed = Arc::new(AtomicBool::new(false));
+        let handle = State::register_session(
+            &services.state,
+            &"SSH",
+            SessionStateInit {
+                remote_address: None,
+                handle: Box::new(FlagHandle(closed.clone())),
+            },
+        )
+        .await
+        .expect("register session");
+        (handle, closed)
+    }
+
+    #[tokio::test]
+    async fn shutdown_closes_sessions_and_flushes_recordings() {
+        let services = services_with_recordings().await;
+        let (handle, closed) = register_session(&services).await;
+        let id = handle.lock().await.id();
+
+        let mut recorder: TerminalRecorder = services
+            .recordings
+            .lock()
+            .await
+            .start(&id, Some("shell".to_owned()), ())
+            .await
+            .expect("start recording");
+        recorder
+            .write(TerminalRecordingStreamId::Output, b"hello")
+            .await
+            .expect("write recording");
+        let path = services.recordings.lock().await.path_for(&id, "shell");
+
+        // The session ends once it has been asked to close.
+        tokio::spawn({
+            let closed = closed.clone();
+            async move {
+                while !closed.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                drop(recorder);
+                drop(handle);
+            }
+        });
+
+        services.shutdown(Duration::from_secs(10)).await;
+
+        assert!(closed.load(Ordering::SeqCst));
+        assert!(services.state.read().await.sessions.is_empty());
+        let content = tokio::fs::read(&path).await.expect("read recording");
+        assert!(!content.is_empty());
+        let db = services.db_required().await.expect("db");
+        let recording = Recording::Entity::find()
+            .one(&db)
+            .await
+            .expect("query recording")
+            .expect("recording row");
+        assert!(recording.ended.is_some());
+    }
+
+    #[tokio::test]
+    async fn shutdown_gives_up_after_timeout() {
+        let services = services_with_recordings().await;
+        let (_handle, closed) = register_session(&services).await;
+
+        services.shutdown(Duration::from_millis(50)).await;
+
+        assert!(closed.load(Ordering::SeqCst));
+        assert_eq!(services.state.read().await.sessions.len(), 1);
     }
 }

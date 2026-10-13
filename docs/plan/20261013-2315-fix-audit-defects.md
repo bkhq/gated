@@ -1,6 +1,6 @@
 # 20261013-2315-fix-audit-defects Fix audit defects and turn CI green
 
-- **status**: implementing
+- **status**: completed
 - **createdAt**: 2026-10-13 23:15
 - **approvedAt**: 2026-10-13 23:15
 - **relatedTask**: 20261013-2315-fix-audit-defects

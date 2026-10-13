@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use gated_common::auth::AuthStateUserInfo;
@@ -95,6 +96,27 @@ impl State {
 
     pub fn subscribe(&mut self) -> broadcast::Receiver<()> {
         self.change_sender.subscribe()
+    }
+
+    /// Asks every session to close and waits up to `timeout` for them to
+    /// deregister. Returns the number of sessions still registered.
+    pub async fn close_all_sessions(this: &Arc<RwLock<Self>>, timeout: Duration) -> usize {
+        let mut changes = this.write().await.subscribe();
+        let sessions: Vec<_> = this.read().await.sessions.values().cloned().collect();
+        for session in sessions {
+            session.lock().await.handle.close();
+        }
+
+        let _ = tokio::time::timeout(timeout, async {
+            while !this.read().await.sessions.is_empty() {
+                if let Err(broadcast::error::RecvError::Closed) = changes.recv().await {
+                    break;
+                }
+            }
+        })
+        .await;
+
+        this.read().await.sessions.len()
     }
 
     pub async fn remove_session(&mut self, id: SessionId) {

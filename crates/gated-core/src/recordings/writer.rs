@@ -10,7 +10,7 @@ use gated_db_entities::Recording;
 use sea_orm::{ActiveModelTrait, EntityTrait};
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use tokio::sync::{broadcast, mpsc, Mutex};
+use tokio::sync::{broadcast, mpsc, watch, Mutex};
 use tracing::*;
 use uuid::Uuid;
 
@@ -31,6 +31,7 @@ impl RecordingWriter {
         model: Recording::Model,
         db: SharedDatabaseConnection,
         live: Arc<Mutex<HashMap<Uuid, broadcast::Sender<Bytes>>>>,
+        active_writers: watch::Sender<usize>,
         params: &GlobalParams,
     ) -> Result<Self> {
         let file = File::options()
@@ -61,6 +62,7 @@ impl RecordingWriter {
             }
         });
 
+        active_writers.send_modify(|count| *count += 1);
         tokio::spawn(async move {
             try_block!(async {
                 let mut last_flush = Instant::now();
@@ -101,6 +103,8 @@ impl RecordingWriter {
             } catch (error: anyhow::Error) {
                 error!(%error, ?path, "Failed to write recording");
             });
+
+            active_writers.send_modify(|count| *count -= 1);
         });
 
         Ok(RecordingWriter {

@@ -1,8 +1,8 @@
 # 20261013-2315-harden-runtime-edition-2024 Harden runtime and migrate to edition 2024
 
-- **status**: pending
+- **status**: in_progress
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: worker/9zjkmujd
 - **createdAt**: 2026-10-13 23:15
 
 ## Description

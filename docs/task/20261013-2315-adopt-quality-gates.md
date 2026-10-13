@@ -1,6 +1,6 @@
 # 20261013-2315-adopt-quality-gates Adopt workspace lint policy and quality gates
 
-- **status**: in_progress
+- **status**: completed
 - **priority**: P1
 - **owner**: worker/9zjkmujd
 - **createdAt**: 2026-10-13 23:15
@@ -21,3 +21,5 @@ Adopting quality gates
 ## Notes
 
 Plan: [20261013-2315-adopt-quality-gates](../plan/20261013-2315-adopt-quality-gates.md)
+
+- complete: fmt, clippy (all targets), typos, nextest (216 passed), doctests and machete pass locally; cargo-deny advisories pending decision event z0ytlcaj.

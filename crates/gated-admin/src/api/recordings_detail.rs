@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
 use gated_core::recordings::{AsciiCast, SessionRecordings, TerminalRecordingItem};
 use gated_core::SharedDatabaseConnection;
@@ -10,7 +9,7 @@ use gated_protocol_http::recording::{HttpProxyRecordingItem, HttpProxyRecordingI
 use poem::error::{InternalServerError, NotFoundError};
 use poem::web::websocket::{Message, WebSocket};
 use poem::web::Data;
-use poem::{handler, IntoResponse};
+use poem::{handler, Body, IntoResponse};
 use poem_openapi::param::Path;
 use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, OpenApi};
@@ -171,7 +170,7 @@ pub async fn api_get_recording_tcpdump(
     db: Data<&SharedDatabaseConnection>,
     recordings: Data<&Arc<Mutex<SessionRecordings>>>,
     id: poem::web::Path<Uuid>,
-) -> poem::Result<Bytes> {
+) -> poem::Result<Body> {
     let db = gated_core::db_required(&db).await?;
 
     let recording = Recording::Entity::find_by_id(id.0)
@@ -191,9 +190,9 @@ pub async fn api_get_recording_tcpdump(
             .path_for(&recording.session_id, &recording.name)
     };
 
-    let content = std::fs::read(path).map_err(InternalServerError)?;
+    let file = File::open(path).await.map_err(InternalServerError)?;
 
-    Ok(Bytes::from(content))
+    Ok(Body::from_async_read(file))
 }
 
 #[handler]

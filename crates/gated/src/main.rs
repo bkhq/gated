@@ -248,9 +248,14 @@ async fn _main() -> Result<()> {
 
 #[tokio::main]
 async fn main() {
-    // On panic: print error and exit cleanly (no core dump)
+    // A core dump would write secrets held in memory to disk.
+    let _ = rlimit::setrlimit(rlimit::Resource::CORE, 0, 0);
+
+    // On panic: report the error and exit cleanly (no core dump)
     std::panic::set_hook(Box::new(|info| {
+        let backtrace = std::backtrace::Backtrace::capture();
         eprintln!("fatal: {info}");
+        error!(panic = %info, %backtrace, "Fatal panic");
         std::process::exit(1);
     }));
 

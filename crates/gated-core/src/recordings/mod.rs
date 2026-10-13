@@ -9,7 +9,7 @@ use gated_common::{GatedConfig, GlobalParams, RecordingsConfig, SessionId};
 use gated_db_entities::Recording::{self, RecordingKind};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
 use serde::Serialize;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{broadcast, watch, Mutex};
 use tracing::*;
 use uuid::Uuid;
 
@@ -59,6 +59,7 @@ pub struct SessionRecordings {
     path: PathBuf,
     config: RecordingsConfig,
     live: Arc<Mutex<HashMap<Uuid, broadcast::Sender<Bytes>>>>,
+    active_writers: watch::Sender<usize>,
     params: GlobalParams,
 }
 
@@ -81,6 +82,7 @@ impl SessionRecordings {
             config: config.store.recordings.clone(),
             path,
             live: Arc::new(Mutex::new(HashMap::new())),
+            active_writers: watch::channel(0).0,
             params: params.clone(),
         })
     }
@@ -140,10 +142,16 @@ impl SessionRecordings {
             model,
             self.db.clone(),
             self.live.clone(),
+            self.active_writers.clone(),
             &self.params,
         )
         .await?;
         Ok(T::new(writer))
+    }
+
+    /// Number of recordings whose data is still being written to disk.
+    pub fn active_writers(&self) -> watch::Receiver<usize> {
+        self.active_writers.subscribe()
     }
 
     pub async fn subscribe_live(&self, id: &Uuid) -> Option<broadcast::Receiver<Bytes>> {

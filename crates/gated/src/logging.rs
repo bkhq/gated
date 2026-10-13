@@ -41,8 +41,6 @@ impl LoggingGuards {
 pub async fn init_logging(config: Option<&GatedConfig>, cli: &Cli) -> Result<LoggingGuards> {
     let log_cfg = config.map(|c| &c.store.log);
 
-    apply_default_rust_log(cli, log_cfg);
-
     LogTracer::init().context("Failed to initialize log compatibility layer")?;
 
     let offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
@@ -53,7 +51,11 @@ pub async fn init_logging(config: Option<&GatedConfig>, cli: &Cli) -> Result<Log
         .or(log_cfg.map(|c| c.format))
         .unwrap_or_default();
 
-    let default_filter: Arc<EnvFilter> = Arc::new(EnvFilter::from_default_env());
+    let default_filter: Arc<EnvFilter> = Arc::new(EnvFilter::new(default_log_directive(
+        std::env::var("RUST_LOG").ok(),
+        cli.debug,
+        log_cfg,
+    )));
 
     let socket_layer = match config {
         Some(config) => Some(make_socket_logger_layer(config).await),
@@ -110,31 +112,29 @@ pub async fn init_logging(config: Option<&GatedConfig>, cli: &Cli) -> Result<Log
 // Filter helpers
 // ---------------------------------------------------------------------------
 
-/// Seed `RUST_LOG` from the first source that has a value:
-/// CLI `--debug` > `RUST_LOG` env > `config.log.level` > hardcoded default.
-fn apply_default_rust_log(cli: &Cli, log_cfg: Option<&LogConfig>) {
-    if std::env::var("RUST_LOG").is_ok() {
-        return;
+/// Default filter directive from the first source that has a value:
+/// `RUST_LOG` env > CLI `--debug` > `config.log.level` > hardcoded default.
+fn default_log_directive(
+    rust_log: Option<String>,
+    debug: u8,
+    log_cfg: Option<&LogConfig>,
+) -> String {
+    if let Some(directive) = rust_log {
+        return directive;
     }
 
-    if cli.debug > 0 {
-        let directive = match cli.debug {
-            1 => "gated=debug",
-            2 => "gated=debug,russh=debug",
-            _ => "debug",
-        };
-        std::env::set_var("RUST_LOG", directive);
-        return;
+    match debug {
+        0 => {}
+        1 => return "gated=debug".to_owned(),
+        2 => return "gated=debug,russh=debug".to_owned(),
+        _ => return "debug".to_owned(),
     }
 
-    if let Some(level) = log_cfg.and_then(|c| c.level.as_deref()) {
-        if !level.is_empty() {
-            std::env::set_var("RUST_LOG", level);
-            return;
-        }
-    }
-
-    std::env::set_var("RUST_LOG", "gated=info");
+    log_cfg
+        .and_then(|c| c.level.as_deref())
+        .filter(|level| !level.is_empty())
+        .unwrap_or("gated=info")
+        .to_owned()
 }
 
 fn resolve_sink_filter(
@@ -421,4 +421,42 @@ where
             .with_tracer(tracer)
             .with_filter(dynamic_filter_fn(move |m, c| filter.enabled(m, c.clone()))),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_with_level(level: &str) -> LogConfig {
+        LogConfig {
+            level: Some(level.to_owned()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn default_log_directive_prefers_env_then_debug_then_config() {
+        let config = config_with_level("warn");
+
+        assert_eq!(
+            default_log_directive(Some("trace".to_owned()), 2, Some(&config)),
+            "trace"
+        );
+        assert_eq!(default_log_directive(None, 1, Some(&config)), "gated=debug");
+        assert_eq!(
+            default_log_directive(None, 2, Some(&config)),
+            "gated=debug,russh=debug"
+        );
+        assert_eq!(default_log_directive(None, 3, Some(&config)), "debug");
+        assert_eq!(default_log_directive(None, 0, Some(&config)), "warn");
+    }
+
+    #[test]
+    fn default_log_directive_falls_back_to_info() {
+        assert_eq!(default_log_directive(None, 0, None), "gated=info");
+        assert_eq!(
+            default_log_directive(None, 0, Some(&config_with_level(""))),
+            "gated=info"
+        );
+    }
 }

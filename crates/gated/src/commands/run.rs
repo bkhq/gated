@@ -26,6 +26,9 @@ use tracing::*;
 
 use crate::config::{load_config, watch_config};
 
+/// Upper bound for closing sessions and flushing recordings on exit.
+const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
 async fn run_protocol_server<T: ProtocolServer + Send + 'static>(
     server: T,
     address: ListenEndpoint,
@@ -411,32 +414,34 @@ pub(crate) async fn command(
 
     let mut sigint = tokio::signal::unix::signal(SignalKind::interrupt())?;
 
-    loop {
+    let result = loop {
         tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
-                std::process::exit(1);
-            }
             _ = sigint.recv() => {
-                break
+                break Ok(())
             }
             _ = sigterm.recv() => {
-                break
+                break Ok(())
             }
             result = protocol_futures.next() => {
                 match result {
                     Some(Err(error)) => {
                         error!(?error, "Server error");
-                        std::process::exit(1);
+                        break Err(error);
                     },
-                    None => break,
+                    None => break Ok(()),
                     _ => (),
                 }
             }
         }
-    }
+    };
 
     info!("Exiting");
-    Ok(())
+    // Keep the servers polled so that closing sessions can make progress.
+    tokio::select! {
+        () = services.shutdown(SHUTDOWN_TIMEOUT) => {}
+        () = async { while protocol_futures.next().await.is_some() {} } => {}
+    }
+    result
 }
 
 /// Re-authorize live sessions after a config-file reload or an
