@@ -1,6 +1,6 @@
 # 20261013-2315-harden-runtime-edition-2024 Harden runtime and migrate to edition 2024
 
-- **status**: implementing
+- **status**: completed
 - **createdAt**: 2026-10-13 23:15
 - **approvedAt**: 2026-10-13 23:15
 - **relatedTask**: 20261013-2315-harden-runtime-edition-2024

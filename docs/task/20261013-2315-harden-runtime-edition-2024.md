@@ -1,6 +1,6 @@
 # 20261013-2315-harden-runtime-edition-2024 Harden runtime and migrate to edition 2024
 
-- **status**: in_progress
+- **status**: completed
 - **priority**: P2
 - **owner**: worker/9zjkmujd
 - **createdAt**: 2026-10-13 23:15
@@ -21,3 +21,5 @@ Hardening runtime
 ## Notes
 
 Plan: [20261013-2315-harden-runtime-edition-2024](../plan/20261013-2315-harden-runtime-edition-2024.md)
+
+- complete: All Rust gates, 220 tests, a locked release build and the frontend checks pass locally on edition 2024; integration tests run only in CI.
