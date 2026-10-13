@@ -9,3 +9,6 @@ pub mod text;
 pub use capabilities::Capabilities;
 pub use packet::Packet;
 pub use row::Row;
+
+#[cfg(test)]
+mod truncation_tests;

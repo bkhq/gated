@@ -18,6 +18,9 @@ pub trait BufExt: Buf {
 
     // Read a string of the exact length
     fn get_str(&mut self, len: usize) -> Result<String, Error>;
+
+    // Skip a byte sequence of the exact length
+    fn skip(&mut self, len: usize) -> Result<(), Error>;
 }
 
 impl BufExt for Bytes {
@@ -69,6 +72,19 @@ impl BufExt for Bytes {
         self.advance(len);
 
         Ok(v)
+    }
+
+    fn skip(&mut self, len: usize) -> Result<(), Error> {
+        if len > self.len() {
+            return Err(err_protocol!(
+                "expected {len} bytes but only {} remain in buffer",
+                self.len()
+            ));
+        }
+
+        self.advance(len);
+
+        Ok(())
     }
 }
 

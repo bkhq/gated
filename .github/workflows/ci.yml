@@ -196,6 +196,7 @@ jobs:
       - name: Build frontend
         run: |
           just bun install --frozen-lockfile
+          mkdir -p web/dist
           just openapi
           just bun run build
 

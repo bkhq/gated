@@ -877,11 +877,11 @@ fn credentials_public(credentials: &AccountCredentials) -> Value {
             .iter()
             .map(|h| {
                 let sensitive = h.sensitive.unwrap_or(false);
-                let mut out = json!({ "name": h.name, "sensitive": sensitive });
-                if !sensitive {
-                    out["value"] = Value::String(h.value.clone());
+                if sensitive {
+                    json!({ "name": h.name, "sensitive": sensitive })
+                } else {
+                    json!({ "name": h.name, "sensitive": sensitive, "value": h.value })
                 }
-                out
             })
             .collect();
         return json!({ "kind": credentials.kind(), "headers": headers });

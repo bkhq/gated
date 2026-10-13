@@ -169,6 +169,12 @@ impl dyn DatabaseError {
     }
 }
 
+impl From<bytes::TryGetError> for Error {
+    fn from(error: bytes::TryGetError) -> Self {
+        Error::Protocol(error.to_string())
+    }
+}
+
 impl<E> From<E> for Error
 where
     E: DatabaseError,

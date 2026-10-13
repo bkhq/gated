@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.3-labs
 # hadolint global ignore=DL3008
-FROM rust:1.93.1-bookworm@sha256:7c4ae649a84014c467d79319bbf17ce2632ae8b8be123ac2fb2ea5be46823f31 AS build
+FROM rust:1.95.0-bookworm@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -37,10 +37,14 @@ ENV SOURCE_DATE_EPOCH=0
 
 WORKDIR /opt/gated
 
-RUN just bun install --frozen-lockfile \
+# .cargo/config.toml defaults to a musl target; build for the image's glibc.
+RUN export CARGO_BUILD_TARGET="$(uname -m)-unknown-linux-gnu" \
+    && just bun install --frozen-lockfile \
+    && mkdir -p web/dist \
     && just openapi \
     && just bun run build \
-    && cargo build --features mysql,postgres --release
+    && cargo build --locked --features mysql,postgres --release \
+    && cp "target/${CARGO_BUILD_TARGET}/release/gated" /opt/gated/gated
 
 FROM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
 LABEL maintainer=bkhq
@@ -58,7 +62,7 @@ EOF
 
 RUN adduser gated --disabled-password --gecos "" --uid ${USER_ID} --home /data --shell /usr/sbin/nologin
 
-COPY --from=build /opt/gated/target/release/gated /usr/local/bin/gated
+COPY --from=build /opt/gated/gated /usr/local/bin/gated
 
 VOLUME /data
 
