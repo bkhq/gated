@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 
 use data_encoding::BASE64;
-use std::sync::LazyLock;
 use openidconnect::{AuthType, ClientId, ClientSecret, IssuerUrl};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 
 use crate::SsoError;
 

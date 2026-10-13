@@ -35,9 +35,7 @@ fn to_rule_view(model: &CommandAclRule::Model) -> CommandAclRuleView {
 
 /// Load every enabled ACL rule, ordered the same way the matcher expects
 /// (ascending `priority`, then `id`). Disabled rules are filtered out at the DB.
-pub async fn load_enabled_rules(
-    db: &DatabaseConnection,
-) -> Result<Vec<CommandAclRuleView>, DbErr> {
+pub async fn load_enabled_rules(db: &DatabaseConnection) -> Result<Vec<CommandAclRuleView>, DbErr> {
     let rows = CommandAclRule::Entity::find()
         .filter(CommandAclRule::Column::Enabled.eq(true))
         .order_by_asc(CommandAclRule::Column::Priority)
@@ -90,11 +88,7 @@ impl DbCommandAclEnforcer {
     /// Evaluate one command for `protocol` ("mysql" | "postgres") against the
     /// current enabled ruleset within this session's scope. An empty ruleset
     /// (or no match) yields [`AclAction::Allow`](crate::command_acl::AclAction).
-    pub async fn evaluate(
-        &self,
-        protocol: &str,
-        command: &str,
-    ) -> Result<AclDecision, DbErr> {
+    pub async fn evaluate(&self, protocol: &str, command: &str) -> Result<AclDecision, DbErr> {
         let rules = load_enabled_rules(&self.db).await?;
         let ctx = AclContext {
             protocol,

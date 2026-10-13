@@ -10,8 +10,8 @@ use dialoguer::theme::ColorfulTheme;
 use gated_common::helpers::fs::{secure_directory, secure_file};
 use gated_common::version::gated_version;
 use gated_common::{
-    GatedConfigStore, GlobalParams, HttpConfig, ListenEndpoint, MySqlConfig, ProxyConfig,
-    PostgresConfig, Secret, SshConfig,
+    GatedConfigStore, GlobalParams, HttpConfig, ListenEndpoint, MySqlConfig, PostgresConfig,
+    ProxyConfig, Secret, SshConfig,
 };
 use gated_core::consts::BUILTIN_ADMIN_ROLE_NAME;
 use rcgen::generate_simple_self_signed;

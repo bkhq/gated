@@ -61,7 +61,10 @@ impl MigrationTrait for Migration {
 }
 
 #[cfg(all(test, feature = "sqlite"))]
-#[allow(clippy::unwrap_used, reason = "Test fixtures fail immediately on invalid setup")]
+#[allow(
+    clippy::unwrap_used,
+    reason = "Test fixtures fail immediately on invalid setup"
+)]
 mod tests {
     use super::*;
     use sea_orm::{ConnectionTrait, Database, DatabaseConnection};

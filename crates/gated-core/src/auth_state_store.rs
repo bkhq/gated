@@ -83,7 +83,10 @@ impl CommandReviewStore {
     /// awaits. `info.id` identifies the request for the admin list/decision
     /// endpoints. A bounded-capacity channel is fine: exactly one decision is
     /// ever sent per request.
-    pub fn create(&mut self, info: CommandReviewInfo) -> broadcast::Receiver<CommandReviewDecision> {
+    pub fn create(
+        &mut self,
+        info: CommandReviewInfo,
+    ) -> broadcast::Receiver<CommandReviewDecision> {
         let (sender, receiver) = broadcast::channel(1);
         self.pending.insert(
             info.id,

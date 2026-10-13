@@ -445,15 +445,18 @@ mod tests {
     #[test]
     fn rejects_into_outfile_dumpfile() {
         // Read-only console must reject file-write exfiltration.
-        rejected("SELECT * FROM t INTO OUTFILE '/tmp/x'", |v| {
-            matches!(v, ReadonlyViolation::WriteKeyword(k) if k == "OUTFILE")
-        });
-        rejected("SELECT * INTO OUTFILE '/tmp/x' FROM t", |v| {
-            matches!(v, ReadonlyViolation::WriteKeyword(k) if k == "OUTFILE")
-        });
-        rejected("SELECT * FROM t INTO DUMPFILE '/tmp/x'", |v| {
-            matches!(v, ReadonlyViolation::WriteKeyword(k) if k == "DUMPFILE")
-        });
+        rejected(
+            "SELECT * FROM t INTO OUTFILE '/tmp/x'",
+            |v| matches!(v, ReadonlyViolation::WriteKeyword(k) if k == "OUTFILE"),
+        );
+        rejected(
+            "SELECT * INTO OUTFILE '/tmp/x' FROM t",
+            |v| matches!(v, ReadonlyViolation::WriteKeyword(k) if k == "OUTFILE"),
+        );
+        rejected(
+            "SELECT * FROM t INTO DUMPFILE '/tmp/x'",
+            |v| matches!(v, ReadonlyViolation::WriteKeyword(k) if k == "DUMPFILE"),
+        );
         // Column names containing the substring must not be false positives.
         ok("SELECT into_x FROM t");
         ok("SELECT outfile_path FROM t");

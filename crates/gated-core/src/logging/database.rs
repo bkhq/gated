@@ -1,7 +1,7 @@
 use gated_db_entities::{LogEntry, ManagementAudit};
-use std::sync::OnceLock;
 use sea_orm::query::JsonValue;
 use sea_orm::ActiveModelTrait;
+use std::sync::OnceLock;
 use tracing::*;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::Layer;

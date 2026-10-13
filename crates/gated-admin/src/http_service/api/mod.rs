@@ -7,10 +7,10 @@ mod credentials;
 pub(crate) mod db_query;
 pub mod encryption;
 pub mod info;
+mod sessions;
 pub mod sso_provider_detail;
 pub mod sso_provider_list;
 pub mod targets_list;
-mod sessions;
 mod tickets;
 // Not part of OpenAPI — WebSocket upgrade is not representable in poem-openapi.
 // These endpoints are mounted with raw `#[handler]` in `lib.rs`:

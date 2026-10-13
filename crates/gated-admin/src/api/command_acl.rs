@@ -197,10 +197,12 @@ impl DetailApi {
     ) -> Result<GetResponse, GatedError> {
         let db = gated_core::db_required(&db).await?;
 
-        Ok(match CommandAclRule::Entity::find_by_id(id.0).one(&db).await? {
-            Some(model) => GetResponse::Ok(Json(model)),
-            None => GetResponse::NotFound,
-        })
+        Ok(
+            match CommandAclRule::Entity::find_by_id(id.0).one(&db).await? {
+                Some(model) => GetResponse::Ok(Json(model)),
+                None => GetResponse::NotFound,
+            },
+        )
     }
 
     #[oai(

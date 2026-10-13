@@ -9,7 +9,9 @@ use poem_openapi::payload::Json;
 use poem_openapi::{ApiResponse, Object, OpenApi};
 use serde::Serialize;
 
-use crate::http_service::common::{is_user_admin, RequestAuthorization, SessionAuthorization, SessionExt};
+use crate::http_service::common::{
+    is_user_admin, RequestAuthorization, SessionAuthorization, SessionExt,
+};
 
 pub struct Api;
 

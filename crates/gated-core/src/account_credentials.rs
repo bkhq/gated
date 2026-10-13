@@ -148,16 +148,14 @@ pub async fn http_options_with_account(
                     .into_iter()
                     .map(|header| (header.name, Secret::new(header.value)))
                     .collect();
-                options.upstream_auth =
-                    UpstreamAuth::Headers(HeadersUpstreamAuth { headers });
+                options.upstream_auth = UpstreamAuth::Headers(HeadersUpstreamAuth { headers });
                 Ok((options, Some(account_id)))
             }
             AccountCredentials::K8sToken(credentials) => {
                 options.ca_certificate = credentials.ca_pem.map(Secret::new);
-                options.upstream_auth =
-                    UpstreamAuth::BearerToken(BearerTokenUpstreamAuth {
-                        token: Secret::new(credentials.token),
-                    });
+                options.upstream_auth = UpstreamAuth::BearerToken(BearerTokenUpstreamAuth {
+                    token: Secret::new(credentials.token),
+                });
                 Ok((options, Some(account_id)))
             }
             AccountCredentials::K8sClientCert(credentials) => {

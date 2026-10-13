@@ -13,7 +13,11 @@ pub struct RevealConfirmation {
 
 impl RevealConfirmation {
     pub fn credential(&self) -> Option<AuthCredential> {
-        if self.reason.as_ref().is_some_and(|reason| reason.len() > 500) {
+        if self
+            .reason
+            .as_ref()
+            .is_some_and(|reason| reason.len() > 500)
+        {
             return None;
         }
         match (&self.password, &self.otp) {

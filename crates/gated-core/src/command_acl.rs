@@ -230,7 +230,10 @@ mod tests {
     #[test]
     fn review_match() {
         let rules = vec![rule(1, "review", "keyword", "sudo")];
-        assert_eq!(evaluate(&rules, &ctx("sudo reboot")).action, AclAction::Review);
+        assert_eq!(
+            evaluate(&rules, &ctx("sudo reboot")).action,
+            AclAction::Review
+        );
     }
 
     #[test]
@@ -270,7 +273,10 @@ mod tests {
         let mut ssh_only = rule(1, "deny", "keyword", "drop");
         ssh_only.protocol = "mysql".into();
         // ctx protocol is "ssh" -> mysql-scoped rule does not apply.
-        assert_eq!(evaluate(&[ssh_only.clone()], &ctx("drop x")).action, AclAction::Allow);
+        assert_eq!(
+            evaluate(&[ssh_only.clone()], &ctx("drop x")).action,
+            AclAction::Allow
+        );
 
         // "any" always applies.
         let anyp = rule(2, "deny", "keyword", "drop");
@@ -293,7 +299,10 @@ mod tests {
         scoped.target_id = Some(target);
 
         // No target in context -> scoped rule does not apply.
-        assert_eq!(evaluate(&[scoped.clone()], &ctx("drop x")).action, AclAction::Allow);
+        assert_eq!(
+            evaluate(&[scoped.clone()], &ctx("drop x")).action,
+            AclAction::Allow
+        );
 
         // Different target -> does not apply.
         let other = AclContext {
@@ -321,7 +330,10 @@ mod tests {
         scoped.role_id = Some(role);
 
         // User lacks the role -> rule does not apply.
-        assert_eq!(evaluate(&[scoped.clone()], &ctx("drop x")).action, AclAction::Allow);
+        assert_eq!(
+            evaluate(&[scoped.clone()], &ctx("drop x")).action,
+            AclAction::Allow
+        );
 
         // User has the role -> applies.
         let held = [Uuid::from_u128(1), role, Uuid::from_u128(9)];
@@ -337,28 +349,43 @@ mod tests {
     #[test]
     fn keyword_is_case_insensitive() {
         let rules = vec![rule(1, "deny", "keyword", "ShUtDoWn")];
-        assert_eq!(evaluate(&rules, &ctx("SHUTDOWN now")).action, AclAction::Deny);
+        assert_eq!(
+            evaluate(&rules, &ctx("SHUTDOWN now")).action,
+            AclAction::Deny
+        );
     }
 
     #[test]
     fn keyword_matches_whole_token_only() {
         // "drop" must not match inside "eavesdrop".
         let rules = vec![rule(1, "deny", "keyword", "drop")];
-        assert_eq!(evaluate(&rules, &ctx("eavesdropping tool")).action, AclAction::Allow);
+        assert_eq!(
+            evaluate(&rules, &ctx("eavesdropping tool")).action,
+            AclAction::Allow
+        );
     }
 
     #[test]
     fn keyword_multiword_uses_substring() {
         let rules = vec![rule(1, "deny", "keyword", "rm -rf")];
-        assert_eq!(evaluate(&rules, &ctx("sudo rm -rf /")).action, AclAction::Deny);
+        assert_eq!(
+            evaluate(&rules, &ctx("sudo rm -rf /")).action,
+            AclAction::Deny
+        );
         assert_eq!(evaluate(&rules, &ctx("rm file")).action, AclAction::Allow);
     }
 
     #[test]
     fn regex_match() {
         let rules = vec![rule(1, "review", "regex", r"^\s*shutdown\b")];
-        assert_eq!(evaluate(&rules, &ctx("shutdown -h now")).action, AclAction::Review);
-        assert_eq!(evaluate(&rules, &ctx("please shutdown")).action, AclAction::Allow);
+        assert_eq!(
+            evaluate(&rules, &ctx("shutdown -h now")).action,
+            AclAction::Review
+        );
+        assert_eq!(
+            evaluate(&rules, &ctx("please shutdown")).action,
+            AclAction::Allow
+        );
     }
 
     #[test]
@@ -373,7 +400,10 @@ mod tests {
     fn disabled_rules_are_ignored() {
         let mut disabled = rule(1, "deny", "keyword", "drop");
         disabled.enabled = false;
-        assert_eq!(evaluate(&[disabled], &ctx("drop table")).action, AclAction::Allow);
+        assert_eq!(
+            evaluate(&[disabled], &ctx("drop table")).action,
+            AclAction::Allow
+        );
     }
 
     #[test]

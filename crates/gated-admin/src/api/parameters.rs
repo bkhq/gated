@@ -151,8 +151,7 @@ impl Api {
             Set(body.sql_console_rate_limit_per_user.map(|x| x as i64));
         parameters.sql_console_rate_limit_per_target =
             Set(body.sql_console_rate_limit_per_target.map(|x| x as i64));
-        parameters.terminal_watermark_enabled =
-            body.terminal_watermark_enabled.map_or(NotSet, Set);
+        parameters.terminal_watermark_enabled = body.terminal_watermark_enabled.map_or(NotSet, Set);
 
         Parameters::Entity::update(parameters).exec(&db).await?;
         drop(db);

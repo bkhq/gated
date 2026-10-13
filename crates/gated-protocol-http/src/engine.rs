@@ -117,11 +117,9 @@ pub trait HttpProxyRecorder {
 /// always strips anyway; `ClientCertificate` and `None` inject nothing.
 pub fn injected_header_names(upstream_auth: &UpstreamAuth) -> Vec<String> {
     match upstream_auth {
-        UpstreamAuth::Headers(headers) => headers
-            .headers
-            .keys()
-            .map(|n| n.to_lowercase())
-            .collect(),
+        UpstreamAuth::Headers(headers) => {
+            headers.headers.keys().map(|n| n.to_lowercase()).collect()
+        }
         UpstreamAuth::BearerToken(_)
         | UpstreamAuth::ClientCertificate(_)
         | UpstreamAuth::None(_) => Vec::new(),
@@ -285,9 +283,10 @@ pub fn collect_forwarded_headers(
 
     for (name, value) in req.headers() {
         if DONT_FORWARD_HEADERS.contains(name)
-            && !(flavor == FlavorHook::Kubernetes && name == http::header::ACCEPT_ENCODING) {
-                continue;
-            }
+            && !(flavor == FlavorHook::Kubernetes && name == http::header::ACCEPT_ENCODING)
+        {
+            continue;
+        }
         if name == X_GATED_TARGET || name == X_GATED_TOKEN {
             continue;
         }
@@ -312,18 +311,17 @@ pub fn collect_forwarded_headers(
 
         match value.to_str() {
             Ok(value_str) => {
-                let final_value = if flavor == FlavorHook::Kubernetes
-                    && name == http::header::ACCEPT
-                {
-                    value_str
-                        .split(',')
-                        .map(|s| s.trim())
-                        .filter(|s| *s != "application/vnd.kubernetes.protobuf")
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                } else {
-                    value_str.to_string()
-                };
+                let final_value =
+                    if flavor == FlavorHook::Kubernetes && name == http::header::ACCEPT {
+                        value_str
+                            .split(',')
+                            .map(|s| s.trim())
+                            .filter(|s| *s != "application/vnd.kubernetes.protobuf")
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    } else {
+                        value_str.to_string()
+                    };
                 headers.insert(name.to_string(), final_value);
             }
             Err(_) => {
@@ -359,8 +357,11 @@ where
         let chunk = chunk.context("reading upstream response")?;
         if buf.len().saturating_add(chunk.len()) > limit {
             return Err(GatedError::Other(
-                anyhow::anyhow!("upstream response too large: exceeds limit of {} bytes", limit)
-                    .into(),
+                anyhow::anyhow!(
+                    "upstream response too large: exceeds limit of {} bytes",
+                    limit
+                )
+                .into(),
             ));
         }
         buf.extend_from_slice(&chunk);
@@ -372,10 +373,7 @@ where
 /// cumulative size exceeds `limit`, at which point it emits a single error
 /// and the consumer stops pulling. This bounds memory for chunked / watch
 /// responses without ever buffering the full body.
-fn cap_body_stream<S>(
-    stream: S,
-    limit: usize,
-) -> impl Stream<Item = std::io::Result<Bytes>>
+fn cap_body_stream<S>(stream: S, limit: usize) -> impl Stream<Item = std::io::Result<Bytes>>
 where
     S: Stream<Item = std::io::Result<Bytes>>,
 {
@@ -472,7 +470,8 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
             // Buffering branch: accumulate the body incrementally and abort
             // BEFORE the cap is exceeded, so an oversized upstream body is
             // never fully read into memory.
-            let bytes = collect_capped_body(response.bytes_stream(), API_PROXY_MAX_BODY_SIZE).await?;
+            let bytes =
+                collect_capped_body(response.bytes_stream(), API_PROXY_MAX_BODY_SIZE).await?;
             let recording_bytes = bytes.to_vec();
             (Body::from_bytes(bytes), Some(recording_bytes))
         }
@@ -513,7 +512,11 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
         // Neutralize off-target redirects; drop the header when the
         // Location escapes the upstream host.
         if name_str == "location" {
-            match value.to_str().ok().and_then(|v| sanitize_location(v, full_url)) {
+            match value
+                .to_str()
+                .ok()
+                .and_then(|v| sanitize_location(v, full_url))
+            {
                 Some(loc) => {
                     if let Ok(poem_value) = poem::http::HeaderValue::from_str(&loc) {
                         poem_response =
@@ -565,8 +568,7 @@ pub async fn proxy_to_upstream<R: HttpProxyRecorder>(
         "Proxying request to upstream"
     );
 
-    let response =
-        send_upstream_request(client, &method, &full_url, &headers, &body_bytes).await?;
+    let response = send_upstream_request(client, &method, &full_url, &headers, &body_bytes).await?;
 
     build_downstream_response(
         response,
@@ -641,8 +643,14 @@ mod tests {
             !out.to_ascii_lowercase().contains("domain="),
             "Domain attribute must be removed, got: {out}"
         );
-        assert!(out.contains("sid=abc"), "cookie value must be preserved: {out}");
-        assert!(out.contains("HttpOnly"), "other attributes must be preserved: {out}");
+        assert!(
+            out.contains("sid=abc"),
+            "cookie value must be preserved: {out}"
+        );
+        assert!(
+            out.contains("HttpOnly"),
+            "other attributes must be preserved: {out}"
+        );
     }
 
     /// A redirect to an off-target host must be dropped,
@@ -652,7 +660,10 @@ mod tests {
     fn sanitize_location_neutralizes_off_target() {
         let upstream = Url::parse("https://app.internal/foo/bar").unwrap();
 
-        assert_eq!(sanitize_location("https://evil.example/phish", &upstream), None);
+        assert_eq!(
+            sanitize_location("https://evil.example/phish", &upstream),
+            None
+        );
         // Protocol-relative escapes to another host and must be dropped too.
         assert_eq!(sanitize_location("//evil.example/phish", &upstream), None);
         // Relative redirect stays on the proxied origin.

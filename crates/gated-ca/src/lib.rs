@@ -195,10 +195,7 @@ fn verify_csr_signature(csr: &CertReq) -> Result<(), CaError> {
         .subject_public_key
         .as_bytes()
         .ok_or(CaError::InvalidKeyFormat)?;
-    let signature = csr
-        .signature
-        .as_bytes()
-        .ok_or(CaError::InvalidKeyFormat)?;
+    let signature = csr.signature.as_bytes().ok_or(CaError::InvalidKeyFormat)?;
 
     // The signed payload is the DER encoding of CertificationRequestInfo.
     let signed = csr.info.to_der()?;
@@ -419,8 +416,10 @@ mod tests {
             algorithm: csr1.algorithm.clone(),
             signature: csr2.signature.clone(),
         };
-        let tampered_pem =
-            pem::encode(&pem::Pem::new("CERTIFICATE REQUEST", tampered.to_der().unwrap()));
+        let tampered_pem = pem::encode(&pem::Pem::new(
+            "CERTIFICATE REQUEST",
+            tampered.to_der().unwrap(),
+        ));
 
         let err =
             issue_client_certificate_from_csr(&ca, &tampered_pem, Uuid::new_v4()).unwrap_err();

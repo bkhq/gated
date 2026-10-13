@@ -1,5 +1,5 @@
-use std::sync::LazyLock;
 use rustls::RootCertStore;
+use std::sync::LazyLock;
 
 #[allow(clippy::expect_used)]
 pub static ROOT_CERT_STORE: LazyLock<RootCertStore> = LazyLock::new(|| {

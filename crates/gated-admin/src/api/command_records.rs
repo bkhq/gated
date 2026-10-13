@@ -18,9 +18,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use gated_common::GatedError;
-use gated_core::recordings::{
-    SessionRecordings, ShellCommandRecordingItem, SqlAuditRecordingItem,
-};
+use gated_core::recordings::{SessionRecordings, ShellCommandRecordingItem, SqlAuditRecordingItem};
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::Recording::{self, RecordingKind};
 use gated_db_entities::Session;
@@ -135,7 +133,11 @@ impl Api {
         // is a 400 rather than a silently-ignored filter.
         let from_ts = match parse_ts(from.0.as_deref()) {
             Ok(v) => v,
-            Err(e) => return Ok(ListResponse::BadRequest(Json(format!("invalid `from`: {e}")))),
+            Err(e) => {
+                return Ok(ListResponse::BadRequest(Json(format!(
+                    "invalid `from`: {e}"
+                ))))
+            }
         };
         let to_ts = match parse_ts(to.0.as_deref()) {
             Ok(v) => v,
@@ -190,13 +192,8 @@ impl Api {
             let session_username = sessions
                 .get(&rec.session_id)
                 .and_then(|s| s.username.clone());
-            if let Err(error) = read_recording_into(
-                &path,
-                &rec,
-                session_username.as_deref(),
-                &mut records,
-            )
-            .await
+            if let Err(error) =
+                read_recording_into(&path, &rec, session_username.as_deref(), &mut records).await
             {
                 // A recording row whose file is missing/unreadable must not sink
                 // the whole query; skip it and keep merging the rest.
@@ -325,37 +322,35 @@ async fn read_recording_into(
                     }
                 }
             }
-            RecordingKind::SqlAudit => {
-                match serde_json::from_str::<SqlAuditRecordingItem>(&line) {
-                    Ok(SqlAuditRecordingItem::Query {
-                        timestamp,
-                        target,
-                        sql,
-                        success,
-                        error,
-                        ..
-                    }) => out.push(CommandRecord {
-                        source: "sql".to_string(),
-                        timestamp,
-                        session_id: rec.session_id,
-                        target: Some(target),
-                        target_id: None,
-                        user_id: None,
-                        username: session_username.map(str::to_string),
-                        command: sql,
-                        origin: None,
-                        acl_action: None,
-                        acl_rule_id: None,
-                        acl_rule_name: None,
-                        outcome: None,
-                        success: Some(success),
-                        error,
-                    }),
-                    Err(error) => {
-                        warn!(%error, recording = %rec.id, "skipping malformed sql-audit item");
-                    }
+            RecordingKind::SqlAudit => match serde_json::from_str::<SqlAuditRecordingItem>(&line) {
+                Ok(SqlAuditRecordingItem::Query {
+                    timestamp,
+                    target,
+                    sql,
+                    success,
+                    error,
+                    ..
+                }) => out.push(CommandRecord {
+                    source: "sql".to_string(),
+                    timestamp,
+                    session_id: rec.session_id,
+                    target: Some(target),
+                    target_id: None,
+                    user_id: None,
+                    username: session_username.map(str::to_string),
+                    command: sql,
+                    origin: None,
+                    acl_action: None,
+                    acl_rule_id: None,
+                    acl_rule_name: None,
+                    outcome: None,
+                    success: Some(success),
+                    error,
+                }),
+                Err(error) => {
+                    warn!(%error, recording = %rec.id, "skipping malformed sql-audit item");
                 }
-            }
+            },
             // Only the two structured command kinds are queried here; the DB
             // filter already excludes everything else, so this is unreachable in
             // practice but keeps the match exhaustive.

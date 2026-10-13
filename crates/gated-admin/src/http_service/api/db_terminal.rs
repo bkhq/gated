@@ -543,8 +543,7 @@ async fn bridge_websocket_pty(
 /// 0-second sessions a short-lived socket would otherwise leave behind.
 pub(crate) async fn cleanup_empty_session(services: &Services, session_id: uuid::Uuid) {
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-    let Ok(db) = gated_core::db_required(&services.db).await
-    else {
+    let Ok(db) = gated_core::db_required(&services.db).await else {
         return;
     };
     if let Ok(recs) = gated_db_entities::Recording::Entity::find()
@@ -787,5 +786,13 @@ pub async fn api_postgres_terminal(
     services: Data<&Services>,
     auth: Option<Data<&RequestAuthorization>>,
 ) -> Response {
-    handle_db_terminal(req, ws, target_name, DbKind::Postgres, services.clone(), auth).await
+    handle_db_terminal(
+        req,
+        ws,
+        target_name,
+        DbKind::Postgres,
+        services.clone(),
+        auth,
+    )
+    .await
 }

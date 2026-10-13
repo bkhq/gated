@@ -59,8 +59,7 @@ fn handshake_response_rejects_oversized_auth_response_length() {
     // 32 fixed bytes + "root\0", then the length-encoded auth response.
     packet.truncate(37);
     packet.extend([0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f]);
-    let result =
-        HandshakeResponse::decode_with(Bytes::from(packet), &mut Capabilities::all());
+    let result = HandshakeResponse::decode_with(Bytes::from(packet), &mut Capabilities::all());
     assert!(result.is_err());
 }
 
@@ -132,7 +131,13 @@ fn query_rejects_empty_packet() {
 
 #[test]
 fn lenenc_readers_reject_truncated_input() {
-    for input in [&[][..], &[0xfc], &[0xfc, 1], &[0xfd, 1, 2], &[0xfe, 1, 2, 3]] {
+    for input in [
+        &[][..],
+        &[0xfc],
+        &[0xfc, 1],
+        &[0xfd, 1, 2],
+        &[0xfe, 1, 2, 3],
+    ] {
         assert!(Bytes::copy_from_slice(input).get_uint_lenenc().is_err());
     }
     assert_eq!(

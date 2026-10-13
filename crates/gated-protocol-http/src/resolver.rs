@@ -27,7 +27,9 @@ const MAX_DNS_LABEL_LEN: usize = 63;
 /// but the variant is preserved for structured logging.
 #[derive(Debug, Error)]
 pub enum ResolveError {
-    #[error("target not identified: provide X-Gated-Target header or Host: <target>.<base_domain>")]
+    #[error(
+        "target not identified: provide X-Gated-Target header or Host: <target>.<base_domain>"
+    )]
     NotIdentified,
     #[error("target '{name}' not found")]
     NotFound { name: String },
@@ -221,7 +223,10 @@ mod tests {
     #[test]
     fn parse_host_no_label() {
         // Bare base domain — no leading label.
-        assert_eq!(parse_host_label("proxy.example.com", "proxy.example.com"), None);
+        assert_eq!(
+            parse_host_label("proxy.example.com", "proxy.example.com"),
+            None
+        );
     }
 
     #[test]
@@ -261,11 +266,11 @@ mod tests {
     #[test]
     fn dns_label_rejects_invalid() {
         assert!(!is_valid_dns_label(""));
-        assert!(!is_valid_dns_label("Foo"));         // uppercase
-        assert!(!is_valid_dns_label("-foo"));        // leading hyphen
-        assert!(!is_valid_dns_label("foo-"));        // trailing hyphen
-        assert!(!is_valid_dns_label("foo.bar"));     // dot
-        assert!(!is_valid_dns_label("foo_bar"));     // underscore
+        assert!(!is_valid_dns_label("Foo")); // uppercase
+        assert!(!is_valid_dns_label("-foo")); // leading hyphen
+        assert!(!is_valid_dns_label("foo-")); // trailing hyphen
+        assert!(!is_valid_dns_label("foo.bar")); // dot
+        assert!(!is_valid_dns_label("foo_bar")); // underscore
         assert!(!is_valid_dns_label(&"a".repeat(64))); // too long
     }
 

@@ -80,7 +80,9 @@ pub async fn api_session_monitor(
         }
 
         let _ = sink
-            .send(Message::Text(serde_json::to_string(&json!({ "end": true }))?))
+            .send(Message::Text(serde_json::to_string(
+                &json!({ "end": true }),
+            )?))
             .await;
         Ok::<(), anyhow::Error>(())
     })

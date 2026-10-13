@@ -156,7 +156,10 @@ fn make_timer(
     pattern: &'static str,
 ) -> OffsetTime<Vec<time::format_description::BorrowedFormatItem<'static>>> {
     #[allow(clippy::unwrap_used, reason = "static format description is valid")]
-    OffsetTime::new(offset, format_description::parse_borrowed::<1>(pattern).unwrap())
+    OffsetTime::new(
+        offset,
+        format_description::parse_borrowed::<1>(pattern).unwrap(),
+    )
 }
 
 // ---------------------------------------------------------------------------

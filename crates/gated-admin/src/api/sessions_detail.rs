@@ -195,7 +195,15 @@ impl Api {
             .filter(LogEntry::Column::SessionId.eq(id.0))
             .count(&db)
             .await?;
-        write_session_delete_audit(&db, &[id.0], recs.len() as u64, log_count, 1, auth.username().map(String::as_str).unwrap_or("admin-token")).await?;
+        write_session_delete_audit(
+            &db,
+            &[id.0],
+            recs.len() as u64,
+            log_count,
+            1,
+            auth.username().map(String::as_str).unwrap_or("admin-token"),
+        )
+        .await?;
         {
             let recordings = recordings.lock().await;
             for r in &recs {
@@ -281,7 +289,9 @@ mod tests {
         ))
         .await
         .expect("create log table");
-        conn.execute_unprepared("CREATE TABLE management_audit AS SELECT * FROM log WHERE 0").await.expect("create management audit");
+        conn.execute_unprepared("CREATE TABLE management_audit AS SELECT * FROM log WHERE 0")
+            .await
+            .expect("create management audit");
         conn
     }
 

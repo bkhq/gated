@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use std::sync::LazyLock;
 use poem::http::{self, HeaderName};
+use std::sync::LazyLock;
 
 /// Headers that should not be forwarded to upstream when proxying HTTP requests
 pub static DONT_FORWARD_HEADERS: LazyLock<HashSet<HeaderName>> = LazyLock::new(|| {

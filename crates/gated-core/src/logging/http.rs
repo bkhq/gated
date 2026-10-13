@@ -140,10 +140,7 @@ mod tests {
         assert!(!cleaned.chars().any(|c| c.is_control()));
 
         // They are backslash-escaped instead.
-        assert_eq!(
-            cleaned,
-            "Mozilla/5.0\\r\\nINFO forged log line\\x1b[31mred"
-        );
+        assert_eq!(cleaned, "Mozilla/5.0\\r\\nINFO forged log line\\x1b[31mred");
     }
 
     #[test]
