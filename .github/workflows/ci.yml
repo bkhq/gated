@@ -1,0 +1,276 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/ci.yml'
+      - 'crates/**/src/**'
+      - 'crates/**/Cargo.toml'
+      - 'web/**'
+      - 'tests/**'
+
+permissions:
+  contents: read
+
+env:
+  CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
+
+jobs:
+  test:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - name: Cache Rust
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Create dist directory
+        run: mkdir -p web/dist
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: latest
+
+      - name: Build embedded frontend
+        run: cd web && bun install --frozen-lockfile && bun run build
+
+      - name: Run tests
+        run: cargo test --workspace --all-features --locked
+
+      - name: Build release binary
+        run: cargo build --all-features --release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: gated-binary
+          path: target/x86_64-unknown-linux-gnu/release/gated
+          retention-days: 1
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: latest
+
+      - name: Cache cargo tools
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just
+
+      - name: Install tools
+        run: |
+          command -v just || cargo install --locked just
+
+      - name: Build frontend
+        run: |
+          just bun install --frozen-lockfile
+          just bun run build
+
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: latest
+
+      - name: Cache Rust
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-quality-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-quality-
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
+
+      - name: Cache cargo tools
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-quality
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Install quality tools
+        run: |
+          command -v just || cargo install --locked just
+          command -v cargo-cranky || cargo install --locked cargo-cranky
+          # cargo-machete is stable-only (no nightly requirement) and ~10x
+          # faster than cargo-udeps. deny.toml already ships in the repo.
+          command -v cargo-machete || cargo install --locked cargo-machete
+          command -v cargo-deny || cargo install --locked cargo-deny
+
+      - name: Create dist directory
+        run: mkdir -p web/dist
+
+      - name: Clippy (cargo-cranky, all crates, all features)
+        run: just clippy
+
+      - name: Unused deps (cargo-machete)
+        run: cargo machete --with-metadata crates
+
+      - name: Supply chain (cargo-deny)
+        run: cargo deny check advisories bans sources licenses
+
+      - name: Install frontend deps
+        run: cd web && bun install --frozen-lockfile
+
+      - name: Verify API contracts
+        run: cd web && bun run openapi --check
+
+      - name: Build frontend and generate routes
+        run: cd web && bun run build
+
+      - name: Frontend types and lint
+        run: cd web && bun run typecheck && bun run lint
+
+      - name: Frontend unit tests (Vitest)
+        run: cd web && bun run test
+
+      - name: Frontend i18n key parity
+        run: cd web && bun run i18n-check
+
+  integration:
+    name: Integration tests
+    needs: [test, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: latest
+
+      - name: Cache cargo tools
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config openssh-client expect gnome-keyring kubectl
+          command -v just || cargo install --locked just
+
+      - name: Build frontend
+        run: |
+          just bun install --frozen-lockfile
+          just openapi
+          just bun run build
+
+      - name: Download binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: gated-binary
+          path: target/release
+
+      - name: Make binary executable
+        run: chmod +x target/release/gated
+
+      - name: Build test images
+        working-directory: tests
+        run: make all
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: bun install
+
+      - name: Run integration tests
+        working-directory: tests
+        env:
+          GATED_BINARY: ${{ github.workspace }}/target/release/gated
+          TIMEOUT: "120"
+        run: bun test --timeout 300000
+
+  schema-compatibility:
+    name: API schema compatibility
+    if: github.event_name == 'pull_request'
+    needs: [test, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: latest
+
+      - name: Cache cargo tools
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just
+
+      - name: Install tools
+        run: |
+          command -v just || cargo install --locked just
+
+      - name: Install dependencies
+        run: |
+          cd web && bun install --frozen-lockfile
+
+      - name: Generate API schema files
+        run: |
+          mkdir -p web/dist
+          just openapi-all
+
+      - name: Checkout main branch to compare
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Check API compatibility against committed baseline
+        shell: bash
+        run: |
+          for surface in admin user; do
+            base="main-branch/web/scripts/openapi/$surface.snapshot.json"
+            current="web/scripts/openapi/$surface.snapshot.json"
+            if [ ! -f "$base" ]; then
+              echo "::notice::No $surface API baseline on main; this change establishes it."
+              continue
+            fi
+            docker run --rm --label ai-agent=true -v "$PWD:/specs:ro" tufin/oasdiff breaking -f githubactions --fail-on WARN "/specs/$base" "/specs/$current"
+          done

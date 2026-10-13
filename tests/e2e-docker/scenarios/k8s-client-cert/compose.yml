@@ -1,0 +1,11 @@
+services:
+  k8s-cert-upstream:
+    build: ./scenarios/k8s-client-cert/upstream
+    container_name: gated-e2e-k8s-cert-upstream
+    networks:
+      - e2e
+
+  gated:
+    depends_on:
+      k8s-cert-upstream:
+        condition: service_started

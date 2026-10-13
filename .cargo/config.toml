@@ -1,0 +1,47 @@
+# Default build target: glibc-independent musl so release binaries run on any
+# Linux distro without caring about the host libc version. Override with
+# `cargo build --target <other>` when a target-specific build is needed.
+[build]
+target = "x86_64-unknown-linux-musl"
+
+# https://github.com/rust-lang/cargo/issues/5376#issuecomment-2163350032
+[target.'cfg(all())']
+rustflags = [
+    "--cfg", "tokio_unstable",
+    "--remap-path-prefix=$HOME=/reproducible-home",
+    "--remap-path-prefix=$PWD=/reproducible-pwd",
+]
+
+# Use the musl-aware gcc wrapper for both native and cross musl targets.
+#
+# Produce a classic fully-static non-PIE musl binary:
+#   * `-C relocation-model=static` + `-C link-arg=-no-pie` — avoid the
+#     static-PIE code model. Rust 1.95 + musl + static-PIE + aws-lc-sys is
+#     known to corrupt TLS setup at startup (SIGSEGV after the second
+#     `ARCH_SET_FS` syscall). Classic non-PIE static does not do runtime
+#     relocation so it sidesteps the bug.
+#   * `-C link-arg=-Wl,-z,stack-size=8388608` — 8 MiB main-thread stack to
+#     match glibc's default layout (aws-lc, ring assume this).
+[target.x86_64-unknown-linux-musl]
+linker = "musl-gcc"
+rustflags = [
+    "-C", "relocation-model=static",
+    "-C", "link-arg=-no-pie",
+    "-C", "link-arg=-Wl,-z,stack-size=8388608",
+]
+
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+rustflags = [
+    "-C", "relocation-model=static",
+    "-C", "link-arg=-no-pie",
+    "-C", "link-arg=-Wl,-z,stack-size=8388608",
+]
+
+# Env vars picked up by cc/cmake driven build-scripts (aws-lc-sys, ring,
+# libsqlite3-sys, libz-sys, zstd-sys). Using clang avoids the glibc header
+# pickup that plain musl-gcc sometimes inherits.
+[env]
+CC_x86_64_unknown_linux_musl = "musl-gcc"
+CXX_x86_64_unknown_linux_musl = "g++"
+AR_x86_64_unknown_linux_musl = "ar"

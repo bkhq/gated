@@ -1,0 +1,24 @@
+[package]
+edition = "2021"
+license = "Apache-2.0"
+name = "gated-sso"
+version = "0.21.1"
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+openidconnect = { version = "4.0", default-features = false, features = [
+    "reqwest",
+    "accept-string-booleans",
+] }
+reqwest_12.workspace = true
+serde.workspace = true
+once_cell = { version = "1.17", default-features = false }
+jsonwebtoken = { version = "9", default-features = false, features = ["use_pem"] }
+data-encoding.workspace = true
+futures.workspace = true
+schemars.workspace = true
+
+[package.metadata.cargo-machete]
+# reqwest_12: Enables rustls TLS for the reqwest 0.12 client re-exported by openidconnect.
+ignored = ["reqwest_12"]

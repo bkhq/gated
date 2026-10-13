@@ -1,0 +1,1993 @@
+{
+  "app": {
+    "name": "Gated"
+  },
+  "common": {
+    "bulkActions": "Bulk actions",
+    "selectedCount_one": "{{count}} selected",
+    "selectedCount_other": "{{count}} selected",
+    "clearSelection": "Clear selection"
+  },
+  "shared": {
+    "passwordInput": {
+      "show": "Show password",
+      "hide": "Hide password"
+    },
+    "backendPending": {
+      "title": "Backend support pending",
+      "notice": "These options are not yet backed by the gateway API. They are shown for design preview only and cannot be modified."
+    }
+  },
+  "a11y": {
+    "admin": {
+      "monitor": {
+        "sessions": {
+          "selectAll": "Select all sessions",
+          "selectRow": "Select session {{id}}",
+          "autoRefreshOn": "Auto-refresh on, polling every 5 seconds",
+          "autoRefreshOff": "Auto-refresh off"
+        }
+      },
+      "config": {
+        "users": {
+          "selectAll": "Select all users on this page",
+          "selectRow": "Select user {{name}}"
+        },
+        "accounts": {
+          "togglePasswordVisibility": "Toggle password visibility"
+        },
+        "sso": {
+          "toggleEnabled": "Toggle SSO sign-in",
+          "toggleProvider": "Toggle provider {{name}}",
+          "copyRedirectUri": "Copy redirect URI to clipboard"
+        },
+        "notifications": {
+          "toggleRouting": "Route {{event}} to {{channel}}"
+        }
+      }
+    },
+    "auth": {
+      "mainLandmark": "Sign in",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "otpGroup": "One-time code",
+      "otpDigit": "Digit {{position}} of 6",
+      "credentialsError": "Sign-in error"
+    },
+    "encryption": {
+      "mainLandmark": "Unlock gateway"
+    },
+    "authRequests": {
+      "pendingInbox": "Pending approval requests",
+      "selectedRequest": "Selected request: {{target}}",
+      "pendingRequestRow": "Approval request for {{target}}",
+      "expandRow": "Show request details",
+      "collapseRow": "Hide request details",
+      "rowDetailsRegion": "Request details for {{target}}",
+      "statusFilterGroup": "Filter by status",
+      "sortAscending": "Sorted ascending — activate to sort descending",
+      "sortDescending": "Sorted descending — activate to sort ascending",
+      "countdownLive": "Time remaining to decide",
+      "liveIndicator": "Real-time updates active"
+    },
+    "overview": {
+      "openTargetButton": "Open target {{name}}",
+      "statsLoading": "Loading overview statistics",
+      "frequentLoading": "Loading frequent targets",
+      "recentLoading": "Loading recent activity"
+    },
+    "shell": {
+      "primaryNav": "Primary navigation",
+      "expandSidebar": "Expand sidebar",
+      "collapseSidebar": "Collapse sidebar",
+      "userMenu": "User menu",
+      "userMenuPopup": "Account menu",
+      "navBadgeCount": "{{count}} pending",
+      "opensInNewTab": "(opens in new tab)",
+      "gatewayHost": "Gateway host",
+      "search": {
+        "dialogTitle": "Quick search",
+        "dialogDescription": "Search across pages, hosts, and users. Use arrow keys to navigate and Enter to open.",
+        "input": "Search pages, hosts, and users",
+        "results": "Search results"
+      },
+      "toggleSidebar": "Toggle sidebar"
+    },
+    "components": {
+      "breadcrumb": "Breadcrumb",
+      "emptyStateRegion": "Empty state"
+    },
+    "profile": {
+      "passwordShow": "Show password",
+      "passwordHide": "Hide password",
+      "ticketsSearch": "Search grants",
+      "ticketsFilterState": "Filter grants by state",
+      "tokensSearch": "Search API tokens"
+    },
+    "user": {
+      "tickets": {
+        "search": "Search my temporary grants",
+        "filterState": "Filter my grants by state"
+      },
+      "apiTokens": {
+        "search": "Search my API tokens"
+      }
+    },
+    "targets": {
+      "viewModeGroup": "View mode",
+      "viewGrid": "Grid view",
+      "viewTable": "Table view",
+      "searchLabel": "Search targets",
+      "filterProtocol": "Filter by protocol",
+      "filterGroup": "Filter by group",
+      "resultCount": "{{filtered}} of {{total}} targets shown",
+      "loading": "Loading targets",
+      "clearFilters": "Clear active filters",
+      "sortBy": "Sort by {{column}}",
+      "statsLoading": "Loading target stats"
+    },
+    "targetDetail": {
+      "loading": "Loading target details",
+      "sessions": "My sessions",
+      "connectCommand": "Connect command (copy)"
+    },
+    "sessions": {
+      "workspace": "Session workspace",
+      "tablist": "Open sessions",
+      "closeSession": "Close session {{name}}",
+      "newConnection": "Open new connection",
+      "schemaTreeFilter": "Filter database tables"
+    }
+  },
+  "section": {
+    "workspace": "Workspace",
+    "admin": "Administration",
+    "adminResources": "Resources",
+    "adminIam": "Identity & access",
+    "adminMonitoring": "Monitoring",
+    "adminSystem": "System",
+    "adminCommandControl": "Command Control"
+  },
+  "nav": {
+    "overview": "Overview",
+    "search": "Search",
+    "targets": "My Assets",
+    "sessions": "Terminal",
+    "authRequests": "Login Approvals",
+    "credentials": "Credentials",
+    "tickets": "Temporary access",
+    "apiTokens": "API Tokens",
+    "profile": "Settings",
+    "adminSessions": "Sessions",
+    "adminRecordings": "Recordings",
+    "adminAudit": "Audit Log",
+    "adminTargets": "All Assets",
+    "adminTargetGroups": "Groups",
+    "adminAccounts": "Auth Profiles",
+    "adminUsers": "Users",
+    "adminRoles": "Policies",
+    "adminTickets": "Temporary access",
+    "adminKnownHosts": "Known Hosts",
+    "adminParams": "System settings",
+    "adminCommandAcl": "Command ACL",
+    "adminCommandReviews": "Command Reviews",
+    "adminCommandRecords": "Command Records"
+  },
+  "actions": {
+    "new": "New",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "connect": "Connect",
+    "open": "Open",
+    "search": "Search",
+    "refresh": "Refresh",
+    "filter": "Filter",
+    "clearFilters": "Clear filters",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "approve": "Approve",
+    "reject": "Reject",
+    "back": "Back",
+    "view": "View"
+  },
+  "fields": {
+    "actions": "Actions",
+    "status": "Status",
+    "name": "Name",
+    "type": "Type",
+    "address": "Address",
+    "user": "User",
+    "target": "Target",
+    "started": "Started",
+    "duration": "Duration",
+    "protocol": "Protocol",
+    "lastUsed": "Last used",
+    "never": "Never",
+    "created": "Created",
+    "role": "Role",
+    "roles": "Roles",
+    "description": "Description",
+    "port": "Port"
+  },
+  "status": {
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "live": "Live",
+    "closed": "Closed",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "expired": "Expired",
+    "active": "Active"
+  },
+  "menu": {
+    "profile": "Settings",
+    "authRequests": "Login approvals",
+    "theme": {
+      "title": "Theme",
+      "followSystem": "Follow system",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "zh-CN": "简体中文",
+      "en": "English"
+    },
+    "docs": "Documentation",
+    "github": "GitHub repository"
+  },
+  "profile": {
+    "description": "Your account, sign-in methods, API tokens, and temporary grants — all in one place.",
+    "tabs": {
+      "info": "Profile",
+      "auth": "Authentication",
+      "tickets": "Temporary access",
+      "authRequests": "Login approvals",
+      "apiTokens": "API tokens"
+    },
+    "header": {
+      "activeNow": "Online",
+      "memberSince": "Member since {{when}}"
+    },
+    "info": {
+      "identity": "Identity",
+      "identityHint": "How teammates see you. Username is assigned by an administrator.",
+      "preferences": "Preferences",
+      "preferencesHint": "Interface language and timezone settings.",
+      "activity": "Activity",
+      "language": "Language",
+      "timezone": "Timezone",
+      "signOutOthers": "Sign out other sessions",
+      "signOutOthersHint": "Revoke active sign-ins on other devices.",
+      "avatar": "Avatar",
+      "avatarHint": "At least 256×256, PNG / JPG.",
+      "avatarUpload": "Upload",
+      "avatarRemove": "Remove",
+      "displayName": "Display name",
+      "username": "Username",
+      "usernameLocked": "Set by administrators, cannot be changed.",
+      "role": "Role",
+      "dirtyHint": "You have unsaved changes.",
+      "saveSuccess": "Saved.",
+      "discard": "Discard changes",
+      "discardTitle": "Discard these changes?",
+      "discardBody": "Unsaved edits will be lost.",
+      "keepEditing": "Keep editing",
+      "validate": {
+        "nameRequired": "Display name is required.",
+        "nameTooLong": "Display name is at most 64 characters."
+      },
+      "localPreferencesHint": "Language is saved in this browser; timezone applies to this session. These preferences do not change your account."
+    },
+    "auth": {
+      "password": "Password",
+      "passwordHint": "Last changed {{when}}",
+      "passwordPolicy": "At least 12 characters with upper, lower and digit.",
+      "passwordChange": "Change password",
+      "sshKeys": "SSH public keys",
+      "sshKeysHint": "Used to sign in on the CLI and authenticate to managed targets.",
+      "addKey": "Add key",
+      "noKeys": "No SSH keys yet",
+      "noKeysHint": "Add a public key to enable SSH sign-in from this account.",
+      "otp": "MFA devices",
+      "otpHint": "Hardware tokens and authenticator apps used as a second factor.",
+      "addOtp": "Add device",
+      "noOtp": "No MFA devices",
+      "noOtpHint": "Bind at least one MFA device to keep your account safe.",
+      "sessions": "Active sessions",
+      "sessionsHint": "Devices currently signed in as you.",
+      "thisDevice": "This device",
+      "added": "Added {{when}}",
+      "lastUsed": "Last used {{when}}",
+      "pwDrawer": {
+        "title": "Change password",
+        "description": "At least 12 characters with upper, lower and digit.",
+        "current": "Current password",
+        "new": "New password",
+        "confirm": "Confirm new password",
+        "validate": {
+          "currentRequired": "Current password is required.",
+          "newRequired": "New password is required.",
+          "newTooShort": "New password must be at least 12 characters.",
+          "newWeak": "New password must contain upper, lower and a digit.",
+          "confirmMismatch": "Passwords do not match.",
+          "sameAsCurrent": "New password must differ from the current one."
+        }
+      },
+      "keyDrawer": {
+        "titleNew": "Add SSH public key",
+        "titleEdit": "Rename key",
+        "description": "Paste the contents of ~/.ssh/id_ed25519.pub.",
+        "label": "Label",
+        "labelPlaceholder": "MacBook Pro",
+        "material": "Public key",
+        "materialPlaceholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI… alex@laptop",
+        "validate": {
+          "labelRequired": "Label is required.",
+          "materialRequired": "Paste the public key content.",
+          "materialInvalid": "Must start with ssh-ed25519, ssh-rsa or ecdsa-*."
+        }
+      },
+      "otpDrawer": {
+        "titleNew": "Enrol MFA device",
+        "titleEdit": "Rename MFA device",
+        "description": "Hardware token or authenticator app used as a second factor.",
+        "deviceName": "Device name",
+        "deviceNamePlaceholder": "1Password · phone",
+        "validate": {
+          "nameRequired": "Device name is required."
+        }
+      },
+      "removeKey": {
+        "title": "Remove SSH key",
+        "body": "Remove {{name}}? You will no longer be able to sign in with this key."
+      },
+      "removeOtp": {
+        "title": "Remove MFA device",
+        "body": "Remove {{name}}?",
+        "lastWarningTitle": "You will lose MFA protection",
+        "lastWarningBody": "This is your last MFA device — only your password will protect the account.",
+        "lastConfirm": "I understand, remove anyway"
+      },
+      "revokeSession": "Sign out this device"
+    },
+    "tokens": {
+      "expiry": {
+        "d30": "30 days",
+        "d90": "90 days",
+        "d365": "365 days",
+        "never": "Never"
+      },
+      "fields": {
+        "name": "Name",
+        "created": "Created",
+        "expiresIn": "Expires"
+      },
+      "createDrawer": {
+        "title": "New API token",
+        "description": "The token calls the API as you. Create one per use case instead of sharing.",
+        "nameLabel": "Name",
+        "namePlaceholder": "Deploy bot · CI/CD",
+        "expiresLabel": "Expires in",
+        "submit": "Create token",
+        "validate": {
+          "nameRequired": "Name is required.",
+          "nameDuplicate": "A token with this name already exists."
+        }
+      },
+      "secret": {
+        "title": "Token created",
+        "description": "Save this now — you won't be able to see it again.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "acknowledge": "I've saved it"
+      },
+      "revoke": {
+        "title": "Revoke API token",
+        "body": "Revoking {{name}} immediately breaks any script or CI job using this token.",
+        "warningTitle": "This action is immediate",
+        "warningBody": "Confirm no production job still depends on this token.",
+        "confirm": "Revoke"
+      },
+      "create": "New token",
+      "description": "Personal access tokens used by scripts and CI to call the Gated API on your behalf.",
+      "empty": "No API tokens",
+      "emptyHint": "Issue a token to use the Gated API from scripts or CI.",
+      "searchPlaceholder": "Search token name…",
+      "stats": {
+        "total": "Total",
+        "expiring": "Expiring in 30d"
+      }
+    },
+    "tickets": {
+      "description": "Temporary grants you currently hold. Time-bounded or one-shot — they expire automatically.",
+      "newClaim": "Claim a grant",
+      "empty": "No temporary grants",
+      "emptyHint": "Ask an admin to issue a grant, or claim one via link.",
+      "stats": {
+        "active": "Active",
+        "consumed": "Consumed",
+        "expired": "Expired",
+        "expiring": "Expiring soon"
+      },
+      "filter": {
+        "allState": "All states"
+      },
+      "searchPlaceholder": "Search by name or scope…",
+      "fields": {
+        "name": "Name",
+        "scope": "Scope",
+        "uses": "Uses",
+        "expiresIn": "Expires",
+        "state": "State"
+      },
+      "menu": {
+        "copyLink": "Copy access link",
+        "viewUsage": "View usage log"
+      },
+      "revoke": {
+        "title": "Revoke grant",
+        "body": "Revoking {{name}} invalidates it immediately and ends any active connection that used it.",
+        "scope": "Scope: {{scope}}",
+        "confirm": "Revoke"
+      }
+    },
+    "actions": {
+      "copy": "Copy",
+      "revoke": "Revoke",
+      "remove": "Remove",
+      "edit": "Edit",
+      "rename": "Rename",
+      "copied": "Copied"
+    }
+  },
+  "overview": {
+    "welcome": {
+      "greeting": "Welcome back, {{firstName}}",
+      "description": "Your privileged access at a glance today."
+    },
+    "stats": {
+      "reachableTargets": "Targets I can reach",
+      "activeSessions": "Active sessions",
+      "recording": "Recording",
+      "sessionsIdle": "Nothing live right now",
+      "pendingApprovals": "Pending approvals",
+      "awaiting": "Awaiting your review",
+      "pendingNone": "Nothing pending",
+      "myTickets": "My tickets",
+      "ticketsExpiring_one": "{{count}} expires within 24h",
+      "ticketsExpiring_other": "{{count}} expire within 24h",
+      "ticketsClean": "None expiring soon"
+    },
+    "frequentTargets": {
+      "title": "Frequent targets",
+      "description": "Sorted by usage over the last 30 days",
+      "viewAll": "All targets",
+      "empty": "No targets to connect to yet",
+      "emptyDescription": "Ask an administrator to grant access to a target."
+    },
+    "recentActivity": {
+      "title": "Recent activity",
+      "description": "Your sessions over the last 7 days",
+      "empty": "No sessions in the last 7 days",
+      "emptyDescription": "Next time you connect to a target it will show up here."
+    }
+  },
+  "login": {
+    "title": "Sign in",
+    "username": "Username",
+    "password": "Password",
+    "forgot": "Forgot?",
+    "signing": "Signing in...",
+    "or": "OR",
+    "ssoGoogle": "Google",
+    "ssoGithub": "GitHub",
+    "ssoOkta": "Okta · Acme SSO",
+    "otpPrompt": "Enter the 6-digit code for",
+    "verifying": "Verifying...",
+    "verifyAndSignIn": "Verify and sign in",
+    "recovery": "Use a recovery code",
+    "errorCreds": "Please enter username and password.",
+    "errorOtp": "Please complete all 6 digits.",
+    "errorFailed": "Sign-in failed. Check your credentials and try again.",
+    "errorNotStarted": "No sign-in session in progress. Start over from the password step.",
+    "errorPublicKey": "This account requires public-key authentication, which the browser cannot complete.",
+    "ssoChoose": "Choose a single sign-on provider to continue.",
+    "waitingApproval": "Waiting for an approver to confirm your sign-in request."
+  },
+  "encryption": {
+    "passwordShow": "Show password",
+    "passwordHide": "Hide password",
+    "rateLimited": "Too many attempts. Try again in {{seconds}}s.",
+    "pending": {
+      "title": "Checking gateway",
+      "label": "Contacting the gateway…"
+    },
+    "error": {
+      "title": "Gateway not reachable",
+      "description": "Couldn't fetch the encryption status. The gateway may be starting up or temporarily unavailable.",
+      "retry": "Retry",
+      "retrying": "Retrying…"
+    },
+    "unlock": {
+      "title": "Unlock the gateway",
+      "description": "Enter the master password to decrypt the gateway database and continue.",
+      "passwordLabel": "Master password",
+      "passwordPlaceholder": "••••••••••••",
+      "submit": "Unlock",
+      "submitting": "Unlocking…",
+      "errorPasswordRequired": "Please enter the master password.",
+      "errorInvalid": "Master password is incorrect.",
+      "errorGeneric": "Unlock failed. Please try again."
+    },
+    "bootstrap": {
+      "title": "Initialize encryption",
+      "description": "First-time setup. Provide the bootstrap token and choose a master password.",
+      "tokenHelpTitle": "Where to find the bootstrap token",
+      "tokenHelpBody": "The bootstrap token was generated at gateway startup and written to the server's data directory. Read it from there — it cannot be retrieved from the browser.",
+      "tokenLabel": "Bootstrap token",
+      "tokenPlaceholder": "Paste the bootstrap token",
+      "passwordLabel": "Master password",
+      "passwordPlaceholder": "Choose a strong password",
+      "passwordHint": "At least {{min}} characters. Save it somewhere safe — losing it locks you out of the database.",
+      "confirmLabel": "Confirm master password",
+      "confirmPlaceholder": "Re-enter the password",
+      "submit": "Initialize",
+      "submitting": "Initializing…",
+      "errorTokenRequired": "Bootstrap token is required.",
+      "errorPasswordRequired": "Master password is required.",
+      "errorPasswordTooShort": "Master password must be at least {{min}} characters.",
+      "errorConfirmMismatch": "The two passwords do not match.",
+      "errorTokenInvalid": "Bootstrap token is invalid or already consumed.",
+      "errorEncryptionDisabled": "Encryption is disabled on this gateway. Initialization is not applicable.",
+      "errorAlreadyInitialized": "Encryption has already been initialized. Use Unlock instead.",
+      "errorDbDetectionFailed": "Could not inspect the database to decide whether initialization is safe.",
+      "errorDbNotPlaintext": "The database already contains encrypted data. Initialization aborted.",
+      "errorInitFailed": "Initialization failed on the gateway. Check the server log.",
+      "errorGeneric": "Initialization failed. Please try again.",
+      "backupTitle": "Encryption initialized",
+      "backupDescription": "The database is now encrypted.",
+      "backupBody": "An unencrypted copy of the previous database was kept on the server for recovery. It contains every stored secret in plain text. Verify the gateway works, then delete this file:",
+      "backupContinue": "I understand, continue"
+    }
+  },
+  "spotlight": {
+    "placeholder": "Search pages, targets, users...",
+    "groupPages": "Pages",
+    "groupTargets": "Targets",
+    "groupUsers": "Users",
+    "navigate": "navigate",
+    "openHint": "open",
+    "closeHint": "close",
+    "results": "results",
+    "empty": "No results"
+  },
+  "sessions": {
+    "openCount": "{{count}} open",
+    "newConnection": "New connection",
+    "newConnectionShort": "New",
+    "noOpenSessions": "No open sessions",
+    "emptyTitle": "Open a connection to get started",
+    "emptyDescription": "Open as many tabs as you need — SSH, MySQL, PostgreSQL, HTTP — all here.",
+    "browseAll": "Browse all targets",
+    "recent": "Recent",
+    "fullscreen": "Fullscreen (F11)",
+    "exitFullscreen": "Exit fullscreen (Esc)",
+    "connected": "Connected",
+    "recording": "REC",
+    "connectionInfo": "Connection info",
+    "copy": "Copy",
+    "settings": "Settings",
+    "close": "Close",
+    "readOnly": "read-only",
+    "limitHint": "limit 10000 rows · 30s",
+    "rowsAndTime": "{{rows}} rows · {{ms}}ms",
+    "tabQuery": "SQL Query",
+    "tabTerminal": "CLI Terminal",
+    "tabSchema": "Schema",
+    "filterTables": "Filter tables…",
+    "filterNoMatch": "No tables match",
+    "run": "Run",
+    "exportCsv": "Export CSV",
+    "createTable": "CREATE TABLE",
+    "rttLabel": "RTT",
+    "mtuLabel": "MTU",
+    "tzLabel": "UTC+08:00",
+    "subSessionId": "Session",
+    "subDuration": "Duration"
+  },
+  "quickConnect": {
+    "placeholder": "Connect to… e.g. prod-api, billing, deploy@…",
+    "navigate": "navigate",
+    "connect": "connect",
+    "close": "close",
+    "noMatch": "No matching targets"
+  },
+  "targets": {
+    "userDescription": "All resources your current role authorises you to reach.",
+    "adminDescription": "Every resource brokered by the gateway — SSH, databases, HTTP and more.",
+    "userSearchPlaceholder": "Search by name, host, user…",
+    "ungrouped": "Ungrouped",
+    "filters": {
+      "allProtocols": "All protocols",
+      "allGroups": "All groups"
+    },
+    "stats": {
+      "reachable": "Reachable targets",
+      "reachableHint": "Everything your current role can reach",
+      "recentlyUsed": "Recently used",
+      "recentlyUsedHint_one": "{{count}} resource I used in the last 7 days",
+      "recentlyUsedHint_other": "{{count}} resources I used in the last 7 days",
+      "recentlyUsedHintNone": "No activity in the last 7 days"
+    },
+    "empty": {
+      "title": "No targets to show",
+      "description": "Targets you have access to will appear here once your role is granted."
+    },
+    "emptyFiltered": {
+      "title": "No matching targets",
+      "description": "Try clearing the active filters or refining your search."
+    },
+    "error": {
+      "title": "Failed to load",
+      "description": "Could not fetch the target list. Please try again.",
+      "retry": "Retry"
+    },
+    "actions": {
+      "import": "Import",
+      "newTarget": "New target"
+    },
+    "menu": {
+      "copyConnect": "Copy connect command",
+      "hostKeys": "View host keys",
+      "testConnection": "Test connection"
+    },
+    "detail": {
+      "loading": "Loading…",
+      "notFoundTitle": "Target not found",
+      "notFoundDescription": "It may have been deleted or you may not have access.",
+      "errorTitle": "Failed to load",
+      "errorDescription": "Could not fetch target details. Try refreshing or come back later.",
+      "lastUpdated": "Updated {{time}}",
+      "copyConnectCmd": "Copy connect cmd",
+      "actions": {
+        "refresh": "Refresh",
+        "favoriteOn": "Favorited",
+        "favoriteOff": "Favorite",
+        "replayLast": "Replay last session",
+        "openSqlConsole": "Open SQL console"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "sessions": "My sessions",
+        "security": "Host keys",
+        "permissions": "My access"
+      },
+      "overview": {
+        "connection": "Connection",
+        "targetId": "Target ID",
+        "host": "Host",
+        "defaultUser": "Default user",
+        "group": "Group",
+        "connectHint": "Connect from your terminal with:",
+        "policySummary": "Policy summary",
+        "recording": "Recording",
+        "readOnly": "Read-only",
+        "approvalRequired": "Approval required",
+        "idleTimeout": "Idle timeout 30 min",
+        "notes": "Notes",
+        "notesDb": "Production business database — only read-only queries allowed. Schema changes must go through the migration pipeline.",
+        "notesGeneric": "One of the production hosts running the Acme API service. Prefer this host for maintenance windows.",
+        "connectUnavailable": "Connect command unavailable (protocol listener disabled or not signed in).",
+        "browserOpen": {
+          "title": "Test access",
+          "hint": "Generate a token (or paste one): the curl command above is filled in with it, and you can open the target directly in a new browser tab. Generated tokens are revocable in Profile → API tokens.",
+          "tokenPlaceholder": "Paste an API token",
+          "button": "Open",
+          "generate": "Generate token"
+        }
+      },
+      "policy": {
+        "enabled": "Enabled",
+        "off": "Off"
+      },
+      "sessions": {
+        "id": "Session",
+        "view": "View",
+        "replay": "Replay",
+        "empty": "No sessions yet",
+        "emptyDescription": "You haven't connected to this target yet. Hit Connect to start a session.",
+        "openSession": "Open session {{id}}",
+        "replaySession": "Replay session {{id}}"
+      },
+      "security": {
+        "title": "Known host keys",
+        "description": "Fingerprints the gateway uses when establishing SSH/TLS to this target. Pinned and verified on every connect.",
+        "copyFingerprint": "Copy fingerprint",
+        "firstConnectHint": "Host keys are verified and recorded on first connect.",
+        "noKnownKeys": "No host keys recorded yet — they are learned on first connect."
+      },
+      "permissions": {
+        "userRoles": "Granted via roles",
+        "adminRoles": "Roles authorised for this target",
+        "youAreMember": "You are a member",
+        "adminGrantsAccess": "Members of this role can reach this target",
+        "allowedActions": "Allowed actions",
+        "noRoles": "No roles grant access to this target yet. Assign roles in the target form."
+      }
+    },
+    "form": {
+      "titleNew": "New target",
+      "titleEdit": "Edit target",
+      "descNew": "Add a new managed resource.",
+      "descEdit": "Edit target configuration.",
+      "descriptionPlaceholder": "Optional — owner, scope, or notes for your team",
+      "tabs": {
+        "general": "General",
+        "auth": "Authentication",
+        "policy": "Policy",
+        "roles": "Roles",
+        "logs": "Logs"
+      },
+      "auth": {
+        "methodLabel": "Authentication method",
+        "methodKey": "SSH private key (recommended)",
+        "methodPassword": "Password (stored in Vault)",
+        "methodAgent": "User-provided",
+        "hostKeyTitle": "Host key fingerprint",
+        "hostKeyDesc": "Pre-flight probe of the target's SSH host key before saving.",
+        "probe": "Probe host key",
+        "probing": "Probing…",
+        "handshakeOk": "Handshake OK",
+        "credRef": "Credentials (Vault ref)",
+        "tlsRequired": "Required · pin server cert",
+        "tlsPreferred": "Preferred",
+        "tlsOff": "Off (lab only)",
+        "selectorLabel": "Primary account",
+        "selectorPlaceholder": "Select an account",
+        "required": "Select a primary account.",
+        "source": "Credential source",
+        "sourceAccount": "Select an account",
+        "sourceManual": "Enter manually",
+        "username": "Username",
+        "usernameSshHint": "Leave blank to log in with the connecting Gated user name.",
+        "methods": {
+          "password": "Password",
+          "key": "Private key",
+          "none": "No authentication",
+          "bearer": "Bearer token"
+        },
+        "password": "Password",
+        "privateKey": "Private key (PEM)",
+        "passphrase": "Key passphrase (optional)",
+        "token": "Bearer token",
+        "keepSecret": "Leave blank to keep the saved value",
+        "empty": {
+          "title": "No compatible accounts",
+          "body": "Create an account that matches this target's protocol to bind it as the primary credential.",
+          "create": "Create account"
+        }
+      },
+      "policy": {
+        "recording": "Record sessions",
+        "recordingHint": "Saved to object storage · 365d retention",
+        "approval": "Approval required",
+        "approvalHint": "Each connection must be approved by an admin",
+        "readOnly": "Read-only",
+        "readOnlyHint": "Reject DDL / DML / write operations",
+        "idleTimeout": "Idle timeout",
+        "idleTimeoutHint": "Auto-disconnect after this much idle time",
+        "denyRules": "Command deny rules (regex)",
+        "denyRulesHint": "Matching commands terminate the session immediately and raise an alert.",
+        "readOnlyDbOnly": "Read-only is enforced for database targets only."
+      },
+      "logs": {
+        "empty": "No config-change logs yet."
+      },
+      "httpFlavor": "HTTP flavor",
+      "httpFlavorGeneric": "Generic",
+      "httpFlavorKubernetes": "Kubernetes",
+      "httpFlavorHint": "Kubernetes enables the gateway's K8s-API-proxy behaviour and its specific upstream auth (token / client certificate). Use Generic for a plain HTTP reverse-proxy target.",
+      "groupNone": "No group",
+      "rolesHint": "Roles that grant access to this target. A user must hold at least one of these roles to connect.",
+      "httpUrl": "Upstream URL",
+      "httpUrlHint": "Full URL including scheme — http:// or https:// (the scheme is part of the address).",
+      "missing": "Required: {{fields}}"
+    },
+    "delete": {
+      "title": "Delete target",
+      "body": "Delete target {{name}}? Its role bindings are removed as well. This cannot be undone."
+    },
+    "hostKeysDialog": {
+      "title": "Host keys — {{name}}",
+      "error": "Failed to load host keys.",
+      "empty": "No host keys recorded yet — they are learned on first connect.",
+      "copy": "Copy key"
+    }
+  },
+  "targetGroups": {
+    "description": "Bundle targets by environment, ownership, or purpose — granted as one unit in RBAC.",
+    "searchPlaceholder": "Search by name or description…",
+    "actions": {
+      "newGroup": "New group"
+    },
+    "card": {
+      "membersOne": "{{count}} target",
+      "membersOther": "{{count}} targets",
+      "allowedRoles": "Allowed roles",
+      "view": "View"
+    },
+    "empty": {
+      "title": "No target groups yet",
+      "description": "Bundle targets by environment, ownership, or purpose to grant them as one unit.",
+      "filteredTitle": "No groups match your search",
+      "filteredDescription": "Try a different keyword, or clear the search to see all groups."
+    },
+    "form": {
+      "titleNew": "New group",
+      "titleEdit": "Edit group",
+      "descNew": "Create a target group to grant access as a single unit.",
+      "descEdit": "Update name, description, and allowed roles.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Production · API",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional — what this group bundles and who owns it.",
+      "rolesLabel": "Allowed roles",
+      "rolesHint": "Roles authorised to use targets in this group.",
+      "noRoles": "No roles selected"
+    },
+    "delete": {
+      "title": "Delete group",
+      "body": "Are you sure you want to delete \"{{name}}\"? Targets in this group will not be deleted.",
+      "warnTitle": "Group is in use",
+      "warnBody": "This group still contains {{members}} target(s). Move them to another group before deleting."
+    },
+    "unsaved": {
+      "title": "Discard changes?",
+      "body": "You have unsaved changes. Close anyway?",
+      "discard": "Discard"
+    },
+    "errors": {
+      "nameRequired": "Name is required."
+    }
+  },
+  "users": {
+    "description": "People who can sign in to Gated. Identity may be local or federated; roles and access are evaluated per session.",
+    "searchPlaceholder": "Search name or username…",
+    "actions": {
+      "newUser": "New user",
+      "invite": "Invite",
+      "resetPassword": "Reset password"
+    },
+    "stats": {
+      "total": "Total users"
+    },
+    "filter": {
+      "allRoles": "All roles"
+    },
+    "fields": {
+      "username": "Username",
+      "password": "Password"
+    },
+    "empty": {
+      "title": "No users yet",
+      "description": "Add a local account or link an identity provider to start onboarding people.",
+      "filteredTitle": "No users match your filters",
+      "filteredDescription": "Try clearing filters or broadening the search."
+    },
+    "loadError": {
+      "title": "Couldn't load users",
+      "description": "The user directory is temporarily unavailable. Refresh to try again.",
+      "retry": "Try again"
+    },
+    "selection": {
+      "delete": "Delete"
+    },
+    "bulkDelete": {
+      "title": "Delete {{count}} users?",
+      "body": "These accounts will be removed immediately. Active sessions will continue until they end on their own.",
+      "warnTitle": "Sessions still live",
+      "warnBody": "Selected users have {{sessions}} live session(s). Disable instead, or close sessions before deleting."
+    },
+    "pagination": {
+      "page": "Page {{page}} of {{total}}",
+      "prev": "Previous",
+      "next": "Next",
+      "range": "{{from}}–{{to}} of {{total}}"
+    },
+    "form": {
+      "titleNew": "New user",
+      "titleEdit": "Edit user",
+      "descNew": "Create a user that can sign in to Gated.",
+      "descEdit": "Manage profile, roles, and access for this user.",
+      "tabs": {
+        "general": "General",
+        "roles": "Roles",
+        "sessions": "Sessions"
+      },
+      "namePlaceholder": "Display name",
+      "usernamePlaceholder": "wei.zhang",
+      "noRoles": "No roles granted yet",
+      "noRolesHint": "Without a role this user can sign in, but cannot reach any target.",
+      "noSessions": "No recent sessions",
+      "passwordPlaceholder": "Enter a password",
+      "passwordHint": "Optional — sets the initial password credential for this user."
+    },
+    "errors": {
+      "nameRequired": "Display name is required.",
+      "usernameRequired": "Username is required.",
+      "usernameFormat": "Use lowercase letters, digits, dots, dashes, or underscores."
+    },
+    "unsaved": {
+      "title": "Discard changes?",
+      "body": "You have unsaved changes. Close anyway?",
+      "discard": "Discard"
+    },
+    "delete": {
+      "title": "Delete user",
+      "body": "Are you sure you want to delete {{name}}?",
+      "warnTitle": "Active references",
+      "warnBody": "This user has {{roles}} role grant(s) and {{sessions}} live session(s). Disable instead, or remove all grants before deleting.",
+      "openInstead": "Open user form"
+    },
+    "resetPassword": {
+      "title": "Reset password — {{name}}"
+    }
+  },
+  "roles": {
+    "description": "Policies decide who can reach which targets and what actions are allowed once connected.",
+    "searchPlaceholder": "Search name or description…",
+    "actions": {
+      "newRole": "New policy",
+      "duplicate": "Duplicate",
+      "batchDelete": "Delete selected"
+    },
+    "stats": {
+      "total": "Total policies",
+      "builtin": "Built-in",
+      "custom": "Custom"
+    },
+    "filter": {
+      "allKind": "All policies",
+      "builtin": "Built-in only",
+      "custom": "Custom only"
+    },
+    "fields": {
+      "kind": "Kind"
+    },
+    "kind": {
+      "builtin": "Built-in",
+      "custom": "Custom"
+    },
+    "list": {
+      "selectAll": "Select all",
+      "selectRow": "Select {{name}}"
+    },
+    "empty": {
+      "title": "No policies yet",
+      "description": "Create your first policy to start authorising users.",
+      "filteredTitle": "No matching policies",
+      "filteredDescription": "Try clearing filters or adjusting your search."
+    },
+    "unsaved": {
+      "title": "Discard changes?",
+      "body": "You have unsaved changes. Closing now will lose them.",
+      "discard": "Discard"
+    },
+    "errors": {
+      "nameRequired": "Policy name is required.",
+      "nameTooShort": "Name must be at least 2 characters.",
+      "nameTooLong": "Name must be 64 characters or fewer."
+    },
+    "form": {
+      "titleNew": "New policy",
+      "titleEdit": "Edit policy",
+      "descNew": "Define a reusable set of permissions.",
+      "descEdit": "Edit who this policy applies to and what it allows.",
+      "namePlaceholder": "operator",
+      "descriptionPlaceholder": "What this policy is for — scope, owner, expectations.",
+      "builtin": "Built-in policy",
+      "builtinHint": "Built-in policies cannot be renamed or deleted, but you can grant or revoke users."
+    },
+    "delete": {
+      "title": "Delete policy",
+      "body": "Are you sure you want to delete {{name}}?",
+      "warnTitle": "Policy is in use",
+      "warnBody": "This policy is granted to {{users}} user(s) and bound to {{accounts}} auth profile(s). Revoke grants before deleting.",
+      "openInstead": "Open policy form",
+      "builtinBlocked": "Built-in policies cannot be deleted.",
+      "batchTitle": "Delete {{count}} policies",
+      "batchBody": "This will delete {{count}} custom policies. Built-in policies in the selection are skipped.",
+      "batchConfirm": "Delete {{count}}"
+    }
+  },
+  "tickets": {
+    "description": "Time-bounded, one-shot or rate-limited grants. Hand out narrow access for incidents, contractors, or audits without changing standing policies.",
+    "searchPlaceholder": "Search name, scope, purpose, issuer…",
+    "selectAll": "Select all grants",
+    "selectRow": "Select grant {{name}}",
+    "expiresSoonLabel": "Expires within the hour",
+    "actions": {
+      "newTicket": "Issue grant",
+      "revoke": "Revoke",
+      "extend": "Extend",
+      "copyLink": "Copy claim link",
+      "revokeSelected": "Revoke selected",
+      "deleteSelected": "Delete selected"
+    },
+    "stats": {
+      "total": "Total grants",
+      "active": "Active",
+      "activeHint": "{{count}} expiring within 1 h",
+      "consumed": "Consumed",
+      "expired": "Expired"
+    },
+    "filter": {
+      "state": "Filter by state",
+      "allState": "All states",
+      "issuer": "Filter by issuer",
+      "allIssuers": "All issuers"
+    },
+    "fields": {
+      "scope": "Scope",
+      "uses": "Uses",
+      "expiresIn": "Expires in",
+      "issuedBy": "Issued by"
+    },
+    "state": {
+      "active": "Active",
+      "consumed": "Consumed",
+      "expired": "Expired"
+    },
+    "empty": {
+      "title": "No grants yet",
+      "description": "Issue a time-bounded grant when you need to give someone narrow access without changing standing policies.",
+      "filteredTitle": "No grants match these filters",
+      "filteredDescription": "Try clearing filters or adjusting your search."
+    },
+    "form": {
+      "titleNew": "Issue temporary access",
+      "titleEdit": "Edit grant",
+      "descNew": "Create a narrowly-scoped, expiring access grant.",
+      "descEdit": "Issued tickets cannot be edited. Revoke this ticket and create a new one to change access.",
+      "namePlaceholder": "Incident #4012 — db hotfix",
+      "scopeHint": "Grant access to one specific target.",
+      "scopePlaceholder": "Choose a target…",
+      "usesLabel": "Use limit",
+      "usesHint": "Maximum number of claims before the grant auto-consumes.",
+      "usesHintEdit": "Already used {{used}} of {{limit}}.",
+      "expiresLabel": "Valid for",
+      "expiresPresets": {
+        "1h": "1 hour",
+        "4h": "4 hours",
+        "24h": "24 hours",
+        "7d": "7 days",
+        "14d": "14 days",
+        "30d": "30 days",
+        "custom": "Custom…"
+      },
+      "expiresPreview": "Expires {{when}}",
+      "expiresSoon": "Less than 1 h",
+      "customDateLabel": "Expires at",
+      "purposeLabel": "Purpose / note",
+      "purposePlaceholder": "Why is this grant being issued?",
+      "purposeHint": "Stored on the audit trail next to every claim.",
+      "issuedBy": "Issued by",
+      "issuedAt": "Issued at",
+      "revoked": "Revoked",
+      "consumed": "All uses consumed",
+      "readonlyHint": "This grant can no longer be modified. Delete it to remove from the list, or leave it for the audit trail.",
+      "details": "Ticket details",
+      "immutableHint": "Issued tickets cannot be edited. Revoke this ticket and create a new one to change access."
+    },
+    "errors": {
+      "nameRequired": "Name is required.",
+      "scopeRequired": "Scope is required.",
+      "usesInvalid": "Use limit must be 1 or more.",
+      "expiresInvalid": "Expiry must be in the future."
+    },
+    "unsaved": {
+      "title": "Discard unsaved changes?",
+      "body": "Closing this drawer will lose any changes you've made to this grant.",
+      "discard": "Discard changes"
+    },
+    "revoke": {
+      "title": "Revoke grant",
+      "body": "Revoke {{name}}? Any remaining uses will become unavailable immediately.",
+      "auditHint": "The grant stays in the list as 'Expired' so the audit trail is preserved."
+    },
+    "bulk": {
+      "revokeTitle": "Revoke selected grants",
+      "revokeBody": "Revoke {{count}} active grant(s)? Each remains in the list as 'Expired' for audit.",
+      "deleteTitle": "Delete selected grants",
+      "deleteBody": "Permanently delete {{count}} grant(s)? This cannot be undone."
+    },
+    "delete": {
+      "title": "Delete grant",
+      "body": "Are you sure you want to delete {{name}}?",
+      "warnTitle": "Grant still active",
+      "warnBody": "This grant is still active with {{uses}} use(s) remaining. Revoke it first to make the audit trail clearer.",
+      "openInstead": "Open grant",
+      "revokeInstead": "Revoke instead"
+    }
+  },
+  "user": {
+    "tickets": {
+      "title": "My temporary grants",
+      "description": "Short-lived credentials you issued for someone else or a one-off task. Scoped, capped, auto-expiring — separate from your long-lived credentials.",
+      "searchPlaceholder": "Search name, scope, purpose…",
+      "rowMenu": "Open grant {{name}} menu",
+      "copiedId": "Grant ID copied",
+      "copiedLink": "Claim link copied",
+      "actions": {
+        "issue": "Issue grant"
+      },
+      "stats": {
+        "active": "Active",
+        "expiringSoon": "Expiring < 1 h",
+        "consumed": "Consumed",
+        "expired": "Expired",
+        "expiringHint": "{{count}} expiring within 1 h"
+      },
+      "intro": {
+        "ticketsTitle": "Grants (this page)",
+        "ticketsBody": "Issued for someone else or a one-off task · scoped target · capped uses · auto-expiring.",
+        "apiTokensTitle": "API tokens (your own)",
+        "apiTokensBody": "Long-lived credential that calls the API as you. Manage in Credentials → API tokens."
+      },
+      "menu": {
+        "copyId": "Copy grant ID",
+        "copyLink": "Copy claim link"
+      },
+      "empty": {
+        "title": "No grants issued yet",
+        "description": "Issue a time-bounded grant when you need to give a teammate or one-off task narrow access."
+      },
+      "share": {
+        "title": "Share link",
+        "oneTimeHint": "This link contains the one-time ticket secret. It is shown only now — copy it before closing.",
+        "copy": "Copy link"
+      }
+    },
+    "apiTokens": {
+      "title": "API tokens",
+      "description": "Long-lived credentials for automation, CI and monitoring. Tokens call the API as you, and are shown only once at creation.",
+      "searchPlaceholder": "Search by name…",
+      "rowMenu": "Open token {{name}} menu",
+      "actions": {
+        "create": "Create token"
+      },
+      "stats": {
+        "total": "Total",
+        "expiring": "Expiring in 30d"
+      },
+      "empty": {
+        "title": "No API tokens yet",
+        "description": "Create a token to call the Gated API from CI, monitoring, or local scripts.",
+        "filteredTitle": "No tokens match these filters",
+        "filteredDescription": "Try clearing filters or adjusting the search."
+      }
+    },
+    "credentials": {
+      "title": "My credentials",
+      "description": "Manage the factors you use to authenticate with Gated.",
+      "copiedFingerprint": "Fingerprint copied",
+      "identity": {
+        "active": "Active",
+        "local": "Local"
+      },
+      "password": {
+        "title": "Gateway password",
+        "description": "Used to sign in to the web console. SSH should prefer keys.",
+        "change": "Change",
+        "lastChanged": "Last changed",
+        "policy": "Policy",
+        "policyValue": "12+ chars, mixed case and digit required"
+      },
+      "sshKeys": {
+        "rowMenu": "Open SSH key {{name}} menu"
+      },
+      "otp": {
+        "rowMenu": "Open MFA device {{name}} menu"
+      },
+      "sso": {
+        "title": "SSO bindings",
+        "description": "External identities linked to this account.",
+        "link": "Link identity",
+        "unlink": "Unlink",
+        "anyProvider": "Any provider",
+        "since": "since {{when}}",
+        "empty": "No external identities",
+        "emptyHint": "Link a Google, Okta or other SSO identity to this account."
+      },
+      "sessions": {
+        "signOutOthers": "Sign out other sessions",
+        "confirmTitle": "Sign out other sessions?",
+        "confirmBody": "Sign out {{count}} other device(s)? They will need to sign in again.",
+        "revokeOne": "Sign out {{device}}",
+        "device": {
+          "macChrome": "MacBook Pro · Chrome 147",
+          "iPhoneSafari": "iPhone 15 · Mobile Safari",
+          "linuxFirefox": "Linux workstation · Firefox"
+        }
+      }
+    }
+  },
+  "monitor": {
+    "sessions": {
+      "description": "Observe, replay and terminate every privileged session in real time.",
+      "tabs": {
+        "live": "Live",
+        "past": "Past"
+      },
+      "stats": {
+        "liveNow": "Live now",
+        "liveNowHint": "{{ssh}} SSH · {{db}} DB"
+      },
+      "actions": {
+        "exportCsv": "Export CSV",
+        "autoRefresh": "Auto-refresh",
+        "forceClose": "Force close",
+        "watchLive": "Watch live",
+        "replay": "Replay",
+        "more": "More actions",
+        "viewDetail": "View detail",
+        "copyId": "Copy session ID",
+        "delete": "Delete",
+        "clearHistory": "Clear history",
+        "deleteSelected": "Delete selected"
+      },
+      "filter": {
+        "allProtocols": "All protocols",
+        "anyTime": "Any time",
+        "lastHour": "Last hour",
+        "last24h": "Last 24h",
+        "last7d": "Last 7d"
+      },
+      "fields": {
+        "session": "Session"
+      },
+      "searchPlaceholder": "Search user, target, IP…",
+      "lastUpdated": "Updated {{when}}",
+      "neverUpdated": "Never updated",
+      "emptyLive": "No live sessions right now.",
+      "emptyPast": "No past sessions in this window.",
+      "emptyHintLive": "Live sessions appear here as users connect through the gateway.",
+      "emptyHintPast": "Try clearing filters or extending the time window.",
+      "confirm": {
+        "deleteOne": "Delete this session record and its recordings?",
+        "deleteSelected": "Delete {{count}} selected session record(s)? This also removes their recordings.",
+        "clearHistory": "Delete ALL historical session records and their recordings? This cannot be undone.",
+        "title": "Confirm deletion"
+      },
+      "management": {
+        "tab": "Browser logins",
+        "empty": "No signed-in browser sessions.",
+        "emptyHint": "Signed-in web UI and API sessions appear here.",
+        "created": "Signed in",
+        "lastActive": "Last active",
+        "current": "This session",
+        "revoke": "Revoke",
+        "confirmTitle": "Revoke browser session",
+        "confirmBody": "Sign {{user}} out of this browser session? Their next request will require logging in again."
+      }
+    },
+    "detail": {
+      "breadcrumb": "Sessions",
+      "notFoundTitle": "Session not found",
+      "notFoundDescription": "It may have been purged, or the ID is incorrect.",
+      "timelineTitle": "Event timeline",
+      "timelineEmpty": "No timeline data",
+      "timelineEmptyHint": "The backend does not yet expose per-session events.",
+      "detailsTitle": "Details",
+      "recordingsTitle": "Recordings",
+      "recordingPurged": "Recording purged",
+      "recordingPurgedHint": "The capture for this session was purged and is no longer available."
+    },
+    "live": {
+      "readOnly": "Read-only",
+      "breadcrumb": "Live monitor",
+      "description": "Watching {{user}} on {{target}}",
+      "notLiveTitle": "Session is not live",
+      "notLiveDescription": "This session has ended or is not currently streaming output."
+    }
+  },
+  "accounts": {
+    "description": "Reusable login identities on target systems. One account binds to many targets and is granted to many roles; credentials are vaulted centrally — rotate once, applied everywhere.",
+    "searchPlaceholder": "Search name or description…",
+    "actions": {
+      "newAccount": "New account"
+    },
+    "stats": {
+      "total": "Total accounts",
+      "rotationDue": "Rotation due",
+      "rotationHint": "due date reached",
+      "usedToday": "Used today"
+    },
+    "filter": {
+      "allProtocols": "All protocols"
+    },
+    "fields": {
+      "credential": "Credential",
+      "boundTargets": "Bound targets"
+    },
+    "credLabels": {
+      "ssh-password": "SSH password",
+      "ssh-key": "SSH key",
+      "db-password": "DB password",
+      "k8s-token": "K8s token",
+      "k8s-client-cert": "K8s client cert",
+      "http-headers": "HTTP headers"
+    },
+    "form": {
+      "titleNew": "New account",
+      "descNew": "A reusable login identity on target systems",
+      "descriptionPlaceholder": "Purpose, owner, notes…",
+      "tabs": {
+        "details": "Details",
+        "targets": "Targets",
+        "usage": "Usage"
+      },
+      "cred": {
+        "kindLabel": "Credential kind",
+        "username": "Username",
+        "password": "Password",
+        "privateKeyPem": "Private key (PEM)",
+        "passphrase": "Key passphrase",
+        "engine": "Database engine",
+        "engineMysql": "MySQL",
+        "enginePostgres": "PostgreSQL",
+        "token": "Token",
+        "caPem": "CA certificate (PEM)",
+        "namespace": "Namespace",
+        "clientCertPem": "Client certificate (PEM)",
+        "clientKeyPem": "Client key (PEM)",
+        "headers": "HTTP headers",
+        "headerName": "Header name",
+        "headerValue": "Header value",
+        "headerSensitive": "Sensitive",
+        "addHeader": "Add header",
+        "removeHeader": "Remove header",
+        "emptyOnEditHint": "Secret fields are blank on purpose — leave them blank to keep the stored value, or type a new value to replace it."
+      },
+      "rotation": {
+        "label": "Rotation due",
+        "hint": "The credential never expires.",
+        "dueOn": "Flagged for rotation on {{date}}.",
+        "keep": "Keep current ({{date}})",
+        "d30": "30 days",
+        "d90": "90 days",
+        "d180": "6 months",
+        "d365": "1 year",
+        "never": "Never expires"
+      },
+      "reveal": {
+        "show": "Show credential",
+        "hide": "Hide credential",
+        "autoClearHint": "The revealed value clears automatically after a short time.",
+        "factor": "Confirm your identity",
+        "password": "Current password",
+        "otp": "Current OTP code",
+        "useRevealed": "Use this value"
+      },
+      "targets": {
+        "title": "Bound targets",
+        "emptyTitle": "No targets bound yet",
+        "emptyDescription": "Bind this account to at least one target to make it usable.",
+        "bind": "Bind target",
+        "unbind": "Unbind"
+      },
+      "missing": "Required: {{fields}}",
+      "saveVerified": "Verify and save",
+      "sections": {
+        "credential": "Credential"
+      }
+    },
+    "delete": {
+      "title": "Delete account",
+      "body": "Are you sure you want to delete {{name}}?",
+      "warnTitle": "References exist",
+      "warnBody": "This account is referenced by {{targets}} target(s) and {{roles}} role(s). Unbind it before deleting.",
+      "openInstead": "Open account form"
+    },
+    "view": {
+      "credentialTitle": "Stored credential",
+      "revealHint": "Secret values are hidden. Revealing requires identity confirmation and is audited.",
+      "rotationDue": "Rotation due",
+      "editing": "Editing"
+    },
+    "stepUp": {
+      "createTitle": "Confirm account creation",
+      "updateTitle": "Confirm account changes",
+      "saveDescription": "Changes to vaulted credentials require identity confirmation and are audited.",
+      "confirmSave": "Confirm and save",
+      "revealTitle": "Confirm to reveal credential",
+      "revealDescription": "Revealing the secret requires identity confirmation and is audited.",
+      "errors": {
+        "unauthorized": "Confirmation failed. Check your password or code; an OTP code can only be used once.",
+        "rateLimited": "Too many attempts. Wait a minute and try again."
+      }
+    },
+    "empty": {
+      "title": "No accounts yet",
+      "description": "Create a reusable credential, then bind it to targets.",
+      "noMatch": "No accounts match the current filters"
+    },
+    "unsaved": {
+      "title": "Discard changes?",
+      "body": "You have unsaved changes to this account.",
+      "discard": "Discard"
+    }
+  },
+  "audit": {
+    "description": "Every privileged operation hitting the API — retained for 365 days by default.",
+    "searchAria": "Search audit entries",
+    "rangeAria": "Time range",
+    "actions": {
+      "exportJsonl": "Export JSONL"
+    },
+    "fields": {
+      "time": "Time",
+      "actor": "Actor",
+      "action": "Action"
+    },
+    "ranges": {
+      "24h": "Last 24h",
+      "7d": "Last 7d",
+      "30d": "Last 30d"
+    },
+    "status": {
+      "lastUpdated": "Updated {{at}}",
+      "rowsOf": "{{shown}} entries · {{date}}"
+    },
+    "empty": {
+      "title": "No matching entries",
+      "description": "Adjust the search query or time range to broaden the result."
+    },
+    "plane": "Audit source",
+    "sessionPlane": "Target connections",
+    "managementPlane": "Management actions"
+  },
+  "settings": {
+    "description": "Runtime configuration — applied without restarting the gateway.",
+    "parameters": {
+      "title": "Gateway parameters",
+      "hint": "Live, backend-backed gateway settings persisted via /admin/api/parameters.",
+      "allowOwnCredentialManagement": "Users may manage their own credentials",
+      "allowOwnCredentialManagementHint": "Lets users add, rotate, and remove their own SSH keys and passwords.",
+      "rateLimitBytesPerSecond": "Per-session bandwidth limit",
+      "rateLimitBytesPerSecondHint": "Bytes per second cap applied to each session. Empty disables the limit.",
+      "rateLimitBytesPerSecondUnit": "B/s",
+      "sqlConsoleRateLimitPerUser": "SQL Console requests per user",
+      "sqlConsoleRateLimitPerUserHint": "Maximum requests per minute that a single user can make to the SQL Console and DB Terminal gateway endpoints.",
+      "sqlConsoleRateLimitPerTarget": "SQL Console requests per target",
+      "sqlConsoleRateLimitPerTargetHint": "Maximum requests per minute against a single database target, across all users.",
+      "sqlConsoleRateLimitUnit": "req/min",
+      "sshAuthSection": "SSH client authentication",
+      "sshClientAuthPublickey": "Allow public-key authentication",
+      "sshClientAuthPassword": "Allow password authentication",
+      "sshClientAuthKeyboardInteractive": "Allow keyboard-interactive authentication",
+      "minimizePasswordLogin": "Minimize password login surface",
+      "minimizePasswordLoginHint": "Prefer SSO / public-key flows; hide the password form when possible.",
+      "saved": "Gateway parameters saved.",
+      "save": "Save parameters",
+      "saving": "Saving…",
+      "loadError": "Could not load gateway parameters.",
+      "terminalWatermarkEnabled": "Terminal watermark",
+      "terminalWatermarkEnabledHint": "Overlay a tiled identity + timestamp watermark on web terminals.",
+      "siteTitle": "Site title",
+      "siteTitleHint": "Shown with the logo on the login page, in the sidebar and in the browser tab. Leave empty to use \"Gated\"."
+    },
+    "encryptionAdmin": {
+      "title": "Database encryption",
+      "hint": "Master-password-controlled SQLCipher encryption for the gateway's metadata DB.",
+      "loadError": "Could not load encryption status.",
+      "disabledNotice": "Database encryption is not enabled on this gateway. Configure it at startup to use this surface.",
+      "unlockedNotice": "The metadata database is unlocked. You can lock the gateway or rotate the master password.",
+      "notUnlocked": {
+        "locked": "The metadata database is currently locked. Unlock it on the boot screen before changing the master password.",
+        "uninitialized": "Encryption is enabled but not yet initialized. Complete the bootstrap wizard before using these actions.",
+        "error": "Encryption is in an error state. Inspect the gateway logs before retrying."
+      },
+      "status": {
+        "disabled": "Disabled",
+        "uninitialized": "Uninitialized",
+        "locked": "Locked",
+        "unlocked": "Unlocked",
+        "error": "Error"
+      },
+      "actions": {
+        "lockNow": "Lock now",
+        "rotateMaster": "Rotate master password"
+      },
+      "lockDialog": {
+        "title": "Lock the metadata database?",
+        "description": "Locking immediately stops all sessions from accessing secrets.",
+        "warning": "After locking, every user — including you — must unlock the gateway with the master password before normal operation resumes.",
+        "cancel": "Cancel",
+        "confirm": "Lock now",
+        "locking": "Locking…",
+        "error": "Could not lock the gateway."
+      },
+      "rekeyDialog": {
+        "title": "Rotate master password",
+        "description": "Re-wraps the data encryption key with a new master password. The DB content is not re-encrypted.",
+        "oldPassword": "Current master password",
+        "newPassword": "New master password",
+        "newPasswordHint": "At least {{min}} characters. Use a long passphrase you can recover.",
+        "confirmPassword": "Confirm new master password",
+        "cancel": "Cancel",
+        "confirm": "Rotate password",
+        "rotating": "Rotating…",
+        "close": "Close",
+        "success": "Master password rotated. The next lock will require the new password to unlock.",
+        "error": "Could not rotate the master password.",
+        "errors": {
+          "oldRequired": "Enter the current master password.",
+          "newTooShort": "New password must be at least {{min}} characters.",
+          "newSameAsOld": "New password must differ from the current one.",
+          "confirmMismatch": "Confirmation does not match the new password."
+        }
+      }
+    },
+    "footer": {
+      "reset": "Reset"
+    }
+  },
+  "authRequests": {
+    "tabs": {
+      "pending": "Pending",
+      "history": "History"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired"
+    },
+    "filters": {
+      "search": "Search target, actor, client…",
+      "allStatus": "Status",
+      "dateRange": "Range",
+      "range": {
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "all": "All time"
+      }
+    },
+    "columns": {
+      "createdAt": "Time",
+      "actor": "Actor",
+      "target": "Target",
+      "protocol": "Protocol",
+      "client": "Client",
+      "status": "Status",
+      "decidedAt": "Decided",
+      "decidedBy": "By"
+    },
+    "countdown": {
+      "expiresIn": "Expires in",
+      "expired": "Expired"
+    },
+    "detail": {
+      "title": "New login request",
+      "subtitle": "Review the details before approving — it grants the requesting client an immediate session.",
+      "warningTitle": "Is this you? Verify before approving.",
+      "warningBody": "Reject and rotate your password if this wasn't you. All decisions are recorded in the audit log.",
+      "decidedBy": "Decided by",
+      "relatedSession": "Related session",
+      "fields": {
+        "target": "Target",
+        "protocol": "Protocol",
+        "actor": "Actor",
+        "fromIp": "From IP",
+        "location": "Location",
+        "client": "Client",
+        "initiated": "Initiated",
+        "expiresAt": "Expires at",
+        "requestId": "Request ID"
+      }
+    },
+    "empty": {
+      "pending": "No pending approvals",
+      "pendingHint": "New login approvals will appear here in real time.",
+      "history": "No matching records",
+      "historyHint": "Try clearing filters to see the full history."
+    },
+    "pagination": {
+      "range": "{{start}}-{{end}} of {{total}}",
+      "prev": "Prev",
+      "next": "Next"
+    }
+  },
+  "admin": {
+    "knownHosts": {
+      "title": "Known hosts",
+      "description": "Global known_hosts table — audit and purge fingerprints discovered for remote hosts.",
+      "range": "Showing {{showing}} of {{total}}",
+      "selectAll": "Select all known hosts",
+      "selectRow": "Select {{host}}",
+      "stats": {
+        "total": "Total hosts",
+        "ed25519": "ED25519",
+        "rsa": "RSA",
+        "ecdsa": "ECDSA"
+      },
+      "search": {
+        "placeholder": "Search host or fingerprint…"
+      },
+      "actions": {
+        "export": "Export",
+        "purge": "Bulk purge",
+        "deleteOne": "Purge entry"
+      },
+      "table": {
+        "host": "Host",
+        "algorithm": "Algorithm",
+        "fingerprint": "Fingerprint",
+        "actions": "Actions"
+      },
+      "selection": {
+        "purge": "Purge"
+      },
+      "delete": {
+        "cancel": "Cancel",
+        "confirm": "Purge",
+        "one": {
+          "title": "Purge this known host?",
+          "body": "Gated will forget {{host}}. The next client connection will re-pin its fingerprint."
+        },
+        "batch": {
+          "title": "Purge {{count}} known hosts?",
+          "body": "Gated will forget {{count}} entries. The next client connection will re-pin each fingerprint. This cannot be undone."
+        }
+      },
+      "toast": {
+        "deletedOne": "Known host purged",
+        "deletedBatch_one": "{{count}} known host purged",
+        "deletedBatch_other": "{{count}} known hosts purged"
+      },
+      "empty": {
+        "title": "No known hosts yet",
+        "hint": "Fingerprints are recorded automatically the first time a client connects to a remote host.",
+        "filtered": {
+          "title": "No hosts match your search",
+          "clear": "Clear search"
+        }
+      },
+      "loadError": {
+        "title": "Couldn't load known hosts",
+        "description": "The known_hosts table is temporarily unavailable. Refresh to try again.",
+        "retry": "Try again"
+      }
+    }
+  },
+  "sqlConsole": {
+    "title": "SQL Console",
+    "subtitle": "Run SQL against {{target}}.",
+    "readonly": "Read-only",
+    "kind": {
+      "mysql": "MySQL",
+      "postgres": "Postgres"
+    },
+    "schemaTree": {
+      "title": "Schemas",
+      "default": "default",
+      "loading": "Loading schemas…",
+      "empty": {
+        "title": "No schemas",
+        "description": "This connection didn't expose any schemas."
+      },
+      "error": {
+        "title": "Couldn't load schemas",
+        "retry": "Retry"
+      },
+      "expandTable": "Expand columns for {{table}}",
+      "collapseTable": "Collapse columns for {{table}}",
+      "tableType": {
+        "table": "Table",
+        "view": "View"
+      },
+      "tables": {
+        "empty": "No tables in this schema.",
+        "error": "Couldn't load tables."
+      },
+      "columns": {
+        "empty": "No columns.",
+        "error": "Couldn't load columns.",
+        "primaryKey": "Primary key",
+        "notNull": "Not null"
+      }
+    },
+    "editor": {
+      "title": "Editor",
+      "ariaLabel": "SQL editor",
+      "placeholder": "-- SELECT * FROM table_name LIMIT 100;",
+      "run": "Run",
+      "running": "Running…",
+      "runHint": "Cmd/Ctrl+Enter",
+      "limit": "Row limit",
+      "limitOption_one": "{{count}} row",
+      "limitOption_other": "{{count}} rows"
+    },
+    "results": {
+      "idle": "No query run yet",
+      "idleHint": "Write a query above and press Run, or pick a table on the left to start.",
+      "loading": "Running query…",
+      "error": "Query failed",
+      "errorHint": "See the banner above for details.",
+      "empty": "No rows returned",
+      "emptyHintSelect": "The query completed but the result set was empty.",
+      "emptyHintNonSelect": "Statement ran successfully and returned no rows.",
+      "elapsed": "{{ms}} ms",
+      "rowsAffected_one": "{{count}} row affected",
+      "rowsAffected_other": "{{count}} rows affected",
+      "rowsReturned_one": "{{count}} row returned",
+      "rowsReturned_other": "{{count}} rows returned",
+      "limit": "limit {{limit}}",
+      "truncated": "Results truncated to {{limit}} rows. Increase the row limit to see more.",
+      "null": "NULL",
+      "kind": {
+        "SELECT": "SELECT",
+        "SHOW": "SHOW",
+        "EXPLAIN": "EXPLAIN",
+        "DESCRIBE": "DESCRIBE",
+        "INSERT": "INSERT",
+        "UPDATE": "UPDATE",
+        "DELETE": "DELETE",
+        "CREATE": "CREATE",
+        "ALTER": "ALTER",
+        "DROP": "DROP",
+        "TRUNCATE": "TRUNCATE",
+        "OTHER": "OTHER",
+        "UNKNOWN": "UNKNOWN"
+      }
+    },
+    "error": {
+      "dismiss": "Dismiss",
+      "unauthorized": "Session expired. Please sign in again.",
+      "readonly": "Read-only connection — only SELECT-style statements are allowed. ({{message}})",
+      "forbidden": "Forbidden: {{message}}",
+      "notFound": "Not found: {{message}}",
+      "rateLimited": "Rate limited. Try again in {{seconds}}s.",
+      "rateLimitedNoHint": "Rate limited. Wait a moment and try again.",
+      "upstream": "Upstream database error: {{message}}",
+      "generic": "Query failed: {{message}}"
+    },
+    "route": {
+      "loading": "Loading target…",
+      "notFoundTitle": "Target not found",
+      "notFoundDescription": "No target named {{target}} is available.",
+      "unsupportedTitle": "SQL console unavailable",
+      "unsupportedDescription": "The SQL console is only available for MySQL and Postgres targets ({{kind}} is not supported).",
+      "backToTargets": "Back to targets"
+    }
+  },
+  "terminal": {
+    "title": {
+      "ssh": "SSH — {{name}}",
+      "mysql": "MySQL — {{name}}",
+      "postgres": "PostgreSQL — {{name}}",
+      "unsupported": "Terminal"
+    },
+    "actions": {
+      "disconnect": "Disconnect"
+    },
+    "status": {
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "closed": "Session closed",
+      "error": "Session error",
+      "rateLimited": "Rate limit reached",
+      "info": "Info"
+    },
+    "hostKey": {
+      "title": "Verify host key",
+      "description": "The remote host is unknown. Confirm this fingerprint matches the one you trust before continuing — accepting will pin this key for future connections.",
+      "algorithm": "Algorithm",
+      "fingerprint": "Public key",
+      "countdown": "Auto-rejects in {seconds}s",
+      "accept": "Accept",
+      "reject": "Reject"
+    },
+    "unsupported": {
+      "title": "Unsupported protocol",
+      "description": "Web terminals support SSH, MySQL, and PostgreSQL only. Got: {{kind}}"
+    }
+  },
+  "recordings": {
+    "dispatch": {
+      "title": "Recording",
+      "loading": "Loading recording…",
+      "notFound": "Recording not found",
+      "notFoundHint": "This recording may have been purged or never existed.",
+      "unknownKind": "This recording type isn't supported in the player yet.",
+      "backToSessions": "Back to sessions"
+    },
+    "httpProxy": {
+      "title": "HTTP proxy exchanges",
+      "empty": "No HTTP requests were recorded for this session.",
+      "headers": {
+        "timestamp": "Time",
+        "method": "Method",
+        "path": "Path",
+        "status": "Status"
+      },
+      "expand": "Show request and response body",
+      "collapse": "Hide request and response body",
+      "requestBody": "Request body",
+      "responseBody": "Response body",
+      "bodyNone": "—"
+    },
+    "terminal": {
+      "loading": "Loading recording…",
+      "error": "Couldn't load this recording",
+      "empty": "No terminal output captured",
+      "live": "Waiting for live stream…"
+    },
+    "sqlAudit": {
+      "title": "SQL audit recording",
+      "started": "Started",
+      "ended": "Ended",
+      "metadata": "Metadata",
+      "notWired": "A dedicated viewer for this audit isn't wired up yet — the audit log page remains the source of truth for SQL events.",
+      "openAudit": "Open audit log"
+    },
+    "traffic": {
+      "title": "Traffic capture",
+      "download": "Download .pcap",
+      "started": "Started",
+      "ended": "Ended",
+      "metadata": "Metadata",
+      "wrongKind": "This recording is not a traffic capture."
+    }
+  },
+  "states": {
+    "loading": "Loading…"
+  },
+  "commandAcl": {
+    "description": "Rules that allow, deny, or hold shell and database commands for review. Rules are evaluated by priority; an empty ruleset allows everything.",
+    "searchPlaceholder": "Search rules, patterns…",
+    "actions": {
+      "newRule": "New Rule"
+    },
+    "stats": {
+      "total": "Total rules",
+      "enabled": "Enabled"
+    },
+    "filter": {
+      "allActions": "All actions"
+    },
+    "fields": {
+      "priority": "Priority",
+      "priorityHint": "Lower value is evaluated first.",
+      "action": "Action",
+      "matchType": "Match type",
+      "pattern": "Pattern",
+      "patternRegexHint": "A regular expression; it must compile on the server.",
+      "patternKeywordHint": "A case-sensitive substring to match anywhere in the command.",
+      "targetScope": "Target scope",
+      "roleScope": "Role scope",
+      "enabled": "Enabled"
+    },
+    "protocol": {
+      "any": "Any",
+      "ssh": "SSH",
+      "mysql": "MySQL",
+      "postgres": "PostgreSQL"
+    },
+    "matchType": {
+      "regex": "Regex",
+      "keyword": "Keyword"
+    },
+    "action": {
+      "allow": "Allow",
+      "deny": "Deny",
+      "review": "Review"
+    },
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "scope": {
+      "allTargets": "All targets",
+      "allRoles": "All roles"
+    },
+    "form": {
+      "titleNew": "New command rule",
+      "titleEdit": "Edit command rule",
+      "descNew": "Match shell or database commands and choose what happens.",
+      "descEdit": "Update how this command rule matches and acts.",
+      "namePlaceholder": "Block destructive removals",
+      "descriptionPlaceholder": "Optional notes about this rule"
+    },
+    "errors": {
+      "nameRequired": "Name is required.",
+      "patternRequired": "Pattern is required.",
+      "regexHint": "Regex may not compile: {{error}}"
+    },
+    "unsaved": {
+      "title": "Discard changes?",
+      "body": "This command rule has unsaved changes.",
+      "discard": "Discard"
+    },
+    "empty": {
+      "title": "No command rules",
+      "description": "Add a rule to allow, deny, or review shell and database commands.",
+      "filteredTitle": "No matching rules",
+      "filteredDescription": "No command rules match the current filters."
+    },
+    "delete": {
+      "title": "Delete command rule",
+      "body": "Delete the rule “{{name}}”? This cannot be undone."
+    }
+  },
+  "commandRecords": {
+    "description": "Search executed shell and SQL commands captured across sessions.",
+    "searchPlaceholder": "Search command text…",
+    "filter": {
+      "allSources": "All sources"
+    },
+    "source": {
+      "shell": "Shell",
+      "sql": "SQL"
+    },
+    "ranges": {
+      "any": "Any time",
+      "24h": "Last 24h",
+      "7d": "Last 7d",
+      "30d": "Last 30d"
+    },
+    "fields": {
+      "timestamp": "Time",
+      "source": "Source",
+      "command": "Command",
+      "outcome": "Outcome",
+      "sessionId": "Session ID",
+      "range": "Time range",
+      "matchedRule": "Matched rule"
+    },
+    "outcome": {
+      "ok": "OK",
+      "failed": "Failed"
+    },
+    "pagination": {
+      "range": "{{from}}–{{to}} of {{total}}",
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "empty": {
+      "title": "No command records",
+      "description": "No shell or SQL commands match the current filters."
+    }
+  },
+  "commandReviews": {
+    "description": "Shell commands paused by a review rule, awaiting an approve or reject decision.",
+    "stats": {
+      "pending": "Pending"
+    },
+    "unknownUser": "Unknown user",
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "empty": {
+      "title": "No pending reviews",
+      "description": "Commands held by a review rule appear here for a decision."
+    }
+  },
+  "otpEnrollment": {
+    "instructions": "Add the setup key to your authenticator, then enter its current code. Setup expires after a few minutes.",
+    "secret": "Setup key",
+    "openApp": "Open authenticator app",
+    "code": "Verification code",
+    "confirm": "Verify and enable",
+    "begin": "Begin setup"
+  }
+}

@@ -1,0 +1,224 @@
+name: Build
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64-linux
+            target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04 # older image for glibc compatibility
+            cyclonedx-build: cyclonedx-linux-x64
+            cyclonedx-sha256: 5e1595542a6367378a3944bbd3008caab3de65d572345361d3b9597b1dbbaaa0
+          - arch: arm64-linux
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm # older image for glibc compatibility
+            cyclonedx-build: cyclonedx-linux-arm64
+            cyclonedx-sha256: 5b4181f6fd4d8fbe54e55c1b3983d9af66ce2910a263814b290cbd5e351e68a4
+      fail-fast: false
+
+    name: Build (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    # Build/test only: no contents/id-token/attestations write. Publishing and
+    # attestation are scoped to the separate `release` job below.
+    permissions:
+      contents: read
+      artifact-metadata: write
+
+    steps:
+      - if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt update
+          sudo apt install -y libssl-dev pkg-config
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - uses: rlespinasse/github-slug-action@9e7def61550737ba68c62d34a32dd31792e3f429
+
+      - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Cache Rust
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-build-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-build-
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: latest
+
+      - name: Cache cargo tools
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just-cargo-deny-0.18.9-cargo-cyclonedx-0.5
+
+      - name: Install tools
+        run: |
+          command -v just || cargo install --locked just
+          command -v cargo-deny || cargo install --locked cargo-deny@0.18.9
+          command -v cargo-cyclonedx || cargo install --locked cargo-cyclonedx@^0.5
+          rm -rf ~/.cargo/registry
+
+      - name: Install CycloneDX
+        run: |
+          mkdir cdx
+          wget -q https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.2/${{ matrix.cyclonedx-build }} -O cyclonedx
+          echo "${{ matrix.cyclonedx-sha256 }}  cyclonedx" | sha256sum -c -
+          chmod +x cyclonedx
+
+      - name: Install CycloneDX-bun
+        run: |
+          bun i -g @cyclonedx/cdxgen@12.6.0
+
+      - name: cargo-deny
+        run: |
+          cargo deny --version
+          cargo deny check
+
+      - name: Install UI deps
+        run: |
+          just bun install --frozen-lockfile
+
+      - name: Build UI
+        run: |
+          just bun run build
+
+      - name: Generate UI BOM
+        run: |
+          cd web && cdxgen -t bun -o ../cdx/admin-ui.cdx.json --spec-version 1.5
+          cd ..
+          ./cyclonedx convert --input-file cdx/admin-ui.cdx.json --output-file cdx/admin-ui.cdx.xml --input-format json --output-format xml
+          rm cdx/admin-ui.cdx.json
+
+      - name: Build
+        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
+        with:
+          command: build
+          args: --all-features --release --target ${{ matrix.target }}
+        env:
+          SOURCE_DATE_EPOCH: "0" # for rust-embed determinism
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "--cfg tokio_unstable --remap-path-prefix=$HOME=/reproducible-home --remap-path-prefix=$PWD=/reproducible-pwd"
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "--cfg tokio_unstable --remap-path-prefix=$HOME=/reproducible-home --remap-path-prefix=$PWD=/reproducible-pwd"
+
+      - name: Generate Rust BOM
+        run: |
+          cargo cyclonedx --all-features
+          mv crates/gated*/*.cdx.xml cdx/
+
+      - name: Merge BOMs
+        run: ./cyclonedx merge --input-files cdx/* --input-format xml --output-format xml > cdx.xml
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@2848b2cda0e5190984587ec6bb1f36730ca78d50
+        with:
+          name: gated-${{ env.GITHUB_REF_SLUG }}-${{ matrix.arch }}
+          path: target/${{ matrix.target }}/release/gated
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@2848b2cda0e5190984587ec6bb1f36730ca78d50
+        with:
+          name: gated-${{ env.GITHUB_REF_SLUG }}-${{ matrix.arch }}.cdx.xml
+          path: cdx.xml
+
+  # Publish/attest only. Elevated write permissions live here, not in the
+  # build matrix job (which is restricted to contents: read).
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-24.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: read
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: artifacts
+
+      - name: Attest build
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
+        with:
+          subject-path: artifacts/gated-*/gated
+
+      - name: Assemble release assets
+        run: |
+          mkdir dist
+          for dir in artifacts/gated-*; do
+            name=$(basename "$dir")
+            if [ -f "$dir/gated" ]; then
+              mv "$dir/gated" "dist/$name"
+            elif [ -f "$dir/cdx.xml" ]; then
+              mv "$dir/cdx.xml" "dist/$name"
+            fi
+          done
+
+      - name: Upload release
+        uses: softprops/action-gh-release@1853d73993c8ca1b2c9c1a7fede39682d0ab5c2a
+        with:
+          draft: false
+          generate_release_notes: true
+          files: dist/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  config-schema:
+    name: Config schema check
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Setup
+        run: |
+          sudo apt update
+          sudo apt install --no-install-recommends -y libssl-dev pkg-config
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - name: Cache Rust
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-schema-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-schema-
+
+      - name: Cache cargo tools
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-just
+
+      - name: Install tools
+        run: |
+          command -v just || cargo install --locked just
+
+      - name: Ensure there are no changes in config schema
+        run: |
+          mkdir -p web/dist
+          just config-schema
+          git diff --exit-code config-schema.json
