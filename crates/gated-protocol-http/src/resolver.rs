@@ -13,9 +13,9 @@
 //! deliberately collapses "target not found" and "unauthenticated" so the
 //! proxy does not leak which target names exist.
 
+use axum::http::request::Parts;
 use gated_common::Target;
 use gated_core::{ConfigProvider, Services};
-use poem::Request;
 use thiserror::Error;
 
 const X_GATED_TARGET_HEADER: &str = "x-gated-target";
@@ -53,11 +53,11 @@ pub struct ResolverConfig {
 /// `Err(NotIdentified)` if neither is present, or `Err(InvalidName)` if the
 /// extracted name is not a valid DNS label.
 pub fn target_name_from_request(
-    req: &Request,
+    req: &Parts,
     config: &ResolverConfig,
 ) -> Result<String, ResolveError> {
     if let Some(header_value) = req
-        .headers()
+        .headers
         .get(X_GATED_TARGET_HEADER)
         .and_then(|v| v.to_str().ok())
     {
@@ -74,7 +74,7 @@ pub fn target_name_from_request(
     }
 
     if let Some(host) = req
-        .headers()
+        .headers
         .get(http::header::HOST)
         .and_then(|v| v.to_str().ok())
         && let Some(label) = parse_host_label(host, &config.base_domain)
@@ -91,7 +91,7 @@ pub fn target_name_from_request(
 /// Resolve the request to a `Target`, performing IO against the config
 /// provider.  Combines [`target_name_from_request`] with a lookup.
 pub async fn resolve_target(
-    req: &Request,
+    req: &Parts,
     config: &ResolverConfig,
     services: &Services,
 ) -> Result<Target, ResolveError> {
@@ -171,12 +171,12 @@ fn is_label_alnum(b: u8) -> bool {
 mod tests {
     use super::*;
 
-    fn req_with_headers(pairs: &[(&str, &str)]) -> Request {
-        let mut builder = poem::Request::builder();
+    fn req_with_headers(pairs: &[(&str, &str)]) -> Parts {
+        let mut builder = http::Request::builder();
         for (name, value) in pairs {
             builder = builder.header(*name, *value);
         }
-        builder.finish()
+        builder.body(()).unwrap().into_parts().0
     }
 
     fn cfg() -> ResolverConfig {

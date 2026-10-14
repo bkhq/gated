@@ -7,7 +7,6 @@ use chrono::{DateTime, Utc};
 use gated_common::{HttpProxyFlavor, SessionId};
 use gated_core::recordings::{Recorder, RecordingWriter, SessionRecordings};
 use gated_db_entities::Recording::RecordingKind;
-use poem_openapi::Object;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
@@ -16,8 +15,7 @@ use crate::engine::HttpProxyRecorder;
 /// API-visible projection of a recorded HTTP proxy exchange.  Bodies are
 /// best-effort JSON-decoded for human inspection; non-JSON bodies surface
 /// as `null`.
-#[derive(Debug, Object, Serialize, utoipa::ToSchema)]
-#[oai(rename = "HttpProxyRecordingItem")]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 #[schema(as = HttpProxyRecordingItem)]
 pub struct HttpProxyRecordingItemApiObject {
     pub timestamp: DateTime<Utc>,

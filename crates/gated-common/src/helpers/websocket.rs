@@ -1,7 +1,7 @@
 use std::future::Future;
 
+use axum::extract::ws::{CloseFrame, Message};
 use futures::{Sink, SinkExt, Stream, StreamExt};
-use poem::web::websocket::Message;
 use tokio_tungstenite::tungstenite::{self, Utf8Bytes};
 
 pub trait TungsteniteCompatibleWebsocketMessage {
@@ -12,14 +12,14 @@ pub trait TungsteniteCompatibleWebsocketMessage {
 impl TungsteniteCompatibleWebsocketMessage for Message {
     fn to_tungstenite_message(self) -> tungstenite::Message {
         match self {
-            Message::Binary(data) => tungstenite::Message::Binary(data.into()),
-            Message::Text(text) => tungstenite::Message::Text(text.into()),
-            Message::Ping(data) => tungstenite::Message::Ping(data.into()),
-            Message::Pong(data) => tungstenite::Message::Pong(data.into()),
+            Message::Binary(data) => tungstenite::Message::Binary(data),
+            Message::Text(text) => tungstenite::Message::Text(text.as_str().into()),
+            Message::Ping(data) => tungstenite::Message::Ping(data),
+            Message::Pong(data) => tungstenite::Message::Pong(data),
             Message::Close(data) => {
                 tungstenite::Message::Close(data.map(|data| tungstenite::protocol::CloseFrame {
-                    code: u16::from(data.0).into(),
-                    reason: Utf8Bytes::from(data.1),
+                    code: data.code.into(),
+                    reason: data.reason.as_str().into(),
                 }))
             }
         }
@@ -27,13 +27,14 @@ impl TungsteniteCompatibleWebsocketMessage for Message {
 
     fn from_tungstenite_message(msg: tungstenite::Message) -> Self {
         match msg {
-            tungstenite::Message::Binary(data) => Message::Binary(data.to_vec()),
-            tungstenite::Message::Text(text) => Message::Text(text.to_string()),
-            tungstenite::Message::Ping(data) => Message::Ping(data.to_vec()),
-            tungstenite::Message::Pong(data) => Message::Pong(data.to_vec()),
-            tungstenite::Message::Close(data) => Message::Close(
-                data.map(|data| (u16::from(data.code).into(), data.reason.to_string())),
-            ),
+            tungstenite::Message::Binary(data) => Message::Binary(data),
+            tungstenite::Message::Text(text) => Message::Text(text.as_str().into()),
+            tungstenite::Message::Ping(data) => Message::Ping(data),
+            tungstenite::Message::Pong(data) => Message::Pong(data),
+            tungstenite::Message::Close(data) => Message::Close(data.map(|data| CloseFrame {
+                code: data.code.into(),
+                reason: data.reason.as_str().into(),
+            })),
             tungstenite::Message::Frame(_) => unreachable!(),
         }
     }

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use axum::http::request::Parts;
 use gated_common::GatedError;
 use gated_common::auth::AuthStateUserInfo;
-use gated_core::logging::http_poem::get_client_ip;
+use gated_core::logging::http::get_client_ip;
 use gated_core::{GatedServerHandle, Services, SessionStateInit, State};
-use poem::Request;
 use tokio::sync::Mutex;
 
 use super::session_handle::KubernetesSessionHandle;
@@ -30,7 +30,7 @@ impl RequestCorrelator {
 
     pub async fn session_for_request(
         &mut self,
-        request: &Request,
+        request: &Parts,
         user_info: &AuthStateUserInfo,
         target_name: &str,
     ) -> Result<Arc<Mutex<GatedServerHandle>>, GatedError> {
@@ -60,7 +60,7 @@ impl RequestCorrelator {
 
     async fn correlation_key_for_request(
         &self,
-        request: &Request,
+        request: &Parts,
         user_info: &AuthStateUserInfo,
         target_name: &str,
     ) -> Result<CorrelationKey, GatedError> {

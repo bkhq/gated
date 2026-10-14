@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::future::Future;
 
 use anyhow::Context;
+use axum::body::Body;
+use axum::http::request::Parts;
+use axum::response::Response;
 use bytes::{Bytes, BytesMut};
 use futures::{Stream, StreamExt, TryStreamExt};
 use gated_common::http_headers::{
@@ -9,7 +12,6 @@ use gated_common::http_headers::{
 };
 use gated_common::{GatedError, HttpProxyFlavor, TargetHttpOptions, UpstreamAuth};
 use gated_tls::TlsMode;
-use poem::{Body, Request, Response};
 use tracing::*;
 use url::Url;
 use x509_parser::pem::Pem;
@@ -233,7 +235,7 @@ pub fn build_http_client(options: &TargetHttpOptions) -> anyhow::Result<reqwest:
 }
 
 pub fn construct_target_url(
-    req: &Request,
+    req: &Parts,
     path: &str,
     base_url: &str,
     flavor: FlavorHook,
@@ -248,7 +250,7 @@ pub fn construct_target_url(
     }
 
     let normalized_path = path.trim_start_matches('/');
-    let query = req.uri().query().unwrap_or("");
+    let query = req.uri.query().unwrap_or("");
 
     let url_str = if query.is_empty() {
         format!("{}/{}", base_url.trim_end_matches('/'), normalized_path)
@@ -275,13 +277,13 @@ pub fn construct_target_url(
 }
 
 pub fn collect_forwarded_headers(
-    req: &Request,
+    req: &Parts,
     injected_header_names: &[String],
     flavor: FlavorHook,
 ) -> HashMap<String, String> {
     let mut headers = HashMap::new();
 
-    for (name, value) in req.headers() {
+    for (name, value) in &req.headers {
         if DONT_FORWARD_HEADERS.contains(name)
             && !(flavor == FlavorHook::Kubernetes && name == http::header::ACCEPT_ENCODING)
         {
@@ -337,7 +339,7 @@ pub fn collect_forwarded_headers(
 }
 
 async fn read_body_with_limit(body: Body) -> Result<Bytes, GatedError> {
-    body.into_bytes_limit(API_PROXY_MAX_BODY_SIZE)
+    axum::body::to_bytes(body, API_PROXY_MAX_BODY_SIZE)
         .await
         .map_err(|e| GatedError::Other(anyhow::anyhow!("reading request body: {}", e).into()))
 }
@@ -424,7 +426,7 @@ async fn send_upstream_request(
 #[allow(clippy::too_many_arguments, reason = "engine plumbing")]
 async fn build_downstream_response<R: HttpProxyRecorder>(
     response: reqwest::Response,
-    req: &Request,
+    req: &Parts,
     full_url: &Url,
     method: &str,
     headers: HashMap<String, String>,
@@ -444,14 +446,14 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
 
     let (response_body, body_for_recording) = {
         let transfer_encoding = response_headers
-            .get(poem::http::header::TRANSFER_ENCODING)
+            .get(http::header::TRANSFER_ENCODING)
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default()
             .to_lowercase();
 
         let is_watch = flavor == FlavorHook::Kubernetes
             && req
-                .uri()
+                .uri
                 .query()
                 .map(|q| q.split('&').any(|p| p.starts_with("watch=true")))
                 .unwrap_or(false);
@@ -465,7 +467,7 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
                 response.bytes_stream().map_err(std::io::Error::other),
                 API_PROXY_MAX_BODY_SIZE,
             );
-            (Body::from_bytes_stream(capped), None)
+            (Body::from_stream(capped), None)
         } else {
             // Buffering branch: accumulate the body incrementally and abort
             // BEFORE the cap is exceeded, so an oversized upstream body is
@@ -473,7 +475,7 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
             let bytes =
                 collect_capped_body(response.bytes_stream(), API_PROXY_MAX_BODY_SIZE).await?;
             let recording_bytes = bytes.to_vec();
-            (Body::from_bytes(bytes), Some(recording_bytes))
+            (Body::from(bytes), Some(recording_bytes))
         }
     };
 
@@ -492,7 +494,8 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
         warn!("Failed to record response: {}", e);
     }
 
-    let mut poem_response = Response::builder().status(status);
+    let mut downstream = Response::new(response_body);
+    *downstream.status_mut() = status;
 
     for (name, value) in response_headers.iter() {
         let name_str = name.as_str();
@@ -503,37 +506,32 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
         if name_str == "set-cookie" {
             let Ok(raw) = value.to_str() else { continue };
             let sanitized = sanitize_set_cookie(raw);
-            if let Ok(poem_value) = poem::http::HeaderValue::from_str(&sanitized) {
-                poem_response = poem_response.header(poem::http::header::SET_COOKIE, poem_value);
+            if let Ok(value) = http::HeaderValue::from_str(&sanitized) {
+                downstream
+                    .headers_mut()
+                    .append(http::header::SET_COOKIE, value);
             }
             continue;
         }
         // Neutralize off-target redirects; drop the header when the
         // Location escapes the upstream host.
         if name_str == "location" {
-            match value
+            if let Some(location) = value
                 .to_str()
                 .ok()
                 .and_then(|v| sanitize_location(v, full_url))
+                && let Ok(value) = http::HeaderValue::from_str(&location)
             {
-                Some(loc) => {
-                    if let Ok(poem_value) = poem::http::HeaderValue::from_str(&loc) {
-                        poem_response =
-                            poem_response.header(poem::http::header::LOCATION, poem_value);
-                    }
-                }
-                None => continue,
+                downstream
+                    .headers_mut()
+                    .append(http::header::LOCATION, value);
             }
             continue;
         }
-        if let Ok(poem_name) = poem::http::HeaderName::from_bytes(name_str.as_bytes())
-            && let Ok(poem_value) = poem::http::HeaderValue::from_bytes(value.as_bytes())
-        {
-            poem_response = poem_response.header(poem_name, poem_value);
-        }
+        downstream.headers_mut().append(name.clone(), value.clone());
     }
 
-    Ok(poem_response.body(response_body))
+    Ok(downstream)
 }
 
 /// Shared proxy core: collect headers, forward to upstream, optionally
@@ -544,7 +542,7 @@ async fn build_downstream_response<R: HttpProxyRecorder>(
     reason = "engine plumbing; grouping into a struct just shifts the noise"
 )]
 pub async fn proxy_to_upstream<R: HttpProxyRecorder>(
-    req: &Request,
+    req: &Parts,
     body: Body,
     base_url: &str,
     client: &reqwest::Client,
@@ -553,7 +551,7 @@ pub async fn proxy_to_upstream<R: HttpProxyRecorder>(
     path: &str,
     mut recorder_opt: Option<R>,
 ) -> Result<Response, GatedError> {
-    let method = req.method().as_str().to_owned();
+    let method = req.method.as_str().to_owned();
     let full_url =
         construct_target_url(req, path, base_url, flavor).context("constructing target URL")?;
 
@@ -587,9 +585,9 @@ mod tests {
     use std::cell::Cell;
     use std::rc::Rc;
 
+    use axum::http::request::Parts;
     use bytes::Bytes;
     use futures::{StreamExt, stream};
-    use poem::Request;
 
     use url::Url;
 
@@ -598,21 +596,26 @@ mod tests {
         sanitize_location, sanitize_set_cookie,
     };
 
+    fn parts(builder: http::request::Builder) -> Parts {
+        builder.body(()).unwrap().into_parts().0
+    }
+
     /// Client-supplied forwarding/identity headers must
     /// not be forwarded upstream — `Cookie` would leak the bastion session
     /// cookie, and the `X-Forwarded-*` / `Forwarded` / `Host` family is
     /// attacker-controlled. Unrelated headers must still pass.
     #[test]
     fn collect_forwarded_headers_strips_forwarding_and_cookie() {
-        let req = Request::builder()
-            .header("Cookie", "session=secret")
-            .header("X-Forwarded-For", "1.2.3.4")
-            .header("X-Forwarded-Host", "evil.example")
-            .header("X-Forwarded-Proto", "https")
-            .header("Forwarded", "for=1.2.3.4")
-            .header("Host", "evil.example")
-            .header("X-Custom", "keep-me")
-            .finish();
+        let req = parts(
+            http::Request::builder()
+                .header("Cookie", "session=secret")
+                .header("X-Forwarded-For", "1.2.3.4")
+                .header("X-Forwarded-Host", "evil.example")
+                .header("X-Forwarded-Proto", "https")
+                .header("Forwarded", "for=1.2.3.4")
+                .header("Host", "evil.example")
+                .header("X-Custom", "keep-me"),
+        );
 
         let headers = collect_forwarded_headers(&req, &[], FlavorHook::Generic);
 
@@ -683,13 +686,14 @@ mod tests {
     /// unrelated headers.
     #[test]
     fn collect_forwarded_headers_strips_impersonation_headers() {
-        let req = Request::builder()
-            .header("Impersonate-User", "system:admin")
-            .header("Impersonate-Group", "system:masters")
-            .header("Impersonate-Uid", "1234-uid")
-            .header("Impersonate-Extra-scopes", "development")
-            .header("X-Custom", "keep-me")
-            .finish();
+        let req = parts(
+            http::Request::builder()
+                .header("Impersonate-User", "system:admin")
+                .header("Impersonate-Group", "system:masters")
+                .header("Impersonate-Uid", "1234-uid")
+                .header("Impersonate-Extra-scopes", "development")
+                .header("X-Custom", "keep-me"),
+        );
 
         let headers = collect_forwarded_headers(&req, &[], FlavorHook::Kubernetes);
 
@@ -755,7 +759,7 @@ mod tests {
             p.set(p.get() + 1);
             Ok::<Bytes, std::io::Error>(chunk(10))
         });
-        // Consume until the first error, mirroring how Body::from_bytes_stream
+        // Consume until the first error, mirroring how Body::from_stream
         // tears down on an Err item.
         let mut capped = Box::pin(cap_body_stream(src, 15));
         let mut ok = 0usize;

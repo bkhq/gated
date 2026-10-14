@@ -2252,6 +2252,7 @@ name = "gated-protocol-http"
 version = "0.21.1"
 dependencies = [
  "anyhow",
+ "axum 0.8.9",
  "base64 0.22.1",
  "bytes",
  "chrono",
@@ -2262,8 +2263,6 @@ dependencies = [
  "gated-db-entities",
  "gated-tls",
  "http",
- "poem",
- "poem-openapi",
  "regex",
  "reqwest 0.13.5",
  "reqwest-websocket",
@@ -2275,6 +2274,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-tungstenite 0.27.0",
+ "tower 0.5.3",
  "tracing",
  "url",
  "urlencoding",

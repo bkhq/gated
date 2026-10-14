@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{Context, bail};
+use axum::extract::ws::{WebSocket, WebSocketUpgrade};
+use axum::http::request::Parts;
+use axum::response::Response;
 use futures::StreamExt;
 use gated_common::helpers::websocket::pump_websocket;
 use gated_common::{SessionId, TargetHttpOptions};
 use gated_core::Services;
 use gated_core::recordings::{SessionRecordings, TerminalRecorder, TerminalRecordingStreamId};
-use poem::web::websocket::{WebSocket, WebSocketStream};
-use poem::{IntoResponse, Request};
 use reqwest_websocket::Upgrade;
 use serde::Deserialize;
 use tokio::sync::{Mutex, mpsc};
@@ -61,14 +62,14 @@ async fn run_websocket_recording(mut recorder: TerminalRecorder, mut rx: mpsc::R
 
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_websocket_request(
-    ws: WebSocket,
-    req: &Request,
+    ws: WebSocketUpgrade,
+    req: &Parts,
     options: &TargetHttpOptions,
     path: &str,
     session_id: SessionId,
     services: &Services,
     recordings: &Arc<Mutex<SessionRecordings>>,
-) -> anyhow::Result<impl IntoResponse + use<>> {
+) -> anyhow::Result<Response> {
     let mut full_url = construct_target_url(req, path, &options.url, FlavorHook::Kubernetes)?;
     if full_url.scheme() == "https" {
         let _ = full_url.set_scheme("wss");
@@ -105,13 +106,15 @@ pub async fn handle_websocket_request(
     };
 
     let ws_protocol = req
-        .headers()
+        .headers
         .get("sec-websocket-protocol")
         .and_then(|h| h.to_str().ok())
         .context("missing Sec-Websocket-Protocol request header")?
         .to_string();
 
-    let ws_handler_inner = async move |socket: WebSocketStream| {
+    let selected_protocol = preferred_protocol(ws_protocol.split(','));
+
+    let ws_handler_inner = async move |socket: WebSocket| {
         let client_response = client
             .get(full_url.clone())
             .upgrade()
@@ -167,21 +170,33 @@ pub async fn handle_websocket_request(
         Ok::<(), anyhow::Error>(())
     };
 
-    Ok(ws
-        .protocols(vec![
-            "channel.k8s.io",
-            "v2.channel.k8s.io",
-            "v3.channel.k8s.io",
-            "v4.channel.k8s.io",
-            "v5.channel.k8s.io",
-        ])
-        .on_upgrade(|socket| async move {
-            ws_handler_inner(socket).await.inspect_err(|e| {
-                error!("Websocket handling error: {e:?}");
-            })?;
-            Ok::<(), anyhow::Error>(())
-        })
-        .into_response())
+    let ws = match selected_protocol {
+        Some(protocol) => ws.protocols([protocol]),
+        None => ws,
+    };
+    Ok(ws.on_upgrade(|socket| async move {
+        if let Err(error) = ws_handler_inner(socket).await {
+            error!("Websocket handling error: {error:?}");
+        }
+    }))
+}
+
+const SUPPORTED_PROTOCOLS: [&str; 5] = [
+    "channel.k8s.io",
+    "v2.channel.k8s.io",
+    "v3.channel.k8s.io",
+    "v4.channel.k8s.io",
+    "v5.channel.k8s.io",
+];
+
+/// Picks the supported subprotocol the client prefers. The client lists its
+/// protocols in order of preference, and so does the upstream negotiation.
+fn preferred_protocol<'a>(mut requested: impl Iterator<Item = &'a str>) -> Option<&'static str> {
+    requested.find_map(|protocol| {
+        SUPPORTED_PROTOCOLS
+            .into_iter()
+            .find(|supported| *supported == protocol.trim())
+    })
 }
 
 /// Build a reqwest client constrained to HTTP/1.1, as required for
@@ -277,4 +292,23 @@ fn build_websocket_client(options: &TargetHttpOptions) -> anyhow::Result<reqwest
     }
 
     builder.build().context("building reqwest client")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preferred_protocol;
+
+    #[test]
+    fn the_first_supported_protocol_of_the_client_wins() {
+        let requested = ["unknown.k8s.io", "v5.channel.k8s.io", "channel.k8s.io"];
+        assert_eq!(
+            preferred_protocol(requested.into_iter()),
+            Some("v5.channel.k8s.io")
+        );
+    }
+
+    #[test]
+    fn unsupported_protocols_select_nothing() {
+        assert_eq!(preferred_protocol(["spdy/3.1"].into_iter()), None);
+    }
 }
