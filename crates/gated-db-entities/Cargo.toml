@@ -7,7 +7,6 @@ version = "0.21.1"
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["serde"] }
-poem-openapi.workspace = true
 sea-orm = { workspace = true, features = [
     "macros",
     "with-chrono",

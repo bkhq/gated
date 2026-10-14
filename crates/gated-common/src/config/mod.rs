@@ -10,7 +10,6 @@ use axum::http::uri;
 use defaults::*;
 use gated_sso::SsoProviderConfig;
 use gated_tls::IntoTlsCertificateRelativePaths;
-use poem_openapi::{Object, Union};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 pub use target::*;
@@ -24,9 +23,8 @@ use crate::helpers::hash::hash_password;
 use crate::helpers::otp::OtpSecretKey;
 use crate::{GatedError, ListenEndpoint, Secret};
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Union)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(tag = "type")]
-#[oai(discriminator_name = "kind", one_of)]
 pub enum UserAuthCredential {
     #[serde(rename = "password")]
     Password(UserPasswordCredential),
@@ -40,7 +38,7 @@ pub enum UserAuthCredential {
     Sso(UserSsoCredential),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UserPasswordCredential {
     pub hash: Secret<String>,
 }
@@ -53,22 +51,22 @@ impl UserPasswordCredential {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UserPublicKeyCredential {
     pub key: Secret<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UserCertificateCredential {
     pub certificate_pem: Secret<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UserTotpCredential {
     #[serde(with = "crate::helpers::serde_base64_secret")]
     pub key: OtpSecretKey,
 }
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UserSsoCredential {
     pub provider: Option<String>,
     pub email: String,
@@ -94,7 +92,7 @@ impl UserAuthCredential {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Object, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct UserRequireCredentialsPolicy {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub http: Option<Vec<CredentialKind>>,
@@ -202,7 +200,7 @@ impl UserRequireCredentialsPolicy {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct User {
     #[serde(default)]
     pub id: Uuid,
@@ -213,7 +211,7 @@ pub struct User {
     pub rate_limit_bytes_per_second: Option<i64>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDetails {
     pub inner: User,
     pub credentials: Vec<UserAuthCredential>,
@@ -228,7 +226,7 @@ impl Deref for UserDetails {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Object, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, utoipa::ToSchema)]
 pub struct Role {
     #[serde(default)]
     #[schema(required)]

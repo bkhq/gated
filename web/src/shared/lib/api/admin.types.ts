@@ -357,7 +357,7 @@ export interface paths {
         post?: never;
         /**
          * Close every live session. Admin-only — the whole `/admin/api` nest is
-         *     wrapped with `endpoint_admin_auth` (see `http_service::mod`), so a
+         *     wrapped with `require_admin` (see `http_service::mod`), so a
          *     non-admin caller is rejected with 403 before reaching this handler.
          */
         delete: operations["close_all_sessions"];
@@ -400,7 +400,7 @@ export interface paths {
          * Delete a session record and everything attached to it: its recording
          *     files and rows, its log rows, and the session row. A still-live session
          *     is closed first so no writer keeps a file open. Admin-only via the
-         *     `/admin/api` nest gate (`endpoint_admin_auth`).
+         *     `/admin/api` nest gate (`require_admin`).
          */
         delete: operations["delete_session"];
         options?: never;
@@ -421,7 +421,7 @@ export interface paths {
          * Gracefully close a live session: signal its handle so the owning
          *     protocol loop tears the session down and removes it from the registry
          *     itself. Admin-only — the entire `/admin/api` nest is wrapped with
-         *     `endpoint_admin_auth` (see `http_service::mod`), so a non-admin caller is
+         *     `require_admin` (see `http_service::mod`), so a non-admin caller is
          *     rejected with 403 before reaching this handler.
          */
         post: operations["close_session"];

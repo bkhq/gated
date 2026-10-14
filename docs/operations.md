@@ -23,9 +23,7 @@ Install `target/x86_64-unknown-linux-gnu/release/gated` under a dedicated
 unprivileged service account. Build the frontend **before** the final Rust
 binary: the UI is embedded at compile time. Preserve the previous executable
 and its matching configuration for rollback. Do not deploy a source checkout
-as if it were an immutable release artifact. Keep `vendor/` when building
-from a source archive: it holds locally patched dependency sources (see the
-[dependency decision](decisions/20260913-dependency-exceptions.md)).
+as if it were an immutable release artifact.
 
 ## First start and configuration
 

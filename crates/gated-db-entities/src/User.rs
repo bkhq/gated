@@ -1,5 +1,4 @@
 use gated_common::{GatedError, User, UserDetails};
-use poem_openapi::Object;
 use sea_orm::Set;
 use sea_orm::entity::prelude::*;
 use serde::Serialize;
@@ -10,9 +9,8 @@ use crate::{
     SsoCredential,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
 #[sea_orm(table_name = "users")]
-#[oai(rename = "User")]
 #[schema(as = User)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]

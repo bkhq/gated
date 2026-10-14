@@ -10,12 +10,12 @@ embedded SPA. The CLI (`crates/gated`) and the YAML config schema
 
 Route layout (`crates/gated-admin/src/http_service/mod.rs`):
 
-- `/admin/api` — admin REST API (poem-openapi), wrapped in
-  `endpoint_auth(endpoint_admin_auth(...))` so it requires both an
+- `/admin/api` — admin REST API (axum + utoipa), wrapped in the
+  `require_auth` and `require_admin` middleware so it requires both an
   authenticated session/token *and* the built-in `admin` role
   (`mod.rs:176-177`); OpenAPI spec at `/admin/api/openapi.json` with a
   Stoplight Elements playground.
-- `/api` — user portal API (poem-openapi), available to any authenticated
+- `/api` — user portal API (axum + utoipa), available to any authenticated
   session; spec at `/api/openapi.json` (`mod.rs:174`).
 - `/api/ssh-terminal`, `/api/db-terminal` — raw WebSocket endpoints for the
   in-browser SSH terminal and SQL console (not expressible in OpenAPI,
@@ -29,7 +29,7 @@ Middleware stack (`mod.rs:243-261`), outermost last:
    scoped session (`middleware/ticket.rs`).
 2. `DbLockMiddleware` — while an encrypted database is locked, only the
    encryption-unlock endpoints respond; everything else returns 503.
-3. `ServerSession` — Poem cookie sessions (cookie `gated-http-session`,
+3. `SessionLayer` — cookie sessions (cookie `gated-http-session`,
    secure flag when TLS is on, configurable max-age); server-side state in
    memory, vacuumed periodically. A login creates a `ManagementSessionHandle`
    in the in-memory management registry (`http_service/session.rs`), not a

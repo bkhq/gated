@@ -136,7 +136,7 @@ describe("AUTHN contract (at the API level)", () => {
 
     // A password change must invalidate every OTHER live session for the
     // user. Closing a session's handle cannot drop its HTTP session on its
-    // own (the Close task never learns the poem session id of the login
+    // own (the Close task never learns the web session id of the login
     // request that created the handle), so SessionStore::process_request purges a cookie whose
     // server-side handle is gone.
     test("password change evicts OTHER live sessions", async () => {

@@ -103,7 +103,7 @@ connecting to the target.
 
 The built-in `admin` role (`BUILTIN_ADMIN_ROLE_NAME`,
 `crates/gated-core/src/consts.rs:1`) is created at database bootstrap and
-gates the admin API: `endpoint_admin_auth`
+gates the admin API: `require_admin`
 (`crates/gated-admin/src/http_service/common.rs:168`) checks that the
 session user holds it.
 
@@ -141,7 +141,7 @@ optional `expiry`.
   `GATED_ADMIN_TOKEN` environment value to the first admin user — used by
   automation and the e2e harness.
 - **Web sessions**: cookie `gated-http-session`
-  (`crates/gated-admin/src/http_service/common.rs:28`), Poem server-side
+  (`crates/gated-admin/src/http_service/common.rs:28`), server-side
   session storage, with separate cookie max-age (24 h default) and session
   max-age (30 min default) and host-scoped cookie validation.
 

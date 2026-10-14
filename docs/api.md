@@ -29,7 +29,7 @@
   - `username: string`
   - `password: string`（secret — write-only）
 - Responses：
-  - `201 Created` — 空 body；poem `ServerSession` 写入或刷新名为 `gated-http-session` 的 cookie，会话里写入 `SessionAuthorization::User(username)`。
+  - `201 Created` — 空 body；服务端会话写入或刷新名为 `gated-http-session` 的 cookie，会话里写入 `SessionAuthorization::User(username)`。
   - `401 Unauthorized` — `Json<LoginFailureResponse> { state: ApiAuthState }`。`Failed` = 拒绝；`*Needed` 表示密码通过但还需要其它因子。
 
 #### `POST /api/auth/otp` — `otpLogin` [OAS]
@@ -62,11 +62,11 @@
 
 #### `GET /api/auth/web-auth-requests` — `get_web_auth_requests` [OAS]
 
-- Summary：列出当前用户所有等待浏览器审批的 `AuthState`。Wrapped in `endpoint_auth`，必须是 `Session::User`。
+- Summary：列出当前用户所有等待浏览器审批的 `AuthState`。Wrapped in `require_auth`，必须是 `Session::User`。
 - Responses：
   - `200 OK` — `Json<AuthStateDescription[]>`。
   - `404 Not Found` — 授权不是 `Session::User`（例如 `UserToken`/`AdminToken`/`Ticket`）。
-  - `401 Unauthorized` — `endpoint_auth` 拒绝（无任何凭证）。
+  - `401 Unauthorized` — `require_auth` 拒绝（无任何凭证）。
 
 #### `GET /api/auth/state/:id` — `get_auth_state` [OAS]
 
@@ -88,7 +88,7 @@
 
 #### `GET /api/auth/web-auth-requests/stream` — `api_get_web_auth_requests_stream` [raw]
 
-- 升级为 **WebSocket**（不是 SSE）。需要 `Session::User`，否则 `endpoint_auth` 返回 `401`。
+- 升级为 **WebSocket**（不是 SSE）。需要 `Session::User`，否则 `require_auth` 返回 `401`。
 - 升级后服务端每收到一条 `auth_state_store.subscribe_web_auth_request()` 广播且其 username 匹配当前用户时，发送一个 `Message::Text(payload)`，payload 是 `AuthState` 的纯 UUID 字符串。客户端收到后通过 `GET /api/auth/state/:id` 取详情。无心跳，发送或接收错误即关闭连接。
 
 ### 1.2 SSO (`sso_provider_list.rs`, `sso_provider_detail.rs`)
@@ -137,7 +137,7 @@
 
 #### `GET /api/targets` — `get_targets` [OAS]
 
-- Summary：列出当前主体可访问的目标。Wrapped in `endpoint_auth`。
+- Summary：列出当前主体可访问的目标。Wrapped in `require_auth`。
 - Query：`search?: string` — 不区分大小写子串，匹配 target.name 或 group.name。
 - Responses：`200 OK` `Json<TargetSnapshot[]>`。Ticket 会话只会看到 ticket 绑定的那一个目标。
 
@@ -316,7 +316,7 @@
 #### `GET /admin/api/recordings/:id/http-proxy` — `get_http_proxy_recording` [OAS]
 
 - 注意：实现未声明鉴权（无 `AnySecurityScheme` 参数）。
-- Responses：`200 OK` `Json<HttpProxyRecordingItem[]>`；当录像不存在或不是 `http_proxy` 时由 poem `NotFoundError` 抛出 `404`。
+- Responses：`200 OK` `Json<HttpProxyRecordingItem[]>`；当录像不存在或不是 `http_proxy` 时返回 `404`。
 
 #### `GET /admin/api/recordings/:id/cast` — `api_get_recording_cast` [raw]
 
@@ -642,7 +642,7 @@
 
 #### `POST /api/admin/encryption/lock` — `lock`
 
-- Auth：必须是 admin。`401`/`403` 走 poem 默认空 body 错误映射。
+- Auth：必须是 admin。`401`/`403` 返回空 body。
 - Responses：`200` `{ "status": "locked" }` / `409` `encryption_disabled` / `invalid_state` / `401` / `403`。
 
 #### `POST /api/admin/encryption/rekey-master` — `rekey_master`

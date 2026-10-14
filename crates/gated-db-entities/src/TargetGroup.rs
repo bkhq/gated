@@ -1,4 +1,3 @@
-use poem_openapi::{Enum, Object};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -10,7 +9,6 @@ use uuid::Uuid;
     Serialize,
     Deserialize,
     Clone,
-    Enum,
     EnumIter,
     DeriveActiveEnum,
     utoipa::ToSchema,
@@ -35,9 +33,8 @@ pub enum BootstrapThemeColor {
     Dark,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
 #[sea_orm(table_name = "target_groups")]
-#[oai(rename = "TargetGroup")]
 #[schema(as = TargetGroup)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]

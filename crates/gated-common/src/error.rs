@@ -3,8 +3,6 @@ use std::error::Error;
 use gated_ca::CaError;
 use gated_sso::SsoError;
 use gated_tls::RustlsSetupError;
-use poem::error::ResponseError;
-use poem_openapi::ApiResponse;
 use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug)]
@@ -59,12 +57,6 @@ pub enum GatedError {
     Reqwest(#[from] reqwest::Error),
 }
 
-impl ResponseError for GatedError {
-    fn status(&self) -> poem::http::StatusCode {
-        self.status_code()
-    }
-}
-
 impl GatedError {
     /// Map the typed error variant to a sensible HTTP status. Variants
     /// that can only result from server-side faults (DB / CA / TLS /
@@ -117,15 +109,5 @@ impl axum::response::IntoResponse for GatedError {
         let mut response = (self.status_code(), self.to_string()).into_response();
         response.extensions_mut().insert(details);
         response
-    }
-}
-
-impl ApiResponse for GatedError {
-    fn meta() -> poem_openapi::registry::MetaResponses {
-        poem::error::Error::meta()
-    }
-
-    fn register(registry: &mut poem_openapi::registry::Registry) {
-        poem::error::Error::register(registry)
     }
 }

@@ -56,12 +56,6 @@ impl axum::response::IntoResponse for DbLockedError {
     }
 }
 
-impl poem::error::ResponseError for DbLockedError {
-    fn status(&self) -> poem::http::StatusCode {
-        poem::http::StatusCode::LOCKED
-    }
-}
-
 #[derive(Clone)]
 pub struct Services {
     pub db: SharedDatabaseConnection,

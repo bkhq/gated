@@ -1,13 +1,11 @@
 use chrono::{DateTime, Utc};
-use poem_openapi::Object;
 use sea_orm::entity::prelude::*;
 use sea_orm::query::JsonValue;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
 #[sea_orm(table_name = "management_audit")]
-#[oai(rename = "ManagementAuditEntry")]
 #[schema(as = ManagementAuditEntry)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]

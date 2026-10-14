@@ -1,7 +1,7 @@
 //! Admin CRUD for command-ACL rules (`gated_core::command_acl`).
 //!
 //! Mounted under the `/admin/api` tree, which is wrapped in
-//! `endpoint_auth(endpoint_admin_auth(..))` (see `http_service/mod.rs`), so
+//! `require_auth` and `require_admin` (see `http_service/mod.rs`), so
 //! every route here is admin-gated. Rules are OFF by default: this API never
 //! seeds any, an empty ruleset allows everything.
 

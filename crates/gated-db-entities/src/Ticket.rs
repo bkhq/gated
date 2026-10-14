@@ -1,22 +1,19 @@
 use chrono::{DateTime, Utc};
 use gated_common::hash_secret;
-use poem_openapi::Object;
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
 
 // `secret` is redacted from `Serialize` (`#[serde(skip)]`) and the
-// OpenAPI schema (`#[oai(skip)]`), and from the manual `Debug` impl below, so
+// OpenAPI schema, and from the manual `Debug` impl below, so
 // the ticket secret never leaks through API responses or logs.
-#[derive(Clone, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
+#[derive(Clone, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
 #[sea_orm(table_name = "tickets")]
-#[oai(rename = "Ticket")]
 #[schema(as = Ticket)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[oai(skip)]
     #[serde(skip)]
     pub secret: String,
     pub username: String,

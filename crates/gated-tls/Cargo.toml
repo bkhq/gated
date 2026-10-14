@@ -6,8 +6,6 @@ name = "gated-tls"
 version = "0.21.1"
 
 [dependencies]
-poem.workspace = true
-poem-openapi.workspace = true
 rustls-native-certs = { version = "0.8", default-features = false }
 rustls-pki-types.workspace = true
 rustls.workspace = true

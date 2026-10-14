@@ -43,3 +43,11 @@ The management HTTP surface (`gated-admin`: admin and user APIs, sessions, middl
 ## 2026-10-14 01:05 [pitfall]
 
 `Router::nest("/ui", …)` in axum 0.8 does not match `/ui/`; the request falls through to the outer fallback, which for a signed-in browser redirected to `/ui/` again. The SPA router registers `/ui/` explicitly (`http_service::spa::routes`, with a test). utoipa documents an `IntoParams` query struct only when the operation lists it in `params(...)`.
+
+## 2026-10-14 01:20 [progress]
+
+The HTTP/Kubernetes proxy listener (`gated-protocol-http`) runs on axum and the shared server. poem and poem-openapi are removed from every crate, together with `vendor/` and the `[patch.crates-io]` section; `Cargo.lock` no longer contains a `poem*` or `quick-xml` package and `cargo deny check` passes. The Poem section of `docs/decisions/20260913-dependency-exceptions.md` is closed.
+
+## 2026-10-14 01:20 [pitfall]
+
+axum's `WebSocketUpgrade::protocols` chooses the first entry of the *server's* list that the client offered, and exposes the client's list only as a sorted set. A proxy that must agree with an upstream negotiation (here `kubectl exec` over `v5.channel.k8s.io`) has to pick from the raw `Sec-WebSocket-Protocol` header in the client's order (`kubernetes::websocket::preferred_protocol`, with tests).

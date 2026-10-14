@@ -19,7 +19,7 @@ use uuid::Uuid;
 /// Read-only live monitor for an active session's terminal output.
 ///
 /// Admin-only: this handler is mounted under `/admin/api`, whose whole nest is
-/// wrapped with `endpoint_admin_auth` at the router level (see
+/// wrapped with `require_admin` at the router level (see
 /// `http_service::mod`), so a non-admin caller is rejected with 403 during the
 /// WebSocket handshake, before this handler runs.
 ///

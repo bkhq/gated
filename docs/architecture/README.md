@@ -93,7 +93,7 @@ Default listen addresses (`crates/gated-common/src/config/defaults.rs`):
 | `gated` | CLI binary: `run`, `setup`, `unattended-setup`, `check`, `create-user`, `recover-access`, `client-keys`, `healthcheck`, `encrypt-existing-db`, `version` (`crates/gated/src/main.rs:44-166`) |
 | `gated-common` | Shared types: config schema, credential/auth types, target options, helpers |
 | `gated-core` | Session registry, services container, auth state store, config providers (DB-backed), recordings, logging, metrics, database bootstrap |
-| `gated-admin` | Poem-based HTTP service: admin API, user portal API, SPA serving, web terminals |
+| `gated-admin` | axum-based HTTP service: admin API, user portal API, SPA serving, web terminals |
 | `gated-web` | `rust-embed` wrapper around the built `web/dist` SPA assets |
 | `gated-protocol-ssh` | SSH server + outbound SSH client (russh) |
 | `gated-protocol-http` | HTTPS reverse proxy with generic and Kubernetes flavors |

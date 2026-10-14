@@ -1,12 +1,10 @@
-use poem_openapi::Object;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::ForeignKeyAction;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
 #[sea_orm(table_name = "target_accounts")]
-#[oai(rename = "TargetAccount")]
 #[schema(as = TargetAccount)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]

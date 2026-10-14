@@ -8,7 +8,7 @@
 //! recordings store and merges them into one unified, filterable list.
 //!
 //! Mounted under the `/admin/api` tree, which is wrapped in
-//! `endpoint_auth(endpoint_admin_auth(..))` (see `http_service/mod.rs`), so
+//! `require_auth` and `require_admin` (see `http_service/mod.rs`), so
 //! every route here is admin-gated; a non-admin caller is rejected with 403
 //! before reaching this handler. This API is read-only — it never creates or
 //! mutates recordings.

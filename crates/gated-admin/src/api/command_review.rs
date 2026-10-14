@@ -1,7 +1,7 @@
 //! Admin endpoints to LIST pending command reviews and APPROVE/REJECT one.
 //!
 //! Mounted under the `/admin/api` tree, which is wrapped in
-//! `endpoint_auth(endpoint_admin_auth(..))` (see `http_service/mod.rs`), so
+//! `require_auth` and `require_admin` (see `http_service/mod.rs`), so
 //! every route here is admin-gated. Mirrors the web-approval flow in
 //! `http_service/api/auth.rs` but resolves entries in `command_review_store`
 //! (not `auth_state_store`): approving/rejecting calls `complete()`, which

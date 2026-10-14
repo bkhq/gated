@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
 // Flow exercised here (see crates/gated/src/commands/run.rs):
 //   * `encryption.enable = true` -> on first boot the runtime is Uninitialized
 //     and `run` serves a *plaintext* minimal HTTP server on the http port
-//     (poem_listener has no TLS) mounting /api/admin/encryption/*. A bootstrap
+//     (the listener has no TLS) mounting /api/admin/encryption/*. A bootstrap
 //     token is written to <data>/db/bootstrap-token.txt (the /dev/tty path is
 //     unavailable under a non-interactive test runner).
 //   * POST /api/admin/encryption/init {bootstrap_token, master_password}

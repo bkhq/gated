@@ -1,11 +1,7 @@
-use std::borrow::Cow;
 use std::fmt::Debug;
 
 use bytes::Bytes;
 use data_encoding::HEXLOWER;
-use delegate::delegate;
-use poem_openapi::registry::{MetaSchemaRef, Registry};
-use poem_openapi::types::{ParseError, ParseFromJSON, ToJSON};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -88,47 +84,6 @@ where
 impl<T> Debug for Secret<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<secret>")
-    }
-}
-
-impl<T: poem_openapi::types::Type> poem_openapi::types::Type for Secret<T> {
-    const IS_REQUIRED: bool = T::IS_REQUIRED;
-    type RawValueType = T::RawValueType;
-    type RawElementValueType = T::RawElementValueType;
-
-    fn name() -> Cow<'static, str> {
-        T::name()
-    }
-    fn schema_ref() -> MetaSchemaRef {
-        T::schema_ref()
-    }
-    fn register(registry: &mut Registry) {
-        T::register(registry)
-    }
-
-    delegate! {
-        to self.0 {
-            fn as_raw_value(&self) -> Option<&Self::RawValueType>;
-            fn raw_element_iter(
-                &'_ self,
-            ) -> Box<dyn Iterator<Item = &'_ Self::RawElementValueType> + '_>;
-            fn is_empty(&self) -> bool;
-            fn is_none(&self) -> bool;
-        }
-    }
-}
-
-impl<T: ParseFromJSON> ParseFromJSON for Secret<T> {
-    fn parse_from_json(value: Option<serde_json::Value>) -> poem_openapi::types::ParseResult<Self> {
-        T::parse_from_json(value)
-            .map(Self::new)
-            .map_err(|e| ParseError::custom(e.into_message()))
-    }
-}
-
-impl<T: ToJSON> ToJSON for Secret<T> {
-    fn to_json(&self) -> Option<serde_json::Value> {
-        self.0.to_json()
     }
 }
 

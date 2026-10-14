@@ -90,7 +90,7 @@ async fn api_get_all_sessions(
 }
 
 /// Close every live session. Admin-only — the whole `/admin/api` nest is
-/// wrapped with `endpoint_admin_auth` (see `http_service::mod`), so a
+/// wrapped with `require_admin` (see `http_service::mod`), so a
 /// non-admin caller is rejected with 403 before reaching this handler.
 #[utoipa::path(delete, path = "/sessions", operation_id = "close_all_sessions")]
 async fn api_close_all_sessions(

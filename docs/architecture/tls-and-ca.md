@@ -8,7 +8,7 @@ authority that issues client certificates for mTLS proof-of-possession).
 
 - **Loading**: `TlsCertificateBundle` and `TlsPrivateKey`
   (`crates/gated-tls/src/cert.rs`) load PEM chains/keys from files and
-  convert to rustls `CertifiedKey` or Poem certificates; the bundle can
+  convert to rustls `CertifiedKey`; the bundle can
   enumerate its SNI names for multi-certificate listeners.
 - **`TlsMode`** (`crates/gated-tls/src/mode.rs`): `Disabled` / `Preferred`
   (default) / `Required` — used by database targets for the outbound leg.

@@ -1377,7 +1377,7 @@
         ]
       },
       "delete": {
-        "summary": "Close every live session. Admin-only — the whole `/admin/api` nest is\nwrapped with `endpoint_admin_auth` (see `http_service::mod`), so a\nnon-admin caller is rejected with 403 before reaching this handler.",
+        "summary": "Close every live session. Admin-only — the whole `/admin/api` nest is\nwrapped with `require_admin` (see `http_service::mod`), so a\nnon-admin caller is rejected with 403 before reaching this handler.",
         "operationId": "close_all_sessions",
         "responses": {
           "201": {}
@@ -1456,7 +1456,7 @@
         ]
       },
       "delete": {
-        "summary": "Delete a session record and everything attached to it: its recording\nfiles and rows, its log rows, and the session row. A still-live session\nis closed first so no writer keeps a file open. Admin-only via the\n`/admin/api` nest gate (`endpoint_admin_auth`).",
+        "summary": "Delete a session record and everything attached to it: its recording\nfiles and rows, its log rows, and the session row. A still-live session\nis closed first so no writer keeps a file open. Admin-only via the\n`/admin/api` nest gate (`require_admin`).",
         "operationId": "delete_session",
         "parameters": [
           {
@@ -1485,7 +1485,7 @@
     },
     "/sessions/{id}/close": {
       "post": {
-        "summary": "Gracefully close a live session: signal its handle so the owning\nprotocol loop tears the session down and removes it from the registry\nitself. Admin-only — the entire `/admin/api` nest is wrapped with\n`endpoint_admin_auth` (see `http_service::mod`), so a non-admin caller is\nrejected with 403 before reaching this handler.",
+        "summary": "Gracefully close a live session: signal its handle so the owning\nprotocol loop tears the session down and removes it from the registry\nitself. Admin-only — the entire `/admin/api` nest is wrapped with\n`require_admin` (see `http_service::mod`), so a non-admin caller is\nrejected with 403 before reaching this handler.",
         "operationId": "close_session",
         "parameters": [
           {

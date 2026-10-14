@@ -65,3 +65,12 @@ Approved through decision event pxsdlnmi (option A: all five phases on a branch,
 - The `None` variant of the wire `UpstreamAuth` is a unit variant so that its schema is just the `kind` tag.
 - `tests/xml_compatibility.rs` only covered the vendored poem `Xml` payload, which the product never used; it is removed.
 - The shared server gained graceful shutdown: the pre-unlock listener must finish answering the unlock request before the full listener takes over the port.
+
+### Phase 4 and 5 findings (2026-10-14)
+
+- The proxy listener keeps its TLS configuration without ALPN, so it still speaks HTTP/1.1 only; target routing by `Host` and the `channel.k8s.io` upgrade rely on that.
+- `WebSocketUpgrade::protocols` picks by the order of the server's list and keeps the requested protocols in a sorted set. The Kubernetes bridge therefore selects from the raw `Sec-WebSocket-Protocol` header, in the client's order, as before.
+- poem's default `Cors` middleware is replaced by an equivalent function in `gated-protocol-http` (any origin echoed, preflights answered locally) instead of adding `tower-http`.
+- The client certificate reaches the handler through `ConnectionInfo::peer_certificate`; the custom acceptor that smuggled it through the remote address is gone.
+- `rustls-pemfile` and the `ring` feature of rustls are still pulled in by tonic 0.12 (OTLP exporter), so the `RUSTSEC-2025-0134` ignore and the disabled `ring` feature ban stay, with corrected reasons. `RUSTSEC-2024-0449` (`serde_yaml`) and the quick-xml advisories no longer apply.
+- The integration suite needs `sshpass`, `expect`, `mysql`, `psql` and `kubectl` next to the runner; without them the affected cases fail on a missing executable.

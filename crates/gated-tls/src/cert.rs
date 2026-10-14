@@ -3,7 +3,6 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use poem::listener::RustlsCertificate;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::ResolvesServerCert;
 use rustls::sign::{CertifiedKey, SigningKey};
@@ -155,14 +154,6 @@ impl From<TlsCertificateBundle> for Vec<u8> {
 impl From<TlsPrivateKey> for Vec<u8> {
     fn from(val: TlsPrivateKey) -> Self {
         val.bytes
-    }
-}
-
-impl From<TlsCertificateAndPrivateKey> for RustlsCertificate {
-    fn from(val: TlsCertificateAndPrivateKey) -> Self {
-        RustlsCertificate::new()
-            .cert(val.certificate)
-            .key(val.private_key)
     }
 }
 

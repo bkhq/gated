@@ -1,12 +1,9 @@
 use gated_common::{Target, TargetOptions};
-use poem_openapi::{Enum, Object};
 use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(
-    Debug, PartialEq, Eq, Serialize, Clone, Enum, EnumIter, DeriveActiveEnum, utoipa::ToSchema,
-)]
+#[derive(Debug, PartialEq, Eq, Serialize, Clone, EnumIter, DeriveActiveEnum, utoipa::ToSchema)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(16))")]
 pub enum TargetKind {
     #[sea_orm(string_value = "http")]
@@ -30,9 +27,7 @@ impl From<&TargetOptions> for TargetKind {
     }
 }
 
-#[derive(
-    Debug, PartialEq, Eq, Serialize, Clone, Enum, EnumIter, DeriveActiveEnum, utoipa::ToSchema,
-)]
+#[derive(Debug, PartialEq, Eq, Serialize, Clone, EnumIter, DeriveActiveEnum, utoipa::ToSchema)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(16))")]
 pub enum SshAuthKind {
     #[sea_orm(string_value = "password")]
@@ -41,9 +36,8 @@ pub enum SshAuthKind {
     PublicKey,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
 #[sea_orm(table_name = "targets")]
-#[oai(rename = "Target")]
 #[schema(as = Target)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]

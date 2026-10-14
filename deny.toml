@@ -69,7 +69,7 @@ feature-depth = 1
 ignore = [
     "RUSTSEC-2023-0071", # marvin-crypto: timing side-channel in RSA decryption; not exploitable here (we use russh for SSH, not direct RSA decryption)
     "RUSTSEC-2021-0139", # ansi-term is unmaintained
-    "RUSTSEC-2025-0134", # rustls-pemfile is deprecated but poem is still using it
+    "RUSTSEC-2025-0134", # rustls-pemfile is deprecated but tonic 0.12 is still using it
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
@@ -118,7 +118,7 @@ deny = [
     #{ crate = "ansi_term@0.11.0", wrappers = ["this-crate-directly-depends-on-ansi_term"] },
 ]
 
-# TODO reenable once poem updates its tokio-rustls dependency
+# TODO reenable once tonic stops enabling the ring feature of tokio-rustls
 # [[bans.features]]
 # crate = "rustls"
 # # Features to not allow

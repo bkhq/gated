@@ -1,12 +1,10 @@
 use chrono::{DateTime, Utc};
-use poem_openapi::Object;
 use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
 #[sea_orm(table_name = "command_acl_rule")]
-#[oai(rename = "CommandAclRule")]
 #[schema(as = CommandAclRule)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = true)]

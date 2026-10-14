@@ -15,7 +15,7 @@ surfaced in the admin UI target list.
 `run_server` (`crates/gated-protocol-http/src/server.rs:45`) is spawned from
 the run command (`crates/gated/src/commands/run.rs:314`) when
 `proxy.enable = true`. Unlike the other proxies it does not implement
-`ProtocolServer`; it is a Poem app with a single catch-all route.
+`ProtocolServer`; it is an axum app with a single catch-all route.
 
 TLS termination:
 
@@ -92,7 +92,7 @@ Header handling (`collect_forwarded_headers`, `engine.rs:224`):
 - `Authorization`, `X-Gated-Target`, and `X-Gated-Token` are always removed;
 - headers that would shadow configured upstream-auth headers are removed;
 - response `content-encoding`/`content-length`/`transfer-encoding` are
-  stripped on the way back (Poem re-frames the body).
+  stripped on the way back (the server re-frames the body).
 
 Request and response bodies are buffered with a 100 MiB cap
 (`API_PROXY_MAX_BODY_SIZE`, `crates/gated-common/src/http_headers.rs:31`),

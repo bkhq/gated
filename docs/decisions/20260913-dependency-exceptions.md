@@ -36,6 +36,14 @@ Verify XML response fallback tests, workspace/API contracts and supply-chain
 checks. Remove both patches once a released upstream version supports a fixed
 quick-xml version; reassess by the deadline above.
 
+## Resolution (2026-10-14)
+
+The Poem exception is closed. The HTTP stack moved to axum and utoipa, which do
+not depend on quick-xml; `vendor/poem`, `vendor/poem-openapi` and the
+`[patch.crates-io]` entries are removed. XML response bodies, which only
+poem-openapi offered, are no longer served. The SQLCipher exception above is
+unchanged.
+
 ## Early review (2026-09-13)
 
 The reconciled review task was executed immediately at the user's request. Registry API checks confirm Poem 3.1.12 and poem-openapi 5.1.16 remain the latest stable releases and still require quick-xml ^0.36.1. Keep the minimal local patches until upstream supports a fixed version. The latest libsqlite3-sys 0.38.2 still uses openssl-sys for bundled SQLCipher; moving to it does not eliminate the exception and conflicts with the current SQLx SQLite link dependency. Retain 0.30.1 for compatibility. The existing 2026-12-13 sunset remains the next operational review boundary; no advisory ban is relaxed.

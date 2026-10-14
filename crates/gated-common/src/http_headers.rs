@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use poem::http::{self, HeaderName};
+use axum::http::{self, HeaderName};
 use std::sync::LazyLock;
 
 /// Headers that should not be forwarded to upstream when proxying HTTP requests

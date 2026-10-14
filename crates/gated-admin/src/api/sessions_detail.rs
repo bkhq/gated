@@ -102,7 +102,7 @@ async fn api_get_session_recordings(
 /// Gracefully close a live session: signal its handle so the owning
 /// protocol loop tears the session down and removes it from the registry
 /// itself. Admin-only — the entire `/admin/api` nest is wrapped with
-/// `endpoint_admin_auth` (see `http_service::mod`), so a non-admin caller is
+/// `require_admin` (see `http_service::mod`), so a non-admin caller is
 /// rejected with 403 before reaching this handler.
 #[utoipa::path(post, path = "/sessions/{id}/close", operation_id = "close_session")]
 async fn api_close_session(
@@ -149,7 +149,7 @@ async fn api_terminate_session(
 /// Delete a session record and everything attached to it: its recording
 /// files and rows, its log rows, and the session row. A still-live session
 /// is closed first so no writer keeps a file open. Admin-only via the
-/// `/admin/api` nest gate (`endpoint_admin_auth`).
+/// `/admin/api` nest gate (`require_admin`).
 #[utoipa::path(delete, path = "/sessions/{id}", operation_id = "delete_session")]
 async fn api_delete_session(
     id: Path<Uuid>,

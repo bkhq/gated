@@ -3,9 +3,6 @@ use std::io::ErrorKind;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 
 use futures::Stream;
-use poem::http::uri::Scheme;
-use poem::listener::{Acceptor, AcceptorExt, BoxAcceptor, BoxListener, Listener};
-use poem::web::{LocalAddr, RemoteAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use socket2::{Domain, Protocol, Socket, Type};
@@ -38,8 +35,8 @@ impl ListenEndpoint {
 
     /// Bind every required address with `SO_REUSEADDR` so a previous
     /// instance's `TIME_WAIT` sockets don't block restart. Returns
-    /// blocking `std::net::TcpListener`s ready to be promoted to either
-    /// tokio or poem listeners.
+    /// blocking `std::net::TcpListener`s ready to be promoted to tokio
+    /// listeners.
     fn bind_listeners(&self) -> Result<Vec<std::net::TcpListener>, GatedError> {
         if self.0.ip() == Ipv6Addr::UNSPECIFIED {
             // Try v6 first; on dual-stack kernels (default Linux,
@@ -64,25 +61,6 @@ impl ListenEndpoint {
             .collect()
     }
 
-    pub async fn poem_listener(&self) -> Result<BoxListener, GatedError> {
-        let mut acceptors = self
-            .bind_listeners()?
-            .into_iter()
-            .map(|l| {
-                poem::listener::TcpAcceptor::from_std(l)
-                    .map(|a| a.boxed())
-                    .map_err(GatedError::Io)
-            })
-            .collect::<Result<Vec<BoxAcceptor>, _>>()?
-            .into_iter();
-
-        #[allow(clippy::unwrap_used)] // bind_listeners guarantees length >= 1
-        let first = acceptors.next().unwrap();
-        let combined = acceptors.fold(first, |acc, next| acc.combine(next).boxed());
-
-        Ok(PreBoundListener { acceptor: combined }.boxed())
-    }
-
     pub async fn tcp_accept_stream(
         &self,
     ) -> Result<impl Stream<Item = std::io::Result<TcpStream>> + use<>, GatedError> {
@@ -98,39 +76,6 @@ impl ListenEndpoint {
 
     pub fn port(&self) -> u16 {
         self.0.port()
-    }
-}
-
-/// Wraps an already-bound poem `Acceptor` so callers can still consume it
-/// through poem's `Listener` trait (which is what `Server::new` and
-/// `.rustls(...)` expect).
-struct PreBoundListener {
-    acceptor: BoxAcceptor,
-}
-
-impl Listener for PreBoundListener {
-    type Acceptor = PreBoundAcceptor;
-
-    async fn into_acceptor(self) -> std::io::Result<Self::Acceptor> {
-        Ok(PreBoundAcceptor {
-            inner: self.acceptor,
-        })
-    }
-}
-
-struct PreBoundAcceptor {
-    inner: BoxAcceptor,
-}
-
-impl Acceptor for PreBoundAcceptor {
-    type Io = <BoxAcceptor as Acceptor>::Io;
-
-    fn local_addr(&self) -> Vec<LocalAddr> {
-        self.inner.local_addr()
-    }
-
-    async fn accept(&mut self) -> std::io::Result<(Self::Io, LocalAddr, RemoteAddr, Scheme)> {
-        self.inner.accept().await
     }
 }
 
