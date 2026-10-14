@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use gated_common::GatedError;
 use gated_common::auth::AuthStateUserInfo;
-use gated_core::logging::http::get_client_ip;
+use gated_core::logging::http_poem::get_client_ip;
 use gated_core::{GatedServerHandle, Services, SessionStateInit, State};
 use poem::Request;
 use tokio::sync::Mutex;

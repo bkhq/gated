@@ -17,22 +17,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/otp": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["otpLogin"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -43,6 +27,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["otpLogin"];
         delete?: never;
         options?: never;
         head?: never;
@@ -82,22 +82,6 @@ export interface paths {
          *     `Success`.
          */
         post: operations["continue_default_auth"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/web-auth-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_web_auth_requests"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -152,6 +136,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/web-auth-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_web_auth_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/db/columns/{target_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_db_columns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/db/query/{target_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["run_db_query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/db/schemas/{target_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_db_schemas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/db/tables/{target_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_db_tables"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/info": {
         parameters: {
             query?: never;
@@ -168,81 +232,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/targets": {
+    "/profile/api-tokens": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_targets"];
+        get: operations["get_my_api_tokens"];
         put?: never;
-        post?: never;
+        post: operations["create_api_token"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/sso/providers": {
+    "/profile/api-tokens/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_sso_providers"];
+        get?: never;
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/sso/return": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["return_to_sso"];
-        put?: never;
-        post: operations["return_to_sso_with_form_data"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/sso/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["initiate_sso_logout"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/sso/providers/{name}/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["start_sso"];
-        put?: never;
-        post?: never;
-        delete?: never;
+        delete: operations["delete_my_api_token"];
         options?: never;
         head?: never;
         patch?: never;
@@ -259,6 +275,96 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/credentials/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["issue_my_certificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/credentials/certificates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke_my_certificate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/credentials/otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm OTP enrollment. Requires a live code for the
+         *     server-generated secret started by [`Self::api_begin_otp`]; only then
+         *     is the credential persisted and the policy upgraded to require OTP.
+         */
+        post: operations["add_my_otp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/credentials/otp/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start OTP enrollment. The server generates the secret,
+         *     stashes it pending confirmation, and returns only a provisioning URI.
+         *     The client must then prove possession via [`Self::api_create_otp`].
+         */
+        post: operations["begin_my_otp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/credentials/otp/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_my_otp"];
         options?: never;
         head?: never;
         patch?: never;
@@ -312,123 +418,21 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/profile/credentials/otp/begin": {
+    "/profile/sessions": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Start OTP enrollment. The server generates the secret,
-         *     stashes it pending confirmation, and returns only a provisioning URI.
-         *     The client must then prove possession via [`Self::api_create_otp`].
+         * Sessions owned by the calling user, newest first. Management HTTP
+         *     sessions are excluded, as in the admin list.
          */
-        post: operations["begin_my_otp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/profile/credentials/otp": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Confirm OTP enrollment. Requires a live code for the
-         *     server-generated secret started by [`Self::api_begin_otp`]; only then
-         *     is the credential persisted and the policy upgraded to require OTP.
-         */
-        post: operations["add_my_otp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/profile/credentials/otp/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["get_my_sessions"];
         put?: never;
         post?: never;
-        delete: operations["delete_my_otp"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/profile/credentials/certificates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["issue_my_certificate"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/profile/credentials/certificates/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["revoke_my_certificate"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/profile/api-tokens": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_my_api_tokens"];
-        put?: never;
-        post: operations["create_api_token"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/profile/api-tokens/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["delete_my_api_token"];
         options?: never;
         head?: never;
         patch?: never;
@@ -466,18 +470,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/profile/sessions": {
+    "/sso/logout": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Sessions owned by the calling user, newest first. Management HTTP
-         *     sessions are excluded, as in the admin list.
-         */
-        get: operations["get_my_sessions"];
+        get: operations["initiate_sso_logout"];
         put?: never;
         post?: never;
         delete?: never;
@@ -486,14 +486,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/db/schemas/{target_name}": {
+    "/sso/providers": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_db_schemas"];
+        get: operations["get_sso_providers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -502,14 +502,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/db/tables/{target_name}": {
+    "/sso/providers/{name}/start": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_db_tables"];
+        get: operations["start_sso"];
         put?: never;
         post?: never;
         delete?: never;
@@ -518,32 +518,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/db/columns/{target_name}": {
+    "/sso/return": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_db_columns"];
+        get: operations["return_to_sso"];
         put?: never;
-        post?: never;
+        post: operations["return_to_sso_with_form_data"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/db/query/{target_name}": {
+    "/targets": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["get_targets"];
         put?: never;
-        post: operations["run_db_query"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -556,22 +556,19 @@ export interface components {
     schemas: {
         /** @enum {string} */
         ApiAuthState: "NotStarted" | "Failed" | "PasswordNeeded" | "OtpNeeded" | "SsoNeeded" | "WebUserApprovalNeeded" | "PublicKeyNeeded" | "Success";
-        /** AuthStateResponseInternal */
         AuthStateResponseInternal: {
+            address?: string | null;
             id: string;
+            identification_string: string;
             protocol: string;
-            address?: string;
             /** Format: date-time */
             started: string;
             state: components["schemas"]["ApiAuthState"];
-            identification_string: string;
         };
-        /** BearerTokenUpstreamAuth */
         BearerTokenUpstreamAuth: {
             token: string;
         };
         /**
-         * BeginOtpEnrollment
          * @description Response of starting an OTP enrollment: an `otpauth://` provisioning URI
          *     for the server-generated secret. The raw secret is never returned.
          */
@@ -580,7 +577,6 @@ export interface components {
         };
         /** @enum {string} */
         BootstrapThemeColor: "Primary" | "Secondary" | "Success" | "Danger" | "Warning" | "Info" | "Light" | "Dark";
-        /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /**
              * @description The caller's current password, re-verified before the
@@ -589,24 +585,20 @@ export interface components {
             old_password: string;
             password: string;
         };
-        /** ClientCertificateUpstreamAuth */
         ClientCertificateUpstreamAuth: {
             certificate: string;
             private_key: string;
         };
-        /** ColumnInfo */
         ColumnInfo: {
-            name: string;
             data_type: string;
+            name: string;
             nullable: boolean;
             primary_key: boolean;
         };
-        /** ColumnList */
         ColumnList: {
             columns: components["schemas"]["ColumnInfo"][];
         };
         /**
-         * ConfirmOtpCredential
          * @description The secret is generated server-side; enrollment is confirmed
          *     by sending a live code from the authenticator, proving possession.
          */
@@ -615,84 +607,74 @@ export interface components {
         };
         /** @enum {string} */
         CredentialKind: "Password" | "PublicKey" | "Certificate" | "Totp" | "Sso" | "WebUserApproval";
-        /** CredentialsState */
         CredentialsState: {
-            password: components["schemas"]["PasswordState"];
-            otp: components["schemas"]["ExistingOtpCredential"][];
-            public_keys: components["schemas"]["ExistingPublicKeyCredential"][];
             certificates: components["schemas"]["ExistingCertificateCredential"][];
-            sso: components["schemas"]["ExistingSsoCredential"][];
             credential_policy: components["schemas"]["UserRequireCredentialsPolicy"];
+            otp: components["schemas"]["ExistingOtpCredential"][];
+            password: components["schemas"]["PasswordState"];
+            public_keys: components["schemas"]["ExistingPublicKeyCredential"][];
+            sso: components["schemas"]["ExistingSsoCredential"][];
         };
-        /** ErrorBody */
         ErrorBody: {
             error: string;
         };
-        /** ExistingApiToken */
         ExistingApiToken: {
-            /** Format: uuid */
-            id: string;
-            label: string;
             /** Format: date-time */
             created: string;
             /** Format: date-time */
             expiry: string;
+            /** Format: uuid */
+            id: string;
+            label: string;
         };
-        /** ExistingCertificateCredential */
         ExistingCertificateCredential: {
+            /** Format: date-time */
+            date_added?: string | null;
+            fingerprint: string;
             /** Format: uuid */
             id: string;
             label: string;
             /** Format: date-time */
-            date_added?: string;
-            /** Format: date-time */
-            last_used?: string;
-            fingerprint: string;
+            last_used?: string | null;
         };
-        /** ExistingOtpCredential */
         ExistingOtpCredential: {
             /** Format: uuid */
             id: string;
         };
-        /** ExistingProfileTicket */
         ExistingProfileTicket: {
+            /** Format: date-time */
+            created: string;
+            description: string;
+            /** Format: date-time */
+            expiry?: string | null;
             /** Format: uuid */
             id: string;
             target: string;
-            description: string;
-            /** Format: int16 */
-            uses_left?: number;
-            /** Format: date-time */
-            expiry?: string;
-            /** Format: date-time */
-            created: string;
+            /** Format: int32 */
+            uses_left?: number | null;
         };
-        /** ExistingPublicKeyCredential */
         ExistingPublicKeyCredential: {
+            abbreviated: string;
+            /** Format: date-time */
+            date_added?: string | null;
             /** Format: uuid */
             id: string;
             label: string;
             /** Format: date-time */
-            date_added?: string;
-            /** Format: date-time */
-            last_used?: string;
-            abbreviated: string;
+            last_used?: string | null;
         };
-        /** ExistingSsoCredential */
         ExistingSsoCredential: {
+            email: string;
             /** Format: uuid */
             id: string;
-            provider?: string;
-            email: string;
+            provider?: string | null;
         };
-        /** GroupInfo */
         GroupInfo: {
+            color?: components["schemas"]["BootstrapThemeColor"] | null;
             /** Format: uuid */
             id: string;
             name: string;
-            color?: components["schemas"]["BootstrapThemeColor"];
         };
-        /** HeadersUpstreamAuth */
         HeadersUpstreamAuth: {
             headers: {
                 [key: string]: string;
@@ -700,40 +682,37 @@ export interface components {
         };
         /** @enum {string} */
         HttpProxyFlavor: "generic" | "kubernetes";
-        /** Info */
         Info: {
-            version?: string;
-            username?: string;
             admin: boolean;
-            selected_target?: string;
-            external_host?: string;
-            ports: components["schemas"]["PortsInfo"];
-            minimize_password_login: boolean;
-            authorized_via_ticket: boolean;
             authorized_via_sso_with_single_logout: boolean;
-            own_credential_management_allowed: boolean;
-            setup_state?: components["schemas"]["SetupState"];
+            authorized_via_ticket: boolean;
+            external_host?: string | null;
             /**
              * @description Base domain of the HTTP-proxy listener (`<target>.<base_domain>`),
              *     when the proxy is enabled and a base domain is configured. Lets the
              *     frontend build a per-target proxy URL. `None` if the proxy is off or
              *     has no base domain.
              */
-            http_proxy_base_domain?: string;
+            http_proxy_base_domain?: string | null;
+            minimize_password_login: boolean;
+            own_credential_management_allowed: boolean;
+            ports: components["schemas"]["PortsInfo"];
+            selected_target?: string | null;
+            setup_state?: components["schemas"]["SetupState"] | null;
+            /**
+             * @description Configured site title; `None` means the built-in "Gated". Public so
+             *     the login page can show it.
+             */
+            site_title?: string | null;
             /**
              * @description When true, the web terminal renders a frontend-only operator-identity +
              *     timestamp watermark overlay. Defaults to false.
              */
             terminal_watermark_enabled: boolean;
-            /**
-             * @description Configured site title; `None` means the built-in "Gated". Public so
-             *     the login page can show it.
-             */
-            site_title?: string;
+            username?: string | null;
+            version?: string | null;
         };
-        /** IssueCertificateCredentialRequest */
         IssueCertificateCredentialRequest: {
-            label: string;
             /**
              * @description PEM-encoded PKCS#10 certificate signing request. The CSR's
              *     self-signature proves the requester holds the matching private key
@@ -741,197 +720,153 @@ export interface components {
              *     key.
              */
             csr_pem: string;
+            label: string;
         };
-        /** IssuedCertificateCredential */
         IssuedCertificateCredential: {
-            credential: components["schemas"]["ExistingCertificateCredential"];
             certificate_pem: string;
+            credential: components["schemas"]["ExistingCertificateCredential"];
         };
-        /** LoginFailureResponse */
         LoginFailureResponse: {
             state: components["schemas"]["ApiAuthState"];
         };
-        /** LoginRequest */
         LoginRequest: {
-            username: string;
             password: string;
+            username: string;
         };
-        /** NewApiToken */
         NewApiToken: {
-            label: string;
             /** Format: date-time */
             expiry: string;
+            label: string;
         };
-        /** NewProfileTicket */
         NewProfileTicket: {
-            target_name: string;
+            description?: string | null;
             /** Format: date-time */
-            expiry?: string;
-            /** Format: int16 */
-            number_of_uses?: number;
-            description?: string;
+            expiry?: string | null;
+            /** Format: int32 */
+            number_of_uses?: number | null;
+            target_name: string;
         };
-        /** NewPublicKeyCredential */
         NewPublicKeyCredential: {
             label: string;
             openssh_public_key: string;
         };
-        /**
-         * NoUpstreamAuth
-         * @description Empty marker for the `none` variant of [`UpstreamAuth`].
-         */
-        NoUpstreamAuth: Record<string, never>;
-        /** OtpLoginRequest */
         OtpLoginRequest: {
             otp: string;
         };
         /** @enum {string} */
         PasswordState: "Unset" | "Set" | "MultipleSet";
-        /** PortsInfo */
         PortsInfo: {
-            /** Format: uint16 */
-            ssh?: number;
-            /** Format: uint16 */
-            http?: number;
-            /** Format: uint16 */
-            mysql?: number;
-            /** Format: uint16 */
-            postgres?: number;
-            /** Format: uint16 */
-            kubernetes?: number;
+            /** Format: int32 */
+            http?: number | null;
+            /** Format: int32 */
+            kubernetes?: number | null;
+            /** Format: int32 */
+            mysql?: number | null;
+            /** Format: int32 */
+            postgres?: number | null;
+            /** Format: int32 */
+            ssh?: number | null;
         };
-        /** ProfileTicketAndSecret */
         ProfileTicketAndSecret: {
-            ticket: components["schemas"]["ExistingProfileTicket"];
             secret: string;
+            ticket: components["schemas"]["ExistingProfileTicket"];
         };
-        /** QueryColumn */
         QueryColumn: {
             name: string;
             type_name: string;
         };
-        /** QueryRequest */
         QueryRequest: {
-            sql: string;
+            console_session_key?: string | null;
             /** Format: int64 */
-            limit?: number;
-            console_session_key?: string;
+            limit?: number | null;
+            sql: string;
         };
-        /** QueryResponse */
         QueryResponse: {
             columns: components["schemas"]["QueryColumn"][];
-            rows: unknown[][];
-            /** Format: uint64 */
-            rows_affected?: number;
-            truncated: boolean;
-            /** Format: uint64 */
+            /** Format: int64 */
             elapsed_ms: number;
             /** Format: int64 */
             limit: number;
+            rows: unknown[][];
+            /** Format: int64 */
+            rows_affected?: number | null;
             statement_kind: string;
+            truncated: boolean;
         };
-        SSHTargetAuth: components["schemas"]["SSHTargetAuth_SshTargetPasswordAuth"] | components["schemas"]["SSHTargetAuth_SshTargetPublicKeyAuth"];
-        SSHTargetAuth_SshTargetPasswordAuth: {
-            /**
-             * @example Password
-             * @enum {string}
-             */
+        ReturnToSsoFormData: {
+            code?: string | null;
+            state?: string | null;
+        };
+        SSHTargetAuth: (components["schemas"]["SshTargetPasswordAuth"] & {
+            /** @enum {string} */
             kind: "Password";
-        } & components["schemas"]["SshTargetPasswordAuth"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "Password";
-        };
-        SSHTargetAuth_SshTargetPublicKeyAuth: {
-            /**
-             * @example PublicKey
-             * @enum {string}
-             */
+        }) | (components["schemas"]["SshTargetPublicKeyAuth"] & {
+            /** @enum {string} */
             kind: "PublicKey";
-        } & components["schemas"]["SshTargetPublicKeyAuth"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "PublicKey";
-        };
-        /** SchemaList */
+        });
         SchemaList: {
-            schemas: string[];
-            default_schema?: string;
-            readonly: boolean;
+            default_schema?: string | null;
             kind: string;
+            readonly: boolean;
+            schemas: string[];
         };
-        /** SessionSnapshot */
         SessionSnapshot: {
+            /** Format: date-time */
+            ended?: string | null;
             /** Format: uuid */
             id: string;
-            username?: string;
-            target?: components["schemas"]["Target"];
+            protocol: string;
             /** Format: date-time */
             started: string;
-            /** Format: date-time */
-            ended?: string;
+            target?: components["schemas"]["Target"] | null;
             /** Format: uuid */
-            ticket_id?: string;
-            protocol: string;
+            ticket_id?: string | null;
+            username?: string | null;
         };
-        /** SetupState */
         SetupState: {
             has_targets: boolean;
             has_users: boolean;
         };
-        /** SshTargetPasswordAuth */
         SshTargetPasswordAuth: {
             password: string;
         };
-        /** SshTargetPublicKeyAuth */
         SshTargetPublicKeyAuth: {
-            private_key_pem?: string;
-            passphrase?: string;
+            passphrase?: string | null;
+            private_key_pem?: string | null;
         };
-        /** SsoProviderDescription */
         SsoProviderDescription: {
-            name: string;
-            label: string;
             kind: components["schemas"]["SsoProviderKind"];
+            label: string;
+            name: string;
         };
         /** @enum {string} */
         SsoProviderKind: "Google" | "Apple" | "Azure" | "Custom";
-        /** StartSloResponseParams */
         StartSloResponseParams: {
             url: string;
         };
-        /** StartSsoResponseParams */
         StartSsoResponseParams: {
             url: string;
         };
-        /** TableInfo */
         TableInfo: {
             name: string;
             type: string;
         };
-        /** TableList */
         TableList: {
             tables: components["schemas"]["TableInfo"][];
         };
-        /** Target */
         Target: {
+            accounts: components["schemas"]["TargetAccountMetadata"][];
+            allow_roles: string[];
+            description: string;
+            /** Format: uuid */
+            group_id?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
-            description: string;
-            allow_roles: string[];
             options: components["schemas"]["TargetOptions"];
-            accounts: components["schemas"]["TargetAccountMetadata"][];
-            /** Format: uint32 */
-            rate_limit_bytes_per_second?: number;
-            /** Format: uuid */
-            group_id?: string;
+            /** Format: int32 */
+            rate_limit_bytes_per_second?: number | null;
         };
-        /** TargetAccountMetadata */
         TargetAccountMetadata: {
             /** Format: int32 */
             account_id: number;
@@ -942,207 +877,118 @@ export interface components {
         /** @enum {string} */
         TargetAccountRole: "primary" | "fallback" | "readonly";
         /**
-         * TargetHttpOptions
-         * @description Unified HTTP-reverse-proxy target.  Replaces the old `TargetApiOptions`
-         *     and `TargetKubernetesOptions`.  `flavor` toggles Kubernetes-specific
+         * @description Unified HTTP-reverse-proxy target. `flavor` toggles Kubernetes-specific
          *     behaviour (channel.k8s.io WebSocket, watch streaming, exec/attach
          *     recording enrichment).
          */
         TargetHttpOptions: {
             /**
-             * @description Upstream base URL (e.g. `https://kubernetes.example.com` for K8s,
-             *     or any http(s) origin for generic targets).
+             * @description Optional PEM bundle of CA certificates trusted for the upstream
+             *     connection (e.g. an in-cluster signing CA).
              */
-            url: string;
+            ca_certificate?: string | null;
+            /** @description Protocol-level behaviours unlocked for this target. */
+            flavor: components["schemas"]["HttpProxyFlavor"];
             /**
              * @description TLS settings for the upstream connection. `tls.verify` defaults to
              *     `true`; set it to `false` only for a target with a self-signed or
              *     otherwise unverifiable cert.
              */
-            tls: components["schemas"]["Tls"] & unknown;
-            /**
-             * @description Optional PEM bundle of CA certificates trusted for the upstream
-             *     connection (e.g. an in-cluster signing CA).
-             */
-            ca_certificate?: string;
+            tls: components["schemas"]["Tls"];
             /** @description How Gated authenticates to the upstream service. */
-            upstream_auth: Omit<components["schemas"]["UpstreamAuth"], "kind"> & unknown;
-            /** @description Protocol-level behaviours unlocked for this target. */
-            flavor: components["schemas"]["HttpProxyFlavor"] & unknown;
+            upstream_auth: components["schemas"]["UpstreamAuth"];
+            /**
+             * @description Upstream base URL (e.g. `https://kubernetes.example.com` for K8s,
+             *     or any http(s) origin for generic targets).
+             */
+            url: string;
         };
         /** @enum {string} */
         TargetKind: "Http" | "MySql" | "Ssh" | "Postgres";
-        /** TargetMySqlOptions */
         TargetMySqlOptions: {
+            default_database_name?: string | null;
             host: string;
-            /** Format: uint16 */
+            password?: string | null;
+            /** Format: int32 */
             port: number;
-            username: string;
-            password?: string;
-            tls: components["schemas"]["Tls"];
-            default_database_name?: string;
             /**
              * @description When true, the SQL Console rejects anything not starting with
              *     SELECT / SHOW / EXPLAIN / WITH. This is convenience-level only —
              *     use a real read-only DB user for hard guarantees.
              */
             readonly: boolean;
-        };
-        TargetOptions: components["schemas"]["TargetOptions_TargetSSHOptions"] | components["schemas"]["TargetOptions_TargetHttpOptions"] | components["schemas"]["TargetOptions_TargetMySqlOptions"] | components["schemas"]["TargetOptions_TargetPostgresOptions"];
-        TargetOptions_TargetHttpOptions: {
-            /**
-             * @example Http
-             * @enum {string}
-             */
-            kind: "Http";
-        } & components["schemas"]["TargetHttpOptions"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "Http";
-        };
-        TargetOptions_TargetMySqlOptions: {
-            /**
-             * @example MySql
-             * @enum {string}
-             */
-            kind: "MySql";
-        } & components["schemas"]["TargetMySqlOptions"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "MySql";
-        };
-        TargetOptions_TargetPostgresOptions: {
-            /**
-             * @example Postgres
-             * @enum {string}
-             */
-            kind: "Postgres";
-        } & components["schemas"]["TargetPostgresOptions"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "Postgres";
-        };
-        TargetOptions_TargetSSHOptions: {
-            /**
-             * @example Ssh
-             * @enum {string}
-             */
-            kind: "Ssh";
-        } & components["schemas"]["TargetSSHOptions"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "Ssh";
-        };
-        /** TargetPostgresOptions */
-        TargetPostgresOptions: {
-            host: string;
-            /** Format: uint16 */
-            port: number;
-            username: string;
-            password?: string;
             tls: components["schemas"]["Tls"];
-            idle_timeout?: string;
-            default_database_name?: string;
+            username: string;
+        };
+        TargetOptions: (components["schemas"]["TargetSSHOptions"] & {
+            /** @enum {string} */
+            kind: "Ssh";
+        }) | (components["schemas"]["TargetHttpOptions"] & {
+            /** @enum {string} */
+            kind: "Http";
+        }) | (components["schemas"]["TargetMySqlOptions"] & {
+            /** @enum {string} */
+            kind: "MySql";
+        }) | (components["schemas"]["TargetPostgresOptions"] & {
+            /** @enum {string} */
+            kind: "Postgres";
+        });
+        TargetPostgresOptions: {
+            default_database_name?: string | null;
+            host: string;
+            idle_timeout?: string | null;
+            password?: string | null;
+            /** Format: int32 */
+            port: number;
             /** @description See `TargetMySqlOptions::readonly`. */
             readonly: boolean;
+            tls: components["schemas"]["Tls"];
+            username: string;
         };
-        /** TargetSSHOptions */
         TargetSSHOptions: {
+            allow_insecure_algos?: boolean | null;
+            auth: components["schemas"]["SSHTargetAuth"];
             host: string;
-            /** Format: uint16 */
+            /** Format: int32 */
             port: number;
             username: string;
-            allow_insecure_algos?: boolean;
-            auth: components["schemas"]["SSHTargetAuth"];
         };
-        /** TargetSnapshot */
         TargetSnapshot: {
-            name: string;
+            default_database_name?: string | null;
             description: string;
+            group?: components["schemas"]["GroupInfo"] | null;
             kind: components["schemas"]["TargetKind"];
-            group?: components["schemas"]["GroupInfo"];
-            default_database_name?: string;
+            name: string;
         };
-        /** Tls */
         Tls: {
             mode: components["schemas"]["TlsMode"];
             verify: boolean;
         };
         /** @enum {string} */
         TlsMode: "Disabled" | "Preferred" | "Required";
-        /** TokenAndSecret */
         TokenAndSecret: {
-            token: components["schemas"]["ExistingApiToken"];
             secret: string;
+            token: components["schemas"]["ExistingApiToken"];
         };
-        UpstreamAuth: components["schemas"]["UpstreamAuth_NoUpstreamAuth"] | components["schemas"]["UpstreamAuth_HeadersUpstreamAuth"] | components["schemas"]["UpstreamAuth_BearerTokenUpstreamAuth"] | components["schemas"]["UpstreamAuth_ClientCertificateUpstreamAuth"];
-        UpstreamAuth_BearerTokenUpstreamAuth: {
-            /**
-             * @example BearerToken
-             * @enum {string}
-             */
-            kind: "BearerToken";
-        } & components["schemas"]["BearerTokenUpstreamAuth"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "BearerToken";
-        };
-        UpstreamAuth_ClientCertificateUpstreamAuth: {
-            /**
-             * @example ClientCertificate
-             * @enum {string}
-             */
-            kind: "ClientCertificate";
-        } & components["schemas"]["ClientCertificateUpstreamAuth"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "ClientCertificate";
-        };
-        UpstreamAuth_HeadersUpstreamAuth: {
-            /**
-             * @example Headers
-             * @enum {string}
-             */
-            kind: "Headers";
-        } & components["schemas"]["HeadersUpstreamAuth"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "Headers";
-        };
-        UpstreamAuth_NoUpstreamAuth: {
-            /**
-             * @example None
-             * @enum {string}
-             */
+        UpstreamAuth: {
+            /** @enum {string} */
             kind: "None";
-        } & components["schemas"]["NoUpstreamAuth"] & {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "None";
-        };
-        /** UserRequireCredentialsPolicy */
+        } | (components["schemas"]["HeadersUpstreamAuth"] & {
+            /** @enum {string} */
+            kind: "Headers";
+        }) | (components["schemas"]["BearerTokenUpstreamAuth"] & {
+            /** @enum {string} */
+            kind: "BearerToken";
+        }) | (components["schemas"]["ClientCertificateUpstreamAuth"] & {
+            /** @enum {string} */
+            kind: "ClientCertificate";
+        });
         UserRequireCredentialsPolicy: {
-            http?: components["schemas"]["CredentialKind"][];
-            kubernetes?: components["schemas"]["CredentialKind"][];
-            ssh?: components["schemas"]["CredentialKind"][];
-            mysql?: components["schemas"]["CredentialKind"][];
-            postgres?: components["schemas"]["CredentialKind"][];
+            http?: components["schemas"]["CredentialKind"][] | null;
+            kubernetes?: components["schemas"]["CredentialKind"][] | null;
+            mysql?: components["schemas"]["CredentialKind"][] | null;
+            postgres?: components["schemas"]["CredentialKind"][] | null;
+            ssh?: components["schemas"]["CredentialKind"][] | null;
         };
     };
     responses: never;
@@ -1189,6 +1035,23 @@ export interface operations {
             };
         };
     };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     otpLogin: {
         parameters: {
             query?: never;
@@ -1218,23 +1081,6 @@ export interface operations {
             };
             /** @description Too many credential attempts for this username/IP. */
             429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    logout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1307,31 +1153,6 @@ export interface operations {
                 };
                 content: {
                     "application/json; charset=utf-8": components["schemas"]["AuthStateResponseInternal"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_web_auth_requests: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["AuthStateResponseInternal"][];
                 };
             };
             404: {
@@ -1423,6 +1244,352 @@ export interface operations {
             };
         };
     };
+    get_web_auth_requests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["AuthStateResponseInternal"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_db_columns: {
+        parameters: {
+            query: {
+                schema: string;
+                table: string;
+            };
+            header?: never;
+            path: {
+                target_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ColumnList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_db_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["QueryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["QueryResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_db_schemas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["SchemaList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_db_tables: {
+        parameters: {
+            query?: {
+                schema?: string;
+            };
+            header?: never;
+            path: {
+                target_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["TableList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     get_info: {
         parameters: {
             query?: never;
@@ -1442,28 +1609,7 @@ export interface operations {
             };
         };
     };
-    get_targets: {
-        parameters: {
-            query?: {
-                search?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["TargetSnapshot"][];
-                };
-            };
-        };
-    };
-    get_sso_providers: {
+    get_my_api_tokens: {
         parameters: {
             query?: never;
             header?: never;
@@ -1477,24 +1623,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["SsoProviderDescription"][];
+                    "application/json; charset=utf-8": components["schemas"]["ExistingApiToken"][];
                 };
             };
-        };
-    };
-    return_to_sso: {
-        parameters: {
-            query?: {
-                code?: string;
-                state?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            307: {
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1502,76 +1634,57 @@ export interface operations {
             };
         };
     };
-    return_to_sso_with_form_data: {
+    create_api_token: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["NewApiToken"];
+            };
+        };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html; charset=utf-8": string;
+                    "application/json; charset=utf-8": components["schemas"]["TokenAndSecret"];
                 };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
-    initiate_sso_logout: {
+    delete_my_api_token: {
         parameters: {
             query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["StartSloResponseParams"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    start_sso: {
-        parameters: {
-            query?: {
-                next?: string;
-            };
             header?: never;
             path: {
-                name: string;
+                id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["StartSsoResponseParams"];
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
             404: {
                 headers: {
@@ -1599,6 +1712,169 @@ export interface operations {
                 };
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    issue_my_certificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["IssueCertificateCredentialRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["IssuedCertificateCredential"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revoke_my_certificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    add_my_otp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["ConfirmOtpCredential"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ExistingOtpCredential"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    begin_my_otp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["BeginOtpEnrollment"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_my_otp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1707,170 +1983,7 @@ export interface operations {
             };
         };
     };
-    begin_my_otp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["BeginOtpEnrollment"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    add_my_otp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json; charset=utf-8": components["schemas"]["ConfirmOtpCredential"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ExistingOtpCredential"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    delete_my_otp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    issue_my_certificate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json; charset=utf-8": components["schemas"]["IssueCertificateCredentialRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["IssuedCertificateCredential"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    revoke_my_certificate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_my_api_tokens: {
+    get_my_sessions: {
         parameters: {
             query?: never;
             header?: never;
@@ -1884,70 +1997,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["ExistingApiToken"][];
+                    "application/json; charset=utf-8": components["schemas"]["SessionSnapshot"][];
                 };
             };
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    create_api_token: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json; charset=utf-8": components["schemas"]["NewApiToken"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["TokenAndSecret"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    delete_my_api_token: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2056,7 +2109,7 @@ export interface operations {
             };
         };
     };
-    get_my_sessions: {
+    initiate_sso_logout: {
         parameters: {
             query?: never;
             header?: never;
@@ -2070,10 +2123,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["SessionSnapshot"][];
+                    "application/json; charset=utf-8": components["schemas"]["StartSloResponseParams"];
                 };
             };
-            401: {
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2081,13 +2140,11 @@ export interface operations {
             };
         };
     };
-    get_db_schemas: {
+    get_sso_providers: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                target_name: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -2097,76 +2154,19 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["SchemaList"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            429: {
-                headers: {
-                    "RETRY-AFTER": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                    "application/json; charset=utf-8": components["schemas"]["SsoProviderDescription"][];
                 };
             };
         };
     };
-    get_db_tables: {
+    start_sso: {
         parameters: {
             query?: {
-                schema?: string;
+                next?: string;
             };
             header?: never;
             path: {
-                target_name: string;
+                name: string;
             };
             cookie?: never;
         };
@@ -2177,161 +2177,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["TableList"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                    "application/json; charset=utf-8": components["schemas"]["StartSsoResponseParams"];
                 };
             };
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            429: {
-                headers: {
-                    "RETRY-AFTER": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
+                content?: never;
             };
         };
     };
-    get_db_columns: {
+    return_to_sso: {
         parameters: {
-            query: {
-                schema: string;
-                table: string;
+            query?: {
+                code?: string;
+                state?: string;
             };
             header?: never;
-            path: {
-                target_name: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            200: {
+            307: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ColumnList"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            429: {
-                headers: {
-                    "RETRY-AFTER": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
+                content?: never;
             };
         };
     };
-    run_db_query: {
+    return_to_sso_with_form_data: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                target_name: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json; charset=utf-8": components["schemas"]["QueryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReturnToSsoFormData"];
             };
         };
         responses: {
@@ -2340,64 +2226,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["QueryResponse"];
+                    "text/html; charset=utf-8": string;
                 };
             };
-            400: {
+        };
+    };
+    get_targets: {
+        parameters: {
+            query?: {
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            429: {
-                headers: {
-                    "RETRY-AFTER": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
-                };
-            };
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["ErrorBody"];
+                    "application/json; charset=utf-8": components["schemas"]["TargetSnapshot"][];
                 };
             };
         };

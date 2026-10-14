@@ -26,7 +26,7 @@ function adminUserToMock(user: AdminUser): User {
     description: user.description,
     roles: [],
   }
-  if (user.rate_limit_bytes_per_second !== undefined)
+  if (user.rate_limit_bytes_per_second != null)
     mock.rate_limit_bytes_per_second = user.rate_limit_bytes_per_second
   return mock
 }

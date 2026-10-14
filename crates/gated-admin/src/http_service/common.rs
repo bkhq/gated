@@ -2,23 +2,25 @@ use core::str;
 use std::sync::Arc;
 
 use anyhow::Context;
+use axum::extract::Request;
+use axum::extract::ws::{WebSocket, WebSocketUpgrade};
+use axum::http::header::HOST;
+use axum::http::request::Parts;
+use axum::http::{HeaderMap, HeaderName, StatusCode, Uri};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Redirect, Response};
 use gated_common::auth::{AuthState, AuthStateUserInfo, CredentialKind};
 use gated_common::{GatedError, ProtocolName, Secret};
 use gated_core::consts::BUILTIN_ADMIN_ROLE_NAME;
 use gated_core::{AuthStateStore, ConfigProvider, Services};
 use gated_sso::CoreIdToken;
-use http::header::HOST;
-use http::{HeaderName, StatusCode};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
-use poem::session::Session;
-use poem::web::{Data, Redirect};
-use poem::{Endpoint, EndpointExt, FromRequest, IntoResponse, Request, Response};
 use sea_orm::{ColumnTrait, EntityTrait, ModelTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use crate::http_service::session::SessionStore;
+use crate::http_service::session::{Session, SessionStore};
 
 pub const PROTOCOL_NAME: ProtocolName = "HTTP";
 static TARGET_SESSION_KEY: &str = "target_name";
@@ -164,9 +166,10 @@ impl RequestAuthorization {
     }
 }
 
-pub async fn is_user_admin(req: &Request, auth: &RequestAuthorization) -> poem::Result<bool> {
-    let services = Data::<&Services>::from_request_without_body(req).await?;
-
+pub async fn is_user_admin(
+    services: &Services,
+    auth: &RequestAuthorization,
+) -> Result<bool, GatedError> {
     let username = match auth {
         RequestAuthorization::Session(SessionAuthorization::User(username)) => username,
         RequestAuthorization::Session(SessionAuthorization::Ticket { .. }) => return Ok(false),
@@ -174,39 +177,53 @@ pub async fn is_user_admin(req: &Request, auth: &RequestAuthorization) -> poem::
         RequestAuthorization::AdminToken => return Ok(true),
     };
 
-    let db = services.db_required().await.map_err(GatedError::from)?;
+    let db = services.db_required().await?;
     let Some(user) = gated_db_entities::User::Entity::find()
         .filter(gated_db_entities::User::Column::Username.eq(username.as_str()))
         .one(&db)
-        .await
-        .map_err(GatedError::from)?
+        .await?
     else {
         return Ok(false);
     };
     let roles = user
         .find_related(gated_db_entities::Role::Entity)
         .all(&db)
-        .await
-        .map_err(GatedError::from)?;
+        .await?;
     Ok(roles.iter().any(|r| r.name == BUILTIN_ADMIN_ROLE_NAME))
 }
 
-pub fn endpoint_admin_auth<E: Endpoint + 'static>(e: E) -> impl Endpoint {
-    e.around(|ep, req| async move {
-        let auth = Data::<&RequestAuthorization>::from_request_without_body(&req).await?;
-        if is_user_admin(&req, &auth).await? {
-            return Ok(ep.call(req).await?.into_response());
-        }
-        Err(poem::Error::from_status(StatusCode::FORBIDDEN))
-    })
+fn missing_data(name: &'static str) -> Response {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("data of type `{name}` was not found"),
+    )
+        .into_response()
 }
 
-pub(crate) async fn inject_request_authorization<E: Endpoint + 'static>(
-    ep: Arc<E>,
-    req: Request,
-) -> poem::Result<E::Output> {
-    let session = <&Session>::from_request_without_body(&req).await?;
-    let services = Data::<&Services>::from_request_without_body(&req).await?;
+/// Rejects requests whose authorization does not belong to an administrator.
+pub async fn require_admin(request: Request, next: Next) -> Response {
+    let Some(auth) = request.extensions().get::<RequestAuthorization>().cloned() else {
+        return StatusCode::UNAUTHORIZED.into_response();
+    };
+    let Some(services) = request.extensions().get::<Services>().cloned() else {
+        return missing_data("Services");
+    };
+    match is_user_admin(&services, &auth).await {
+        Ok(true) => next.run(request).await,
+        Ok(false) => StatusCode::FORBIDDEN.into_response(),
+        Err(error) => error.into_response(),
+    }
+}
+
+/// Resolves the session or API token of a request into a
+/// [`RequestAuthorization`] extension.
+pub(crate) async fn inject_request_authorization(mut request: Request, next: Next) -> Response {
+    let Some(session) = request.extensions().get::<Session>().cloned() else {
+        return missing_data("Session");
+    };
+    let Some(services) = request.extensions().get::<Services>().cloned() else {
+        return missing_data("Services");
+    };
 
     let mut session_auth = session.get_auth();
     if session_auth.is_some() {
@@ -226,10 +243,7 @@ pub(crate) async fn inject_request_authorization<E: Endpoint + 'static>(
             });
 
         if let Some(base_host) = authorized_base_host {
-            let request_host = req
-                .header(HOST)
-                .map(|h| host_without_port(h).to_string())
-                .or_else(|| req.original_uri().host().map(|x| x.to_string()));
+            let request_host = request_host(request.headers(), request.uri());
 
             if let Some(host) = request_host {
                 // Validate request host matches base host or is a subdomain/localhost
@@ -253,11 +267,11 @@ pub(crate) async fn inject_request_authorization<E: Endpoint + 'static>(
 
     let auth = match session_auth {
         Some(auth) => Some(RequestAuthorization::Session(auth)),
-        None => match req.headers().get(&X_GATED_TOKEN) {
+        None => match request.headers().get(&X_GATED_TOKEN) {
             Some(token_from_header) => {
-                let token_from_header = token_from_header
-                    .to_str()
-                    .map_err(poem::error::BadRequest)?;
+                let Ok(token_from_header) = token_from_header.to_str() else {
+                    return StatusCode::BAD_REQUEST.into_response();
+                };
                 // Compare the configured admin token in constant
                 // time. Byte `==` short-circuits on the first mismatch and
                 // leaks how many leading bytes were guessed correctly.
@@ -269,18 +283,20 @@ pub(crate) async fn inject_request_authorization<E: Endpoint + 'static>(
                     .unwrap_or(false);
                 if admin_token_matches {
                     Some(RequestAuthorization::AdminToken)
-                } else if let Some(user) = services
-                    .config_provider
-                    .lock()
-                    .await
-                    .validate_api_token(token_from_header)
-                    .await?
-                {
-                    Some(RequestAuthorization::UserToken {
-                        username: user.username,
-                    })
                 } else {
-                    None
+                    let user = services
+                        .config_provider
+                        .lock()
+                        .await
+                        .validate_api_token(token_from_header)
+                        .await;
+                    match user {
+                        Ok(Some(user)) => Some(RequestAuthorization::UserToken {
+                            username: user.username,
+                        }),
+                        Ok(None) => None,
+                        Err(error) => return error.into_response(),
+                    }
                 }
             }
             None => None,
@@ -288,45 +304,49 @@ pub(crate) async fn inject_request_authorization<E: Endpoint + 'static>(
     };
 
     if let Some(auth) = auth {
-        // data_opt would change the return type from E::Output
-        Ok(ep.data(auth).call(req).await?)
-    } else {
-        Ok(ep.call(req).await?)
+        request.extensions_mut().insert(auth);
     }
+    next.run(request).await
 }
 
-pub async fn _inner_auth<E: Endpoint + 'static>(
-    ep: Arc<E>,
-    req: Request,
-) -> poem::Result<Option<E::Output>> {
-    let auth = Option::<Data<&RequestAuthorization>>::from_request_without_body(&req).await?;
-    if auth.is_none() {
-        return Ok(None);
-    }
-    return ep.call(req).await.map(Some);
+/// Host the request was addressed to, without the port.
+pub fn request_host(headers: &HeaderMap, uri: &Uri) -> Option<String> {
+    headers
+        .get(HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|h| host_without_port(h).to_string())
+        .or_else(|| uri.host().map(|x| x.to_string()))
 }
 
-pub fn endpoint_auth<E: Endpoint + 'static>(e: E) -> impl Endpoint<Output = E::Output> {
-    e.around(|ep, req| async move {
-        _inner_auth(ep, req)
-            .await?
-            .ok_or_else(|| poem::Error::from_status(StatusCode::UNAUTHORIZED))
+/// Answers 401 unless the request carries an authorization.
+pub async fn require_auth(request: Request, next: Next) -> Response {
+    if request.extensions().get::<RequestAuthorization>().is_none() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    next.run(request).await
+}
+
+/// Sends unauthenticated page requests to the login page.
+pub async fn page_auth(request: Request, next: Next) -> Response {
+    if request.extensions().get::<RequestAuthorization>().is_none() {
+        return gateway_redirect(request.uri());
+    }
+    next.run(request).await
+}
+
+/// Runs `task` on the upgraded socket and discards its result.
+pub fn upgrade<F, Fut, T>(ws: WebSocketUpgrade, task: F) -> Response
+where
+    F: FnOnce(WebSocket) -> Fut + Send + 'static,
+    Fut: Future<Output = T> + Send + 'static,
+{
+    ws.on_upgrade(move |socket| async move {
+        task(socket).await;
     })
 }
 
-pub fn page_auth<E: Endpoint + 'static>(e: E) -> impl Endpoint {
-    e.around(|ep, req| async move {
-        let err_resp = gateway_redirect(&req).into_response();
-        Ok(_inner_auth(ep, req)
-            .await?
-            .map(IntoResponse::into_response)
-            .unwrap_or(err_resp))
-    })
-}
-
-pub fn gateway_redirect(req: &Request) -> Response {
-    let path = req
-        .original_uri()
+pub fn gateway_redirect(uri: &Uri) -> Response {
+    let path = uri
         .path_and_query()
         .map(|p| p.to_string())
         .unwrap_or_else(|| "".into());
@@ -336,7 +356,7 @@ pub fn gateway_redirect(req: &Request) -> Response {
         utf8_percent_encode(&path, NON_ALPHANUMERIC),
     );
 
-    Redirect::temporary(path).into_response()
+    Redirect::temporary(&path).into_response()
 }
 
 pub async fn get_auth_state_for_request(
@@ -376,29 +396,27 @@ pub async fn get_auth_state_for_request(
 }
 
 pub async fn authorize_session(
-    req: &Request,
+    parts: &Parts,
     user_info: AuthStateUserInfo,
 ) -> Result<(), GatedError> {
-    let session_middleware = Data::<&Arc<Mutex<SessionStore>>>::from_request_without_body(req)
-        .await
+    let session_middleware = parts
+        .extensions
+        .get::<Arc<Mutex<SessionStore>>>()
         .context("SessionStore not in request")?;
-    let session = <&Session>::from_request_without_body(req)
-        .await
+    let session = parts
+        .extensions
+        .get::<Session>()
         .context("Session not in request")?;
 
-    let server_handle = session_middleware
-        .lock()
-        .await
-        .create_handle_for(req)
-        .await
-        .context("create_handle_for")?;
+    let server_handle = session_middleware.lock().await.create_handle_for(session);
     server_handle
         .lock()
         .await
         .set_user_info(user_info.clone())
         .await?;
-    let services = Data::<&Services>::from_request_without_body(req)
-        .await
+    let services = parts
+        .extensions
+        .get::<Services>()
         .context("Services not in request")?;
     let db = services.db_required().await?;
     let id = server_handle.lock().await.id();
@@ -453,25 +471,10 @@ mod audit_regression_tests {
 
     #[test]
     fn login_redirect_uses_current_router_and_preserves_destination() {
-        let (parts, body) = http::Request::builder()
-            .uri("/protected?x=1")
-            .body(poem::Body::empty())
-            .unwrap()
-            .into_parts();
-        let req = Request::from_parts(
-            (
-                parts,
-                poem::web::LocalAddr::default(),
-                poem::web::RemoteAddr::default(),
-                http::uri::Scheme::HTTP,
-            )
-                .into(),
-            body,
-        );
-        let response = gateway_redirect(&req);
+        let response = gateway_redirect(&Uri::from_static("/protected?x=1"));
         assert_eq!(
-            response.header("location"),
-            Some("/ui/auth/login?next=%2Fprotected%3Fx%3D1")
+            response.headers()["location"],
+            "/ui/auth/login?next=%2Fprotected%3Fx%3D1"
         );
     }
 }

@@ -10,6 +10,7 @@ use futures::StreamExt;
 use hyper::body::Incoming;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
+use hyper_util::server::graceful::{GracefulShutdown, Watcher};
 use rustls::ServerConfig;
 use rustls::pki_types::CertificateDer;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -45,29 +46,58 @@ pub async fn serve(
     tls: Option<Arc<ServerConfig>>,
     app: Router,
 ) -> Result<(), GatedError> {
-    let mut incoming = pin!(endpoint.tcp_accept_stream().await?);
-    let tls = tls.map(TlsAcceptor::from);
-    let mut connections = JoinSet::new();
-
-    loop {
-        tokio::select! {
-            stream = incoming.next() => {
-                let Some(stream) = stream else {
-                    return Ok(());
-                };
-                match stream {
-                    Ok(stream) => {
-                        connections.spawn(serve_connection(stream, tls.clone(), app.clone()));
-                    }
-                    Err(error) => warn!(%error, "Failed to accept a connection"),
-                }
-            }
-            Some(_) = connections.join_next() => {}
-        }
-    }
+    serve_with_graceful_shutdown(endpoint, tls, app, std::future::pending()).await
 }
 
-async fn serve_connection(stream: TcpStream, tls: Option<TlsAcceptor>, app: Router) {
+/// Like [`serve`], but once `signal` resolves it stops accepting connections
+/// and returns after the in-flight requests are answered.
+pub async fn serve_with_graceful_shutdown(
+    endpoint: &ListenEndpoint,
+    tls: Option<Arc<ServerConfig>>,
+    app: Router,
+    signal: impl Future<Output = ()>,
+) -> Result<(), GatedError> {
+    let tls = tls.map(TlsAcceptor::from);
+    let mut connections = JoinSet::new();
+    let graceful = GracefulShutdown::new();
+
+    {
+        let mut incoming = pin!(endpoint.tcp_accept_stream().await?);
+        let mut signal = pin!(signal);
+        loop {
+            tokio::select! {
+                stream = incoming.next() => {
+                    let Some(stream) = stream else {
+                        break;
+                    };
+                    match stream {
+                        Ok(stream) => {
+                            connections.spawn(serve_connection(
+                                stream,
+                                tls.clone(),
+                                app.clone(),
+                                graceful.watcher(),
+                            ));
+                        }
+                        Err(error) => warn!(%error, "Failed to accept a connection"),
+                    }
+                }
+                Some(_) = connections.join_next() => {}
+                () = &mut signal => break,
+            }
+        }
+    }
+
+    graceful.shutdown().await;
+    Ok(())
+}
+
+async fn serve_connection(
+    stream: TcpStream,
+    tls: Option<TlsAcceptor>,
+    app: Router,
+    watcher: Watcher,
+) {
     let Ok(remote_addr) = stream.peer_addr() else {
         return;
     };
@@ -80,7 +110,7 @@ async fn serve_connection(stream: TcpStream, tls: Option<TlsAcceptor>, app: Rout
                 tls: false,
                 peer_certificate: None,
             };
-            serve_io(stream, info, app).await;
+            serve_io(stream, info, app, watcher).await;
         }
         Some(acceptor) => {
             let stream =
@@ -106,12 +136,12 @@ async fn serve_connection(stream: TcpStream, tls: Option<TlsAcceptor>, app: Rout
                 tls: true,
                 peer_certificate,
             };
-            serve_io(stream, info, app).await;
+            serve_io(stream, info, app, watcher).await;
         }
     }
 }
 
-async fn serve_io<I>(io: I, info: ConnectionInfo, app: Router)
+async fn serve_io<I>(io: I, info: ConnectionInfo, app: Router, watcher: Watcher)
 where
     I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -120,10 +150,9 @@ where
         request.extensions_mut().insert(info.clone());
         app.clone().call(request.map(Body::new))
     });
-    if let Err(error) = Builder::new(TokioExecutor::new())
-        .serve_connection_with_upgrades(TokioIo::new(io), service)
-        .await
-    {
+    let builder = Builder::new(TokioExecutor::new());
+    let connection = builder.serve_connection_with_upgrades(TokioIo::new(io), service);
+    if let Err(error) = watcher.watch(connection).await {
         debug!(%remote_addr, %error, "Connection closed with an error");
     }
 }

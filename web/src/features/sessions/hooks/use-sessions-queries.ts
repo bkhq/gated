@@ -7,7 +7,7 @@ import { listManagementSessions, revokeManagementSession } from '@/shared/lib/ap
 import { profileApi } from '@/shared/lib/api/profile'
 import { closeSession, deleteClosedSessions, deleteSession, getSession, listSessions } from '@/shared/lib/api/sessions'
 
-function formatDuration(startIso: string, endIso: string | undefined): string {
+function formatDuration(startIso: string, endIso: string | null | undefined): string {
   const start = Date.parse(startIso)
   if (Number.isNaN(start))
     return ''

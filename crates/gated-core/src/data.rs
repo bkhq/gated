@@ -1,12 +1,13 @@
 use chrono::{DateTime, Utc};
-use gated_common::{SessionId, Target};
+use gated_common::SessionId;
+use gated_common::api::types::Target;
 use gated_db_entities::Session;
-use poem_openapi::Object;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Object)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct SessionSnapshot {
+    #[schema(value_type = Uuid)]
     pub id: SessionId,
     pub username: Option<String>,
     pub target: Option<Target>,
@@ -23,7 +24,8 @@ impl From<Session::Model> for SessionSnapshot {
             username: model.username,
             target: model
                 .target_snapshot
-                .and_then(|s| serde_json::from_str(&s).ok()),
+                .and_then(|s| serde_json::from_str::<gated_common::Target>(&s).ok())
+                .map(Into::into),
             started: model.started,
             ended: model.ended,
             ticket_id: model.ticket_id,

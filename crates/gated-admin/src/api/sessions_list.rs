@@ -1,17 +1,19 @@
+use crate::http_service::session::Session;
+use axum::extract::Query;
+use axum::extract::ws::{Message, WebSocketUpgrade};
+use axum::response::Response;
+use gated_common::web::{Data, Json};
+use gated_common::{api_response, api_routes};
+use serde::Deserialize;
 use std::sync::Arc;
+use utoipa::IntoParams;
+use utoipa_axum::router::OpenApiRouter;
 
 use futures::{SinkExt, StreamExt};
 use gated_common::GatedError;
 use gated_core::SharedDatabaseConnection;
 use gated_core::recordings::SessionRecordings;
 use gated_core::{SessionSnapshot, State};
-use poem::session::Session;
-use poem::web::Data;
-use poem::web::websocket::{Message, WebSocket};
-use poem::{IntoResponse, handler};
-use poem_openapi::param::Query;
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, OpenApi};
 use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
 use tokio::sync::{Mutex, RwLock};
 
@@ -20,177 +22,183 @@ use super::pagination::{PaginatedResponse, PaginationParams};
 use super::sessions_detail::write_session_delete_audit;
 use crate::http_service::common::RequestAuthorization;
 
-pub struct Api;
-
-#[derive(ApiResponse)]
-enum GetSessionsResponse {
-    #[oai(status = 200)]
-    Ok(Json<PaginatedResponse<SessionSnapshot>>),
+api_response! {
+    enum GetSessionsResponse {
+        #[oai(status = 200)]
+        Ok(Json<PaginatedResponse<SessionSnapshot>>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum CloseAllSessionsResponse {
-    #[oai(status = 201)]
-    Ok,
+api_response! {
+    enum CloseAllSessionsResponse {
+        #[oai(status = 201)]
+        Ok,
+    }
 }
 
-#[derive(ApiResponse)]
-enum DeleteClosedSessionsResponse {
-    /// Body is the number of session records deleted.
-    #[oai(status = 200)]
-    Ok(Json<u64>),
+api_response! {
+    enum DeleteClosedSessionsResponse {
+        /// Body is the number of session records deleted.
+        #[oai(status = 200)]
+        Ok(Json<u64>),
+    }
 }
 
-#[OpenApi]
-impl Api {
-    #[oai(path = "/sessions", method = "get", operation_id = "get_sessions")]
-    async fn api_get_all_sessions(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        offset: Query<Option<u64>>,
-        limit: Query<Option<u64>>,
-        active_only: Query<Option<bool>>,
-        logged_in_only: Query<Option<bool>>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> poem::Result<GetSessionsResponse> {
-        use gated_db_entities::Session;
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct GetAllSessionsQuery {
+    offset: Option<u64>,
+    limit: Option<u64>,
+    active_only: Option<bool>,
+    logged_in_only: Option<bool>,
+}
 
-        let db = gated_core::db_required(&db).await?;
-        let mut q = Session::Entity::find()
-            .filter(Session::Column::Protocol.ne("ManagementHTTP"))
-            .order_by_desc(Session::Column::Started);
+#[utoipa::path(
+    get,
+    path = "/sessions",
+    operation_id = "get_sessions",
+    params(GetAllSessionsQuery)
+)]
+async fn api_get_all_sessions(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    Query(query): Query<GetAllSessionsQuery>,
+) -> Result<GetSessionsResponse, GatedError> {
+    let GetAllSessionsQuery {
+        offset,
+        limit,
+        active_only,
+        logged_in_only,
+    } = query;
+    use gated_db_entities::Session;
 
-        if active_only.unwrap_or(false) {
-            q = q.filter(Session::Column::Ended.is_null());
-        }
-        if logged_in_only.unwrap_or(false) {
-            q = q.filter(Session::Column::Username.is_not_null());
-        }
+    let db = gated_core::db_required(&db).await?;
+    let mut q = Session::Entity::find()
+        .filter(Session::Column::Protocol.ne("ManagementHTTP"))
+        .order_by_desc(Session::Column::Started);
 
-        Ok(GetSessionsResponse::Ok(Json(
-            PaginatedResponse::new(
-                q,
-                PaginationParams {
-                    limit: *limit,
-                    offset: *offset,
-                },
-                &db,
-                Into::into,
-            )
-            .await?,
-        )))
+    if active_only.unwrap_or(false) {
+        q = q.filter(Session::Column::Ended.is_null());
+    }
+    if logged_in_only.unwrap_or(false) {
+        q = q.filter(Session::Column::Username.is_not_null());
     }
 
-    /// Close every live session. Admin-only — the whole `/admin/api` nest is
-    /// wrapped with `endpoint_admin_auth` (see `http_service::mod`), so a
-    /// non-admin caller is rejected with 403 before reaching this handler.
-    #[oai(
-        path = "/sessions",
-        method = "delete",
-        operation_id = "close_all_sessions"
-    )]
-    async fn api_close_all_sessions(
-        &self,
-        state: Data<&Arc<RwLock<State>>>,
-        session: &Session,
-        _sec_scheme: AnySecurityScheme,
-    ) -> poem::Result<CloseAllSessionsResponse> {
-        let state = state.write().await;
+    Ok(GetSessionsResponse::Ok(Json(
+        PaginatedResponse::new(q, PaginationParams { limit, offset }, &db, Into::into).await?,
+    )))
+}
 
-        for s in state.sessions.values() {
-            let mut session = s.lock().await;
-            session.handle.close();
-        }
+/// Close every live session. Admin-only — the whole `/admin/api` nest is
+/// wrapped with `endpoint_admin_auth` (see `http_service::mod`), so a
+/// non-admin caller is rejected with 403 before reaching this handler.
+#[utoipa::path(delete, path = "/sessions", operation_id = "close_all_sessions")]
+async fn api_close_all_sessions(
+    state: Data<Arc<RwLock<State>>>,
+    session: Session,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<CloseAllSessionsResponse, GatedError> {
+    let state = state.write().await;
 
-        session.purge();
-
-        Ok(CloseAllSessionsResponse::Ok)
+    for s in state.sessions.values() {
+        let mut session = s.lock().await;
+        session.handle.close();
     }
 
-    /// Delete all ended (historical) session records and their attached
-    /// recordings + log rows. Live sessions are left untouched.
-    #[oai(
-        path = "/sessions/closed",
-        method = "delete",
-        operation_id = "delete_closed_sessions"
-    )]
-    async fn api_delete_closed_sessions(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        recordings: Data<&Arc<Mutex<SessionRecordings>>>,
-        _sec_scheme: AnySecurityScheme,
-        auth: Data<&RequestAuthorization>,
-    ) -> Result<DeleteClosedSessionsResponse, GatedError> {
-        use gated_db_entities::{LogEntry, Recording, Session};
+    session.purge();
 
-        let db = gated_core::db_required(&db).await?;
-        let closed: Vec<Session::Model> = Session::Entity::find()
-            .filter(Session::Column::Ended.is_not_null())
-            .all(&db)
-            .await?;
-        let ids: Vec<uuid::Uuid> = closed.iter().map(|s| s.id).collect();
-        if ids.is_empty() {
-            return Ok(DeleteClosedSessionsResponse::Ok(Json(0)));
-        }
+    Ok(CloseAllSessionsResponse::Ok)
+}
 
-        let recs = Recording::Entity::find()
-            .filter(Recording::Column::SessionId.is_in(ids.clone()))
-            .all(&db)
-            .await?;
+/// Delete all ended (historical) session records and their attached
+/// recordings + log rows. Live sessions are left untouched.
+#[utoipa::path(
+    delete,
+    path = "/sessions/closed",
+    operation_id = "delete_closed_sessions"
+)]
+async fn api_delete_closed_sessions(
+    db: Data<SharedDatabaseConnection>,
+    recordings: Data<Arc<Mutex<SessionRecordings>>>,
+    _sec_scheme: AnySecurityScheme,
+    auth: Data<RequestAuthorization>,
+) -> Result<DeleteClosedSessionsResponse, GatedError> {
+    use gated_db_entities::{LogEntry, Recording, Session};
 
-        // Audit the bulk wipe BEFORE destroying anything: this endpoint can
-        // erase all historical sessions, recordings and log rows at once, so
-        // the deletion itself must leave a durable, non-self-deletable trail.
-        let log_count = LogEntry::Entity::find()
-            .filter(LogEntry::Column::SessionId.is_in(ids.clone()))
-            .count(&db)
-            .await?;
-        write_session_delete_audit(
-            &db,
-            &ids,
-            recs.len() as u64,
-            log_count,
-            ids.len() as u64,
-            auth.username().map(String::as_str).unwrap_or("admin-token"),
-        )
+    let db = gated_core::db_required(&db).await?;
+    let closed: Vec<Session::Model> = Session::Entity::find()
+        .filter(Session::Column::Ended.is_not_null())
+        .all(&db)
         .await?;
-        {
-            let recordings = recordings.lock().await;
-            for r in &recs {
-                let _ = recordings.remove(&r.session_id, &r.name).await;
-            }
-        }
-        Recording::Entity::delete_many()
-            .filter(Recording::Column::SessionId.is_in(ids.clone()))
-            .exec(&db)
-            .await?;
-        LogEntry::Entity::delete_many()
-            .filter(LogEntry::Column::SessionId.is_in(ids.clone()))
-            .exec(&db)
-            .await?;
-        let res = Session::Entity::delete_many()
-            .filter(Session::Column::Ended.is_not_null())
-            .exec(&db)
-            .await?;
-
-        Ok(DeleteClosedSessionsResponse::Ok(Json(res.rows_affected)))
+    let ids: Vec<uuid::Uuid> = closed.iter().map(|s| s.id).collect();
+    if ids.is_empty() {
+        return Ok(DeleteClosedSessionsResponse::Ok(Json(0)));
     }
+
+    let recs = Recording::Entity::find()
+        .filter(Recording::Column::SessionId.is_in(ids.clone()))
+        .all(&db)
+        .await?;
+
+    // Audit the bulk wipe BEFORE destroying anything: this endpoint can
+    // erase all historical sessions, recordings and log rows at once, so
+    // the deletion itself must leave a durable, non-self-deletable trail.
+    let log_count = LogEntry::Entity::find()
+        .filter(LogEntry::Column::SessionId.is_in(ids.clone()))
+        .count(&db)
+        .await?;
+    write_session_delete_audit(
+        &db,
+        &ids,
+        recs.len() as u64,
+        log_count,
+        ids.len() as u64,
+        auth.username().map(String::as_str).unwrap_or("admin-token"),
+    )
+    .await?;
+    {
+        let recordings = recordings.lock().await;
+        for r in &recs {
+            let _ = recordings.remove(&r.session_id, &r.name).await;
+        }
+    }
+    Recording::Entity::delete_many()
+        .filter(Recording::Column::SessionId.is_in(ids.clone()))
+        .exec(&db)
+        .await?;
+    LogEntry::Entity::delete_many()
+        .filter(LogEntry::Column::SessionId.is_in(ids.clone()))
+        .exec(&db)
+        .await?;
+    let res = Session::Entity::delete_many()
+        .filter(Session::Column::Ended.is_not_null())
+        .exec(&db)
+        .await?;
+
+    Ok(DeleteClosedSessionsResponse::Ok(Json(res.rows_affected)))
 }
 
-#[handler]
 pub async fn api_get_sessions_changes_stream(
-    ws: WebSocket,
-    state: Data<&Arc<RwLock<State>>>,
-) -> impl IntoResponse + use<> {
+    ws: WebSocketUpgrade,
+    state: Data<Arc<RwLock<State>>>,
+) -> Response {
     let mut receiver = state.write().await.subscribe();
 
     ws.on_upgrade(|socket| async move {
         let (mut sink, _) = socket.split();
 
         while receiver.recv().await.is_ok() {
-            sink.send(Message::Text("".to_string())).await?;
+            if sink.send(Message::Text("".into())).await.is_err() {
+                break;
+            }
         }
-
-        Ok::<(), anyhow::Error>(())
     })
+}
+
+pub fn router() -> OpenApiRouter {
+    api_routes!(
+        api_get_all_sessions,
+        api_close_all_sessions,
+        api_delete_closed_sessions,
+    )
 }

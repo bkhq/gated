@@ -35,3 +35,11 @@ Decision event z0ytlcaj (option B): `gated` no longer depends on `serde_yaml`. T
 ## 2026-10-14 00:12 [decision]
 
 Decision event jnk3t54s: the vendored poem crates will not be patched further; poem is to be replaced. Proposed as task and plan `20261014-0012-replace-poem-with-axum`, pending approval. Until that work lands, `cargo deny check advisories` keeps failing on RUSTSEC-2024-0449.
+
+## 2026-10-14 01:05 [progress]
+
+The management HTTP surface (`gated-admin`: admin and user APIs, sessions, middlewares, web terminals, the SPA) and the `gated` binary's probe and pre-unlock listeners now run on axum; the OpenAPI documents come from utoipa. The proxy listener in `gated-protocol-http` is still on poem. The regenerated snapshots are OpenAPI 3.1 and differ from the previous ones in representation only (nullable optionals, unsigned integer formats, inline unions); the JSON on the wire is unchanged. `tests/xml_compatibility.rs`, which only covered the vendored poem `Xml` payload, is removed.
+
+## 2026-10-14 01:05 [pitfall]
+
+`Router::nest("/ui", …)` in axum 0.8 does not match `/ui/`; the request falls through to the outer fallback, which for a signed-in browser redirected to `/ui/` again. The SPA router registers `/ui/` explicitly (`http_service::spa::routes`, with a test). utoipa documents an `IntoParams` query struct only when the operation lists it in `params(...)`.

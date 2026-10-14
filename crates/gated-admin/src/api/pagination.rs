@@ -1,10 +1,10 @@
 use gated_common::GatedError;
-use poem_openapi::Object;
-use poem_openapi::types::{ParseFromJSON, ToJSON};
 use sea_orm::{ConnectionTrait, EntityTrait, FromQueryResult, PaginatorTrait, QuerySelect, Select};
+use serde::Serialize;
+use utoipa::ToSchema;
 
-#[derive(Object)]
-pub struct PaginatedResponse<T: ParseFromJSON + ToJSON + Send + Sync> {
+#[derive(Serialize, ToSchema)]
+pub struct PaginatedResponse<T> {
     items: Vec<T>,
     offset: u64,
     total: u64,
@@ -15,7 +15,7 @@ pub struct PaginationParams {
     pub limit: Option<u64>,
 }
 
-impl<T: ParseFromJSON + ToJSON + Send + Sync> PaginatedResponse<T> {
+impl<T> PaginatedResponse<T> {
     pub async fn new<E, M, C, P>(
         query: Select<E>,
         params: PaginationParams,

@@ -162,15 +162,15 @@ export type DbEngine = 'mysql' | 'postgres'
 export interface HttpHeaderCredential {
   name: string
   value: string
-  sensitive?: boolean
+  sensitive?: boolean | null
 }
 
 export type AccountCredentials
   = | { kind: 'ssh-password', username: string, password: string }
-    | { kind: 'ssh-key', username: string, private_key_pem: string, passphrase?: string }
+    | { kind: 'ssh-key', username: string, private_key_pem: string, passphrase?: string | null }
     | { kind: 'db-password', engine: DbEngine, username: string, password: string }
-    | { kind: 'k8s-token', token: string, ca_pem?: string, namespace?: string }
-    | { kind: 'k8s-client-cert', client_certificate_pem: string, client_private_key_pem: string, passphrase?: string, ca_pem?: string, namespace?: string }
+    | { kind: 'k8s-token', token: string, ca_pem?: string | null, namespace?: string | null }
+    | { kind: 'k8s-client-cert', client_certificate_pem: string, client_private_key_pem: string, passphrase?: string | null, ca_pem?: string | null, namespace?: string | null }
     | { kind: 'http-headers', headers: HttpHeaderCredential[] }
 
 export interface Account {

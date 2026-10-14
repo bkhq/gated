@@ -19,9 +19,18 @@ pub trait ApiResponse {
     fn responses(schemas: &mut Schemas) -> Responses;
 }
 
-impl<T: ApiResponse, E> ApiResponse for Result<T, E> {
+impl<T: ApiResponse, E: ApiResponse> ApiResponse for Result<T, E> {
     fn responses(schemas: &mut Schemas) -> Responses {
-        T::responses(schemas)
+        let mut responses = T::responses(schemas);
+        responses.responses.extend(E::responses(schemas).responses);
+        responses
+    }
+}
+
+/// Errors are answered with a plain-text message and stay undocumented.
+impl ApiResponse for crate::GatedError {
+    fn responses(_schemas: &mut Schemas) -> Responses {
+        Responses::new()
     }
 }
 
@@ -49,7 +58,17 @@ pub trait ApiArgument {
 }
 
 impl<T> ApiArgument for Data<T> {}
-impl<T> ApiArgument for Json<T> {}
+impl<T> ApiArgument for Json<T> {
+    fn document(operation: &mut Operation) {
+        let Some(RefOr::T(body)) = &mut operation.request_body else {
+            return;
+        };
+        if let Some(content) = body.content.remove("application/json") {
+            body.content
+                .insert(<Self as ApiPayload>::CONTENT_TYPE.to_owned(), content);
+        }
+    }
+}
 impl<T> ApiArgument for axum::extract::Path<T> {}
 impl<T> ApiArgument for axum::extract::Query<T> {}
 impl<T> ApiArgument for axum::extract::Form<T> {}

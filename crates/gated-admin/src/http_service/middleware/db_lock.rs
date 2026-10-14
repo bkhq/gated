@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use axum::extract::{Request, State};
+use axum::http::StatusCode;
+use axum::http::header::CONTENT_TYPE;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use gated_core::encryption::{EncryptionRuntime, EncryptionStatus};
-use http::StatusCode;
-use poem::http::header::CONTENT_TYPE;
-use poem::{Endpoint, IntoResponse, Middleware, Request, Response};
 use serde_json::json;
 
 #[derive(Clone)]
@@ -25,59 +27,40 @@ impl DbLockMiddleware {
     }
 }
 
-pub struct DbLockEndpoint<E> {
-    inner: E,
-    middleware: DbLockMiddleware,
+fn locked_response(status: StatusCode) -> Response {
+    let body = json!({
+        "code": "db_locked",
+        "message": "Database is locked. Unlock via /api/admin/encryption/unlock",
+    });
+    (
+        status,
+        [(CONTENT_TYPE, "application/json")],
+        body.to_string(),
+    )
+        .into_response()
 }
 
-impl<E: Endpoint> Middleware<E> for DbLockMiddleware {
-    type Output = DbLockEndpoint<E>;
-
-    fn transform(&self, inner: E) -> Self::Output {
-        DbLockEndpoint {
-            inner,
-            middleware: self.clone(),
-        }
+/// Answers every request outside the allowlist with an error while the
+/// database is locked.
+pub async fn db_lock_middleware(
+    State(middleware): State<DbLockMiddleware>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if middleware.is_allowlisted(request.uri().path()) {
+        return next.run(request).await;
     }
-}
 
-impl<E: Endpoint> Endpoint for DbLockEndpoint<E> {
-    type Output = Response;
+    let Some(runtime) = &middleware.runtime else {
+        return next.run(request).await;
+    };
 
-    async fn call(&self, req: Request) -> poem::Result<Self::Output> {
-        if self.middleware.is_allowlisted(req.uri().path()) {
-            return Ok(self.inner.call(req).await?.into_response());
+    match runtime.status().await {
+        EncryptionStatus::Locked | EncryptionStatus::Uninitialized => {
+            locked_response(StatusCode::LOCKED)
         }
-
-        let Some(runtime) = &self.middleware.runtime else {
-            return Ok(self.inner.call(req).await?.into_response());
-        };
-
-        match runtime.status().await {
-            EncryptionStatus::Locked | EncryptionStatus::Uninitialized => {
-                let body = json!({
-                    "code": "db_locked",
-                    "message": "Database is locked. Unlock via /api/admin/encryption/unlock",
-                });
-                Ok(Response::builder()
-                    .status(StatusCode::LOCKED)
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(body.to_string()))
-            }
-            EncryptionStatus::Error(_) => {
-                let body = json!({
-                    "code": "db_locked",
-                    "message": "Database is locked. Unlock via /api/admin/encryption/unlock",
-                });
-                Ok(Response::builder()
-                    .status(StatusCode::SERVICE_UNAVAILABLE)
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(body.to_string()))
-            }
-            EncryptionStatus::Disabled | EncryptionStatus::Unlocked => {
-                Ok(self.inner.call(req).await?.into_response())
-            }
-        }
+        EncryptionStatus::Error(_) => locked_response(StatusCode::SERVICE_UNAVAILABLE),
+        EncryptionStatus::Disabled | EncryptionStatus::Unlocked => next.run(request).await,
     }
 }
 
@@ -86,22 +69,15 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
 
+    use axum::Router;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use axum::routing::get;
     use gated_core::encryption::EncryptionRuntime;
-    use poem::http::StatusCode;
-    use poem::{Endpoint, Middleware, Request, Response};
+    use tower::ServiceExt;
     use uuid::Uuid;
 
-    use super::DbLockMiddleware;
-
-    struct OkEndpoint;
-
-    impl Endpoint for OkEndpoint {
-        type Output = Response;
-
-        async fn call(&self, _req: Request) -> poem::Result<Self::Output> {
-            Ok(Response::builder().status(StatusCode::OK).body("ok"))
-        }
-    }
+    use super::{DbLockMiddleware, db_lock_middleware};
 
     fn temp_dir(name: &str) -> PathBuf {
         let path = std::env::temp_dir().join(format!("gated-db-lock-{name}-{}", Uuid::new_v4()));
@@ -109,14 +85,26 @@ mod tests {
         path
     }
 
+    async fn status_of(
+        runtime: EncryptionRuntime,
+        allowlist: Vec<String>,
+        uri: &str,
+    ) -> StatusCode {
+        let middleware = DbLockMiddleware::new(Some(Arc::new(runtime)), allowlist);
+        let app = Router::new().fallback(get(|| async { "ok" })).layer(
+            axum::middleware::from_fn_with_state(middleware, db_lock_middleware),
+        );
+        let request = Request::builder().uri(uri).body(Body::empty()).unwrap();
+        app.oneshot(request).await.unwrap().status()
+    }
+
     #[tokio::test]
     async fn locked_runtime_rejects_non_allowlisted_request() {
         let runtime = EncryptionRuntime::new(&temp_dir("locked")).await.unwrap();
-        let endpoint = DbLockMiddleware::new(Some(Arc::new(runtime)), vec![]).transform(OkEndpoint);
-        let req = Request::builder().uri("/private".parse().unwrap()).finish();
-
-        let response = endpoint.call(req).await.unwrap();
-        assert_eq!(response.status(), StatusCode::LOCKED);
+        assert_eq!(
+            status_of(runtime, vec![], "/private").await,
+            StatusCode::LOCKED
+        );
     }
 
     #[tokio::test]
@@ -124,11 +112,9 @@ mod tests {
         let runtime = EncryptionRuntime::new(&temp_dir("allowlisted"))
             .await
             .unwrap();
-        let endpoint = DbLockMiddleware::new(Some(Arc::new(runtime)), vec!["/healthz".to_owned()])
-            .transform(OkEndpoint);
-        let req = Request::builder().uri("/healthz".parse().unwrap()).finish();
-
-        let response = endpoint.call(req).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            status_of(runtime, vec!["/healthz".to_owned()], "/healthz").await,
+            StatusCode::OK
+        );
     }
 }

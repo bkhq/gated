@@ -13,7 +13,7 @@ export interface HttpProxyPlayerProps {
   recordingId: string
 }
 
-function statusTone(status: number | undefined): BadgeTone {
+function statusTone(status: number | null | undefined): BadgeTone {
   if (typeof status !== 'number') {
     return 'mono'
   }

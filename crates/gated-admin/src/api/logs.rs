@@ -1,24 +1,25 @@
 use chrono::{DateTime, Utc};
 use gated_common::GatedError;
+use gated_common::web::{Data, Json};
+use gated_common::{api_response, api_routes};
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::{LogEntry, ManagementAudit, Session};
-use poem::web::Data;
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, Object, OpenApi};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use serde::Deserialize;
+use utoipa::ToSchema;
+use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
 
-pub struct Api;
-
-#[derive(ApiResponse)]
-enum GetLogsResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<LogEntry::Model>>),
+api_response! {
+    enum GetLogsResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<LogEntry::Model>>),
+    }
 }
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 struct GetLogsRequest {
     before: Option<DateTime<Utc>>,
     after: Option<DateTime<Utc>>,
@@ -29,79 +30,74 @@ struct GetLogsRequest {
     target_name: Option<String>,
 }
 
-#[OpenApi]
-impl Api {
-    #[oai(path = "/logs", method = "post", operation_id = "get_logs")]
-    async fn api_get_all_logs(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        body: Json<GetLogsRequest>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetLogsResponse, GatedError> {
-        use gated_db_entities::LogEntry;
+#[utoipa::path(post, path = "/logs", operation_id = "get_logs")]
+async fn api_get_all_logs(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<GetLogsRequest>,
+) -> Result<GetLogsResponse, GatedError> {
+    use gated_db_entities::LogEntry;
 
-        let db = gated_core::db_required(&db).await?;
-        let mut q = apply_scalar_filters(LogEntry::Entity::find(), &body);
+    let db = gated_core::db_required(&db).await?;
+    let mut q = apply_scalar_filters(LogEntry::Entity::find(), &body);
 
-        if let Some(ref target_name) = body.target_name {
-            // Find session IDs whose target_snapshot contains this target name
-            let session_ids: Vec<Uuid> = Session::Entity::find()
-                .filter(Session::Column::TargetSnapshot.contains(target_name))
-                .all(&db)
-                .await?
-                .into_iter()
-                .filter(|s| {
-                    // Parse the target_snapshot JSON to verify the exact name match
-                    s.target_snapshot
-                        .as_deref()
-                        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
-                        .and_then(|v| v.get("name")?.as_str().map(|n| n == target_name))
-                        .unwrap_or(false)
-                })
-                .map(|s| s.id)
-                .collect();
+    if let Some(ref target_name) = body.target_name {
+        // Find session IDs whose target_snapshot contains this target name
+        let session_ids: Vec<Uuid> = Session::Entity::find()
+            .filter(Session::Column::TargetSnapshot.contains(target_name))
+            .all(&db)
+            .await?
+            .into_iter()
+            .filter(|s| {
+                // Parse the target_snapshot JSON to verify the exact name match
+                s.target_snapshot
+                    .as_deref()
+                    .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+                    .and_then(|v| v.get("name")?.as_str().map(|n| n == target_name))
+                    .unwrap_or(false)
+            })
+            .map(|s| s.id)
+            .collect();
 
-            if session_ids.is_empty() {
-                return Ok(GetLogsResponse::Ok(Json(vec![])));
-            }
-
-            q = q.filter(LogEntry::Column::SessionId.is_in(session_ids));
-        }
-        let logs = q.all(&db).await?;
-        Ok(GetLogsResponse::Ok(Json(logs)))
-    }
-    #[oai(
-        path = "/management-audit",
-        method = "post",
-        operation_id = "get_management_audit"
-    )]
-    async fn api_get_management_audit(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        body: Json<GetLogsRequest>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetLogsResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-        if body.target_name.is_some() {
+        if session_ids.is_empty() {
             return Ok(GetLogsResponse::Ok(Json(vec![])));
         }
-        let entries = apply_management_filters(ManagementAudit::Entity::find(), &body)
-            .all(&db)
-            .await?;
-        Ok(GetLogsResponse::Ok(Json(
-            entries
-                .into_iter()
-                .map(|entry| LogEntry::Model {
-                    id: entry.id,
-                    text: entry.text,
-                    values: entry.values,
-                    timestamp: entry.timestamp,
-                    session_id: entry.session_id,
-                    username: entry.username,
-                })
-                .collect(),
-        )))
+
+        q = q.filter(LogEntry::Column::SessionId.is_in(session_ids));
     }
+    let logs = q.all(&db).await?;
+    Ok(GetLogsResponse::Ok(Json(logs)))
+}
+#[utoipa::path(
+    post,
+    path = "/management-audit",
+    operation_id = "get_management_audit"
+)]
+async fn api_get_management_audit(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<GetLogsRequest>,
+) -> Result<GetLogsResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    if body.target_name.is_some() {
+        return Ok(GetLogsResponse::Ok(Json(vec![])));
+    }
+    let entries = apply_management_filters(ManagementAudit::Entity::find(), &body)
+        .all(&db)
+        .await?;
+    Ok(GetLogsResponse::Ok(Json(
+        entries
+            .into_iter()
+            .map(|entry| LogEntry::Model {
+                id: entry.id,
+                text: entry.text,
+                values: entry.values,
+                timestamp: entry.timestamp,
+                session_id: entry.session_id,
+                username: entry.username,
+            })
+            .collect(),
+    )))
 }
 
 /// Apply the filters that do not need a database round-trip. `after` flips
@@ -171,6 +167,10 @@ fn apply_management_filters(
         );
     }
     q
+}
+
+pub fn router() -> OpenApiRouter {
+    api_routes!(api_get_all_logs, api_get_management_audit,)
 }
 
 #[cfg(test)]

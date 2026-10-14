@@ -1,257 +1,266 @@
+use axum::extract::{Path, Query};
+use gated_common::api::types as api_types;
+use gated_common::web::{Data, Json};
 use gated_common::{GatedError, Role as RoleConfig, Target as TargetConfig, User as UserConfig};
+use gated_common::{api_response, api_routes};
 use gated_core::consts::BUILTIN_ADMIN_ROLE_NAME;
 use gated_core::{Services, SharedDatabaseConnection};
 use gated_db_entities::{Role, Target, User};
-use poem::web::Data;
-use poem_openapi::param::{Path, Query};
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, Object, OpenApi};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder, Set,
 };
+use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 struct RoleDataRequest {
     name: String,
     description: Option<String>,
 }
 
-#[derive(ApiResponse)]
-enum GetRolesResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<RoleConfig>>),
-}
-#[derive(ApiResponse)]
-enum CreateRoleResponse {
-    #[oai(status = 201)]
-    Created(Json<RoleConfig>),
-
-    #[oai(status = 400)]
-    BadRequest(Json<String>),
-}
-
-pub struct ListApi;
-
-#[OpenApi]
-impl ListApi {
-    #[oai(path = "/roles", method = "get", operation_id = "get_roles")]
-    async fn api_get_all_roles(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        search: Query<Option<String>>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetRolesResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-
-        let mut roles = Role::Entity::find().order_by_asc(Role::Column::Name);
-
-        if let Some(ref search) = *search {
-            let search = format!("%{search}%");
-            roles = roles.filter(Role::Column::Name.like(search));
-        }
-
-        let roles = roles.all(&db).await?;
-
-        Ok(GetRolesResponse::Ok(Json(
-            roles.into_iter().map(Into::into).collect(),
-        )))
+api_response! {
+    enum GetRolesResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<RoleConfig>>),
     }
+}
+api_response! {
+    enum CreateRoleResponse {
+        #[oai(status = 201)]
+        Created(Json<RoleConfig>),
 
-    #[oai(path = "/roles", method = "post", operation_id = "create_role")]
-    async fn api_create_role(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        body: Json<RoleDataRequest>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<CreateRoleResponse, GatedError> {
-        use gated_db_entities::Role;
-
-        if body.name.is_empty() {
-            return Ok(CreateRoleResponse::BadRequest(Json("name".into())));
-        }
-
-        let db = gated_core::db_required(&db).await?;
-
-        let values = Role::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            name: Set(body.name.clone()),
-            description: Set(body.description.clone().unwrap_or_default()),
-        };
-
-        let role = values.insert(&db).await.map_err(GatedError::from)?;
-
-        Ok(CreateRoleResponse::Created(Json(role.into())))
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
     }
 }
 
-#[derive(ApiResponse)]
-enum GetRoleResponse {
-    #[oai(status = 200)]
-    Ok(Json<RoleConfig>),
-    #[oai(status = 404)]
-    NotFound,
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct GetAllRolesQuery {
+    search: Option<String>,
 }
 
-#[derive(ApiResponse)]
-enum UpdateRoleResponse {
-    #[oai(status = 200)]
-    Ok(Json<RoleConfig>),
-    #[oai(status = 403)]
-    Forbidden,
-    #[oai(status = 404)]
-    NotFound,
+#[utoipa::path(
+    get,
+    path = "/roles",
+    operation_id = "get_roles",
+    params(GetAllRolesQuery)
+)]
+async fn api_get_all_roles(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    Query(query): Query<GetAllRolesQuery>,
+) -> Result<GetRolesResponse, GatedError> {
+    let GetAllRolesQuery { search } = query;
+    let db = gated_core::db_required(&db).await?;
+
+    let mut roles = Role::Entity::find().order_by_asc(Role::Column::Name);
+
+    if let Some(ref search) = search {
+        let search = format!("%{search}%");
+        roles = roles.filter(Role::Column::Name.like(search));
+    }
+
+    let roles = roles.all(&db).await?;
+
+    Ok(GetRolesResponse::Ok(Json(
+        roles.into_iter().map(Into::into).collect(),
+    )))
 }
 
-#[derive(ApiResponse)]
-enum DeleteRoleResponse {
-    #[oai(status = 204)]
-    Deleted,
-    #[oai(status = 403)]
-    Forbidden,
-    #[oai(status = 404)]
-    NotFound,
+#[utoipa::path(post, path = "/roles", operation_id = "create_role")]
+async fn api_create_role(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<RoleDataRequest>,
+) -> Result<CreateRoleResponse, GatedError> {
+    use gated_db_entities::Role;
+
+    if body.name.is_empty() {
+        return Ok(CreateRoleResponse::BadRequest(Json("name".into())));
+    }
+
+    let db = gated_core::db_required(&db).await?;
+
+    let values = Role::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        name: Set(body.name.clone()),
+        description: Set(body.description.clone().unwrap_or_default()),
+    };
+
+    let role = values.insert(&db).await.map_err(GatedError::from)?;
+
+    Ok(CreateRoleResponse::Created(Json(role.into())))
 }
 
-#[derive(ApiResponse)]
-enum GetRoleTargetsResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<TargetConfig>>),
-    #[oai(status = 404)]
-    NotFound,
+api_response! {
+    enum GetRoleResponse {
+        #[oai(status = 200)]
+        Ok(Json<RoleConfig>),
+        #[oai(status = 404)]
+        NotFound,
+    }
 }
 
-#[derive(ApiResponse)]
-enum GetRoleUsersResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<UserConfig>>),
-    #[oai(status = 404)]
-    NotFound,
+api_response! {
+    enum UpdateRoleResponse {
+        #[oai(status = 200)]
+        Ok(Json<RoleConfig>),
+        #[oai(status = 403)]
+        Forbidden,
+        #[oai(status = 404)]
+        NotFound,
+    }
 }
 
-pub struct DetailApi;
+api_response! {
+    enum DeleteRoleResponse {
+        #[oai(status = 204)]
+        Deleted,
+        #[oai(status = 403)]
+        Forbidden,
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
 
-#[OpenApi]
-impl DetailApi {
-    #[oai(path = "/role/:id", method = "get", operation_id = "get_role")]
-    async fn api_get_role(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetRoleResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+api_response! {
+    enum GetRoleTargetsResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<api_types::Target>>),
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
 
-        let role = Role::Entity::find_by_id(id.0).one(&db).await?;
+api_response! {
+    enum GetRoleUsersResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<api_types::User>>),
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
 
-        Ok(match role {
-            Some(role) => GetRoleResponse::Ok(Json(role.into())),
-            None => GetRoleResponse::NotFound,
-        })
+#[utoipa::path(get, path = "/role/{id}", operation_id = "get_role")]
+async fn api_get_role(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetRoleResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+
+    let role = Role::Entity::find_by_id(id.0).one(&db).await?;
+
+    Ok(match role {
+        Some(role) => GetRoleResponse::Ok(Json(role.into())),
+        None => GetRoleResponse::NotFound,
+    })
+}
+
+#[utoipa::path(put, path = "/role/{id}", operation_id = "update_role")]
+async fn api_update_role(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<RoleDataRequest>,
+) -> Result<UpdateRoleResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+
+    let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(UpdateRoleResponse::NotFound);
+    };
+
+    if role.name == BUILTIN_ADMIN_ROLE_NAME {
+        return Ok(UpdateRoleResponse::Forbidden);
     }
 
-    #[oai(path = "/role/:id", method = "put", operation_id = "update_role")]
-    async fn api_update_role(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        body: Json<RoleDataRequest>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<UpdateRoleResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+    let mut model: Role::ActiveModel = role.into();
+    model.name = Set(body.name.clone());
+    model.description = Set(body.description.clone().unwrap_or_default());
+    let role = model.update(&db).await?;
 
-        let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(UpdateRoleResponse::NotFound);
-        };
+    Ok(UpdateRoleResponse::Ok(Json(role.into())))
+}
 
-        if role.name == BUILTIN_ADMIN_ROLE_NAME {
-            return Ok(UpdateRoleResponse::Forbidden);
-        }
+#[utoipa::path(delete, path = "/role/{id}", operation_id = "delete_role")]
+async fn api_delete_role(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<DeleteRoleResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
 
-        let mut model: Role::ActiveModel = role.into();
-        model.name = Set(body.name.clone());
-        model.description = Set(body.description.clone().unwrap_or_default());
-        let role = model.update(&db).await?;
+    let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(DeleteRoleResponse::NotFound);
+    };
 
-        Ok(UpdateRoleResponse::Ok(Json(role.into())))
+    if role.name == BUILTIN_ADMIN_ROLE_NAME {
+        return Ok(DeleteRoleResponse::Forbidden);
     }
 
-    #[oai(path = "/role/:id", method = "delete", operation_id = "delete_role")]
-    async fn api_delete_role(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        services: Data<&Services>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<DeleteRoleResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+    role.delete(&db).await?;
+    services.notify_authorization_changed();
+    Ok(DeleteRoleResponse::Deleted)
+}
 
-        let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(DeleteRoleResponse::NotFound);
-        };
+#[utoipa::path(get, path = "/role/{id}/targets", operation_id = "get_role_targets")]
+async fn api_get_role_targets(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetRoleTargetsResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
 
-        if role.name == BUILTIN_ADMIN_ROLE_NAME {
-            return Ok(DeleteRoleResponse::Forbidden);
-        }
+    let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(GetRoleTargetsResponse::NotFound);
+    };
 
-        role.delete(&db).await?;
-        services.notify_authorization_changed();
-        Ok(DeleteRoleResponse::Deleted)
-    }
+    let targets = role.find_related(Target::Entity).all(&db).await?;
 
-    #[oai(
-        path = "/role/:id/targets",
-        method = "get",
-        operation_id = "get_role_targets"
-    )]
-    async fn api_get_role_targets(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetRoleTargetsResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+    Ok(GetRoleTargetsResponse::Ok(Json(
+        targets
+            .into_iter()
+            .map(|target| TargetConfig::try_from(target).map(Into::into))
+            .collect::<Result<Vec<_>, serde_json::Error>>()?,
+    )))
+}
 
-        let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(GetRoleTargetsResponse::NotFound);
-        };
+#[utoipa::path(get, path = "/role/{id}/users", operation_id = "get_role_users")]
+async fn api_get_role_users(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetRoleUsersResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
 
-        let targets = role.find_related(Target::Entity).all(&db).await?;
+    let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(GetRoleUsersResponse::NotFound);
+    };
 
-        Ok(GetRoleTargetsResponse::Ok(Json(
-            targets
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, serde_json::Error>>()?,
-        )))
-    }
+    let users = role.find_related(User::Entity).all(&db).await?;
 
-    #[oai(
-        path = "/role/:id/users",
-        method = "get",
-        operation_id = "get_role_users"
-    )]
-    async fn api_get_role_users(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetRoleUsersResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+    Ok(GetRoleUsersResponse::Ok(Json(
+        users
+            .into_iter()
+            .map(|user| UserConfig::try_from(user).map(Into::into))
+            .collect::<Result<Vec<_>, GatedError>>()?,
+    )))
+}
 
-        let Some(role) = Role::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(GetRoleUsersResponse::NotFound);
-        };
-
-        let users = role.find_related(User::Entity).all(&db).await?;
-
-        Ok(GetRoleUsersResponse::Ok(Json(
-            users
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, GatedError>>()?,
-        )))
-    }
+pub fn router() -> OpenApiRouter {
+    api_routes!(
+        api_get_all_roles,
+        api_create_role,
+        api_get_role,
+        api_update_role,
+        api_delete_role,
+        api_get_role_targets,
+        api_get_role_users,
+    )
 }

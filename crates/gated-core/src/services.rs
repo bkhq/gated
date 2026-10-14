@@ -50,6 +50,12 @@ impl From<DbLockedError> for gated_common::GatedError {
     }
 }
 
+impl axum::response::IntoResponse for DbLockedError {
+    fn into_response(self) -> axum::response::Response {
+        (axum::http::StatusCode::LOCKED, self.to_string()).into_response()
+    }
+}
+
 impl poem::error::ResponseError for DbLockedError {
     fn status(&self) -> poem::http::StatusCode {
         poem::http::StatusCode::LOCKED

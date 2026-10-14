@@ -12,7 +12,14 @@
 //! Each query runs with `statement_timeout = 30s` and the result is
 //! truncated once the JSON payload grows past 5 MiB.
 
+use axum::extract::{Path, Query};
+use axum::middleware::from_fn;
+use gated_common::web::{Data, Json};
+use gated_common::{api_response, api_routes};
+use serde::Deserialize;
 use std::time::{Duration, Instant};
+use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::router::OpenApiRouter;
 
 use chrono::Utc;
 use gated_common::{Target, TargetOptions};
@@ -20,10 +27,6 @@ use gated_core::db_pool_registry::TargetPool;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
 use gated_core::{ConfigProvider, Services};
 use gated_db_entities::Session;
-use poem::web::Data;
-use poem_openapi::param::{Path, Query};
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, Object, OpenApi};
 use sea_orm::{ActiveModelTrait, EntityTrait};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -34,7 +37,7 @@ use tracing::*;
 use uuid::Uuid;
 
 use crate::http_service::api::AnySecurityScheme;
-use crate::http_service::common::{RequestAuthorization, SessionAuthorization, endpoint_auth};
+use crate::http_service::common::{RequestAuthorization, SessionAuthorization, require_auth};
 
 const MAX_TARGET_NAME_LEN: usize = 128;
 const DEFAULT_LIMIT: i64 = 1000;
@@ -115,7 +118,7 @@ fn target_readonly(target: &Target) -> bool {
 // Readonly enforcement delegates to the AST-free tokenizer in
 // `sql_validation`.
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 struct SchemaList {
     schemas: Vec<String>,
     default_schema: Option<String>,
@@ -123,24 +126,24 @@ struct SchemaList {
     kind: String,
 }
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 struct TableList {
     tables: Vec<TableInfo>,
 }
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 struct TableInfo {
     name: String,
-    #[oai(rename = "type")]
+    #[serde(rename = "type")]
     kind: String,
 }
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 struct ColumnList {
     columns: Vec<ColumnInfo>,
 }
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 struct ColumnInfo {
     name: String,
     data_type: String,
@@ -148,14 +151,14 @@ struct ColumnInfo {
     primary_key: bool,
 }
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 pub struct QueryRequest {
     pub sql: String,
     pub limit: Option<i64>,
     pub console_session_key: Option<String>,
 }
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 struct QueryResponse {
     columns: Vec<QueryColumn>,
     rows: Vec<Vec<serde_json::Value>>,
@@ -173,13 +176,13 @@ struct QueryResultBody {
     truncated: bool,
 }
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 struct QueryColumn {
     name: String,
     type_name: String,
 }
 
-#[derive(Object, Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct ErrorBody {
     error: String,
 }
@@ -190,22 +193,23 @@ impl ErrorBody {
     }
 }
 
-#[derive(ApiResponse)]
-pub enum DbError {
-    #[oai(status = 400)]
-    BadRequest(Json<ErrorBody>),
-    #[oai(status = 401)]
-    Unauthorized(Json<ErrorBody>),
-    #[oai(status = 403)]
-    Forbidden(Json<ErrorBody>),
-    #[oai(status = 404)]
-    NotFound(Json<ErrorBody>),
-    #[oai(status = 429)]
-    RateLimited(Json<ErrorBody>, #[oai(header = "Retry-After")] u64),
-    #[oai(status = 500)]
-    Internal(Json<ErrorBody>),
-    #[oai(status = 502)]
-    BadGateway(Json<ErrorBody>),
+api_response! {
+    pub enum DbError {
+        #[oai(status = 400)]
+        BadRequest(Json<ErrorBody>),
+        #[oai(status = 401)]
+        Unauthorized(Json<ErrorBody>),
+        #[oai(status = 403)]
+        Forbidden(Json<ErrorBody>),
+        #[oai(status = 404)]
+        NotFound(Json<ErrorBody>),
+        #[oai(status = 429)]
+        RateLimited(Json<ErrorBody>, #[oai(header = "Retry-After")] u64),
+        #[oai(status = 500)]
+        Internal(Json<ErrorBody>),
+        #[oai(status = 502)]
+        BadGateway(Json<ErrorBody>),
+    }
 }
 
 impl From<gated_core::DbLockedError> for DbError {
@@ -584,30 +588,32 @@ fn is_system_schema_postgres(name: &str) -> bool {
 
 // ── Endpoint handlers ──────────────────────────────────────────────────────────
 
-pub struct Api;
-
-#[derive(ApiResponse)]
-enum SchemasResponse {
-    #[oai(status = 200)]
-    Ok(Json<SchemaList>),
+api_response! {
+    enum SchemasResponse {
+        #[oai(status = 200)]
+        Ok(Json<SchemaList>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum TablesResponse {
-    #[oai(status = 200)]
-    Ok(Json<TableList>),
+api_response! {
+    enum TablesResponse {
+        #[oai(status = 200)]
+        Ok(Json<TableList>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum ColumnsResponse {
-    #[oai(status = 200)]
-    Ok(Json<ColumnList>),
+api_response! {
+    enum ColumnsResponse {
+        #[oai(status = 200)]
+        Ok(Json<ColumnList>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum DbQueryApiResponse {
-    #[oai(status = 200)]
-    Ok(Json<QueryResponse>),
+api_response! {
+    enum DbQueryApiResponse {
+        #[oai(status = 200)]
+        Ok(Json<QueryResponse>),
+    }
 }
 
 async fn common_auth_and_pool(
@@ -651,252 +657,304 @@ async fn common_auth_and_pool(
     Ok((username, user_id, target, pool))
 }
 
-#[OpenApi]
-impl Api {
-    #[oai(
-        path = "/db/schemas/:target_name",
-        method = "get",
-        operation_id = "get_db_schemas",
-        transform = "endpoint_auth"
-    )]
-    async fn api_db_schemas(
-        &self,
-        target_name: Path<String>,
-        services: Data<&Services>,
-        auth: Data<&RequestAuthorization>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<SchemasResponse, DbError> {
-        let target_name = target_name.0;
-        let (_username, _user_id, target, pool) =
-            common_auth_and_pool(&services, *auth, &target_name).await?;
+#[utoipa::path(
+    get,
+    path = "/db/schemas/{target_name}",
+    operation_id = "get_db_schemas"
+)]
+async fn api_db_schemas(
+    target_name: Path<String>,
+    services: Data<Services>,
+    auth: Data<RequestAuthorization>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<SchemasResponse, DbError> {
+    let target_name = target_name.0;
+    let (_username, _user_id, target, pool) =
+        common_auth_and_pool(&services, &auth, &target_name).await?;
 
-        let (kind, default_schema) = match &target.options {
-            TargetOptions::MySql(o) => ("MySql", o.default_database_name.clone()),
-            TargetOptions::Postgres(o) => ("Postgres", o.default_database_name.clone()),
-            _ => unreachable!(),
-        };
+    let (kind, default_schema) = match &target.options {
+        TargetOptions::MySql(o) => ("MySql", o.default_database_name.clone()),
+        TargetOptions::Postgres(o) => ("Postgres", o.default_database_name.clone()),
+        _ => unreachable!(),
+    };
 
-        let schemas = match &pool {
-            TargetPool::MySql(pool) => {
-                // `SHOW DATABASES` (and some info_schema columns) come back as
-                // VARBINARY on servers where `collation_connection` resolves to
-                // a binary collation. sqlx's `String` decoder refuses that, so
-                // we read bytes and lossily convert.
-                let rows = sqlx::query_scalar::<_, Vec<u8>>("SHOW DATABASES")
-                    .fetch_all(pool)
-                    .await
-                    .map_err(|e| {
-                        warn!(target = %target.name, error = %e, "list MySQL schemas failed");
-                        DbError::bad_gateway(format!("list schemas: {e}"))
-                    })?;
-                let mut v: Vec<String> = rows
-                    .into_iter()
-                    .map(|b| String::from_utf8_lossy(&b).into_owned())
-                    .filter(|s| !is_system_schema_mysql(s))
-                    .collect();
-                v.sort();
-                v
-            }
-            TargetPool::Postgres(pool) => {
-                let rows = sqlx::query_scalar::<_, String>(
-                    "SELECT schema_name FROM information_schema.schemata ORDER BY schema_name",
-                )
+    let schemas = match &pool {
+        TargetPool::MySql(pool) => {
+            // `SHOW DATABASES` (and some info_schema columns) come back as
+            // VARBINARY on servers where `collation_connection` resolves to
+            // a binary collation. sqlx's `String` decoder refuses that, so
+            // we read bytes and lossily convert.
+            let rows = sqlx::query_scalar::<_, Vec<u8>>("SHOW DATABASES")
                 .fetch_all(pool)
                 .await
                 .map_err(|e| {
-                    warn!(target = %target.name, error = %e, "list Postgres schemas failed");
+                    warn!(target = %target.name, error = %e, "list MySQL schemas failed");
                     DbError::bad_gateway(format!("list schemas: {e}"))
                 })?;
-                rows.into_iter()
-                    .filter(|s| !is_system_schema_postgres(s))
-                    .collect()
-            }
-        };
-
-        Ok(SchemasResponse::Ok(Json(SchemaList {
-            schemas,
-            default_schema,
-            readonly: target_readonly(&target),
-            kind: kind.to_string(),
-        })))
-    }
-
-    #[oai(
-        path = "/db/tables/:target_name",
-        method = "get",
-        operation_id = "get_db_tables",
-        transform = "endpoint_auth"
-    )]
-    async fn api_db_tables(
-        &self,
-        target_name: Path<String>,
-        schema: Query<Option<String>>,
-        services: Data<&Services>,
-        auth: Data<&RequestAuthorization>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<TablesResponse, DbError> {
-        let target_name = target_name.0;
-        let (_username, _user_id, _target, pool) =
-            common_auth_and_pool(&services, *auth, &target_name).await?;
-        let schema = match schema.0 {
-            Some(s) if !s.is_empty() => s,
-            _ => return Err(DbError::bad_request("schema query param required")),
-        };
-
-        let tables: Vec<TableInfo> = match &pool {
-            TargetPool::MySql(pool) => {
-                // Same VARBINARY-vs-String story as schemas; decode as bytes.
-                sqlx::query_as::<_, (Vec<u8>, Vec<u8>)>(
-                    "SELECT table_name, table_type \
-                     FROM information_schema.tables \
-                     WHERE table_schema = ? \
-                     ORDER BY table_name",
-                )
-                .bind(&schema)
-                .fetch_all(pool)
-                .await
-                .map_err(|e| {
-                    warn!(target = %target_name, error = %e, "list MySQL tables failed");
-                    DbError::bad_gateway(format!("list tables: {e}"))
-                })?
+            let mut v: Vec<String> = rows
                 .into_iter()
-                .map(|(name, kind)| TableInfo {
-                    name: String::from_utf8_lossy(&name).into_owned(),
-                    kind: String::from_utf8_lossy(&kind).into_owned(),
-                })
+                .map(|b| String::from_utf8_lossy(&b).into_owned())
+                .filter(|s| !is_system_schema_mysql(s))
+                .collect();
+            v.sort();
+            v
+        }
+        TargetPool::Postgres(pool) => {
+            let rows = sqlx::query_scalar::<_, String>(
+                "SELECT schema_name FROM information_schema.schemata ORDER BY schema_name",
+            )
+            .fetch_all(pool)
+            .await
+            .map_err(|e| {
+                warn!(target = %target.name, error = %e, "list Postgres schemas failed");
+                DbError::bad_gateway(format!("list schemas: {e}"))
+            })?;
+            rows.into_iter()
+                .filter(|s| !is_system_schema_postgres(s))
                 .collect()
-            }
-            TargetPool::Postgres(pool) => sqlx::query_as::<_, (String, String)>(
+        }
+    };
+
+    Ok(SchemasResponse::Ok(Json(SchemaList {
+        schemas,
+        default_schema,
+        readonly: target_readonly(&target),
+        kind: kind.to_string(),
+    })))
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct DbTablesQuery {
+    schema: Option<String>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/db/tables/{target_name}",
+    operation_id = "get_db_tables",
+    params(DbTablesQuery)
+)]
+async fn api_db_tables(
+    target_name: Path<String>,
+    services: Data<Services>,
+    auth: Data<RequestAuthorization>,
+    _sec_scheme: AnySecurityScheme,
+    Query(query): Query<DbTablesQuery>,
+) -> Result<TablesResponse, DbError> {
+    let DbTablesQuery { schema } = query;
+    let target_name = target_name.0;
+    let (_username, _user_id, _target, pool) =
+        common_auth_and_pool(&services, &auth, &target_name).await?;
+    let schema = match schema {
+        Some(s) if !s.is_empty() => s,
+        _ => return Err(DbError::bad_request("schema query param required")),
+    };
+
+    let tables: Vec<TableInfo> = match &pool {
+        TargetPool::MySql(pool) => {
+            // Same VARBINARY-vs-String story as schemas; decode as bytes.
+            sqlx::query_as::<_, (Vec<u8>, Vec<u8>)>(
                 "SELECT table_name, table_type \
                  FROM information_schema.tables \
-                 WHERE table_schema = $1 \
+                 WHERE table_schema = ? \
                  ORDER BY table_name",
             )
             .bind(&schema)
             .fetch_all(pool)
             .await
-            .map_err(|e| DbError::bad_gateway(format!("list tables: {e}")))?
-            .into_iter()
-            .map(|(name, kind)| TableInfo { name, kind })
-            .collect(),
-        };
-
-        Ok(TablesResponse::Ok(Json(TableList { tables })))
-    }
-
-    #[oai(
-        path = "/db/columns/:target_name",
-        method = "get",
-        operation_id = "get_db_columns",
-        transform = "endpoint_auth"
-    )]
-    async fn api_db_columns(
-        &self,
-        target_name: Path<String>,
-        schema: Query<String>,
-        table: Query<String>,
-        services: Data<&Services>,
-        auth: Data<&RequestAuthorization>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<ColumnsResponse, DbError> {
-        let target_name = target_name.0;
-        let (_username, _user_id, _target, pool) =
-            common_auth_and_pool(&services, *auth, &target_name).await?;
-        if schema.is_empty() || table.is_empty() {
-            return Err(DbError::bad_request("schema and table required"));
-        }
-
-        let cols: Vec<ColumnInfo> = match &pool {
-            TargetPool::MySql(pool) => sqlx::query_as::<_, (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)>(
-                "SELECT column_name, column_type, is_nullable, column_key \
-                 FROM information_schema.columns \
-                 WHERE table_schema = ? AND table_name = ? \
-                 ORDER BY ordinal_position",
-            )
-            .bind(&schema.0)
-            .bind(&table.0)
-            .fetch_all(pool)
-            .await
             .map_err(|e| {
-                warn!(target = %target_name, error = %e, "list MySQL columns failed");
-                DbError::bad_gateway(format!("list columns: {e}"))
+                warn!(target = %target_name, error = %e, "list MySQL tables failed");
+                DbError::bad_gateway(format!("list tables: {e}"))
             })?
             .into_iter()
-            .map(|(name, data_type, nullable, col_key)| ColumnInfo {
+            .map(|(name, kind)| TableInfo {
                 name: String::from_utf8_lossy(&name).into_owned(),
-                data_type: String::from_utf8_lossy(&data_type).into_owned(),
-                nullable: String::from_utf8_lossy(&nullable).eq_ignore_ascii_case("YES"),
-                primary_key: &col_key[..] == b"PRI",
+                kind: String::from_utf8_lossy(&kind).into_owned(),
             })
-            .collect(),
-            TargetPool::Postgres(pool) => {
-                sqlx::query_as::<_, (String, String, String, Option<String>)>(
-                    "SELECT c.column_name, c.data_type, c.is_nullable, kc.constraint_type \
-                     FROM information_schema.columns c \
-                     LEFT JOIN information_schema.key_column_usage k \
-                         ON k.table_schema = c.table_schema \
-                        AND k.table_name = c.table_name \
-                        AND k.column_name = c.column_name \
-                     LEFT JOIN information_schema.table_constraints kc \
-                         ON kc.constraint_name = k.constraint_name \
-                        AND kc.table_schema = k.table_schema \
-                        AND kc.constraint_type = 'PRIMARY KEY' \
-                     WHERE c.table_schema = $1 AND c.table_name = $2 \
-                     ORDER BY c.ordinal_position",
-                )
-                .bind(&schema.0)
-                .bind(&table.0)
-                .fetch_all(pool)
-                .await
-                .map_err(|e| DbError::bad_gateway(format!("list columns: {e}")))?
-                .into_iter()
-                .map(|(name, data_type, nullable, kc)| ColumnInfo {
-                    name,
-                    data_type,
-                    nullable: nullable.eq_ignore_ascii_case("YES"),
-                    primary_key: kc.is_some(),
-                })
-                .collect()
-            }
-        };
+            .collect()
+        }
+        TargetPool::Postgres(pool) => sqlx::query_as::<_, (String, String)>(
+            "SELECT table_name, table_type \
+             FROM information_schema.tables \
+             WHERE table_schema = $1 \
+             ORDER BY table_name",
+        )
+        .bind(&schema)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| DbError::bad_gateway(format!("list tables: {e}")))?
+        .into_iter()
+        .map(|(name, kind)| TableInfo { name, kind })
+        .collect(),
+    };
 
-        Ok(ColumnsResponse::Ok(Json(ColumnList { columns: cols })))
+    Ok(TablesResponse::Ok(Json(TableList { tables })))
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct DbColumnsQuery {
+    schema: String,
+    table: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/db/columns/{target_name}",
+    operation_id = "get_db_columns",
+    params(DbColumnsQuery)
+)]
+async fn api_db_columns(
+    target_name: Path<String>,
+    services: Data<Services>,
+    auth: Data<RequestAuthorization>,
+    _sec_scheme: AnySecurityScheme,
+    Query(query): Query<DbColumnsQuery>,
+) -> Result<ColumnsResponse, DbError> {
+    let DbColumnsQuery { schema, table } = query;
+    let target_name = target_name.0;
+    let (_username, _user_id, _target, pool) =
+        common_auth_and_pool(&services, &auth, &target_name).await?;
+    if schema.is_empty() || table.is_empty() {
+        return Err(DbError::bad_request("schema and table required"));
     }
 
-    #[oai(
-        path = "/db/query/:target_name",
-        method = "post",
-        operation_id = "run_db_query",
-        transform = "endpoint_auth"
-    )]
-    async fn api_db_query(
-        &self,
-        target_name: Path<String>,
-        body: Json<QueryRequest>,
-        services: Data<&Services>,
-        auth: Data<&RequestAuthorization>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<DbQueryApiResponse, DbError> {
-        let target_name = target_name.0;
-        let (username, user_id, target, pool) =
-            common_auth_and_pool(&services, *auth, &target_name).await?;
-
-        let sql = body.0.sql.trim().to_string();
-        if sql.is_empty() {
-            return Err(DbError::bad_request("sql is empty"));
+    let cols: Vec<ColumnInfo> = match &pool {
+        TargetPool::MySql(pool) => sqlx::query_as::<_, (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)>(
+            "SELECT column_name, column_type, is_nullable, column_key \
+             FROM information_schema.columns \
+             WHERE table_schema = ? AND table_name = ? \
+             ORDER BY ordinal_position",
+        )
+        .bind(&schema)
+        .bind(&table)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            warn!(target = %target_name, error = %e, "list MySQL columns failed");
+            DbError::bad_gateway(format!("list columns: {e}"))
+        })?
+        .into_iter()
+        .map(|(name, data_type, nullable, col_key)| ColumnInfo {
+            name: String::from_utf8_lossy(&name).into_owned(),
+            data_type: String::from_utf8_lossy(&data_type).into_owned(),
+            nullable: String::from_utf8_lossy(&nullable).eq_ignore_ascii_case("YES"),
+            primary_key: &col_key[..] == b"PRI",
+        })
+        .collect(),
+        TargetPool::Postgres(pool) => {
+            sqlx::query_as::<_, (String, String, String, Option<String>)>(
+                "SELECT c.column_name, c.data_type, c.is_nullable, kc.constraint_type \
+                 FROM information_schema.columns c \
+                 LEFT JOIN information_schema.key_column_usage k \
+                     ON k.table_schema = c.table_schema \
+                    AND k.table_name = c.table_name \
+                    AND k.column_name = c.column_name \
+                 LEFT JOIN information_schema.table_constraints kc \
+                     ON kc.constraint_name = k.constraint_name \
+                    AND kc.table_schema = k.table_schema \
+                    AND kc.constraint_type = 'PRIMARY KEY' \
+                 WHERE c.table_schema = $1 AND c.table_name = $2 \
+                 ORDER BY c.ordinal_position",
+            )
+            .bind(&schema)
+            .bind(&table)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| DbError::bad_gateway(format!("list columns: {e}")))?
+            .into_iter()
+            .map(|(name, data_type, nullable, kc)| ColumnInfo {
+                name,
+                data_type,
+                nullable: nullable.eq_ignore_ascii_case("YES"),
+                primary_key: kc.is_some(),
+            })
+            .collect()
         }
-        let console_session_key = body.0.console_session_key.clone();
-        let requested_limit = body.0.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
-        let readonly = target_readonly(&target);
-        let statement_kind = classify_sql(&sql);
-        let session_id = console_session_key
-            .as_ref()
-            .map(|key| sql_console_session_id_from_key(key, user_id, target.id))
-            .unwrap_or_else(Uuid::new_v4);
-        let recording_name = "sql-console";
-        ensure_sql_console_group_session(&services, session_id, &username, &target).await?;
+    };
 
-        if readonly && let Err(violation) = super::sql_validation::validate_readonly_sql(&sql) {
+    Ok(ColumnsResponse::Ok(Json(ColumnList { columns: cols })))
+}
+
+#[utoipa::path(post, path = "/db/query/{target_name}", operation_id = "run_db_query")]
+async fn api_db_query(
+    target_name: Path<String>,
+    services: Data<Services>,
+    auth: Data<RequestAuthorization>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<QueryRequest>,
+) -> Result<DbQueryApiResponse, DbError> {
+    let target_name = target_name.0;
+    let (username, user_id, target, pool) =
+        common_auth_and_pool(&services, &auth, &target_name).await?;
+
+    let sql = body.0.sql.trim().to_string();
+    if sql.is_empty() {
+        return Err(DbError::bad_request("sql is empty"));
+    }
+    let console_session_key = body.0.console_session_key.clone();
+    let requested_limit = body.0.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
+    let readonly = target_readonly(&target);
+    let statement_kind = classify_sql(&sql);
+    let session_id = console_session_key
+        .as_ref()
+        .map(|key| sql_console_session_id_from_key(key, user_id, target.id))
+        .unwrap_or_else(Uuid::new_v4);
+    let recording_name = "sql-console";
+    ensure_sql_console_group_session(&services, session_id, &username, &target).await?;
+
+    if readonly && let Err(violation) = super::sql_validation::validate_readonly_sql(&sql) {
+        record_sql_console_request(
+            &services,
+            session_id,
+            recording_name,
+            &target,
+            &sql,
+            statement_kind,
+            readonly,
+            0,
+            false,
+            Some(violation.to_string()),
+        )
+        .await;
+        warn!(
+            %username,
+            target = %target.name,
+            kind = %statement_kind,
+            violation = %violation,
+            "sql_console_readonly_violation"
+        );
+        return Err(DbError::forbidden(violation.to_string()));
+    }
+
+    let sql_hash = {
+        let mut h = Sha256::new();
+        h.update(sql.as_bytes());
+        hex::encode(h.finalize())
+    };
+    let started = Instant::now();
+
+    let result = match &pool {
+        TargetPool::MySql(pool) => {
+            run_mysql_query(pool, &sql, requested_limit, statement_kind, readonly).await
+        }
+        TargetPool::Postgres(pool) => {
+            run_postgres_query(pool, &sql, requested_limit, statement_kind, readonly).await
+        }
+    };
+
+    let elapsed = started.elapsed();
+
+    let duration_secs = elapsed.as_secs_f64();
+    metrics::histogram!(
+        "gated_db_query_duration_seconds",
+        "target" => target.name.clone(),
+    )
+    .record(duration_secs);
+
+    match result {
+        Ok(out) => {
             record_sql_console_request(
                 &services,
                 session_id,
@@ -905,121 +963,70 @@ impl Api {
                 &sql,
                 statement_kind,
                 readonly,
-                0,
-                false,
-                Some(violation.to_string()),
+                elapsed.as_millis() as u64,
+                true,
+                None,
             )
             .await;
-            warn!(
+            metrics::counter!(
+                "gated_db_query_total",
+                "target" => target.name.clone(),
+                "result" => "ok",
+            )
+            .increment(1);
+            let resp = QueryResponse {
+                columns: out.columns,
+                rows: out.rows,
+                rows_affected: out.rows_affected,
+                truncated: out.truncated,
+                elapsed_ms: elapsed.as_millis() as u64,
+                limit: requested_limit,
+                statement_kind: statement_kind.to_string(),
+            };
+            info!(
+                %session_id,
                 %username,
                 target = %target.name,
                 kind = %statement_kind,
-                violation = %violation,
-                "sql_console_readonly_violation"
+                sql_hash = %sql_hash,
+                rows = resp.rows.len(),
+                truncated = resp.truncated,
+                duration_ms = elapsed.as_millis() as u64,
+                "sql_console_query"
             );
-            return Err(DbError::forbidden(violation.to_string()));
+            Ok(DbQueryApiResponse::Ok(Json(resp)))
         }
-
-        let sql_hash = {
-            let mut h = Sha256::new();
-            h.update(sql.as_bytes());
-            hex::encode(h.finalize())
-        };
-        let started = Instant::now();
-
-        let result = match &pool {
-            TargetPool::MySql(pool) => {
-                run_mysql_query(pool, &sql, requested_limit, statement_kind, readonly).await
-            }
-            TargetPool::Postgres(pool) => {
-                run_postgres_query(pool, &sql, requested_limit, statement_kind, readonly).await
-            }
-        };
-
-        let elapsed = started.elapsed();
-
-        let duration_secs = elapsed.as_secs_f64();
-        metrics::histogram!(
-            "gated_db_query_duration_seconds",
-            "target" => target.name.clone(),
-        )
-        .record(duration_secs);
-
-        match result {
-            Ok(out) => {
-                record_sql_console_request(
-                    &services,
-                    session_id,
-                    recording_name,
-                    &target,
-                    &sql,
-                    statement_kind,
-                    readonly,
-                    elapsed.as_millis() as u64,
-                    true,
-                    None,
-                )
-                .await;
-                metrics::counter!(
-                    "gated_db_query_total",
-                    "target" => target.name.clone(),
-                    "result" => "ok",
-                )
-                .increment(1);
-                let resp = QueryResponse {
-                    columns: out.columns,
-                    rows: out.rows,
-                    rows_affected: out.rows_affected,
-                    truncated: out.truncated,
-                    elapsed_ms: elapsed.as_millis() as u64,
-                    limit: requested_limit,
-                    statement_kind: statement_kind.to_string(),
-                };
-                info!(
-                    %session_id,
-                    %username,
-                    target = %target.name,
-                    kind = %statement_kind,
-                    sql_hash = %sql_hash,
-                    rows = resp.rows.len(),
-                    truncated = resp.truncated,
-                    duration_ms = elapsed.as_millis() as u64,
-                    "sql_console_query"
-                );
-                Ok(DbQueryApiResponse::Ok(Json(resp)))
-            }
-            Err(e) => {
-                record_sql_console_request(
-                    &services,
-                    session_id,
-                    recording_name,
-                    &target,
-                    &sql,
-                    statement_kind,
-                    readonly,
-                    elapsed.as_millis() as u64,
-                    false,
-                    Some(e.clone()),
-                )
-                .await;
-                metrics::counter!(
-                    "gated_db_query_total",
-                    "target" => target.name.clone(),
-                    "result" => "error",
-                )
-                .increment(1);
-                warn!(
-                    %session_id,
-                    %username,
-                    target = %target.name,
-                    kind = %statement_kind,
-                    sql_hash = %sql_hash,
-                    error = %e,
-                    duration_ms = elapsed.as_millis() as u64,
-                    "sql_console_query_failed"
-                );
-                Err(DbError::bad_request(e))
-            }
+        Err(e) => {
+            record_sql_console_request(
+                &services,
+                session_id,
+                recording_name,
+                &target,
+                &sql,
+                statement_kind,
+                readonly,
+                elapsed.as_millis() as u64,
+                false,
+                Some(e.clone()),
+            )
+            .await;
+            metrics::counter!(
+                "gated_db_query_total",
+                "target" => target.name.clone(),
+                "result" => "error",
+            )
+            .increment(1);
+            warn!(
+                %session_id,
+                %username,
+                target = %target.name,
+                kind = %statement_kind,
+                sql_hash = %sql_hash,
+                error = %e,
+                duration_ms = elapsed.as_millis() as u64,
+                "sql_console_query_failed"
+            );
+            Err(DbError::bad_request(e))
         }
     }
 }
@@ -1268,6 +1275,11 @@ fn approx_row_size(cells: &[serde_json::Value]) -> usize {
         })
         .sum::<usize>()
         + 16 // per-row overhead
+}
+
+pub fn router() -> OpenApiRouter {
+    api_routes!(api_db_schemas, api_db_tables, api_db_columns, api_db_query,)
+        .route_layer(from_fn(require_auth))
 }
 
 #[cfg(test)]

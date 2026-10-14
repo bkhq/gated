@@ -1,16 +1,23 @@
+use crate::http_service::session::Session;
+use axum::extract::{Form, Query};
+use axum::http::HeaderValue;
+use axum::http::header::LOCATION;
+use axum::http::request::Parts;
+use axum::response::{Html, IntoResponse, Response};
+use gated_common::web::{ApiResponse, Schemas};
+use gated_common::web::{Data, Json};
+use gated_common::{api_response, api_routes};
+use serde::Serialize;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use utoipa::openapi::Responses;
+use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::router::OpenApiRouter;
 
 use gated_common::GatedError;
 use gated_common::auth::{AuthCredential, AuthResult};
 use gated_core::{ConfigProvider, Services};
 use gated_sso::{SsoClient, SsoInternalProviderConfig};
-use poem::Request;
-use poem::session::Session;
-use poem::web::{Data, Form};
-use poem_openapi::param::Query;
-use poem_openapi::payload::{Html, Json, Response};
-use poem_openapi::{ApiResponse, Enum, Object, OpenApi};
 use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::*;
@@ -21,9 +28,7 @@ use crate::http_service::api::common::logout;
 use crate::http_service::common::{SessionExt, authorize_session, get_auth_state_for_request};
 use crate::http_service::session::SessionStore;
 
-pub struct Api;
-
-#[derive(Enum)]
+#[derive(Serialize, ToSchema)]
 pub enum SsoProviderKind {
     Google,
     Apple,
@@ -31,53 +36,74 @@ pub enum SsoProviderKind {
     Custom,
 }
 
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 pub struct SsoProviderDescription {
     pub name: String,
     pub label: String,
     pub kind: SsoProviderKind,
 }
 
-#[derive(ApiResponse)]
-enum GetSsoProvidersResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<SsoProviderDescription>>),
+api_response! {
+    enum GetSsoProvidersResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<SsoProviderDescription>>),
+    }
 }
 
-#[allow(clippy::large_enum_variant)]
-#[derive(ApiResponse)]
-enum ReturnToSsoResponse {
-    #[oai(status = 307)]
-    Ok,
+api_response! {
+    enum ReturnToSsoResponse {
+        #[oai(status = 307)]
+        Ok,
+    }
 }
 
-#[allow(clippy::large_enum_variant)]
-#[derive(ApiResponse)]
-enum ReturnToSsoPostResponse {
-    #[oai(status = 200)]
-    Redirect(Html<String>),
+/// A [`ReturnToSsoResponse::Ok`] pointing at the given location.
+struct ReturnToSsoRedirect(String);
+
+impl IntoResponse for ReturnToSsoRedirect {
+    fn into_response(self) -> Response {
+        let mut response = ReturnToSsoResponse::Ok.into_response();
+        if let Ok(location) = HeaderValue::from_str(&self.0) {
+            response.headers_mut().insert(LOCATION, location);
+        }
+        response
+    }
 }
 
-#[derive(Deserialize)]
+impl ApiResponse for ReturnToSsoRedirect {
+    fn responses(schemas: &mut Schemas) -> Responses {
+        ReturnToSsoResponse::responses(schemas)
+    }
+}
+
+api_response! {
+    enum ReturnToSsoPostResponse {
+        #[oai(status = 200)]
+        Redirect(Html<String>),
+    }
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct ReturnToSsoFormData {
     pub code: Option<String>,
     pub state: Option<String>,
 }
 
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 struct StartSloResponseParams {
     url: String,
 }
 
-#[allow(clippy::large_enum_variant)]
-#[derive(ApiResponse)]
-enum StartSloResponse {
-    #[oai(status = 200)]
-    Ok(Json<StartSloResponseParams>),
-    #[oai(status = 400)]
-    NotInSsoSession,
-    #[oai(status = 404)]
-    NotFound,
+api_response! {
+    #[allow(clippy::large_enum_variant)]
+    enum StartSloResponse {
+        #[oai(status = 200)]
+        Ok(Json<StartSloResponseParams>),
+        #[oai(status = 400)]
+        NotInSsoSession,
+        #[oai(status = 404)]
+        NotFound,
+    }
 }
 
 fn make_redirect_url(err: &str) -> String {
@@ -152,273 +178,269 @@ fn compute_sso_role_sync(
     }
 }
 
-#[OpenApi]
-impl Api {
-    #[oai(
-        path = "/sso/providers",
-        method = "get",
-        operation_id = "get_sso_providers"
-    )]
-    async fn api_get_all_sso_providers(
-        &self,
-        services: Data<&Services>,
-    ) -> Result<GetSsoProvidersResponse, GatedError> {
-        let mut providers = services.config.read().await.store.sso_providers.clone();
-        providers.sort_by(|a, b| a.label().cmp(b.label()));
-        Ok(GetSsoProvidersResponse::Ok(Json(
-            providers
-                .into_iter()
-                .map(|p| SsoProviderDescription {
-                    name: p.name.clone(),
-                    label: p.label().to_string(),
-                    kind: match p.provider {
-                        SsoInternalProviderConfig::Google { .. } => SsoProviderKind::Google,
-                        SsoInternalProviderConfig::Apple { .. } => SsoProviderKind::Apple,
-                        SsoInternalProviderConfig::Azure { .. } => SsoProviderKind::Azure,
-                        SsoInternalProviderConfig::Custom { .. } => SsoProviderKind::Custom,
-                    },
-                })
-                .collect(),
-        )))
+#[utoipa::path(get, path = "/sso/providers", operation_id = "get_sso_providers")]
+async fn api_get_all_sso_providers(
+    services: Data<Services>,
+) -> Result<GetSsoProvidersResponse, GatedError> {
+    let mut providers = services.config.read().await.store.sso_providers.clone();
+    providers.sort_by(|a, b| a.label().cmp(b.label()));
+    Ok(GetSsoProvidersResponse::Ok(Json(
+        providers
+            .into_iter()
+            .map(|p| SsoProviderDescription {
+                name: p.name.clone(),
+                label: p.label().to_string(),
+                kind: match p.provider {
+                    SsoInternalProviderConfig::Google { .. } => SsoProviderKind::Google,
+                    SsoInternalProviderConfig::Apple { .. } => SsoProviderKind::Apple,
+                    SsoInternalProviderConfig::Azure { .. } => SsoProviderKind::Azure,
+                    SsoInternalProviderConfig::Custom { .. } => SsoProviderKind::Custom,
+                },
+            })
+            .collect(),
+    )))
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct ReturnToSsoGetQuery {
+    code: Option<String>,
+    state: Option<String>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/sso/return",
+    operation_id = "return_to_sso",
+    params(ReturnToSsoGetQuery)
+)]
+async fn api_return_to_sso_get(
+    req: Parts,
+    session: Session,
+    services: Data<Services>,
+    Query(query): Query<ReturnToSsoGetQuery>,
+) -> Result<ReturnToSsoRedirect, GatedError> {
+    let ReturnToSsoGetQuery { code, state } = query;
+    let url = api_return_to_sso_get_common(&req, &session, services, &code, &state)
+        .await?
+        .unwrap_or_else(|x| make_redirect_url(&x));
+
+    Ok(ReturnToSsoRedirect(url))
+}
+
+#[utoipa::path(
+    post,
+    path = "/sso/return",
+    operation_id = "return_to_sso_with_form_data"
+)]
+async fn api_return_to_sso_post(
+    req: Parts,
+    session: Session,
+    services: Data<Services>,
+    data: Form<ReturnToSsoFormData>,
+) -> Result<ReturnToSsoPostResponse, GatedError> {
+    let url = api_return_to_sso_get_common(&req, &session, services, &data.code, &data.state)
+        .await?
+        .unwrap_or_else(|x| make_redirect_url(&x));
+    // Escape the URL for each output context it lands in.
+    // Script context: prevent a `</script>` (or similar) breakout from a
+    // valid JSON string by encoding the markup-significant characters.
+    let serialized_url = serde_json::to_string(&url)?
+        .replace('<', "\\u003c")
+        .replace('>', "\\u003e")
+        .replace('&', "\\u0026");
+    // HTML text/attribute context: encode `& < > " '`.
+    let escaped_url = html_escape(&url);
+    Ok(ReturnToSsoPostResponse::Redirect(Html(format!(
+        "<!doctype html>\n
+            <html>
+                <script>
+                    location.href = {serialized_url};
+                </script>
+                <body>
+                    Redirecting to <a href='{escaped_url}'>{escaped_url}</a>...
+                </body>
+            </html>
+        "
+    ))))
+}
+
+async fn api_return_to_sso_get_common(
+    req: &Parts,
+    session: &Session,
+    services: Data<Services>,
+    code: &Option<String>,
+    state: &Option<String>,
+) -> Result<Result<String, String>, GatedError> {
+    let Some(context) = session.get::<SsoContext>(SSO_CONTEXT_SESSION_KEY) else {
+        return Ok(Err("Not in an active SSO process".to_string()));
+    };
+
+    let Some(ref code) = *code else {
+        return Ok(Err(
+            "No authorization code in the return URL request".to_string()
+        ));
+    };
+
+    // Verify the returned `state` against the CSRF token we
+    // generated at authorize-time *before* exchanging the code. A missing
+    // or mismatched state is rejected (login CSRF / code injection).
+    let expected_state = context.request.csrf_token().secret().clone();
+    if !sso_state_is_valid(&expected_state, state.as_deref()) {
+        return Ok(Err(
+            "Invalid or missing SSO state parameter (possible CSRF)".to_string(),
+        ));
     }
 
-    #[oai(path = "/sso/return", method = "get", operation_id = "return_to_sso")]
-    async fn api_return_to_sso_get(
-        &self,
-        req: &Request,
-        session: &Session,
-        services: Data<&Services>,
-        code: Query<Option<String>>,
-        state: Query<Option<String>>,
-    ) -> Result<Response<ReturnToSsoResponse>, GatedError> {
-        let url = self
-            .api_return_to_sso_get_common(req, session, services, &code, &state)
-            .await?
-            .unwrap_or_else(|x| make_redirect_url(&x));
+    let response = context
+        .request
+        .verify_code((*code).clone())
+        .await
+        .inspect_err(|e| {
+            warn!(target: "audit","Failed to verify SSO code: {e:?}");
+        })?;
 
-        Ok(Response::new(ReturnToSsoResponse::Ok).header("Location", url))
+    // Fail closed — a missing `email_verified` claim is treated
+    // as unverified. The email must be explicitly asserted as verified
+    // before it is used.
+    if response.email_verified != Some(true) {
+        return Ok(Err("The SSO account's e-mail is not verified".to_string()));
     }
 
-    #[oai(
-        path = "/sso/return",
-        method = "post",
-        operation_id = "return_to_sso_with_form_data"
-    )]
-    async fn api_return_to_sso_post(
-        &self,
-        req: &Request,
-        session: &Session,
-        services: Data<&Services>,
-        data: Form<ReturnToSsoFormData>,
-    ) -> Result<ReturnToSsoPostResponse, GatedError> {
-        let url = self
-            .api_return_to_sso_get_common(req, session, services, &data.code, &data.state)
-            .await?
-            .unwrap_or_else(|x| make_redirect_url(&x));
-        // Escape the URL for each output context it lands in.
-        // Script context: prevent a `</script>` (or similar) breakout from a
-        // valid JSON string by encoding the markup-significant characters.
-        let serialized_url = serde_json::to_string(&url)?
-            .replace('<', "\\u003c")
-            .replace('>', "\\u003e")
-            .replace('&', "\\u0026");
-        // HTML text/attribute context: encode `& < > " '`.
-        let escaped_url = html_escape(&url);
-        Ok(ReturnToSsoPostResponse::Redirect(
-            poem_openapi::payload::Html(format!(
-                "<!doctype html>\n
-                <html>
-                    <script>
-                        location.href = {serialized_url};
-                    </script>
-                    <body>
-                        Redirecting to <a href='{escaped_url}'>{escaped_url}</a>...
-                    </body>
-                </html>
-            "
-            )),
-        ))
+    let Some(email) = response.email else {
+        return Ok(Err("No e-mail information in the SSO response".to_string()));
+    };
+
+    info!(target: "audit","SSO login as {email}");
+
+    let providers_config = services.config.read().await.store.sso_providers.clone();
+    let mut iter = providers_config.iter();
+    let Some(provider_config) = iter.find(|x| x.name == context.provider) else {
+        return Ok(Err(format!("No provider matching {}", context.provider)));
+    };
+
+    let cred = AuthCredential::Sso {
+        provider: context.provider.clone(),
+        email: email.clone(),
+        iss: response.iss.clone(),
+        sub: response.sub.clone(),
+    };
+
+    let username = services
+        .config_provider
+        .lock()
+        .await
+        .username_for_sso_credential(&cred, response.preferred_username, provider_config.clone())
+        .await?;
+    let Some(username) = username else {
+        return Ok(Err(format!("No user matching {email}")));
+    };
+
+    let mut auth_state_store = services.auth_state_store.lock().await;
+    let state_arc = get_auth_state_for_request(&username, session, &mut auth_state_store).await?;
+
+    let mut state = state_arc.lock().await;
+    let mut cp = services.config_provider.lock().await;
+
+    if state.user_info().username != username {
+        return Ok(Err(format!(
+            "Incorrect account for SSO authentication ({username})"
+        )));
     }
 
-    async fn api_return_to_sso_get_common(
-        &self,
-        req: &Request,
-        session: &Session,
-        services: Data<&Services>,
-        code: &Option<String>,
-        state: &Option<String>,
-    ) -> Result<Result<String, String>, GatedError> {
-        let Some(context) = session.get::<SsoContext>(SSO_CONTEXT_SESSION_KEY) else {
-            return Ok(Err("Not in an active SSO process".to_string()));
-        };
+    if cp.validate_credential(&username, &cred).await? {
+        state.add_valid_credential(cred);
+    } else {
+        return Ok(Err(format!(
+            "Failed to validate SSO credential for {username}"
+        )));
+    }
 
-        let Some(ref code) = *code else {
-            return Ok(Err(
-                "No authorization code in the return URL request".to_string()
-            ));
-        };
+    if let AuthResult::Accepted { user_info } = state.verify() {
+        auth_state_store.complete(state.id()).await;
+        authorize_session(req, user_info).await?;
+        session.set_sso_login_state(SsoLoginState {
+            provider: context.provider,
+            token: response.id_token,
+            supports_single_logout: context.supports_single_logout,
+        });
+    }
 
-        // Verify the returned `state` against the CSRF token we
-        // generated at authorize-time *before* exchanging the code. A missing
-        // or mismatched state is rejected (login CSRF / code injection).
-        let expected_state = context.request.csrf_token().secret().clone();
-        if !sso_state_is_valid(&expected_state, state.as_deref()) {
-            return Ok(Err(
-                "Invalid or missing SSO state parameter (possible CSRF)".to_string(),
-            ));
-        }
+    let mappings = provider_config.provider.role_mappings();
+    if let Some(remote_groups) = response.groups {
+        // Only roles explicitly allow-listed in the mapping
+        // config are synced. Without a mapping config, SSO grants no roles
+        // at all — IdP claims are never trusted verbatim.
+        let (managed_role_names, active_role_names) =
+            compute_sso_role_sync(mappings.as_ref(), &remote_groups);
 
-        let response = context
-            .request
-            .verify_code((*code).clone())
-            .await
-            .inspect_err(|e| {
-                warn!(target: "audit","Failed to verify SSO code: {e:?}");
-            })?;
-
-        // Fail closed — a missing `email_verified` claim is treated
-        // as unverified. The email must be explicitly asserted as verified
-        // before it is used.
-        if response.email_verified != Some(true) {
-            return Ok(Err("The SSO account's e-mail is not verified".to_string()));
-        }
-
-        let Some(email) = response.email else {
-            return Ok(Err("No e-mail information in the SSO response".to_string()));
-        };
-
-        info!(target: "audit","SSO login as {email}");
-
-        let providers_config = services.config.read().await.store.sso_providers.clone();
-        let mut iter = providers_config.iter();
-        let Some(provider_config) = iter.find(|x| x.name == context.provider) else {
-            return Ok(Err(format!("No provider matching {}", context.provider)));
-        };
-
-        let cred = AuthCredential::Sso {
-            provider: context.provider.clone(),
-            email: email.clone(),
-            iss: response.iss.clone(),
-            sub: response.sub.clone(),
-        };
-
-        let username = services
-            .config_provider
-            .lock()
-            .await
-            .username_for_sso_credential(
-                &cred,
-                response.preferred_username,
-                provider_config.clone(),
-            )
+        debug!(
+            "SSO role mappings for {username}: active={active_role_names:?}, managed={managed_role_names:?}"
+        );
+        cp.apply_sso_role_mappings(&username, Some(managed_role_names), active_role_names)
             .await?;
-        let Some(username) = username else {
-            return Ok(Err(format!("No user matching {email}")));
-        };
-
-        let mut auth_state_store = services.auth_state_store.lock().await;
-        let state_arc =
-            get_auth_state_for_request(&username, session, &mut auth_state_store).await?;
-
-        let mut state = state_arc.lock().await;
-        let mut cp = services.config_provider.lock().await;
-
-        if state.user_info().username != username {
-            return Ok(Err(format!(
-                "Incorrect account for SSO authentication ({username})"
-            )));
-        }
-
-        if cp.validate_credential(&username, &cred).await? {
-            state.add_valid_credential(cred);
-        } else {
-            return Ok(Err(format!(
-                "Failed to validate SSO credential for {username}"
-            )));
-        }
-
-        if let AuthResult::Accepted { user_info } = state.verify() {
-            auth_state_store.complete(state.id()).await;
-            authorize_session(req, user_info).await?;
-            session.set_sso_login_state(SsoLoginState {
-                provider: context.provider,
-                token: response.id_token,
-                supports_single_logout: context.supports_single_logout,
-            });
-        }
-
-        let mappings = provider_config.provider.role_mappings();
-        if let Some(remote_groups) = response.groups {
-            // Only roles explicitly allow-listed in the mapping
-            // config are synced. Without a mapping config, SSO grants no roles
-            // at all — IdP claims are never trusted verbatim.
-            let (managed_role_names, active_role_names) =
-                compute_sso_role_sync(mappings.as_ref(), &remote_groups);
-
-            debug!(
-                "SSO role mappings for {username}: active={active_role_names:?}, managed={managed_role_names:?}"
-            );
-            cp.apply_sso_role_mappings(&username, Some(managed_role_names), active_role_names)
-                .await?;
-        }
-
-        // Only a validated local relative path may drive the
-        // redirect; anything off-host falls back to the safe default.
-        let next_path = context
-            .next_url
-            .as_deref()
-            .and_then(sanitize_next_path)
-            .unwrap_or("/ui/auth/login");
-        let mut next_url = next_path.to_owned();
-
-        // `next_path` is always a single-slash-rooted local path here, so
-        // host-prefixing keeps the redirect on our own origin.
-        if let Some(ref host) = context.return_host {
-            next_url = format!("https://{}{}", host, next_url);
-        }
-
-        Ok(Ok(next_url))
     }
 
-    #[oai(
-        path = "/sso/logout",
-        method = "get",
-        operation_id = "initiate_sso_logout"
-    )]
-    async fn api_start_slo(
-        &self,
-        req: &Request,
-        session: &Session,
-        services: Data<&Services>,
-        session_middleware: Data<&Arc<Mutex<SessionStore>>>,
-    ) -> Result<StartSloResponse, GatedError> {
-        let Some(state) = session.get_sso_login_state() else {
-            return Ok(StartSloResponse::NotInSsoSession);
-        };
+    // Only a validated local relative path may drive the
+    // redirect; anything off-host falls back to the safe default.
+    let next_path = context
+        .next_url
+        .as_deref()
+        .and_then(sanitize_next_path)
+        .unwrap_or("/ui/auth/login");
+    let mut next_url = next_path.to_owned();
 
-        let config = services.config.read().await;
-
-        let return_url = config.construct_external_url(Some(req), None)?;
-        debug!("Return URL: {}", &return_url);
-
-        let Some(provider_config) = config
-            .store
-            .sso_providers
-            .iter()
-            .find(|p| p.name == state.provider)
-        else {
-            return Ok(StartSloResponse::NotFound);
-        };
-
-        let client = SsoClient::new(provider_config.provider.clone())?;
-        let logout_url = client.logout(state.token, return_url).await?;
-
-        logout(session, session_middleware.lock().await.deref_mut());
-
-        Ok(StartSloResponse::Ok(Json(StartSloResponseParams {
-            url: logout_url.to_string(),
-        })))
+    // `next_path` is always a single-slash-rooted local path here, so
+    // host-prefixing keeps the redirect on our own origin.
+    if let Some(ref host) = context.return_host {
+        next_url = format!("https://{}{}", host, next_url);
     }
+
+    Ok(Ok(next_url))
+}
+
+#[utoipa::path(get, path = "/sso/logout", operation_id = "initiate_sso_logout")]
+async fn api_start_slo(
+    req: Parts,
+    session: Session,
+    services: Data<Services>,
+    session_middleware: Data<Arc<Mutex<SessionStore>>>,
+) -> Result<StartSloResponse, GatedError> {
+    let Some(state) = session.get_sso_login_state() else {
+        return Ok(StartSloResponse::NotInSsoSession);
+    };
+
+    let config = services.config.read().await;
+
+    let return_url = config.construct_external_url(Some(&req), None)?;
+    debug!("Return URL: {}", &return_url);
+
+    let Some(provider_config) = config
+        .store
+        .sso_providers
+        .iter()
+        .find(|p| p.name == state.provider)
+    else {
+        return Ok(StartSloResponse::NotFound);
+    };
+
+    let client = SsoClient::new(provider_config.provider.clone())?;
+    let logout_url = client.logout(state.token, return_url).await?;
+
+    logout(&session, session_middleware.lock().await.deref_mut());
+
+    Ok(StartSloResponse::Ok(Json(StartSloResponseParams {
+        url: logout_url.to_string(),
+    })))
+}
+
+pub fn router() -> OpenApiRouter {
+    api_routes!(
+        api_get_all_sso_providers,
+        api_return_to_sso_get,
+        api_return_to_sso_post,
+        api_start_slo,
+    )
 }
 
 #[cfg(test)]

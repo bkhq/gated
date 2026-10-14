@@ -13,6 +13,7 @@ chrono = { version = "0.4", default-features = false, features = ["serde"] }
 futures.workspace = true
 http = { version = "1.0", default-features = false }
 poem.workspace = true
+utoipa.workspace = true
 poem-openapi.workspace = true
 regex.workspace = true
 reqwest.workspace = true

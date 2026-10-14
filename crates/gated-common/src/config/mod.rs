@@ -5,10 +5,11 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use axum::http::request::Parts;
+use axum::http::uri;
 use defaults::*;
 use gated_sso::SsoProviderConfig;
 use gated_tls::IntoTlsCertificateRelativePaths;
-use poem::http::uri;
 use poem_openapi::{Object, Union};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -799,7 +800,7 @@ impl GatedConfig {
     /// Extract external host:port from request headers
     pub fn external_host_from_request(
         &self,
-        request: &poem::Request,
+        request: &Parts,
     ) -> Option<(Scheme, String, Option<u16>)> {
         let default_scheme = if self.store.http.tls {
             Scheme::HTTPS
@@ -808,32 +809,30 @@ impl GatedConfig {
         };
         let (mut scheme, mut host, mut port) = (default_scheme, None, None);
         let trust_forwarded_headers = self.store.http.trust_x_forwarded_headers;
+        let header = |name: &str| request.headers.get(name).and_then(|x| x.to_str().ok());
 
-        // Try the Host header first
-        scheme = request.uri().scheme().cloned().unwrap_or(scheme);
+        // Try the request URI first
+        scheme = request.uri.scheme().cloned().unwrap_or(scheme);
 
-        let original_url = request.original_uri();
-        if let Some(original_host) = original_url.host() {
+        if let Some(original_host) = request.uri.host() {
             host = Some(original_host.to_string());
-            port = original_url.port().map(|x| x.as_u16());
+            port = request.uri.port().map(|x| x.as_u16());
         }
 
         // But prefer X-Forwarded-* headers if enabled
         if trust_forwarded_headers {
-            scheme = request
-                .header("x-forwarded-proto")
+            scheme = header("x-forwarded-proto")
                 .and_then(|x| Scheme::try_from(x).ok())
                 .unwrap_or(scheme);
 
-            if let Some(xfh) = request.header("x-forwarded-host") {
+            if let Some(xfh) = header("x-forwarded-host") {
                 // XFH can contain both host and port
                 let parts = xfh.split(':').collect::<Vec<_>>();
                 host = parts.first().map(|x| x.to_string()).or(host);
                 port = parts.get(1).and_then(|x| x.parse::<u16>().ok());
             }
 
-            port = request
-                .header("x-forwarded-port")
+            port = header("x-forwarded-port")
                 .and_then(|x| x.parse::<u16>().ok())
                 .or(port);
         }
@@ -843,7 +842,7 @@ impl GatedConfig {
 
     pub fn construct_external_url(
         &self,
-        for_request: Option<&poem::Request>,
+        for_request: Option<&Parts>,
         domain_whitelist: Option<&[String]>,
     ) -> Result<Url, GatedError> {
         let Some((scheme, host, port)) = for_request

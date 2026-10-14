@@ -1,13 +1,12 @@
-use std::any::type_name;
+use crate::http_service::session::Session;
+use axum::extract::FromRequestParts;
+use axum::http::request::Parts;
+use http::StatusCode;
 use std::sync::Arc;
 
 use crate::http_service::session::SessionStore;
 use gated_common::auth::AuthStateUserInfo;
 use gated_common::{GatedError, SessionId};
-use poem::error::GetDataError;
-use poem::session::Session;
-use poem::web::Data;
-use poem::{FromRequest, Request, RequestBody};
 use tokio::sync::Mutex;
 
 /// Browser authentication state has no proxy handle, recording or bandwidth limiter.
@@ -38,15 +37,25 @@ impl std::ops::Deref for ManagementSessionFromRequest {
     }
 }
 
-impl<'a> FromRequest<'a> for ManagementSessionFromRequest {
-    async fn from_request(req: &'a Request, _: &mut RequestBody) -> poem::Result<Self> {
-        let sm = Data::<&Arc<Mutex<SessionStore>>>::from_request_without_body(req).await?;
-        let session = <&Session>::from_request_without_body(req).await?;
-        sm.lock()
+impl<S: Send + Sync> FromRequestParts<S> for ManagementSessionFromRequest {
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+        let missing = (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "management session handle was not found",
+        );
+        let store = parts
+            .extensions
+            .get::<Arc<Mutex<SessionStore>>>()
+            .ok_or(missing)?;
+        let session = parts.extensions.get::<Session>().ok_or(missing)?;
+        store
+            .lock()
             .await
             .handle_for(session)
             .map(Self)
-            .ok_or_else(|| GetDataError(type_name::<ManagementSessionHandle>()).into())
+            .ok_or(missing)
     }
 }
 

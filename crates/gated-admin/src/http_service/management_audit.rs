@@ -1,11 +1,10 @@
 //! Durable management action records, separate from proxied session logs.
-use std::sync::Arc;
-
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use gated_common::GatedError;
 use gated_core::Services;
 use gated_db_entities::ManagementAudit;
-use poem::web::Data;
-use poem::{Endpoint, FromRequest, IntoResponse, Request, Response};
 use sea_orm::{ActiveModelTrait, Set};
 use uuid::Uuid;
 
@@ -32,18 +31,18 @@ fn audit_entry(
     }
 }
 
-pub async fn audit_request<E: Endpoint + 'static>(
-    ep: Arc<E>,
-    req: Request,
-) -> poem::Result<Response> {
-    let path = req.original_uri().path().to_owned();
-    let method = req.method().as_str().to_owned();
-    let auth = Option::<Data<&RequestAuthorization>>::from_request_without_body(&req).await?;
-    let actor = auth.map(|auth| {
-        auth.username()
-            .cloned()
-            .unwrap_or_else(|| "admin-token".into())
-    });
+/// Records management writes before and after they run.
+pub async fn audit_request(request: Request, next: Next) -> Response {
+    let path = request.uri().path().to_owned();
+    let method = request.method().as_str().to_owned();
+    let actor = request
+        .extensions()
+        .get::<RequestAuthorization>()
+        .map(|auth| {
+            auth.username()
+                .cloned()
+                .unwrap_or_else(|| "admin-token".into())
+        });
     let is_write = matches!(method.as_str(), "POST" | "PUT" | "PATCH" | "DELETE");
     let in_scope = path.starts_with("/admin/api/")
         || path.starts_with("/api/profile/")
@@ -56,22 +55,26 @@ pub async fn audit_request<E: Endpoint + 'static>(
         )
         || actor.is_none()
     {
-        return ep.call(req).await.map(IntoResponse::into_response);
+        return next.run(request).await;
     }
     let actor = actor.unwrap_or_default();
-    let services = Data::<&Services>::from_request_without_body(&req).await?;
-    let db = services.db_required().await.map_err(GatedError::from)?;
+    let Some(services) = request.extensions().get::<Services>().cloned() else {
+        return http::StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let db = match services.db_required().await {
+        Ok(db) => db,
+        Err(error) => return GatedError::from(error).into_response(),
+    };
     let request_id = Uuid::new_v4();
     // Persist intent before calling the action, so failed/partial actions retain attribution.
-    audit_entry(&actor, &method, &path, request_id, None)
+    if let Err(error) = audit_entry(&actor, &method, &path, request_id, None)
         .insert(&db)
         .await
-        .map_err(GatedError::from)?;
-    let result = ep.call(req).await.map(IntoResponse::into_response);
-    let status = match &result {
-        Ok(response) => response.status(),
-        Err(error) => error.status(),
-    };
+    {
+        return GatedError::from(error).into_response();
+    }
+    let response = next.run(request).await;
+    let status = response.status();
     // The action has already run; a failed completion record must not turn
     // its real outcome into an error. The intent record keeps attribution.
     if let Err(error) = audit_entry(&actor, &method, &path, request_id, Some(status.as_u16()))
@@ -80,7 +83,7 @@ pub async fn audit_request<E: Endpoint + 'static>(
     {
         tracing::error!(?error, %request_id, %actor, %method, %path, "Failed to record management action completion");
     }
-    result
+    response
 }
 
 #[cfg(test)]
@@ -90,9 +93,11 @@ mod tests {
 
     #[tokio::test]
     async fn completion_record_failure_keeps_the_action_result() {
+        use axum::http::{Method, StatusCode};
+        use axum::routing::post;
+        use axum::{Extension, Router};
         use gated_common::{GatedConfig, GlobalParams};
-        use poem::http::{Method, StatusCode};
-        use poem::{EndpointExt, handler};
+        use tower::ServiceExt;
 
         let root = std::env::temp_dir().join(format!("gated-mgmt-audit-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
@@ -119,8 +124,7 @@ mod tests {
         *services.db.write().await = Some(db);
 
         // The action removes the audit table, so only the completion insert fails.
-        #[handler]
-        async fn action(services: Data<&Services>) -> StatusCode {
+        async fn action(Extension(services): Extension<Services>) -> StatusCode {
             let db = services.db_required().await.unwrap();
             db.execute_unprepared("DROP TABLE management_audit")
                 .await
@@ -128,18 +132,21 @@ mod tests {
             StatusCode::CREATED
         }
 
-        let app = action
-            .around(audit_request)
-            .data(services.clone())
-            .data(RequestAuthorization::AdminToken);
+        let app = Router::new()
+            .route("/admin/api/parameters", post(action))
+            .layer(axum::middleware::from_fn(audit_request))
+            .layer(Extension(services.clone()))
+            .layer(Extension(RequestAuthorization::AdminToken));
         let response = app
-            .get_response(
+            .oneshot(
                 Request::builder()
                     .method(Method::POST)
-                    .uri("/admin/api/parameters".parse().unwrap())
-                    .finish(),
+                    .uri("/admin/api/parameters")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
             )
-            .await;
+            .await
+            .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
     }
 

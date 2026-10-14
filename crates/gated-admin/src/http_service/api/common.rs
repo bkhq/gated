@@ -1,6 +1,6 @@
+use crate::http_service::session::Session;
 use gated_common::GatedError;
 use gated_db_entities as entities;
-use poem::session::Session;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use tracing::info;
 

@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.1.0",
   "info": {
     "title": "Gated user API",
     "version": "0.21.1"
@@ -9,10 +9,10 @@
       "url": "/api"
     }
   ],
-  "tags": [],
   "paths": {
     "/auth/login": {
       "post": {
+        "operationId": "login",
         "requestBody": {
           "content": {
             "application/json; charset=utf-8": {
@@ -24,11 +24,8 @@
           "required": true
         },
         "responses": {
-          "201": {
-            "description": ""
-          },
+          "201": {},
           "401": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -40,12 +37,20 @@
           "429": {
             "description": "Too many credential attempts for this username/IP."
           }
-        },
-        "operationId": "login"
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "responses": {
+          "201": {}
+        }
       }
     },
     "/auth/otp": {
       "post": {
+        "operationId": "otpLogin",
         "requestBody": {
           "content": {
             "application/json; charset=utf-8": {
@@ -57,11 +62,8 @@
           "required": true
         },
         "responses": {
-          "201": {
-            "description": ""
-          },
+          "201": {},
           "401": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -73,25 +75,14 @@
           "429": {
             "description": "Too many credential attempts for this username/IP."
           }
-        },
-        "operationId": "otpLogin"
-      }
-    },
-    "/auth/logout": {
-      "post": {
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "operationId": "logout"
+        }
       }
     },
     "/auth/state": {
       "get": {
+        "operationId": "get_default_auth_state",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -100,16 +91,13 @@
               }
             }
           },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "get_default_auth_state"
+          "404": {}
+        }
       },
       "delete": {
+        "operationId": "cancel_default_auth",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -118,19 +106,16 @@
               }
             }
           },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "cancel_default_auth"
+          "404": {}
+        }
       }
     },
     "/auth/state/continue": {
       "post": {
         "summary": "Finish a login whose remaining factor was granted out of band (web\nuser approval from another device). The approve endpoint runs in the\napprover's session, so it cannot authorize the requester's HTTP\nsession; the requester calls this once its auth state reports\n`Success`.",
+        "operationId": "continue_default_auth",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -139,18 +124,99 @@
               }
             }
           },
-          "404": {
-            "description": ""
+          "404": {}
+        }
+      }
+    },
+    "/auth/state/{id}": {
+      "get": {
+        "operationId": "get_auth_state",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
-        },
-        "operationId": "continue_default_auth"
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthStateResponseInternal"
+                }
+              }
+            }
+          },
+          "404": {}
+        }
+      }
+    },
+    "/auth/state/{id}/approve": {
+      "post": {
+        "operationId": "approve_auth",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthStateResponseInternal"
+                }
+              }
+            }
+          },
+          "404": {}
+        }
+      }
+    },
+    "/auth/state/{id}/reject": {
+      "post": {
+        "operationId": "reject_auth",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthStateResponseInternal"
+                }
+              }
+            }
+          },
+          "404": {}
+        }
       }
     },
     "/auth/web-auth-requests": {
       "get": {
+        "operationId": "get_web_auth_requests",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -162,117 +228,473 @@
               }
             }
           },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "get_web_auth_requests"
+          "404": {}
+        }
       }
     },
-    "/auth/state/{id}": {
+    "/db/columns/{target_name}": {
       "get": {
+        "operationId": "get_db_columns",
         "parameters": [
           {
-            "name": "id",
+            "name": "schema",
+            "in": "query",
+            "required": true,
             "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
+              "type": "string"
+            }
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_name",
             "in": "path",
             "required": true,
-            "deprecated": false,
-            "explode": true
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthStateResponseInternal"
+                  "$ref": "#/components/schemas/ColumnList"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
           },
           "404": {
-            "description": ""
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
-        "operationId": "get_auth_state"
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
       }
     },
-    "/auth/state/{id}/approve": {
+    "/db/query/{target_name}": {
       "post": {
+        "operationId": "run_db_query",
         "parameters": [
           {
-            "name": "id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
+            "name": "target_name",
             "in": "path",
             "required": true,
-            "deprecated": false,
-            "explode": true
+            "schema": {
+              "type": "string"
+            }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthStateResponseInternal"
+                  "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
           },
           "404": {
-            "description": ""
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
-        "operationId": "approve_auth"
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
       }
     },
-    "/auth/state/{id}/reject": {
-      "post": {
+    "/db/schemas/{target_name}": {
+      "get": {
+        "operationId": "get_db_schemas",
         "parameters": [
           {
-            "name": "id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
+            "name": "target_name",
             "in": "path",
             "required": true,
-            "deprecated": false,
-            "explode": true
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthStateResponseInternal"
+                  "$ref": "#/components/schemas/SchemaList"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
           },
           "404": {
-            "description": ""
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
-        "operationId": "reject_auth"
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/db/tables/{target_name}": {
+      "get": {
+        "operationId": "get_db_tables",
+        "parameters": [
+          {
+            "name": "schema",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableList"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
       }
     },
     "/info": {
       "get": {
+        "operationId": "get_info",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -281,27 +703,593 @@
               }
             }
           }
-        },
-        "operationId": "get_info"
+        }
       }
     },
-    "/targets": {
+    "/profile/api-tokens": {
       "get": {
+        "operationId": "get_my_api_tokens",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExistingApiToken"
+                  }
+                }
+              }
+            }
+          },
+          "401": {}
+        }
+      },
+      "post": {
+        "operationId": "create_api_token",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/NewApiToken"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenAndSecret"
+                }
+              }
+            }
+          },
+          "401": {}
+        }
+      }
+    },
+    "/profile/api-tokens/{id}": {
+      "delete": {
+        "operationId": "delete_my_api_token",
         "parameters": [
           {
-            "name": "search",
+            "name": "id",
+            "in": "path",
+            "required": true,
             "schema": {
-              "type": "string"
-            },
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "401": {},
+          "404": {}
+        }
+      }
+    },
+    "/profile/credentials": {
+      "get": {
+        "operationId": "get_my_credentials",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialsState"
+                }
+              }
+            }
+          },
+          "401": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/credentials/certificates": {
+      "post": {
+        "operationId": "issue_my_certificate",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueCertificateCredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedCertificateCredential"
+                }
+              }
+            }
+          },
+          "400": {},
+          "401": {}
+        }
+      }
+    },
+    "/profile/credentials/certificates/{id}": {
+      "delete": {
+        "operationId": "revoke_my_certificate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {},
+          "401": {},
+          "404": {}
+        }
+      }
+    },
+    "/profile/credentials/otp": {
+      "post": {
+        "summary": "Confirm OTP enrollment. Requires a live code for the\nserver-generated secret started by [`Self::api_begin_otp`]; only then\nis the credential persisted and the policy upgraded to require OTP.",
+        "operationId": "add_my_otp",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmOtpCredential"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExistingOtpCredential"
+                }
+              }
+            }
+          },
+          "401": {},
+          "403": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/credentials/otp/begin": {
+      "post": {
+        "summary": "Start OTP enrollment. The server generates the secret,\nstashes it pending confirmation, and returns only a provisioning URI.\nThe client must then prove possession via [`Self::api_create_otp`].",
+        "operationId": "begin_my_otp",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeginOtpEnrollment"
+                }
+              }
+            }
+          },
+          "401": {},
+          "403": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/credentials/otp/{id}": {
+      "delete": {
+        "operationId": "delete_my_otp",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "401": {},
+          "404": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/credentials/password": {
+      "post": {
+        "operationId": "change_my_password",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordState"
+                }
+              }
+            }
+          },
+          "401": {},
+          "403": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/credentials/public-keys": {
+      "post": {
+        "operationId": "add_my_public_key",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/NewPublicKeyCredential"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExistingPublicKeyCredential"
+                }
+              }
+            }
+          },
+          "401": {},
+          "403": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/credentials/public-keys/{id}": {
+      "delete": {
+        "operationId": "delete_my_public_key",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "401": {},
+          "404": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/sessions": {
+      "get": {
+        "summary": "Sessions owned by the calling user, newest first. Management HTTP\nsessions are excluded, as in the admin list.",
+        "operationId": "get_my_sessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionSnapshot"
+                  }
+                }
+              }
+            }
+          },
+          "401": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/profile/tickets": {
+      "get": {
+        "operationId": "get_my_tickets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExistingProfileTicket"
+                  }
+                }
+              }
+            }
+          },
+          "401": {}
+        }
+      },
+      "post": {
+        "operationId": "create_my_ticket",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/NewProfileTicket"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileTicketAndSecret"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {},
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profile/tickets/{id}": {
+      "delete": {
+        "operationId": "delete_my_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "401": {},
+          "404": {}
+        }
+      }
+    },
+    "/sso/logout": {
+      "get": {
+        "operationId": "initiate_sso_logout",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartSloResponseParams"
+                }
+              }
+            }
+          },
+          "400": {},
+          "404": {}
+        }
+      }
+    },
+    "/sso/providers": {
+      "get": {
+        "operationId": "get_sso_providers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SsoProviderDescription"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sso/providers/{name}/start": {
+      "get": {
+        "operationId": "start_sso",
+        "parameters": [
+          {
+            "name": "next",
             "in": "query",
             "required": false,
-            "deprecated": false,
-            "explode": true
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartSsoResponseParams"
+                }
+              }
+            }
+          },
+          "404": {}
+        }
+      }
+    },
+    "/sso/return": {
+      "get": {
+        "operationId": "return_to_sso",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "307": {}
+        }
+      },
+      "post": {
+        "operationId": "return_to_sso_with_form_data",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnToSsoFormData"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/targets": {
+      "get": {
+        "operationId": "get_targets",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -321,1180 +1309,7 @@
           {
             "CookieSecurityScheme": []
           }
-        ],
-        "operationId": "get_targets"
-      }
-    },
-    "/sso/providers": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SsoProviderDescription"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "operationId": "get_sso_providers"
-      }
-    },
-    "/sso/return": {
-      "get": {
-        "parameters": [
-          {
-            "name": "code",
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "required": false,
-            "deprecated": false,
-            "explode": true
-          },
-          {
-            "name": "state",
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "required": false,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "307": {
-            "description": ""
-          }
-        },
-        "operationId": "return_to_sso"
-      },
-      "post": {
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "text/html; charset=utf-8": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "return_to_sso_with_form_data"
-      }
-    },
-    "/sso/logout": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/StartSloResponseParams"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": ""
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "initiate_sso_logout"
-      }
-    },
-    "/sso/providers/{name}/start": {
-      "get": {
-        "parameters": [
-          {
-            "name": "name",
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          },
-          {
-            "name": "next",
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "required": false,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/StartSsoResponseParams"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "start_sso"
-      }
-    },
-    "/profile/credentials": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/CredentialsState"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "get_my_credentials"
-      }
-    },
-    "/profile/credentials/password": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json; charset=utf-8": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangePasswordRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/PasswordState"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          },
-          "403": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "change_my_password"
-      }
-    },
-    "/profile/credentials/public-keys": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json; charset=utf-8": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPublicKeyCredential"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExistingPublicKeyCredential"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          },
-          "403": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "add_my_public_key"
-      }
-    },
-    "/profile/credentials/public-keys/{id}": {
-      "delete": {
-        "parameters": [
-          {
-            "name": "id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "401": {
-            "description": ""
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "delete_my_public_key"
-      }
-    },
-    "/profile/credentials/otp/begin": {
-      "post": {
-        "summary": "Start OTP enrollment. The server generates the secret,\nstashes it pending confirmation, and returns only a provisioning URI.\nThe client must then prove possession via [`Self::api_create_otp`].",
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/BeginOtpEnrollment"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          },
-          "403": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "begin_my_otp"
-      }
-    },
-    "/profile/credentials/otp": {
-      "post": {
-        "summary": "Confirm OTP enrollment. Requires a live code for the\nserver-generated secret started by [`Self::api_begin_otp`]; only then\nis the credential persisted and the policy upgraded to require OTP.",
-        "requestBody": {
-          "content": {
-            "application/json; charset=utf-8": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfirmOtpCredential"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExistingOtpCredential"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          },
-          "403": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "add_my_otp"
-      }
-    },
-    "/profile/credentials/otp/{id}": {
-      "delete": {
-        "parameters": [
-          {
-            "name": "id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "401": {
-            "description": ""
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "delete_my_otp"
-      }
-    },
-    "/profile/credentials/certificates": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json; charset=utf-8": {
-              "schema": {
-                "$ref": "#/components/schemas/IssueCertificateCredentialRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/IssuedCertificateCredential"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": ""
-          },
-          "401": {
-            "description": ""
-          }
-        },
-        "operationId": "issue_my_certificate"
-      }
-    },
-    "/profile/credentials/certificates/{id}": {
-      "delete": {
-        "parameters": [
-          {
-            "name": "id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          },
-          "401": {
-            "description": ""
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "revoke_my_certificate"
-      }
-    },
-    "/profile/api-tokens": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ExistingApiToken"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          }
-        },
-        "operationId": "get_my_api_tokens"
-      },
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json; charset=utf-8": {
-              "schema": {
-                "$ref": "#/components/schemas/NewApiToken"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenAndSecret"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          }
-        },
-        "operationId": "create_api_token"
-      }
-    },
-    "/profile/api-tokens/{id}": {
-      "delete": {
-        "parameters": [
-          {
-            "name": "id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "401": {
-            "description": ""
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "delete_my_api_token"
-      }
-    },
-    "/profile/tickets": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ExistingProfileTicket"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          }
-        },
-        "operationId": "get_my_tickets"
-      },
-      "post": {
-        "requestBody": {
-          "content": {
-            "application/json; charset=utf-8": {
-              "schema": {
-                "$ref": "#/components/schemas/NewProfileTicket"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProfileTicketAndSecret"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "create_my_ticket"
-      }
-    },
-    "/profile/tickets/{id}": {
-      "delete": {
-        "parameters": [
-          {
-            "name": "id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "401": {
-            "description": ""
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "operationId": "delete_my_ticket"
-      }
-    },
-    "/profile/sessions": {
-      "get": {
-        "summary": "Sessions owned by the calling user, newest first. Management HTTP\nsessions are excluded, as in the admin list.",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SessionSnapshot"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "get_my_sessions"
-      }
-    },
-    "/db/schemas/{target_name}": {
-      "get": {
-        "parameters": [
-          {
-            "name": "target_name",
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/SchemaList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "headers": {
-              "RETRY-AFTER": {
-                "required": true,
-                "deprecated": false,
-                "schema": {
-                  "type": "integer",
-                  "format": "uint64"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "get_db_schemas"
-      }
-    },
-    "/db/tables/{target_name}": {
-      "get": {
-        "parameters": [
-          {
-            "name": "target_name",
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          },
-          {
-            "name": "schema",
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "required": false,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "headers": {
-              "RETRY-AFTER": {
-                "required": true,
-                "deprecated": false,
-                "schema": {
-                  "type": "integer",
-                  "format": "uint64"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "get_db_tables"
-      }
-    },
-    "/db/columns/{target_name}": {
-      "get": {
-        "parameters": [
-          {
-            "name": "target_name",
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          },
-          {
-            "name": "schema",
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          },
-          {
-            "name": "table",
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ColumnList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "headers": {
-              "RETRY-AFTER": {
-                "required": true,
-                "deprecated": false,
-                "schema": {
-                  "type": "integer",
-                  "format": "uint64"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "get_db_columns"
-      }
-    },
-    "/db/query/{target_name}": {
-      "post": {
-        "parameters": [
-          {
-            "name": "target_name",
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "required": true,
-            "deprecated": false,
-            "explode": true
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json; charset=utf-8": {
-              "schema": {
-                "$ref": "#/components/schemas/QueryRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueryResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "headers": {
-              "RETRY-AFTER": {
-                "required": true,
-                "deprecated": false,
-                "schema": {
-                  "type": "integer",
-                  "format": "uint64"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "",
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ],
-        "operationId": "run_db_query"
+        ]
       }
     }
   },
@@ -1515,7 +1330,6 @@
       },
       "AuthStateResponseInternal": {
         "type": "object",
-        "title": "AuthStateResponseInternal",
         "required": [
           "id",
           "protocol",
@@ -1524,13 +1338,19 @@
           "identification_string"
         ],
         "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
-          "protocol": {
+          "identification_string": {
             "type": "string"
           },
-          "address": {
+          "protocol": {
             "type": "string"
           },
           "started": {
@@ -1539,15 +1359,11 @@
           },
           "state": {
             "$ref": "#/components/schemas/ApiAuthState"
-          },
-          "identification_string": {
-            "type": "string"
           }
         }
       },
       "BearerTokenUpstreamAuth": {
         "type": "object",
-        "title": "BearerTokenUpstreamAuth",
         "required": [
           "token"
         ],
@@ -1559,7 +1375,6 @@
       },
       "BeginOtpEnrollment": {
         "type": "object",
-        "title": "BeginOtpEnrollment",
         "description": "Response of starting an OTP enrollment: an `otpauth://` provisioning URI\nfor the server-generated secret. The raw secret is never returned.",
         "required": [
           "provisioning_uri"
@@ -1585,7 +1400,6 @@
       },
       "ChangePasswordRequest": {
         "type": "object",
-        "title": "ChangePasswordRequest",
         "required": [
           "old_password",
           "password"
@@ -1602,7 +1416,6 @@
       },
       "ClientCertificateUpstreamAuth": {
         "type": "object",
-        "title": "ClientCertificateUpstreamAuth",
         "required": [
           "certificate",
           "private_key"
@@ -1618,7 +1431,6 @@
       },
       "ColumnInfo": {
         "type": "object",
-        "title": "ColumnInfo",
         "required": [
           "name",
           "data_type",
@@ -1626,10 +1438,10 @@
           "primary_key"
         ],
         "properties": {
-          "name": {
+          "data_type": {
             "type": "string"
           },
-          "data_type": {
+          "name": {
             "type": "string"
           },
           "nullable": {
@@ -1642,7 +1454,6 @@
       },
       "ColumnList": {
         "type": "object",
-        "title": "ColumnList",
         "required": [
           "columns"
         ],
@@ -1657,7 +1468,6 @@
       },
       "ConfirmOtpCredential": {
         "type": "object",
-        "title": "ConfirmOtpCredential",
         "description": "The secret is generated server-side; enrollment is confirmed\nby sending a live code from the authenticator, proving possession.",
         "required": [
           "otp"
@@ -1681,7 +1491,6 @@
       },
       "CredentialsState": {
         "type": "object",
-        "title": "CredentialsState",
         "required": [
           "password",
           "otp",
@@ -1691,8 +1500,14 @@
           "credential_policy"
         ],
         "properties": {
-          "password": {
-            "$ref": "#/components/schemas/PasswordState"
+          "certificates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExistingCertificateCredential"
+            }
+          },
+          "credential_policy": {
+            "$ref": "#/components/schemas/UserRequireCredentialsPolicy"
           },
           "otp": {
             "type": "array",
@@ -1700,16 +1515,13 @@
               "$ref": "#/components/schemas/ExistingOtpCredential"
             }
           },
+          "password": {
+            "$ref": "#/components/schemas/PasswordState"
+          },
           "public_keys": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExistingPublicKeyCredential"
-            }
-          },
-          "certificates": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ExistingCertificateCredential"
             }
           },
           "sso": {
@@ -1717,15 +1529,11 @@
             "items": {
               "$ref": "#/components/schemas/ExistingSsoCredential"
             }
-          },
-          "credential_policy": {
-            "$ref": "#/components/schemas/UserRequireCredentialsPolicy"
           }
         }
       },
       "ErrorBody": {
         "type": "object",
-        "title": "ErrorBody",
         "required": [
           "error"
         ],
@@ -1737,7 +1545,6 @@
       },
       "ExistingApiToken": {
         "type": "object",
-        "title": "ExistingApiToken",
         "required": [
           "id",
           "label",
@@ -1745,13 +1552,6 @@
           "expiry"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "label": {
-            "type": "string"
-          },
           "created": {
             "type": "string",
             "format": "date-time"
@@ -1759,18 +1559,34 @@
           "expiry": {
             "type": "string",
             "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
           }
         }
       },
       "ExistingCertificateCredential": {
         "type": "object",
-        "title": "ExistingCertificateCredential",
         "required": [
           "id",
           "label",
           "fingerprint"
         ],
         "properties": {
+          "date_added": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -1778,22 +1594,17 @@
           "label": {
             "type": "string"
           },
-          "date_added": {
-            "type": "string",
-            "format": "date-time"
-          },
           "last_used": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
-          },
-          "fingerprint": {
-            "type": "string"
           }
         }
       },
       "ExistingOtpCredential": {
         "type": "object",
-        "title": "ExistingOtpCredential",
         "required": [
           "id"
         ],
@@ -1806,7 +1617,6 @@
       },
       "ExistingProfileTicket": {
         "type": "object",
-        "title": "ExistingProfileTicket",
         "required": [
           "id",
           "target",
@@ -1814,6 +1624,20 @@
           "created"
         ],
         "properties": {
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "expiry": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -1821,32 +1645,33 @@
           "target": {
             "type": "string"
           },
-          "description": {
-            "type": "string"
-          },
           "uses_left": {
-            "type": "integer",
-            "format": "int16"
-          },
-          "expiry": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "created": {
-            "type": "string",
-            "format": "date-time"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           }
         }
       },
       "ExistingPublicKeyCredential": {
         "type": "object",
-        "title": "ExistingPublicKeyCredential",
         "required": [
           "id",
           "label",
           "abbreviated"
         ],
         "properties": {
+          "abbreviated": {
+            "type": "string"
+          },
+          "date_added": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -1854,62 +1679,65 @@
           "label": {
             "type": "string"
           },
-          "date_added": {
-            "type": "string",
-            "format": "date-time"
-          },
           "last_used": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
-          },
-          "abbreviated": {
-            "type": "string"
           }
         }
       },
       "ExistingSsoCredential": {
         "type": "object",
-        "title": "ExistingSsoCredential",
         "required": [
           "id",
           "email"
         ],
         "properties": {
+          "email": {
+            "type": "string"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
           },
           "provider": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
       "GroupInfo": {
         "type": "object",
-        "title": "GroupInfo",
         "required": [
           "id",
           "name"
         ],
         "properties": {
+          "color": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BootstrapThemeColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid"
           },
           "name": {
             "type": "string"
-          },
-          "color": {
-            "$ref": "#/components/schemas/BootstrapThemeColor"
           }
         }
       },
       "HeadersUpstreamAuth": {
         "type": "object",
-        "title": "HeadersUpstreamAuth",
         "required": [
           "headers"
         ],
@@ -1917,6 +1745,9 @@
           "headers": {
             "type": "object",
             "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
               "type": "string"
             }
           }
@@ -1931,7 +1762,6 @@
       },
       "Info": {
         "type": "object",
-        "title": "Info",
         "required": [
           "admin",
           "ports",
@@ -1942,89 +1772,111 @@
           "terminal_watermark_enabled"
         ],
         "properties": {
-          "version": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
           "admin": {
-            "type": "boolean"
-          },
-          "selected_target": {
-            "type": "string"
-          },
-          "external_host": {
-            "type": "string"
-          },
-          "ports": {
-            "$ref": "#/components/schemas/PortsInfo"
-          },
-          "minimize_password_login": {
-            "type": "boolean"
-          },
-          "authorized_via_ticket": {
             "type": "boolean"
           },
           "authorized_via_sso_with_single_logout": {
             "type": "boolean"
           },
+          "authorized_via_ticket": {
+            "type": "boolean"
+          },
+          "external_host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "http_proxy_base_domain": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base domain of the HTTP-proxy listener (`<target>.<base_domain>`),\nwhen the proxy is enabled and a base domain is configured. Lets the\nfrontend build a per-target proxy URL. `None` if the proxy is off or\nhas no base domain."
+          },
+          "minimize_password_login": {
+            "type": "boolean"
+          },
           "own_credential_management_allowed": {
             "type": "boolean"
           },
-          "setup_state": {
-            "$ref": "#/components/schemas/SetupState"
+          "ports": {
+            "$ref": "#/components/schemas/PortsInfo"
           },
-          "http_proxy_base_domain": {
-            "type": "string",
-            "description": "Base domain of the HTTP-proxy listener (`<target>.<base_domain>`),\nwhen the proxy is enabled and a base domain is configured. Lets the\nfrontend build a per-target proxy URL. `None` if the proxy is off or\nhas no base domain."
+          "selected_target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_state": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SetupState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "site_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Configured site title; `None` means the built-in \"Gated\". Public so\nthe login page can show it."
           },
           "terminal_watermark_enabled": {
             "type": "boolean",
             "description": "When true, the web terminal renders a frontend-only operator-identity +\ntimestamp watermark overlay. Defaults to false."
           },
-          "site_title": {
-            "type": "string",
-            "description": "Configured site title; `None` means the built-in \"Gated\". Public so\nthe login page can show it."
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
       "IssueCertificateCredentialRequest": {
         "type": "object",
-        "title": "IssueCertificateCredentialRequest",
         "required": [
           "label",
           "csr_pem"
         ],
         "properties": {
-          "label": {
-            "type": "string"
-          },
           "csr_pem": {
             "type": "string",
             "description": "PEM-encoded PKCS#10 certificate signing request. The CSR's\nself-signature proves the requester holds the matching private key\n(proof-of-possession); the certificate is issued over the CSR's public\nkey."
+          },
+          "label": {
+            "type": "string"
           }
         }
       },
       "IssuedCertificateCredential": {
         "type": "object",
-        "title": "IssuedCertificateCredential",
         "required": [
           "credential",
           "certificate_pem"
         ],
         "properties": {
-          "credential": {
-            "$ref": "#/components/schemas/ExistingCertificateCredential"
-          },
           "certificate_pem": {
             "type": "string"
+          },
+          "credential": {
+            "$ref": "#/components/schemas/ExistingCertificateCredential"
           }
         }
       },
       "LoginFailureResponse": {
         "type": "object",
-        "title": "LoginFailureResponse",
         "required": [
           "state"
         ],
@@ -2036,63 +1888,68 @@
       },
       "LoginRequest": {
         "type": "object",
-        "title": "LoginRequest",
         "required": [
           "username",
           "password"
         ],
         "properties": {
-          "username": {
+          "password": {
             "type": "string"
           },
-          "password": {
+          "username": {
             "type": "string"
           }
         }
       },
       "NewApiToken": {
         "type": "object",
-        "title": "NewApiToken",
         "required": [
           "label",
           "expiry"
         ],
         "properties": {
-          "label": {
-            "type": "string"
-          },
           "expiry": {
             "type": "string",
             "format": "date-time"
+          },
+          "label": {
+            "type": "string"
           }
         }
       },
       "NewProfileTicket": {
         "type": "object",
-        "title": "NewProfileTicket",
         "required": [
           "target_name"
         ],
         "properties": {
-          "target_name": {
-            "type": "string"
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "expiry": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "number_of_uses": {
-            "type": "integer",
-            "format": "int16"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           },
-          "description": {
+          "target_name": {
             "type": "string"
           }
         }
       },
       "NewPublicKeyCredential": {
         "type": "object",
-        "title": "NewPublicKeyCredential",
         "required": [
           "label",
           "openssh_public_key"
@@ -2106,14 +1963,8 @@
           }
         }
       },
-      "NoUpstreamAuth": {
-        "type": "object",
-        "title": "NoUpstreamAuth",
-        "description": "Empty marker for the `none` variant of [`UpstreamAuth`]."
-      },
       "OtpLoginRequest": {
         "type": "object",
-        "title": "OtpLoginRequest",
         "required": [
           "otp"
         ],
@@ -2133,49 +1984,66 @@
       },
       "PortsInfo": {
         "type": "object",
-        "title": "PortsInfo",
         "properties": {
-          "ssh": {
-            "type": "integer",
-            "format": "uint16"
-          },
           "http": {
-            "type": "integer",
-            "format": "uint16"
-          },
-          "mysql": {
-            "type": "integer",
-            "format": "uint16"
-          },
-          "postgres": {
-            "type": "integer",
-            "format": "uint16"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
           },
           "kubernetes": {
-            "type": "integer",
-            "format": "uint16"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "mysql": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "postgres": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "ssh": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
       "ProfileTicketAndSecret": {
         "type": "object",
-        "title": "ProfileTicketAndSecret",
         "required": [
           "ticket",
           "secret"
         ],
         "properties": {
-          "ticket": {
-            "$ref": "#/components/schemas/ExistingProfileTicket"
-          },
           "secret": {
             "type": "string"
+          },
+          "ticket": {
+            "$ref": "#/components/schemas/ExistingProfileTicket"
           }
         }
       },
       "QueryColumn": {
         "type": "object",
-        "title": "QueryColumn",
         "required": [
           "name",
           "type_name"
@@ -2191,26 +2059,30 @@
       },
       "QueryRequest": {
         "type": "object",
-        "title": "QueryRequest",
         "required": [
           "sql"
         ],
         "properties": {
-          "sql": {
-            "type": "string"
+          "console_session_key": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "limit": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64"
           },
-          "console_session_key": {
+          "sql": {
             "type": "string"
           }
         }
       },
       "QueryResponse": {
         "type": "object",
-        "title": "QueryResponse",
         "required": [
           "columns",
           "rows",
@@ -2226,6 +2098,15 @@
               "$ref": "#/components/schemas/QueryColumn"
             }
           },
+          "elapsed_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
           "rows": {
             "type": "array",
             "items": {
@@ -2234,152 +2115,165 @@
             }
           },
           "rows_affected": {
-            "type": "integer",
-            "format": "uint64"
-          },
-          "truncated": {
-            "type": "boolean"
-          },
-          "elapsed_ms": {
-            "type": "integer",
-            "format": "uint64"
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
           },
           "statement_kind": {
             "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ReturnToSsoFormData": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
       "SSHTargetAuth": {
-        "type": "object",
         "oneOf": [
           {
-            "$ref": "#/components/schemas/SSHTargetAuth_SshTargetPasswordAuth"
-          },
-          {
-            "$ref": "#/components/schemas/SSHTargetAuth_SshTargetPublicKeyAuth"
-          }
-        ],
-        "discriminator": {
-          "propertyName": "kind",
-          "mapping": {
-            "Password": "#/components/schemas/SSHTargetAuth_SshTargetPasswordAuth",
-            "PublicKey": "#/components/schemas/SSHTargetAuth_SshTargetPublicKeyAuth"
-          }
-        }
-      },
-      "SSHTargetAuth_SshTargetPasswordAuth": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "Password"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SshTargetPasswordAuth"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
                 ],
-                "example": "Password"
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Password"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "$ref": "#/components/schemas/SshTargetPasswordAuth"
-          }
-        ]
-      },
-      "SSHTargetAuth_SshTargetPublicKeyAuth": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "PublicKey"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SshTargetPublicKeyAuth"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
                 ],
-                "example": "PublicKey"
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "PublicKey"
+                    ]
+                  }
+                }
               }
-            }
-          },
-          {
-            "$ref": "#/components/schemas/SshTargetPublicKeyAuth"
+            ]
           }
         ]
       },
       "SchemaList": {
         "type": "object",
-        "title": "SchemaList",
         "required": [
           "schemas",
           "readonly",
           "kind"
         ],
         "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
           "default_schema": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
             "type": "string"
           },
           "readonly": {
             "type": "boolean"
           },
-          "kind": {
-            "type": "string"
+          "schemas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
       "SessionSnapshot": {
         "type": "object",
-        "title": "SessionSnapshot",
         "required": [
           "id",
           "started",
           "protocol"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "username": {
-            "type": "string"
-          },
-          "target": {
-            "$ref": "#/components/schemas/Target"
-          },
-          "started": {
-            "type": "string",
-            "format": "date-time"
-          },
           "ended": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
-          "ticket_id": {
+          "id": {
             "type": "string",
             "format": "uuid"
           },
           "protocol": {
             "type": "string"
+          },
+          "started": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Target"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ticket_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
       "SetupState": {
         "type": "object",
-        "title": "SetupState",
         "required": [
           "has_targets",
           "has_users"
@@ -2395,7 +2289,6 @@
       },
       "SshTargetPasswordAuth": {
         "type": "object",
-        "title": "SshTargetPasswordAuth",
         "required": [
           "password"
         ],
@@ -2407,33 +2300,37 @@
       },
       "SshTargetPublicKeyAuth": {
         "type": "object",
-        "title": "SshTargetPublicKeyAuth",
         "properties": {
-          "private_key_pem": {
-            "type": "string"
-          },
           "passphrase": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "private_key_pem": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
       "SsoProviderDescription": {
         "type": "object",
-        "title": "SsoProviderDescription",
         "required": [
           "name",
           "label",
           "kind"
         ],
         "properties": {
-          "name": {
-            "type": "string"
+          "kind": {
+            "$ref": "#/components/schemas/SsoProviderKind"
           },
           "label": {
             "type": "string"
           },
-          "kind": {
-            "$ref": "#/components/schemas/SsoProviderKind"
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -2448,7 +2345,6 @@
       },
       "StartSloResponseParams": {
         "type": "object",
-        "title": "StartSloResponseParams",
         "required": [
           "url"
         ],
@@ -2460,7 +2356,6 @@
       },
       "StartSsoResponseParams": {
         "type": "object",
-        "title": "StartSsoResponseParams",
         "required": [
           "url"
         ],
@@ -2472,7 +2367,6 @@
       },
       "TableInfo": {
         "type": "object",
-        "title": "TableInfo",
         "required": [
           "name",
           "type"
@@ -2488,7 +2382,6 @@
       },
       "TableList": {
         "type": "object",
-        "title": "TableList",
         "required": [
           "tables"
         ],
@@ -2503,7 +2396,6 @@
       },
       "Target": {
         "type": "object",
-        "title": "Target",
         "required": [
           "id",
           "name",
@@ -2513,15 +2405,11 @@
           "accounts"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetAccountMetadata"
+            }
           },
           "allow_roles": {
             "type": "array",
@@ -2529,28 +2417,38 @@
               "type": "string"
             }
           },
+          "description": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
           "options": {
             "$ref": "#/components/schemas/TargetOptions"
           },
-          "accounts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TargetAccountMetadata"
-            }
-          },
           "rate_limit_bytes_per_second": {
-            "type": "integer",
-            "format": "uint32"
-          },
-          "group_id": {
-            "type": "string",
-            "format": "uuid"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
       "TargetAccountMetadata": {
         "type": "object",
-        "title": "TargetAccountMetadata",
         "required": [
           "account_id",
           "account_name",
@@ -2583,8 +2481,7 @@
       },
       "TargetHttpOptions": {
         "type": "object",
-        "title": "TargetHttpOptions",
-        "description": "Unified HTTP-reverse-proxy target.  Replaces the old `TargetApiOptions`\nand `TargetKubernetesOptions`.  `flavor` toggles Kubernetes-specific\nbehaviour (channel.k8s.io WebSocket, watch streaming, exec/attach\nrecording enrichment).",
+        "description": "Unified HTTP-reverse-proxy target. `flavor` toggles Kubernetes-specific\nbehaviour (channel.k8s.io WebSocket, watch streaming, exec/attach\nrecording enrichment).",
         "required": [
           "url",
           "tls",
@@ -2592,46 +2489,28 @@
           "flavor"
         ],
         "properties": {
+          "ca_certificate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional PEM bundle of CA certificates trusted for the upstream\nconnection (e.g. an in-cluster signing CA)."
+          },
+          "flavor": {
+            "$ref": "#/components/schemas/HttpProxyFlavor",
+            "description": "Protocol-level behaviours unlocked for this target."
+          },
+          "tls": {
+            "$ref": "#/components/schemas/Tls",
+            "description": "TLS settings for the upstream connection. `tls.verify` defaults to\n`true`; set it to `false` only for a target with a self-signed or\notherwise unverifiable cert."
+          },
+          "upstream_auth": {
+            "$ref": "#/components/schemas/UpstreamAuth",
+            "description": "How Gated authenticates to the upstream service."
+          },
           "url": {
             "type": "string",
             "description": "Upstream base URL (e.g. `https://kubernetes.example.com` for K8s,\nor any http(s) origin for generic targets)."
-          },
-          "tls": {
-            "description": "TLS settings for the upstream connection. `tls.verify` defaults to\n`true`; set it to `false` only for a target with a self-signed or\notherwise unverifiable cert.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Tls"
-              },
-              {
-                "description": "TLS settings for the upstream connection. `tls.verify` defaults to\n`true`; set it to `false` only for a target with a self-signed or\notherwise unverifiable cert."
-              }
-            ]
-          },
-          "ca_certificate": {
-            "type": "string",
-            "description": "Optional PEM bundle of CA certificates trusted for the upstream\nconnection (e.g. an in-cluster signing CA)."
-          },
-          "upstream_auth": {
-            "description": "How Gated authenticates to the upstream service.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/UpstreamAuth"
-              },
-              {
-                "description": "How Gated authenticates to the upstream service."
-              }
-            ]
-          },
-          "flavor": {
-            "description": "Protocol-level behaviours unlocked for this target.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/HttpProxyFlavor"
-              },
-              {
-                "description": "Protocol-level behaviours unlocked for this target."
-              }
-            ]
           }
         }
       },
@@ -2646,7 +2525,6 @@
       },
       "TargetMySqlOptions": {
         "type": "object",
-        "title": "TargetMySqlOptions",
         "required": [
           "host",
           "port",
@@ -2655,148 +2533,128 @@
           "readonly"
         ],
         "properties": {
+          "default_database_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "host": {
             "type": "string"
           },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "port": {
             "type": "integer",
-            "format": "uint16"
-          },
-          "username": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "tls": {
-            "$ref": "#/components/schemas/Tls"
-          },
-          "default_database_name": {
-            "type": "string"
+            "format": "int32",
+            "minimum": 0
           },
           "readonly": {
             "type": "boolean",
             "description": "When true, the SQL Console rejects anything not starting with\nSELECT / SHOW / EXPLAIN / WITH. This is convenience-level only —\nuse a real read-only DB user for hard guarantees."
+          },
+          "tls": {
+            "$ref": "#/components/schemas/Tls"
+          },
+          "username": {
+            "type": "string"
           }
         }
       },
       "TargetOptions": {
-        "type": "object",
         "oneOf": [
           {
-            "$ref": "#/components/schemas/TargetOptions_TargetSSHOptions"
-          },
-          {
-            "$ref": "#/components/schemas/TargetOptions_TargetHttpOptions"
-          },
-          {
-            "$ref": "#/components/schemas/TargetOptions_TargetMySqlOptions"
-          },
-          {
-            "$ref": "#/components/schemas/TargetOptions_TargetPostgresOptions"
-          }
-        ],
-        "discriminator": {
-          "propertyName": "kind",
-          "mapping": {
-            "Ssh": "#/components/schemas/TargetOptions_TargetSSHOptions",
-            "Http": "#/components/schemas/TargetOptions_TargetHttpOptions",
-            "MySql": "#/components/schemas/TargetOptions_TargetMySqlOptions",
-            "Postgres": "#/components/schemas/TargetOptions_TargetPostgresOptions"
-          }
-        }
-      },
-      "TargetOptions_TargetHttpOptions": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "Http"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetSSHOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
                 ],
-                "example": "Http"
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Ssh"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "$ref": "#/components/schemas/TargetHttpOptions"
-          }
-        ]
-      },
-      "TargetOptions_TargetMySqlOptions": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "MySql"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetHttpOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
                 ],
-                "example": "MySql"
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Http"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "$ref": "#/components/schemas/TargetMySqlOptions"
-          }
-        ]
-      },
-      "TargetOptions_TargetPostgresOptions": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "Postgres"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetMySqlOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
                 ],
-                "example": "Postgres"
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "MySql"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "$ref": "#/components/schemas/TargetPostgresOptions"
-          }
-        ]
-      },
-      "TargetOptions_TargetSSHOptions": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "Ssh"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetPostgresOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
                 ],
-                "example": "Ssh"
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Postgres"
+                    ]
+                  }
+                }
               }
-            }
-          },
-          {
-            "$ref": "#/components/schemas/TargetSSHOptions"
+            ]
           }
         ]
       },
       "TargetPostgresOptions": {
         "type": "object",
-        "title": "TargetPostgresOptions",
         "required": [
           "host",
           "port",
@@ -2805,37 +2663,46 @@
           "readonly"
         ],
         "properties": {
+          "default_database_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "host": {
             "type": "string"
           },
-          "port": {
-            "type": "integer",
-            "format": "uint16"
-          },
-          "username": {
-            "type": "string"
+          "idle_timeout": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "password": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
-          "tls": {
-            "$ref": "#/components/schemas/Tls"
-          },
-          "idle_timeout": {
-            "type": "string"
-          },
-          "default_database_name": {
-            "type": "string"
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           },
           "readonly": {
             "type": "boolean",
             "description": "See `TargetMySqlOptions::readonly`."
+          },
+          "tls": {
+            "$ref": "#/components/schemas/Tls"
+          },
+          "username": {
+            "type": "string"
           }
         }
       },
       "TargetSSHOptions": {
         "type": "object",
-        "title": "TargetSSHOptions",
         "required": [
           "host",
           "port",
@@ -2843,53 +2710,65 @@
           "auth"
         ],
         "properties": {
+          "allow_insecure_algos": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "auth": {
+            "$ref": "#/components/schemas/SSHTargetAuth"
+          },
           "host": {
             "type": "string"
           },
           "port": {
             "type": "integer",
-            "format": "uint16"
+            "format": "int32",
+            "minimum": 0
           },
           "username": {
             "type": "string"
-          },
-          "allow_insecure_algos": {
-            "type": "boolean"
-          },
-          "auth": {
-            "$ref": "#/components/schemas/SSHTargetAuth"
           }
         }
       },
       "TargetSnapshot": {
         "type": "object",
-        "title": "TargetSnapshot",
         "required": [
           "name",
           "description",
           "kind"
         ],
         "properties": {
-          "name": {
-            "type": "string"
+          "default_database_name": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "description": {
             "type": "string"
           },
+          "group": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GroupInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "kind": {
             "$ref": "#/components/schemas/TargetKind"
           },
-          "group": {
-            "$ref": "#/components/schemas/GroupInfo"
-          },
-          "default_database_name": {
+          "name": {
             "type": "string"
           }
         }
       },
       "Tls": {
         "type": "object",
-        "title": "Tls",
         "required": [
           "mode",
           "verify"
@@ -2913,114 +2792,21 @@
       },
       "TokenAndSecret": {
         "type": "object",
-        "title": "TokenAndSecret",
         "required": [
           "token",
           "secret"
         ],
         "properties": {
-          "token": {
-            "$ref": "#/components/schemas/ExistingApiToken"
-          },
           "secret": {
             "type": "string"
+          },
+          "token": {
+            "$ref": "#/components/schemas/ExistingApiToken"
           }
         }
       },
       "UpstreamAuth": {
-        "type": "object",
         "oneOf": [
-          {
-            "$ref": "#/components/schemas/UpstreamAuth_NoUpstreamAuth"
-          },
-          {
-            "$ref": "#/components/schemas/UpstreamAuth_HeadersUpstreamAuth"
-          },
-          {
-            "$ref": "#/components/schemas/UpstreamAuth_BearerTokenUpstreamAuth"
-          },
-          {
-            "$ref": "#/components/schemas/UpstreamAuth_ClientCertificateUpstreamAuth"
-          }
-        ],
-        "discriminator": {
-          "propertyName": "kind",
-          "mapping": {
-            "None": "#/components/schemas/UpstreamAuth_NoUpstreamAuth",
-            "Headers": "#/components/schemas/UpstreamAuth_HeadersUpstreamAuth",
-            "BearerToken": "#/components/schemas/UpstreamAuth_BearerTokenUpstreamAuth",
-            "ClientCertificate": "#/components/schemas/UpstreamAuth_ClientCertificateUpstreamAuth"
-          }
-        }
-      },
-      "UpstreamAuth_BearerTokenUpstreamAuth": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "BearerToken"
-                ],
-                "example": "BearerToken"
-              }
-            }
-          },
-          {
-            "$ref": "#/components/schemas/BearerTokenUpstreamAuth"
-          }
-        ]
-      },
-      "UpstreamAuth_ClientCertificateUpstreamAuth": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "ClientCertificate"
-                ],
-                "example": "ClientCertificate"
-              }
-            }
-          },
-          {
-            "$ref": "#/components/schemas/ClientCertificateUpstreamAuth"
-          }
-        ]
-      },
-      "UpstreamAuth_HeadersUpstreamAuth": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "Headers"
-                ],
-                "example": "Headers"
-              }
-            }
-          },
-          {
-            "$ref": "#/components/schemas/HeadersUpstreamAuth"
-          }
-        ]
-      },
-      "UpstreamAuth_NoUpstreamAuth": {
-        "allOf": [
           {
             "type": "object",
             "required": [
@@ -3031,46 +2817,119 @@
                 "type": "string",
                 "enum": [
                   "None"
-                ],
-                "example": "None"
+                ]
               }
             }
           },
           {
-            "$ref": "#/components/schemas/NoUpstreamAuth"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HeadersUpstreamAuth"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Headers"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BearerTokenUpstreamAuth"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "BearerToken"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientCertificateUpstreamAuth"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "ClientCertificate"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         ]
       },
       "UserRequireCredentialsPolicy": {
         "type": "object",
-        "title": "UserRequireCredentialsPolicy",
         "properties": {
           "http": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/CredentialKind"
             }
           },
           "kubernetes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CredentialKind"
-            }
-          },
-          "ssh": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/CredentialKind"
             }
           },
           "mysql": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/CredentialKind"
             }
           },
           "postgres": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CredentialKind"
+            }
+          },
+          "ssh": {
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/CredentialKind"
             }
@@ -3081,13 +2940,13 @@
     "securitySchemes": {
       "CookieSecurityScheme": {
         "type": "apiKey",
-        "name": "gated-http-session",
-        "in": "cookie"
+        "in": "cookie",
+        "name": "gated-http-session"
       },
       "TokenSecurityScheme": {
         "type": "apiKey",
-        "name": "X-Gated-Token",
-        "in": "header"
+        "in": "header",
+        "name": "X-Gated-Token"
       }
     }
   }

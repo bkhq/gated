@@ -1,3 +1,10 @@
+use crate::http_service::common::upgrade;
+use axum::extract::Path;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::http::request::Parts;
+use axum::response::{IntoResponse, Response};
+use gated_common::web::Data;
+use http::StatusCode;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,11 +20,6 @@ use gated_protocol_ssh::{
     ChannelOperation, PtyRequest, RCCommand, RCEvent, RCState, RemoteClient, RemoteClientHandles,
     SshRecordingMetadata,
 };
-use poem::handler;
-use poem::http::StatusCode;
-use poem::web::websocket::{Message, WebSocket, WebSocketStream};
-use poem::web::{Data, Path};
-use poem::{IntoResponse, Request, Response};
 use russh::keys::PublicKeyBase64;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -123,7 +125,7 @@ fn make_status_frame(status: &str, message: &str) -> Message {
     let mut frame = Vec::with_capacity(1 + json.len());
     frame.push(MSG_STATUS);
     frame.extend_from_slice(&json);
-    Message::Binary(frame)
+    Message::Binary(frame.into())
 }
 
 fn make_host_key_verify_frame(algorithm: &str, key_base64: &str) -> Message {
@@ -136,10 +138,10 @@ fn make_host_key_verify_frame(algorithm: &str, key_base64: &str) -> Message {
     let mut frame = Vec::with_capacity(1 + json.len());
     frame.push(MSG_HOST_KEY_VERIFY);
     frame.extend_from_slice(&json);
-    Message::Binary(frame)
+    Message::Binary(frame.into())
 }
 
-async fn send_status(sink: &mut SplitSink<WebSocketStream, Message>, status: &str, message: &str) {
+async fn send_status(sink: &mut SplitSink<WebSocket, Message>, status: &str, message: &str) {
     let _ = sink.send(make_status_frame(status, message)).await;
 }
 
@@ -153,7 +155,7 @@ fn validate_target_name(name: &str) -> bool {
 }
 
 /// Extract username from request authorization.
-fn extract_username(auth: Option<Data<&RequestAuthorization>>) -> Option<String> {
+fn extract_username(auth: Option<Data<RequestAuthorization>>) -> Option<String> {
     match auth.map(|a| a.0.clone()) {
         Some(RequestAuthorization::Session(SessionAuthorization::User(u))) => Some(u),
         Some(RequestAuthorization::Session(SessionAuthorization::Ticket { username, .. })) => {
@@ -244,8 +246,8 @@ async fn resolve_and_authorize(
 /// Prompt the user via WebSocket to accept/reject an unknown host key.
 /// Returns true if the user accepts within the timeout, false otherwise.
 async fn prompt_host_key_via_websocket(
-    sink: &mut SplitSink<WebSocketStream, Message>,
-    source: &mut futures::stream::SplitStream<WebSocketStream>,
+    sink: &mut SplitSink<WebSocket, Message>,
+    source: &mut futures::stream::SplitStream<WebSocket>,
     algorithm: &str,
     key_base64: &str,
 ) -> bool {
@@ -286,8 +288,8 @@ async fn handle_host_key_verification(
     key: russh::keys::PublicKey,
     reply: tokio::sync::oneshot::Sender<bool>,
     host_key_mode: SshHostKeyVerificationMode,
-    sink: &mut SplitSink<WebSocketStream, Message>,
-    source: &mut futures::stream::SplitStream<WebSocketStream>,
+    sink: &mut SplitSink<WebSocket, Message>,
+    source: &mut futures::stream::SplitStream<WebSocket>,
 ) -> bool {
     let accept = match host_key_mode {
         SshHostKeyVerificationMode::AutoAccept => {
@@ -327,8 +329,8 @@ async fn handle_host_key_verification(
 /// Returns the channel UUID on success.
 async fn wait_for_connection(
     handles: &mut RemoteClientHandles,
-    sink: &mut SplitSink<WebSocketStream, Message>,
-    source: &mut futures::stream::SplitStream<WebSocketStream>,
+    sink: &mut SplitSink<WebSocket, Message>,
+    source: &mut futures::stream::SplitStream<WebSocket>,
     host_key_mode: SshHostKeyVerificationMode,
 ) -> Option<Uuid> {
     loop {
@@ -372,7 +374,7 @@ async fn wait_for_connection(
 /// Send an SSH channel command checking for send failure.
 async fn send_channel_command(
     handles: &mut RemoteClientHandles,
-    sink: &mut SplitSink<WebSocketStream, Message>,
+    sink: &mut SplitSink<WebSocket, Message>,
     channel_id: Uuid,
     operation: ChannelOperation,
     send_error_msg: &str,
@@ -393,8 +395,8 @@ async fn send_channel_command(
 /// Returns the channel UUID on success.
 async fn establish_ssh_session(
     handles: &mut RemoteClientHandles,
-    sink: &mut SplitSink<WebSocketStream, Message>,
-    source: &mut futures::stream::SplitStream<WebSocketStream>,
+    sink: &mut SplitSink<WebSocket, Message>,
+    source: &mut futures::stream::SplitStream<WebSocket>,
     ssh_options: TargetSSHOptions,
     services: &Services,
 ) -> Option<Uuid> {
@@ -455,7 +457,7 @@ async fn establish_ssh_session(
 /// Wait for RCEvent::Success for the given channel_id, handling failures.
 async fn wait_for_success(
     handles: &mut RemoteClientHandles,
-    sink: &mut SplitSink<WebSocketStream, Message>,
+    sink: &mut SplitSink<WebSocket, Message>,
     channel_id: Uuid,
     failure_msg: &str,
 ) -> bool {
@@ -484,8 +486,8 @@ async fn wait_for_success(
 /// with periodic WebSocket pings for keepalive.
 async fn bridge_websocket_ssh(
     mut handles: RemoteClientHandles,
-    sink: Arc<Mutex<SplitSink<WebSocketStream, Message>>>,
-    mut source: futures::stream::SplitStream<WebSocketStream>,
+    sink: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    mut source: futures::stream::SplitStream<WebSocket>,
     channel_id: Uuid,
     recorder: Option<TerminalRecorder>,
     close: Arc<tokio::sync::Notify>,
@@ -515,7 +517,7 @@ async fn bridge_websocket_ssh(
                             frame.push(MSG_TERMINAL_DATA);
                             frame.extend_from_slice(&data);
                             let mut s = sink_clone.lock().await;
-                            if s.send(Message::Binary(frame)).await.is_err() {
+                            if s.send(Message::Binary(frame.into())).await.is_err() {
                                 break;
                             }
                         }
@@ -531,7 +533,7 @@ async fn bridge_websocket_ssh(
                             frame.push(MSG_TERMINAL_DATA);
                             frame.extend_from_slice(&data);
                             let mut s = sink_clone.lock().await;
-                            if s.send(Message::Binary(frame)).await.is_err() {
+                            if s.send(Message::Binary(frame.into())).await.is_err() {
                                 break;
                             }
                         }
@@ -569,7 +571,7 @@ async fn bridge_websocket_ssh(
                 }
                 _ = ping_interval.tick() => {
                     let mut s = sink_clone.lock().await;
-                    if s.send(Message::Ping(Vec::new())).await.is_err() {
+                    if s.send(Message::Ping(Bytes::new())).await.is_err() {
                         break;
                     }
                 }
@@ -651,33 +653,30 @@ async fn bridge_websocket_ssh(
     }
 }
 
-#[handler]
 pub async fn api_ssh_terminal(
-    req: &Request,
-    ws: WebSocket,
+    req: Parts,
+    ws: WebSocketUpgrade,
     Path(target_name): Path<String>,
-    services: Data<&Services>,
-    auth: Option<Data<&RequestAuthorization>>,
+    services: Data<Services>,
+    auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
-    let services = services.clone();
+    let services = services.0;
 
     // Reject cross-site WebSocket hijacking (CSWSH) before doing any work.
-    if !crate::http_service::middleware::is_ws_origin_allowed(req, &services).await {
+    if !crate::http_service::middleware::is_ws_origin_allowed(&req.headers, &req.uri, &services)
+        .await
+    {
         warn!(
             target = %target_name,
             protocol = "ssh_terminal",
             "ssh_terminal_origin_rejected"
         );
-        return Response::builder()
-            .status(StatusCode::FORBIDDEN)
-            .body("Invalid Origin");
+        return (StatusCode::FORBIDDEN, "Invalid Origin").into_response();
     }
 
     // Validate target_name before WebSocket upgrade
     if !validate_target_name(&target_name) {
-        return Response::builder()
-            .status(StatusCode::BAD_REQUEST)
-            .body("Invalid target name");
+        return (StatusCode::BAD_REQUEST, "Invalid target name").into_response();
     }
 
     // Check authentication BEFORE WebSocket upgrade
@@ -685,9 +684,7 @@ pub async fn api_ssh_terminal(
         .as_ref()
         .is_some_and(|auth| !auth.permits_target(&target_name))
     {
-        return Response::builder()
-            .status(StatusCode::FORBIDDEN)
-            .body("Ticket does not permit this target");
+        return (StatusCode::FORBIDDEN, "Ticket does not permit this target").into_response();
     }
 
     let username = match extract_username(auth) {
@@ -698,9 +695,7 @@ pub async fn api_ssh_terminal(
                 protocol = "ssh_terminal",
                 "ssh_terminal_unauthenticated"
             );
-            return Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body("Not authenticated");
+            return (StatusCode::UNAUTHORIZED, "Not authenticated").into_response();
         }
     };
 
@@ -714,12 +709,14 @@ pub async fn api_ssh_terminal(
             protocol = "ssh_terminal",
             "ssh_terminal_session_limit"
         );
-        return Response::builder()
-            .status(StatusCode::TOO_MANY_REQUESTS)
-            .body("Too many concurrent terminal sessions");
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            "Too many concurrent terminal sessions",
+        )
+            .into_response();
     };
 
-    ws.on_upgrade(move |socket| async move {
+    upgrade(ws, move |socket| async move {
         let _slot = slot;
         let (mut sink, mut source) = socket.split();
 

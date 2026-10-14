@@ -11,7 +11,7 @@ use anyhow::Context;
 use gated_common::auth::AuthStateUserInfo;
 use gated_common::http_headers::scrub_secret_query_params;
 use gated_common::{GatedError, HttpProxyFlavor, ListenEndpoint, Target, TargetOptions};
-use gated_core::logging::http::{
+use gated_core::logging::http_poem::{
     get_client_ip, log_request_error, log_request_result, span_for_request,
 };
 use gated_core::recordings::SessionRecordings;

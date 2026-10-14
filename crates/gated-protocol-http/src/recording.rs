@@ -16,8 +16,9 @@ use crate::engine::HttpProxyRecorder;
 /// API-visible projection of a recorded HTTP proxy exchange.  Bodies are
 /// best-effort JSON-decoded for human inspection; non-JSON bodies surface
 /// as `null`.
-#[derive(Debug, Object)]
+#[derive(Debug, Object, Serialize, utoipa::ToSchema)]
 #[oai(rename = "HttpProxyRecordingItem")]
+#[schema(as = HttpProxyRecordingItem)]
 pub struct HttpProxyRecordingItemApiObject {
     pub timestamp: DateTime<Utc>,
     pub request_method: String,

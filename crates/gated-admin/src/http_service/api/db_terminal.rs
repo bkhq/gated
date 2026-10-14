@@ -1,3 +1,11 @@
+use crate::http_service::common::upgrade;
+use axum::extract::Path;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::http::request::Parts;
+use axum::response::{IntoResponse, Response};
+use bytes::Bytes;
+use gated_common::web::Data;
+use http::StatusCode;
 use std::io::{Read, Write};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -7,11 +15,6 @@ use futures::{SinkExt, StreamExt};
 use gated_common::{Target, TargetOptions};
 use gated_core::recordings::{TerminalRecorder, TerminalRecordingStreamId};
 use gated_core::{ConfigProvider, Services, SessionStateInit, State};
-use poem::handler;
-use poem::http::StatusCode;
-use poem::web::websocket::{Message, WebSocket, WebSocketStream};
-use poem::web::{Data, Path};
-use poem::{IntoResponse, Request, Response};
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc};
@@ -73,10 +76,10 @@ fn make_status_frame(status: &str, message: &str) -> Message {
     let mut frame = Vec::with_capacity(1 + json.len());
     frame.push(MSG_STATUS);
     frame.extend_from_slice(&json);
-    Message::Binary(frame)
+    Message::Binary(frame.into())
 }
 
-async fn send_status(sink: &mut SplitSink<WebSocketStream, Message>, status: &str, message: &str) {
+async fn send_status(sink: &mut SplitSink<WebSocket, Message>, status: &str, message: &str) {
     let _ = sink.send(make_status_frame(status, message)).await;
 }
 
@@ -88,7 +91,7 @@ fn validate_target_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.')
 }
 
-fn extract_username(auth: Option<Data<&RequestAuthorization>>) -> Option<String> {
+fn extract_username(auth: Option<Data<RequestAuthorization>>) -> Option<String> {
     match auth.map(|a| a.0.clone()) {
         Some(RequestAuthorization::Session(SessionAuthorization::User(u))) => Some(u),
         Some(RequestAuthorization::Session(SessionAuthorization::Ticket { username, .. })) => {
@@ -357,8 +360,8 @@ fn spawn_db_client(target: &Target, kind: DbKind) -> Result<SpawnedProcess, Stri
 /// gateway side.
 async fn bridge_websocket_pty(
     mut spawned: SpawnedProcess,
-    sink: Arc<Mutex<SplitSink<WebSocketStream, Message>>>,
-    mut source: futures::stream::SplitStream<WebSocketStream>,
+    sink: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    mut source: futures::stream::SplitStream<WebSocket>,
     recorder: Option<TerminalRecorder>,
     close: Arc<tokio::sync::Notify>,
 ) -> bool {
@@ -449,7 +452,7 @@ async fn bridge_websocket_pty(
                             frame.push(MSG_TERMINAL_DATA);
                             frame.extend_from_slice(&bytes);
                             let mut s = sink_out.lock().await;
-                            if s.send(Message::Binary(frame)).await.is_err() {
+                            if s.send(Message::Binary(frame.into())).await.is_err() {
                                 break;
                             }
                         }
@@ -458,7 +461,7 @@ async fn bridge_websocket_pty(
                 }
                 _ = ping_interval.tick() => {
                     let mut s = sink_out.lock().await;
-                    if s.send(Message::Ping(Vec::new())).await.is_err() {
+                    if s.send(Message::Ping(Bytes::new())).await.is_err() {
                         break;
                     }
                 }
@@ -566,24 +569,24 @@ pub(crate) async fn cleanup_empty_session(services: &Services, session_id: uuid:
 }
 
 async fn handle_db_terminal(
-    req: &Request,
-    ws: WebSocket,
+    req: &Parts,
+    ws: WebSocketUpgrade,
     target_name: String,
     kind: DbKind,
     services: Services,
-    auth: Option<Data<&RequestAuthorization>>,
+    auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
     // Reject cross-site WebSocket hijacking (CSWSH) before doing any work.
-    if !crate::http_service::middleware::is_ws_origin_allowed(req, &services).await {
+    if !crate::http_service::middleware::is_ws_origin_allowed(&req.headers, &req.uri, &services)
+        .await
+    {
         warn!(
             target = %target_name,
             kind = ?kind,
             protocol = "db_terminal",
             "db_terminal_origin_rejected"
         );
-        return Response::builder()
-            .status(StatusCode::FORBIDDEN)
-            .body("Invalid Origin");
+        return (StatusCode::FORBIDDEN, "Invalid Origin").into_response();
     }
 
     if !validate_target_name(&target_name) {
@@ -593,18 +596,14 @@ async fn handle_db_terminal(
             protocol = "db_terminal",
             "db_terminal_invalid_target_name"
         );
-        return Response::builder()
-            .status(StatusCode::BAD_REQUEST)
-            .body("Invalid target name");
+        return (StatusCode::BAD_REQUEST, "Invalid target name").into_response();
     }
 
     if auth
         .as_ref()
         .is_some_and(|auth| !auth.permits_target(&target_name))
     {
-        return Response::builder()
-            .status(StatusCode::FORBIDDEN)
-            .body("Ticket does not permit this target");
+        return (StatusCode::FORBIDDEN, "Ticket does not permit this target").into_response();
     }
 
     let username = match extract_username(auth) {
@@ -616,13 +615,11 @@ async fn handle_db_terminal(
                 protocol = "db_terminal",
                 "db_terminal_unauthenticated"
             );
-            return Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body("Not authenticated");
+            return (StatusCode::UNAUTHORIZED, "Not authenticated").into_response();
         }
     };
 
-    ws.on_upgrade(move |socket| async move {
+    upgrade(ws, move |socket| async move {
         let (mut sink, source) = socket.split();
 
         let (user_id, target) =
@@ -767,32 +764,22 @@ async fn handle_db_terminal(
     .into_response()
 }
 
-#[handler]
 pub async fn api_mysql_terminal(
-    req: &Request,
-    ws: WebSocket,
+    req: Parts,
+    ws: WebSocketUpgrade,
     Path(target_name): Path<String>,
-    services: Data<&Services>,
-    auth: Option<Data<&RequestAuthorization>>,
+    services: Data<Services>,
+    auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
-    handle_db_terminal(req, ws, target_name, DbKind::MySql, services.clone(), auth).await
+    handle_db_terminal(&req, ws, target_name, DbKind::MySql, services.0, auth).await
 }
 
-#[handler]
 pub async fn api_postgres_terminal(
-    req: &Request,
-    ws: WebSocket,
+    req: Parts,
+    ws: WebSocketUpgrade,
     Path(target_name): Path<String>,
-    services: Data<&Services>,
-    auth: Option<Data<&RequestAuthorization>>,
+    services: Data<Services>,
+    auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
-    handle_db_terminal(
-        req,
-        ws,
-        target_name,
-        DbKind::Postgres,
-        services.clone(),
-        auth,
-    )
-    .await
+    handle_db_terminal(&req, ws, target_name, DbKind::Postgres, services.0, auth).await
 }

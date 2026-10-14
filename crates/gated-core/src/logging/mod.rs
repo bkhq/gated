@@ -1,5 +1,6 @@
 mod database;
 pub mod http;
+pub mod http_poem;
 mod json_console;
 mod layer;
 mod socket;

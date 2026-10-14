@@ -1,9 +1,8 @@
 use std::fmt::Debug;
-use std::net::ToSocketAddrs;
 
-use poem::http::{Method, StatusCode, Uri};
-use poem::web::{Data, RemoteAddr};
-use poem::{Addr, FromRequest, Request};
+use axum::http::request::Parts;
+use axum::http::{HeaderMap, Method, StatusCode, Uri};
+use gated_common::web::server::ConnectionInfo;
 use tracing::*;
 
 use crate::{GatedServerHandle, Services};
@@ -31,7 +30,11 @@ fn sanitize_log_value(value: &str) -> String {
     out
 }
 
-pub async fn get_client_ip(req: &Request, services: Option<&Services>) -> Option<String> {
+fn header<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    headers.get(name).and_then(|value| value.to_str().ok())
+}
+
+pub async fn get_client_ip(parts: &Parts, services: Option<&Services>) -> Option<String> {
     let trust_x_forwarded_headers = if let Some(services) = services {
         let config = services.config.read().await;
         config.store.http.trust_x_forwarded_headers
@@ -39,26 +42,13 @@ pub async fn get_client_ip(req: &Request, services: Option<&Services>) -> Option
         false
     };
 
-    let socket_addr = match req.remote_addr() {
-        // See [CertificateExtractorEndpoint]
-        RemoteAddr(Addr::Custom("captured-cert", value)) => {
-            #[allow(
-                clippy::unwrap_used,
-                reason = "str::split always yields at least one element"
-            )]
-            let original_remote_addr = value.split("|").next().unwrap();
-            original_remote_addr
-                .to_socket_addrs()
-                .ok()
-                .and_then(|i| i.into_iter().next())
-        }
-        other => other.as_socket_addr().cloned(),
-    };
-
-    let remote_ip = socket_addr.map(|x| x.ip().to_string());
+    let remote_ip = parts
+        .extensions
+        .get::<ConnectionInfo>()
+        .map(|info| info.remote_addr.ip().to_string());
 
     if trust_x_forwarded_headers {
-        req.header("x-forwarded-for")
+        header(&parts.headers, "x-forwarded-for")
             .map(|x| x.to_string())
             .or(remote_ip)
     } else {
@@ -66,18 +56,16 @@ pub async fn get_client_ip(req: &Request, services: Option<&Services>) -> Option
     }
 }
 
-pub async fn span_for_request(
-    req: &Request,
-    handle: Option<&GatedServerHandle>,
-) -> poem::Result<Span> {
-    let services = Data::<&Services>::from_request_without_body(req).await.ok();
-    let client_ip = get_client_ip(req, services.as_deref().copied())
+pub async fn span_for_request(parts: &Parts, handle: Option<&GatedServerHandle>) -> Span {
+    let services = parts.extensions.get::<Services>();
+    let client_ip = get_client_ip(parts, services)
         .await
         .unwrap_or("<unknown>".into());
-    let user_agent = sanitize_log_value(req.header("user-agent").unwrap_or("-"));
-    let x_forwarded_for = sanitize_log_value(req.header("x-forwarded-for").unwrap_or("-"));
+    let user_agent = sanitize_log_value(header(&parts.headers, "user-agent").unwrap_or("-"));
+    let x_forwarded_for =
+        sanitize_log_value(header(&parts.headers, "x-forwarded-for").unwrap_or("-"));
 
-    Ok(match handle {
+    match handle {
         Some(handle) => {
             let ss = handle.session_state().lock().await;
             match ss.user_info.clone() {
@@ -90,7 +78,7 @@ pub async fn span_for_request(
             }
         }
         None => info_span!("HTTP", %client_ip, %user_agent, %x_forwarded_for),
-    })
+    }
 }
 
 fn is_static_resource(url: &Uri) -> bool {

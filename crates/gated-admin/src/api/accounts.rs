@@ -1,17 +1,19 @@
 use super::reveal_guard::{RevealConfirmation, RevealGuard};
 use crate::http_service::common::RequestAuthorization;
+use axum::extract::{Path, Query};
 use chrono::{DateTime, Utc};
+use gated_common::web::{Data, Json};
 use gated_common::{AccountCredentials, GatedError};
+use gated_common::{api_response, api_routes};
 use gated_core::{ConfigProvider, Services, SharedDatabaseConnection};
+use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 use std::time::Instant;
+use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::router::OpenApiRouter;
 static REVEAL_GUARD: LazyLock<tokio::sync::Mutex<RevealGuard>> =
     LazyLock::new(|| tokio::sync::Mutex::new(RevealGuard::default()));
 use gated_db_entities::{Account, ManagementAudit, Target, TargetAccount};
-use poem::web::Data;
-use poem_openapi::param::{Path, Query};
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, Object, OpenApi};
 use sea_orm::query::JsonValue;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait, PaginatorTrait,
@@ -22,7 +24,7 @@ use uuid::Uuid;
 
 use super::AnySecurityScheme;
 
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 pub struct AccountSummary {
     pub id: i32,
     pub kind: String,
@@ -37,9 +39,9 @@ pub struct AccountSummary {
     pub reference_count: u32,
 }
 
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 pub struct AccountDetail {
-    #[oai(flatten)]
+    #[serde(flatten)]
     pub summary: AccountSummary,
     pub credentials_schema: Value,
     /// Stored credentials with every sensitive value removed, so edit forms
@@ -47,7 +49,7 @@ pub struct AccountDetail {
     pub credentials_public: Value,
 }
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 pub struct AccountCreate {
     pub kind: String,
     pub name: String,
@@ -59,7 +61,7 @@ pub struct AccountCreate {
     pub confirmation: Option<RevealConfirmation>,
 }
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 pub struct AccountUpdate {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -73,12 +75,12 @@ pub struct AccountUpdate {
     pub confirmation: Option<RevealConfirmation>,
 }
 
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 pub struct AccountReveal {
     pub credentials: AccountCredentials,
 }
 
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 pub struct AccountReference {
     pub target_id: Uuid,
     pub target_name: String,
@@ -86,461 +88,456 @@ pub struct AccountReference {
     pub role: String,
 }
 
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 pub struct AccountDeleteConflict {
     pub error: String,
     pub reference_count: u32,
     pub references: Vec<AccountReference>,
 }
 
-#[derive(ApiResponse)]
-enum ListAccountsResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<AccountSummary>>),
+api_response! {
+    enum ListAccountsResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<AccountSummary>>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum CreateAccountResponse {
-    #[oai(status = 201)]
-    Created(Json<AccountSummary>),
-    #[oai(status = 400)]
-    BadRequest(Json<String>),
-    #[oai(status = 401)]
-    Unauthorized,
-    #[oai(status = 429)]
-    RateLimited,
-    #[oai(status = 409)]
-    Conflict(Json<String>),
-    #[oai(status = 422)]
-    UnprocessableEntity(Json<String>),
+api_response! {
+    enum CreateAccountResponse {
+        #[oai(status = 201)]
+        Created(Json<AccountSummary>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
+        #[oai(status = 401)]
+        Unauthorized,
+        #[oai(status = 429)]
+        RateLimited,
+        #[oai(status = 409)]
+        Conflict(Json<String>),
+        #[oai(status = 422)]
+        UnprocessableEntity(Json<String>),
+    }
 }
 
-#[derive(ApiResponse)]
-#[allow(clippy::large_enum_variant)]
-enum GetAccountResponse {
-    #[oai(status = 200)]
-    Ok(Json<AccountDetail>),
-    #[oai(status = 404)]
-    NotFound,
-    #[oai(status = 422)]
-    UnprocessableEntity(Json<String>),
+api_response! {
+    #[allow(clippy::large_enum_variant)]
+    enum GetAccountResponse {
+        #[oai(status = 200)]
+        Ok(Json<AccountDetail>),
+        #[oai(status = 404)]
+        NotFound,
+        #[oai(status = 422)]
+        UnprocessableEntity(Json<String>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum UpdateAccountResponse {
-    #[oai(status = 200)]
-    Ok(Json<AccountSummary>),
-    #[oai(status = 400)]
-    BadRequest(Json<String>),
-    #[oai(status = 401)]
-    Unauthorized,
-    #[oai(status = 429)]
-    RateLimited,
-    #[oai(status = 404)]
-    NotFound,
-    #[oai(status = 409)]
-    Conflict(Json<String>),
-    #[oai(status = 422)]
-    UnprocessableEntity(Json<String>),
+api_response! {
+    enum UpdateAccountResponse {
+        #[oai(status = 200)]
+        Ok(Json<AccountSummary>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
+        #[oai(status = 401)]
+        Unauthorized,
+        #[oai(status = 429)]
+        RateLimited,
+        #[oai(status = 404)]
+        NotFound,
+        #[oai(status = 409)]
+        Conflict(Json<String>),
+        #[oai(status = 422)]
+        UnprocessableEntity(Json<String>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum DeleteAccountResponse {
-    #[oai(status = 204)]
-    Deleted,
-    #[oai(status = 404)]
-    NotFound,
-    #[oai(status = 409)]
-    Conflict(Json<AccountDeleteConflict>),
+api_response! {
+    enum DeleteAccountResponse {
+        #[oai(status = 204)]
+        Deleted,
+        #[oai(status = 404)]
+        NotFound,
+        #[oai(status = 409)]
+        Conflict(Json<AccountDeleteConflict>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum RevealAccountResponse {
-    #[oai(status = 400)]
-    BadRequest,
-    #[oai(status = 401)]
-    Unauthorized,
-    #[oai(status = 429)]
-    RateLimited,
+api_response! {
+    enum RevealAccountResponse {
+        #[oai(status = 400)]
+        BadRequest,
+        #[oai(status = 401)]
+        Unauthorized,
+        #[oai(status = 429)]
+        RateLimited,
 
-    #[oai(status = 200)]
-    Ok(Json<AccountReveal>, #[oai(header = "Cache-Control")] String),
-    #[oai(status = 404)]
-    NotFound,
-    #[oai(status = 422)]
-    UnprocessableEntity(Json<String>),
+        #[oai(status = 200)]
+        Ok(Json<AccountReveal>, #[oai(header = "Cache-Control")] String),
+        #[oai(status = 404)]
+        NotFound,
+        #[oai(status = 422)]
+        UnprocessableEntity(Json<String>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum AccountReferencesResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<AccountReference>>),
-    #[oai(status = 404)]
-    NotFound,
+api_response! {
+    enum AccountReferencesResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<AccountReference>>),
+        #[oai(status = 404)]
+        NotFound,
+    }
 }
 
-pub struct ListApi;
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct GetAllAccountsQuery {
+    kind: Option<String>,
+    tag: Option<String>,
+    q: Option<String>,
+    page: Option<u64>,
+    page_size: Option<u64>,
+}
 
-#[OpenApi]
-impl ListApi {
-    #[oai(path = "/accounts", method = "get", operation_id = "get_accounts")]
-    #[allow(clippy::too_many_arguments)]
-    async fn api_get_all_accounts(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        kind: Query<Option<String>>,
-        tag: Query<Option<String>>,
-        q: Query<Option<String>>,
-        page: Query<Option<u64>>,
-        page_size: Query<Option<u64>>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<ListAccountsResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-        let page = page.unwrap_or(1).max(1);
-        let page_size = page_size.unwrap_or(100).clamp(1, 500);
-        let offset = (page - 1) * page_size;
+#[utoipa::path(
+    get,
+    path = "/accounts",
+    operation_id = "get_accounts",
+    params(GetAllAccountsQuery)
+)]
+async fn api_get_all_accounts(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    Query(query): Query<GetAllAccountsQuery>,
+) -> Result<ListAccountsResponse, GatedError> {
+    let GetAllAccountsQuery {
+        kind,
+        tag,
+        q,
+        page,
+        page_size,
+    } = query;
+    let db = gated_core::db_required(&db).await?;
+    let page = page.unwrap_or(1).max(1);
+    let page_size = page_size.unwrap_or(100).clamp(1, 500);
+    let offset = (page - 1) * page_size;
 
-        let mut query = Account::Entity::find().order_by_asc(Account::Column::Name);
+    let mut query = Account::Entity::find().order_by_asc(Account::Column::Name);
 
-        if let Some(kind) = kind.0 {
-            query = query.filter(Account::Column::Kind.eq(kind));
-        }
-        if let Some(tag) = tag.0 {
-            query = query.filter(Account::Column::Tags.contains(format!("\"{tag}\"")));
-        }
-        if let Some(q) = q.0 {
-            query = query.filter(
-                Account::Column::Name
-                    .contains(q.clone())
-                    .or(Account::Column::Description.contains(q)),
-            );
-        }
-
-        let accounts = query.offset(offset).limit(page_size).all(&db).await?;
-        let mut summaries = Vec::with_capacity(accounts.len());
-        for account in accounts {
-            summaries.push(account_summary(&db, account).await?);
-        }
-
-        Ok(ListAccountsResponse::Ok(Json(summaries)))
+    if let Some(kind) = kind {
+        query = query.filter(Account::Column::Kind.eq(kind));
+    }
+    if let Some(tag) = tag {
+        query = query.filter(Account::Column::Tags.contains(format!("\"{tag}\"")));
+    }
+    if let Some(q) = q {
+        query = query.filter(
+            Account::Column::Name
+                .contains(q.clone())
+                .or(Account::Column::Description.contains(q)),
+        );
     }
 
-    #[oai(path = "/accounts", method = "post", operation_id = "create_account")]
-    async fn api_create_account(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        auth: Data<&RequestAuthorization>,
-        services: Data<&Services>,
-        body: Json<AccountCreate>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<CreateAccountResponse, GatedError> {
-        let name = body.name.trim();
-        if name.is_empty() {
-            return Ok(CreateAccountResponse::BadRequest(Json(
-                "name is required".into(),
-            )));
-        }
+    let accounts = query.offset(offset).limit(page_size).all(&db).await?;
+    let mut summaries = Vec::with_capacity(accounts.len());
+    for account in accounts {
+        summaries.push(account_summary(&db, account).await?);
+    }
 
-        let credentials = match parse_credentials_for_kind(&body.kind, body.credentials.clone()) {
-            Ok(credentials) => credentials,
-            Err(message) => return Ok(CreateAccountResponse::UnprocessableEntity(Json(message))),
-        };
-        if let Err(message) = validate_required_credentials(&credentials) {
-            return Ok(CreateAccountResponse::UnprocessableEntity(Json(message)));
-        }
+    Ok(ListAccountsResponse::Ok(Json(summaries)))
+}
 
-        let db = gated_core::db_required(&db).await?;
-        let existing = Account::Entity::find()
-            .filter(Account::Column::Name.eq(name))
-            .one(&db)
-            .await?;
-        if existing.is_some() {
-            return Ok(CreateAccountResponse::Conflict(Json(
-                "name already exists".into(),
-            )));
-        }
+#[utoipa::path(post, path = "/accounts", operation_id = "create_account")]
+async fn api_create_account(
+    db: Data<SharedDatabaseConnection>,
+    auth: Data<RequestAuthorization>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<AccountCreate>,
+) -> Result<CreateAccountResponse, GatedError> {
+    let name = body.name.trim();
+    if name.is_empty() {
+        return Ok(CreateAccountResponse::BadRequest(Json(
+            "name is required".into(),
+        )));
+    }
 
-        let step_up =
-            match require_step_up(&auth, &services, &db, 0, body.confirmation.as_ref()).await? {
-                Ok(step_up) => step_up,
-                Err(StepUpFailure::BadRequest) => {
-                    return Ok(CreateAccountResponse::BadRequest(Json(
-                        "confirmation is required".into(),
-                    )));
-                }
-                Err(StepUpFailure::Unauthorized) => return Ok(CreateAccountResponse::Unauthorized),
-                Err(StepUpFailure::RateLimited) => return Ok(CreateAccountResponse::RateLimited),
-            };
+    let credentials = match parse_credentials_for_kind(&body.kind, body.credentials.clone()) {
+        Ok(credentials) => credentials,
+        Err(message) => return Ok(CreateAccountResponse::UnprocessableEntity(Json(message))),
+    };
+    if let Err(message) = validate_required_credentials(&credentials) {
+        return Ok(CreateAccountResponse::UnprocessableEntity(Json(message)));
+    }
 
-        let mut account = insert_account(
-            &db,
-            name.to_owned(),
-            body.description.clone(),
-            credentials,
-            body.tags.clone(),
-            None,
-        )
+    let db = gated_core::db_required(&db).await?;
+    let existing = Account::Entity::find()
+        .filter(Account::Column::Name.eq(name))
+        .one(&db)
         .await?;
-        if body.rotation_due_at.is_some() {
-            let mut model: Account::ActiveModel = account.into();
-            model.rotation_due_at = Set(body.rotation_due_at);
-            account = model.update(&db).await?;
-        }
-        if let Some(step_up) = step_up {
-            insert_account_audit_log(
-                &db,
-                &account,
-                &step_up,
-                "account.create",
-                "Admin account created",
-            )
-            .await?;
-        }
-        let summary = account_summary(&db, account).await?;
-
-        Ok(CreateAccountResponse::Created(Json(summary)))
-    }
-}
-
-pub struct DetailApi;
-
-#[OpenApi]
-impl DetailApi {
-    #[oai(path = "/accounts/:id", method = "get", operation_id = "get_account")]
-    async fn api_get_account(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<i32>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetAccountResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-        let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(GetAccountResponse::NotFound);
-        };
-        let credentials = match stored_credentials(&account) {
-            Ok(credentials) => credentials,
-            Err(message) => return Ok(GetAccountResponse::UnprocessableEntity(Json(message))),
-        };
-        let summary = account_summary(&db, account).await?;
-
-        Ok(GetAccountResponse::Ok(Json(AccountDetail {
-            summary,
-            credentials_schema: credentials_schema(&credentials),
-            credentials_public: credentials_public(&credentials),
-        })))
+    if existing.is_some() {
+        return Ok(CreateAccountResponse::Conflict(Json(
+            "name already exists".into(),
+        )));
     }
 
-    #[oai(
-        path = "/accounts/:id",
-        method = "put",
-        operation_id = "update_account"
-    )]
-    async fn api_update_account(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<i32>,
-        auth: Data<&RequestAuthorization>,
-        services: Data<&Services>,
-        body: Json<AccountUpdate>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<UpdateAccountResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-        let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(UpdateAccountResponse::NotFound);
-        };
-
-        if let Some(name) = &body.name {
-            let name = name.trim();
-            if name.is_empty() {
-                return Ok(UpdateAccountResponse::BadRequest(Json(
-                    "name is required".into(),
-                )));
-            }
-            let existing = Account::Entity::find()
-                .filter(Account::Column::Name.eq(name))
-                .filter(Account::Column::Id.ne(id.0))
-                .one(&db)
-                .await?;
-            if existing.is_some() {
-                return Ok(UpdateAccountResponse::Conflict(Json(
-                    "name already exists".into(),
-                )));
-            }
-        }
-
-        let credentials = match &body.credentials {
-            Some(value) => match parse_credentials_for_kind(&account.kind, value.clone()) {
-                Ok(incoming) => {
-                    // Blank secrets mean "keep the stored value", so a
-                    // username change does not wipe the password.
-                    let merged = match stored_credentials(&account) {
-                        Ok(stored) => merge_credentials(&stored, incoming),
-                        Err(_) => incoming,
-                    };
-                    if let Err(message) = validate_required_credentials(&merged) {
-                        return Ok(UpdateAccountResponse::UnprocessableEntity(Json(message)));
-                    }
-                    Some(merged)
-                }
-                Err(message) => {
-                    return Ok(UpdateAccountResponse::UnprocessableEntity(Json(message)));
-                }
-            },
-            None => None,
-        };
-
-        let step_up = match require_step_up(
-            &auth,
-            &services,
-            &db,
-            account.id,
-            body.confirmation.as_ref(),
-        )
-        .await?
-        {
+    let step_up =
+        match require_step_up(&auth, &services, &db, 0, body.confirmation.as_ref()).await? {
             Ok(step_up) => step_up,
             Err(StepUpFailure::BadRequest) => {
-                return Ok(UpdateAccountResponse::BadRequest(Json(
+                return Ok(CreateAccountResponse::BadRequest(Json(
                     "confirmation is required".into(),
                 )));
             }
-            Err(StepUpFailure::Unauthorized) => return Ok(UpdateAccountResponse::Unauthorized),
-            Err(StepUpFailure::RateLimited) => return Ok(UpdateAccountResponse::RateLimited),
+            Err(StepUpFailure::Unauthorized) => return Ok(CreateAccountResponse::Unauthorized),
+            Err(StepUpFailure::RateLimited) => return Ok(CreateAccountResponse::RateLimited),
         };
 
+    let mut account = insert_account(
+        &db,
+        name.to_owned(),
+        body.description.clone(),
+        credentials,
+        body.tags.clone(),
+        None,
+    )
+    .await?;
+    if body.rotation_due_at.is_some() {
         let mut model: Account::ActiveModel = account.into();
-        if let Some(name) = &body.name {
-            model.name = Set(name.trim().to_owned());
-        }
-        if let Some(description) = &body.description {
-            model.description = Set(Some(description.clone()));
-        }
-        if let Some(credentials) = credentials {
-            model.credentials = Set(serde_json::to_string(&credentials).map_err(GatedError::from)?);
-        }
-        if body.tags.is_some() {
-            model.tags = Set(serialize_tags(body.tags.clone()).map_err(GatedError::from)?);
-        }
-        if body.clear_rotation_due_at == Some(true) {
-            model.rotation_due_at = Set(None);
-        } else if body.rotation_due_at.is_some() {
-            model.rotation_due_at = Set(body.rotation_due_at);
-        }
-        model.updated_at = Set(Utc::now());
-
-        let account = model.update(&db).await?;
-        if let Some(step_up) = step_up {
-            insert_account_audit_log(
-                &db,
-                &account,
-                &step_up,
-                "account.update",
-                "Admin account updated",
-            )
-            .await?;
-        }
-        let summary = account_summary(&db, account).await?;
-        Ok(UpdateAccountResponse::Ok(Json(summary)))
+        model.rotation_due_at = Set(body.rotation_due_at);
+        account = model.update(&db).await?;
     }
-
-    #[oai(
-        path = "/accounts/:id",
-        method = "delete",
-        operation_id = "delete_account"
-    )]
-    async fn api_delete_account(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<i32>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<DeleteAccountResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-        let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(DeleteAccountResponse::NotFound);
-        };
-
-        let references = account_references(&db, id.0).await?;
-        if !references.is_empty() {
-            return Ok(DeleteAccountResponse::Conflict(Json(
-                AccountDeleteConflict {
-                    error: "account_in_use".into(),
-                    reference_count: references.len() as u32,
-                    references,
-                },
-            )));
-        }
-
-        account.delete(&db).await?;
-        Ok(DeleteAccountResponse::Deleted)
-    }
-
-    #[oai(
-        path = "/accounts/:id/reveal",
-        method = "post",
-        operation_id = "reveal_account"
-    )]
-    async fn api_reveal_account(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<i32>,
-        auth: Data<&RequestAuthorization>,
-        services: Data<&Services>,
-        body: Json<RevealConfirmation>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<RevealAccountResponse, GatedError> {
-        let Some(username) = auth.username() else {
-            return Ok(RevealAccountResponse::Unauthorized);
-        };
-        let db = gated_core::db_required(&db).await?;
-        let step_up = match verify_step_up(&services, &db, username, id.0, &body).await? {
-            Ok(step_up) => step_up,
-            Err(StepUpFailure::BadRequest) => return Ok(RevealAccountResponse::BadRequest),
-            Err(StepUpFailure::Unauthorized) => return Ok(RevealAccountResponse::Unauthorized),
-            Err(StepUpFailure::RateLimited) => return Ok(RevealAccountResponse::RateLimited),
-        };
-        let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(RevealAccountResponse::NotFound);
-        };
-        let credentials = match stored_credentials(&account) {
-            Ok(credentials) => credentials,
-            Err(message) => return Ok(RevealAccountResponse::UnprocessableEntity(Json(message))),
-        };
-
+    if let Some(step_up) = step_up {
         insert_account_audit_log(
             &db,
             &account,
             &step_up,
-            "account.credentials.reveal",
-            "Admin account credentials revealed",
+            "account.create",
+            "Admin account created",
         )
         .await?;
-
-        Ok(RevealAccountResponse::Ok(
-            Json(AccountReveal { credentials }),
-            "no-store".into(),
-        ))
     }
+    let summary = account_summary(&db, account).await?;
 
-    #[oai(
-        path = "/accounts/:id/references",
-        method = "get",
-        operation_id = "get_account_references"
-    )]
-    async fn api_get_account_references(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<i32>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<AccountReferencesResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-        let exists = Account::Entity::find_by_id(id.0).one(&db).await?;
-        if exists.is_none() {
-            return Ok(AccountReferencesResponse::NotFound);
+    Ok(CreateAccountResponse::Created(Json(summary)))
+}
+
+#[utoipa::path(get, path = "/accounts/{id}", operation_id = "get_account")]
+async fn api_get_account(
+    id: Path<i32>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetAccountResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(GetAccountResponse::NotFound);
+    };
+    let credentials = match stored_credentials(&account) {
+        Ok(credentials) => credentials,
+        Err(message) => return Ok(GetAccountResponse::UnprocessableEntity(Json(message))),
+    };
+    let summary = account_summary(&db, account).await?;
+
+    Ok(GetAccountResponse::Ok(Json(AccountDetail {
+        summary,
+        credentials_schema: credentials_schema(&credentials),
+        credentials_public: credentials_public(&credentials),
+    })))
+}
+
+#[utoipa::path(put, path = "/accounts/{id}", operation_id = "update_account")]
+async fn api_update_account(
+    id: Path<i32>,
+    db: Data<SharedDatabaseConnection>,
+    auth: Data<RequestAuthorization>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<AccountUpdate>,
+) -> Result<UpdateAccountResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(UpdateAccountResponse::NotFound);
+    };
+
+    if let Some(name) = &body.name {
+        let name = name.trim();
+        if name.is_empty() {
+            return Ok(UpdateAccountResponse::BadRequest(Json(
+                "name is required".into(),
+            )));
         }
-        Ok(AccountReferencesResponse::Ok(Json(
-            account_references(&db, id.0).await?,
-        )))
+        let existing = Account::Entity::find()
+            .filter(Account::Column::Name.eq(name))
+            .filter(Account::Column::Id.ne(id.0))
+            .one(&db)
+            .await?;
+        if existing.is_some() {
+            return Ok(UpdateAccountResponse::Conflict(Json(
+                "name already exists".into(),
+            )));
+        }
     }
+
+    let credentials = match &body.credentials {
+        Some(value) => match parse_credentials_for_kind(&account.kind, value.clone()) {
+            Ok(incoming) => {
+                // Blank secrets mean "keep the stored value", so a
+                // username change does not wipe the password.
+                let merged = match stored_credentials(&account) {
+                    Ok(stored) => merge_credentials(&stored, incoming),
+                    Err(_) => incoming,
+                };
+                if let Err(message) = validate_required_credentials(&merged) {
+                    return Ok(UpdateAccountResponse::UnprocessableEntity(Json(message)));
+                }
+                Some(merged)
+            }
+            Err(message) => {
+                return Ok(UpdateAccountResponse::UnprocessableEntity(Json(message)));
+            }
+        },
+        None => None,
+    };
+
+    let step_up = match require_step_up(
+        &auth,
+        &services,
+        &db,
+        account.id,
+        body.confirmation.as_ref(),
+    )
+    .await?
+    {
+        Ok(step_up) => step_up,
+        Err(StepUpFailure::BadRequest) => {
+            return Ok(UpdateAccountResponse::BadRequest(Json(
+                "confirmation is required".into(),
+            )));
+        }
+        Err(StepUpFailure::Unauthorized) => return Ok(UpdateAccountResponse::Unauthorized),
+        Err(StepUpFailure::RateLimited) => return Ok(UpdateAccountResponse::RateLimited),
+    };
+
+    let mut model: Account::ActiveModel = account.into();
+    if let Some(name) = &body.name {
+        model.name = Set(name.trim().to_owned());
+    }
+    if let Some(description) = &body.description {
+        model.description = Set(Some(description.clone()));
+    }
+    if let Some(credentials) = credentials {
+        model.credentials = Set(serde_json::to_string(&credentials).map_err(GatedError::from)?);
+    }
+    if body.tags.is_some() {
+        model.tags = Set(serialize_tags(body.tags.clone()).map_err(GatedError::from)?);
+    }
+    if body.clear_rotation_due_at == Some(true) {
+        model.rotation_due_at = Set(None);
+    } else if body.rotation_due_at.is_some() {
+        model.rotation_due_at = Set(body.rotation_due_at);
+    }
+    model.updated_at = Set(Utc::now());
+
+    let account = model.update(&db).await?;
+    if let Some(step_up) = step_up {
+        insert_account_audit_log(
+            &db,
+            &account,
+            &step_up,
+            "account.update",
+            "Admin account updated",
+        )
+        .await?;
+    }
+    let summary = account_summary(&db, account).await?;
+    Ok(UpdateAccountResponse::Ok(Json(summary)))
+}
+
+#[utoipa::path(delete, path = "/accounts/{id}", operation_id = "delete_account")]
+async fn api_delete_account(
+    id: Path<i32>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<DeleteAccountResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(DeleteAccountResponse::NotFound);
+    };
+
+    let references = account_references(&db, id.0).await?;
+    if !references.is_empty() {
+        return Ok(DeleteAccountResponse::Conflict(Json(
+            AccountDeleteConflict {
+                error: "account_in_use".into(),
+                reference_count: references.len() as u32,
+                references,
+            },
+        )));
+    }
+
+    account.delete(&db).await?;
+    Ok(DeleteAccountResponse::Deleted)
+}
+
+#[utoipa::path(post, path = "/accounts/{id}/reveal", operation_id = "reveal_account")]
+async fn api_reveal_account(
+    id: Path<i32>,
+    db: Data<SharedDatabaseConnection>,
+    auth: Data<RequestAuthorization>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<RevealConfirmation>,
+) -> Result<RevealAccountResponse, GatedError> {
+    let Some(username) = auth.username() else {
+        return Ok(RevealAccountResponse::Unauthorized);
+    };
+    let db = gated_core::db_required(&db).await?;
+    let step_up = match verify_step_up(&services, &db, username, id.0, &body).await? {
+        Ok(step_up) => step_up,
+        Err(StepUpFailure::BadRequest) => return Ok(RevealAccountResponse::BadRequest),
+        Err(StepUpFailure::Unauthorized) => return Ok(RevealAccountResponse::Unauthorized),
+        Err(StepUpFailure::RateLimited) => return Ok(RevealAccountResponse::RateLimited),
+    };
+    let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(RevealAccountResponse::NotFound);
+    };
+    let credentials = match stored_credentials(&account) {
+        Ok(credentials) => credentials,
+        Err(message) => return Ok(RevealAccountResponse::UnprocessableEntity(Json(message))),
+    };
+
+    insert_account_audit_log(
+        &db,
+        &account,
+        &step_up,
+        "account.credentials.reveal",
+        "Admin account credentials revealed",
+    )
+    .await?;
+
+    Ok(RevealAccountResponse::Ok(
+        Json(AccountReveal { credentials }),
+        "no-store".into(),
+    ))
+}
+
+#[utoipa::path(
+    get,
+    path = "/accounts/{id}/references",
+    operation_id = "get_account_references"
+)]
+async fn api_get_account_references(
+    id: Path<i32>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<AccountReferencesResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    let exists = Account::Entity::find_by_id(id.0).one(&db).await?;
+    if exists.is_none() {
+        return Ok(AccountReferencesResponse::NotFound);
+    }
+    Ok(AccountReferencesResponse::Ok(Json(
+        account_references(&db, id.0).await?,
+    )))
 }
 
 async fn insert_account(
@@ -973,6 +970,18 @@ fn target_kind(kind: &gated_db_entities::Target::TargetKind) -> &'static str {
         gated_db_entities::Target::TargetKind::Ssh => "ssh",
         gated_db_entities::Target::TargetKind::Postgres => "postgres",
     }
+}
+
+pub fn router() -> OpenApiRouter {
+    api_routes!(
+        api_get_all_accounts,
+        api_create_account,
+        api_get_account,
+        api_update_account,
+        api_delete_account,
+        api_reveal_account,
+        api_get_account_references,
+    )
 }
 
 #[cfg(test)]

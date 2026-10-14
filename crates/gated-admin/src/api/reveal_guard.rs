@@ -1,9 +1,10 @@
 use gated_common::{Secret, auth::AuthCredential};
-use poem_openapi::Object;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use utoipa::ToSchema;
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 pub struct RevealConfirmation {
     /// Optional free-text note recorded in the audit log.
     pub reason: Option<String>,

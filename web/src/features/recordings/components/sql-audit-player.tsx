@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/shared/components/empty-state'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 
-function formatTimestamp(value: string | undefined, fallback: string): string {
-  if (value === undefined || value.length === 0)
+function formatTimestamp(value: string | null | undefined, fallback: string): string {
+  if (value == null || value.length === 0)
     return fallback
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime()))

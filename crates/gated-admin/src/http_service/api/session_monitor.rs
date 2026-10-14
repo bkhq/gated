@@ -1,3 +1,8 @@
+use crate::http_service::common::upgrade;
+use axum::extract::Path;
+use axum::extract::ws::{Message, WebSocketUpgrade};
+use axum::response::Response;
+use gated_common::web::Data;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -5,9 +10,6 @@ use futures::{SinkExt, StreamExt};
 use gated_core::SharedDatabaseConnection;
 use gated_core::recordings::{AsciiCast, SessionRecordings, TerminalRecordingItem};
 use gated_db_entities::Recording::{self, RecordingKind};
-use poem::web::websocket::{Message, WebSocket};
-use poem::web::{Data, Path};
-use poem::{IntoResponse, handler};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 use serde_json::json;
 use tokio::sync::{Mutex, broadcast};
@@ -26,34 +28,39 @@ use uuid::Uuid;
 /// recording and forwards its live broadcast. It is strictly READ-ONLY — the
 /// client -> server half of the socket is dropped, so nothing a monitoring
 /// admin sends can ever reach the monitored session's byte stream.
-#[handler]
 pub async fn api_session_monitor(
-    ws: WebSocket,
-    db: Data<&SharedDatabaseConnection>,
-    recordings: Data<&Arc<Mutex<SessionRecordings>>>,
+    ws: WebSocketUpgrade,
+    db: Data<SharedDatabaseConnection>,
+    recordings: Data<Arc<Mutex<SessionRecordings>>>,
     Path(session_id): Path<Uuid>,
-) -> impl IntoResponse + use<> {
+) -> Response {
     // Resolve the session's live terminal feed before the upgrade so we can
     // report liveness in the opening frame.
     let receiver = resolve_live_terminal(&db, &recordings, session_id).await;
 
-    ws.on_upgrade(move |socket| async move {
+    upgrade(ws, move |socket| async move {
         // READ-ONLY: drop the client -> server half entirely.
         let (mut sink, _source) = socket.split();
 
-        sink.send(Message::Text(serde_json::to_string(&json!({
-            "start": true,
-            "live": receiver.is_some(),
-        }))?))
+        sink.send(Message::Text(
+            serde_json::to_string(&json!({
+                "start": true,
+                "live": receiver.is_some(),
+            }))?
+            .into(),
+        ))
         .await?;
 
         let Some(mut receiver) = receiver else {
             // Session is not live (ended, never recorded, or not found). Close
             // cleanly with a reason instead of leaving the socket idle.
-            sink.send(Message::Text(serde_json::to_string(&json!({
-                "end": true,
-                "reason": "session is not live or does not exist",
-            }))?))
+            sink.send(Message::Text(
+                serde_json::to_string(&json!({
+                    "end": true,
+                    "reason": "session is not live or does not exist",
+                }))?
+                .into(),
+            ))
             .await?;
             return Ok::<(), anyhow::Error>(());
         };
@@ -68,7 +75,7 @@ pub async fn api_session_monitor(
                     };
                     let cast: AsciiCast = item.into();
                     let msg = serde_json::to_string(&json!({ "data": cast }))?;
-                    if sink.send(Message::Text(msg)).await.is_err() {
+                    if sink.send(Message::Text(msg.into())).await.is_err() {
                         break;
                     }
                 }
@@ -80,9 +87,9 @@ pub async fn api_session_monitor(
         }
 
         let _ = sink
-            .send(Message::Text(serde_json::to_string(
-                &json!({ "end": true }),
-            )?))
+            .send(Message::Text(
+                serde_json::to_string(&json!({ "end": true }))?.into(),
+            ))
             .await;
         Ok::<(), anyhow::Error>(())
     })

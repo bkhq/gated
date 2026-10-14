@@ -34,7 +34,7 @@ export function SchemaTree({
   useEffect(() => {
     if (!data || !onMetaLoaded)
       return
-    onMetaLoaded({ defaultSchema: data.default_schema, kind: asDbKind(data.kind), readonly: data.readonly })
+    onMetaLoaded({ defaultSchema: data.default_schema ?? undefined, kind: asDbKind(data.kind), readonly: data.readonly })
   }, [data, onMetaLoaded])
 
   if (schemasQuery.isError) {

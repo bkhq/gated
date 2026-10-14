@@ -2,9 +2,16 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::http::header::CONTENT_TYPE;
+use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use axum::{Extension, Router};
 use futures::{FutureExt, StreamExt};
 use gated_admin::HTTPProtocolServer;
 use gated_common::version::gated_version;
+use gated_common::web::server::{serve, serve_with_graceful_shutdown};
 use gated_common::{GatedConfig, GlobalParams, ListenEndpoint};
 use gated_core::db::cleanup_db;
 use gated_core::encryption::{EncryptionRuntime, EncryptionStatus, generate_bootstrap_token};
@@ -15,9 +22,6 @@ use gated_core::{ProtocolServer, Services};
 use gated_protocol_mysql::MySQLProtocolServer;
 use gated_protocol_postgres::PostgresProtocolServer;
 use gated_protocol_ssh::SSHProtocolServer;
-use poem::http::StatusCode;
-use poem::http::header::CONTENT_TYPE;
-use poem::{EndpointExt, IntoResponse, Response, Route, Server, get, handler};
 #[cfg(target_os = "linux")]
 use sd_notify::NotifyState;
 use tokio::signal::unix::SignalKind;
@@ -41,22 +45,21 @@ async fn run_protocol_server<T: ProtocolServer + Send + 'static>(
         .with_context(|| format!("protocol server: {name}"))
 }
 
-#[handler]
-fn metrics_endpoint(handle: poem::web::Data<&Arc<MetricsHandle>>) -> Response {
+async fn metrics_endpoint(State(handle): State<Arc<MetricsHandle>>) -> Response {
     // Prometheus exposition format content type; version keeps Grafana
     // Agent / vmagent happy even though Prometheus itself is permissive.
-    handle
-        .render()
-        .with_header(CONTENT_TYPE, "text/plain; version=0.0.4")
+    (
+        [(CONTENT_TYPE, "text/plain; version=0.0.4")],
+        handle.render(),
+    )
         .into_response()
 }
 
-#[handler]
-fn healthz_endpoint() -> Response {
+async fn healthz_endpoint() -> Response {
     // Liveness is purely "the process is running and can serve HTTP".
     // Anything fancier belongs in /readyz. K8s restarts on liveness
     // failures, so keep this cheap and hard to break.
-    "ok".with_header(CONTENT_TYPE, "text/plain").into_response()
+    ([(CONTENT_TYPE, "text/plain")], "ok").into_response()
 }
 
 #[derive(Clone)]
@@ -66,17 +69,18 @@ struct ReadinessState {
     paths_relative_to: PathBuf,
 }
 
-#[handler]
-async fn readyz_endpoint(state: poem::web::Data<&ReadinessState>) -> Response {
+async fn readyz_endpoint(State(state): State<ReadinessState>) -> Response {
     // Wrap the sweep in an outer bound so a K8s probe timeout of 1–2s
     // always gets a decisive 200 or 503 instead of a hung connection.
     // Individual DB probes run concurrently inside `deep_check`, so a
     // healthy DB returns in well under 100ms.
     let Ok(db) = state.services.db_required().await else {
-        return Response::builder()
-            .status(StatusCode::SERVICE_UNAVAILABLE)
-            .header(CONTENT_TYPE, "application/json")
-            .body(r#"{"status":"fail","checks":[]}"#);
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"status":"fail","checks":[]}"#,
+        )
+            .into_response();
     };
     let fut = deep_check(
         &db,
@@ -106,10 +110,7 @@ async fn readyz_endpoint(state: poem::web::Data<&ReadinessState>) -> Response {
         DeepHealthStatus::Fail => StatusCode::SERVICE_UNAVAILABLE,
     };
     let body = serde_json::to_vec(&report).unwrap_or_else(|_| b"{}".to_vec());
-    Response::builder()
-        .status(status_code)
-        .header(CONTENT_TYPE, "application/json")
-        .body(body)
+    (status_code, [(CONTENT_TYPE, "application/json")], body).into_response()
 }
 
 async fn run_minimal_http_server(
@@ -118,25 +119,20 @@ async fn run_minimal_http_server(
     shutdown: oneshot::Receiver<()>,
 ) -> Result<()> {
     info!("Serving minimal pre-unlock HTTP on {address:?}");
-    let app = Route::new()
-        .at("/healthz", get(healthz_endpoint))
+    let app = Router::new()
+        .route("/healthz", get(healthz_endpoint))
         .nest(
             "/api/admin/encryption",
             gated_admin::http_service::api::encryption::routes(),
         )
-        .nest("/ui", gated_admin::http_service::spa::SpaEndpoint::new());
-    let app = app.data(services);
+        .merge(gated_admin::http_service::spa::routes())
+        .layer(Extension(services));
 
-    Server::new(address.poem_listener().await?)
-        .run_with_graceful_shutdown(
-            app,
-            async {
-                let _ = shutdown.await;
-            },
-            None,
-        )
-        .await
-        .context("minimal HTTP server")
+    serve_with_graceful_shutdown(&address, None, app, async {
+        let _ = shutdown.await;
+    })
+    .await
+    .context("minimal HTTP server")
 }
 
 /// Observability listener: serves `/metrics`, `/healthz`, and `/readyz`
@@ -150,13 +146,11 @@ async fn run_observability_server(
     readiness: ReadinessState,
 ) -> Result<()> {
     info!("Serving /metrics /healthz /readyz on {address:?}");
-    let listener = address.poem_listener().await?;
-    let app = Route::new()
-        .at("/metrics", get(metrics_endpoint).data(handle))
-        .at("/healthz", get(healthz_endpoint))
-        .at("/readyz", get(readyz_endpoint).data(readiness));
-    Server::new(listener)
-        .run(app)
+    let app = Router::new()
+        .route("/metrics", get(metrics_endpoint).with_state(handle))
+        .route("/healthz", get(healthz_endpoint))
+        .route("/readyz", get(readyz_endpoint).with_state(readiness));
+    serve(&address, None, app)
         .await
         .context("observability HTTP server")
 }

@@ -1,14 +1,14 @@
+use axum::extract::Path;
+use gated_common::web::{Data, Json};
+use gated_common::{api_response, api_routes};
 use std::sync::Arc;
+use utoipa_axum::router::OpenApiRouter;
 
 use gated_common::GatedError;
 use gated_core::SharedDatabaseConnection;
 use gated_core::recordings::SessionRecordings;
 use gated_core::{SessionSnapshot, State};
 use gated_db_entities::{LogEntry, Recording, Session};
-use poem::web::Data;
-use poem_openapi::param::Path;
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, OpenApi};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter,
@@ -20,209 +20,196 @@ use uuid::Uuid;
 use super::AnySecurityScheme;
 use crate::http_service::common::RequestAuthorization;
 
-pub struct Api;
-
-#[allow(clippy::large_enum_variant)]
-#[derive(ApiResponse)]
-enum GetSessionResponse {
-    #[oai(status = 200)]
-    Ok(Json<SessionSnapshot>),
-    #[oai(status = 404)]
-    NotFound,
-}
-
-#[derive(ApiResponse)]
-enum GetSessionRecordingsResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<Recording::Model>>),
-}
-
-#[derive(ApiResponse)]
-enum CloseSessionResponse {
-    #[oai(status = 201)]
-    Ok,
-    #[oai(status = 404)]
-    NotFound,
-}
-
-#[derive(ApiResponse)]
-enum DeleteSessionResponse {
-    #[oai(status = 200)]
-    Ok,
-    #[oai(status = 404)]
-    NotFound,
-}
-
-#[derive(ApiResponse)]
-enum TerminateSessionResponse {
-    #[oai(status = 201)]
-    Ok,
-    #[oai(status = 404)]
-    NotFound,
-}
-
-#[OpenApi]
-impl Api {
-    #[oai(path = "/sessions/:id", method = "get", operation_id = "get_session")]
-    async fn api_get_session(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetSessionResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-
-        let session = Session::Entity::find_by_id(id.0).one(&db).await?;
-
-        match session {
-            Some(session) => Ok(GetSessionResponse::Ok(Json(session.into()))),
-            None => Ok(GetSessionResponse::NotFound),
-        }
+api_response! {
+    #[allow(clippy::large_enum_variant)]
+    enum GetSessionResponse {
+        #[oai(status = 200)]
+        Ok(Json<SessionSnapshot>),
+        #[oai(status = 404)]
+        NotFound,
     }
+}
 
-    #[oai(
-        path = "/sessions/:id/recordings",
-        method = "get",
-        operation_id = "get_session_recordings"
-    )]
-    async fn api_get_session_recordings(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetSessionRecordingsResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-        let recordings: Vec<Recording::Model> = Recording::Entity::find()
-            .order_by_desc(Recording::Column::Started)
-            .filter(Recording::Column::SessionId.eq(id.0))
-            .all(&db)
-            .await?;
-        Ok(GetSessionRecordingsResponse::Ok(Json(recordings)))
+api_response! {
+    enum GetSessionRecordingsResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<Recording::Model>>),
     }
+}
 
-    /// Gracefully close a live session: signal its handle so the owning
-    /// protocol loop tears the session down and removes it from the registry
-    /// itself. Admin-only — the entire `/admin/api` nest is wrapped with
-    /// `endpoint_admin_auth` (see `http_service::mod`), so a non-admin caller is
-    /// rejected with 403 before reaching this handler.
-    #[oai(
-        path = "/sessions/:id/close",
-        method = "post",
-        operation_id = "close_session"
-    )]
-    async fn api_close_session(
-        &self,
-        state: Data<&Arc<RwLock<State>>>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<CloseSessionResponse, GatedError> {
-        let state = state.write().await;
-
-        if let Some(s) = state.sessions.get(&id) {
-            let mut session = s.lock().await;
-            session.handle.close();
-            Ok(CloseSessionResponse::Ok)
-        } else {
-            Ok(CloseSessionResponse::NotFound)
-        }
+api_response! {
+    enum CloseSessionResponse {
+        #[oai(status = 201)]
+        Ok,
+        #[oai(status = 404)]
+        NotFound,
     }
+}
 
-    /// Forcibly terminate a live session. Unlike graceful `close`, which only
-    /// signals the handle and waits for the protocol loop to self-remove, this
-    /// signals the handle **and** immediately evicts the session from the live
-    /// registry (marking it ended in the DB), so a wedged protocol loop cannot
-    /// keep the session alive. Admin-only via the `/admin/api` nest gate.
-    #[oai(
-        path = "/sessions/:id/terminate",
-        method = "post",
-        operation_id = "terminate_session"
-    )]
-    async fn api_terminate_session(
-        &self,
-        state: Data<&Arc<RwLock<State>>>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<TerminateSessionResponse, GatedError> {
-        let mut state = state.write().await;
-
-        let Some(s) = state.sessions.get(&id).cloned() else {
-            return Ok(TerminateSessionResponse::NotFound);
-        };
-        s.lock().await.handle.close();
-        state.remove_session(*id).await;
-        Ok(TerminateSessionResponse::Ok)
+api_response! {
+    enum DeleteSessionResponse {
+        #[oai(status = 200)]
+        Ok,
+        #[oai(status = 404)]
+        NotFound,
     }
+}
 
-    /// Delete a session record and everything attached to it: its recording
-    /// files and rows, its log rows, and the session row. A still-live session
-    /// is closed first so no writer keeps a file open. Admin-only via the
-    /// `/admin/api` nest gate (`endpoint_admin_auth`).
-    #[oai(
-        path = "/sessions/:id",
-        method = "delete",
-        operation_id = "delete_session"
-    )]
-    async fn api_delete_session(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        state: Data<&Arc<RwLock<State>>>,
-        recordings: Data<&Arc<Mutex<SessionRecordings>>>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-        auth: Data<&RequestAuthorization>,
-    ) -> Result<DeleteSessionResponse, GatedError> {
-        {
-            let state = state.write().await;
-            if let Some(s) = state.sessions.get(&id) {
-                s.lock().await.handle.close();
-            }
-        }
+api_response! {
+    enum TerminateSessionResponse {
+        #[oai(status = 201)]
+        Ok,
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
 
-        let db = gated_core::db_required(&db).await?;
-        if Session::Entity::find_by_id(id.0).one(&db).await?.is_none() {
-            return Ok(DeleteSessionResponse::NotFound);
-        }
+#[utoipa::path(get, path = "/sessions/{id}", operation_id = "get_session")]
+async fn api_get_session(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetSessionResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
 
-        let recs = Recording::Entity::find()
-            .filter(Recording::Column::SessionId.eq(id.0))
-            .all(&db)
-            .await?;
+    let session = Session::Entity::find_by_id(id.0).one(&db).await?;
 
-        // Record a durable audit trail BEFORE destroying anything, so an
-        // insider admin cannot wipe a session without leaving evidence and the
-        // record survives even if the destruction below partially fails.
-        let log_count = LogEntry::Entity::find()
-            .filter(LogEntry::Column::SessionId.eq(id.0))
-            .count(&db)
-            .await?;
-        write_session_delete_audit(
-            &db,
-            &[id.0],
-            recs.len() as u64,
-            log_count,
-            1,
-            auth.username().map(String::as_str).unwrap_or("admin-token"),
-        )
+    match session {
+        Some(session) => Ok(GetSessionResponse::Ok(Json(session.into()))),
+        None => Ok(GetSessionResponse::NotFound),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/sessions/{id}/recordings",
+    operation_id = "get_session_recordings"
+)]
+async fn api_get_session_recordings(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetSessionRecordingsResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    let recordings: Vec<Recording::Model> = Recording::Entity::find()
+        .order_by_desc(Recording::Column::Started)
+        .filter(Recording::Column::SessionId.eq(id.0))
+        .all(&db)
         .await?;
-        {
-            let recordings = recordings.lock().await;
-            for r in &recs {
-                // File may already be gone (recording disabled / never written).
-                let _ = recordings.remove(&id.0, &r.name).await;
-            }
-        }
-        Recording::Entity::delete_many()
-            .filter(Recording::Column::SessionId.eq(id.0))
-            .exec(&db)
-            .await?;
-        LogEntry::Entity::delete_many()
-            .filter(LogEntry::Column::SessionId.eq(id.0))
-            .exec(&db)
-            .await?;
-        Session::Entity::delete_by_id(id.0).exec(&db).await?;
+    Ok(GetSessionRecordingsResponse::Ok(Json(recordings)))
+}
 
-        Ok(DeleteSessionResponse::Ok)
+/// Gracefully close a live session: signal its handle so the owning
+/// protocol loop tears the session down and removes it from the registry
+/// itself. Admin-only — the entire `/admin/api` nest is wrapped with
+/// `endpoint_admin_auth` (see `http_service::mod`), so a non-admin caller is
+/// rejected with 403 before reaching this handler.
+#[utoipa::path(post, path = "/sessions/{id}/close", operation_id = "close_session")]
+async fn api_close_session(
+    id: Path<Uuid>,
+    state: Data<Arc<RwLock<State>>>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<CloseSessionResponse, GatedError> {
+    let state = state.write().await;
+
+    if let Some(s) = state.sessions.get(&id) {
+        let mut session = s.lock().await;
+        session.handle.close();
+        Ok(CloseSessionResponse::Ok)
+    } else {
+        Ok(CloseSessionResponse::NotFound)
     }
+}
+
+/// Forcibly terminate a live session. Unlike graceful `close`, which only
+/// signals the handle and waits for the protocol loop to self-remove, this
+/// signals the handle **and** immediately evicts the session from the live
+/// registry (marking it ended in the DB), so a wedged protocol loop cannot
+/// keep the session alive. Admin-only via the `/admin/api` nest gate.
+#[utoipa::path(
+    post,
+    path = "/sessions/{id}/terminate",
+    operation_id = "terminate_session"
+)]
+async fn api_terminate_session(
+    id: Path<Uuid>,
+    state: Data<Arc<RwLock<State>>>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<TerminateSessionResponse, GatedError> {
+    let mut state = state.write().await;
+
+    let Some(s) = state.sessions.get(&id).cloned() else {
+        return Ok(TerminateSessionResponse::NotFound);
+    };
+    s.lock().await.handle.close();
+    state.remove_session(*id).await;
+    Ok(TerminateSessionResponse::Ok)
+}
+
+/// Delete a session record and everything attached to it: its recording
+/// files and rows, its log rows, and the session row. A still-live session
+/// is closed first so no writer keeps a file open. Admin-only via the
+/// `/admin/api` nest gate (`endpoint_admin_auth`).
+#[utoipa::path(delete, path = "/sessions/{id}", operation_id = "delete_session")]
+async fn api_delete_session(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    state: Data<Arc<RwLock<State>>>,
+    recordings: Data<Arc<Mutex<SessionRecordings>>>,
+    _sec_scheme: AnySecurityScheme,
+    auth: Data<RequestAuthorization>,
+) -> Result<DeleteSessionResponse, GatedError> {
+    {
+        let state = state.write().await;
+        if let Some(s) = state.sessions.get(&id) {
+            s.lock().await.handle.close();
+        }
+    }
+
+    let db = gated_core::db_required(&db).await?;
+    if Session::Entity::find_by_id(id.0).one(&db).await?.is_none() {
+        return Ok(DeleteSessionResponse::NotFound);
+    }
+
+    let recs = Recording::Entity::find()
+        .filter(Recording::Column::SessionId.eq(id.0))
+        .all(&db)
+        .await?;
+
+    // Record a durable audit trail BEFORE destroying anything, so an
+    // insider admin cannot wipe a session without leaving evidence and the
+    // record survives even if the destruction below partially fails.
+    let log_count = LogEntry::Entity::find()
+        .filter(LogEntry::Column::SessionId.eq(id.0))
+        .count(&db)
+        .await?;
+    write_session_delete_audit(
+        &db,
+        &[id.0],
+        recs.len() as u64,
+        log_count,
+        1,
+        auth.username().map(String::as_str).unwrap_or("admin-token"),
+    )
+    .await?;
+    {
+        let recordings = recordings.lock().await;
+        for r in &recs {
+            // File may already be gone (recording disabled / never written).
+            let _ = recordings.remove(&id.0, &r.name).await;
+        }
+    }
+    Recording::Entity::delete_many()
+        .filter(Recording::Column::SessionId.eq(id.0))
+        .exec(&db)
+        .await?;
+    LogEntry::Entity::delete_many()
+        .filter(LogEntry::Column::SessionId.eq(id.0))
+        .exec(&db)
+        .await?;
+    Session::Entity::delete_by_id(id.0).exec(&db).await?;
+
+    Ok(DeleteSessionResponse::Ok)
 }
 
 /// Sentinel session id under which audit-of-deletion records are stored. The
@@ -264,6 +251,16 @@ pub(super) async fn write_session_delete_audit(
     };
     entry.insert(db).await?;
     Ok(())
+}
+
+pub fn router() -> OpenApiRouter {
+    api_routes!(
+        api_get_session,
+        api_get_session_recordings,
+        api_close_session,
+        api_terminate_session,
+        api_delete_session,
+    )
 }
 
 #[cfg(test)]

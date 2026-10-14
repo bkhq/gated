@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -192,6 +193,39 @@ impl ResolvesServerCert for SingleCertResolver {
         _client_hello: rustls::server::ClientHello<'_>,
     ) -> Option<Arc<rustls::sign::CertifiedKey>> {
         Some(self.0.clone())
+    }
+}
+
+/// Picks the certificate registered for the requested server name, falling
+/// back to the default one.
+#[derive(Debug, Clone)]
+pub struct SniCertResolver {
+    fallback: Arc<CertifiedKey>,
+    by_name: HashMap<String, Arc<CertifiedKey>>,
+}
+
+impl SniCertResolver {
+    pub fn new(fallback: TlsCertificateAndPrivateKey) -> Self {
+        Self {
+            fallback: Arc::new(fallback.into()),
+            by_name: HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, name: String, certificate: TlsCertificateAndPrivateKey) {
+        self.by_name.insert(name, Arc::new(certificate.into()));
+    }
+}
+
+impl ResolvesServerCert for SniCertResolver {
+    fn resolve(
+        &self,
+        client_hello: rustls::server::ClientHello<'_>,
+    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        client_hello
+            .server_name()
+            .and_then(|name| self.by_name.get(name).cloned())
+            .or_else(|| Some(self.fallback.clone()))
     }
 }
 

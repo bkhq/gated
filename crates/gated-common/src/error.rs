@@ -21,6 +21,8 @@ pub enum GatedError {
     UserNotFound(String),
     #[error("role {0} not found")]
     RoleNotFound(String),
+    #[error("not found")]
+    NotFound,
     #[error("failed to parse URL: {0}")]
     UrlParse(#[from] url::ParseError),
     #[error("deserialization failed: {0}")]
@@ -76,7 +78,7 @@ impl GatedError {
         match self {
             // Client input / lookup misses → 400 / 404.
             Self::InvalidTicket(_) => StatusCode::NOT_FOUND,
-            Self::UserNotFound(_) | Self::RoleNotFound(_) => StatusCode::NOT_FOUND,
+            Self::UserNotFound(_) | Self::RoleNotFound(_) | Self::NotFound => StatusCode::NOT_FOUND,
             Self::InvalidCredentialType
             | Self::UrlParse(_)
             | Self::DeserializeJson(_)
@@ -111,7 +113,10 @@ impl GatedError {
 
 impl axum::response::IntoResponse for GatedError {
     fn into_response(self) -> axum::response::Response {
-        (self.status_code(), self.to_string()).into_response()
+        let details = crate::web::ErrorDetails(format!("{self:?}"));
+        let mut response = (self.status_code(), self.to_string()).into_response();
+        response.extensions_mut().insert(details);
+        response
     }
 }
 

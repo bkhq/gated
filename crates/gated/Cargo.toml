@@ -7,6 +7,7 @@ version = "0.21.1"
 
 [dependencies]
 anyhow.workspace = true
+axum.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 clap = { version = "4.0", features = ["derive", "env"], default-features = false }
 config = { version = "0.15", features = ["yaml"], default-features = false }
@@ -16,7 +17,6 @@ dialoguer.workspace = true
 futures.workspace = true
 metrics.workspace = true
 notify = { version = "8.0", default-features = false, features = ["fsevent-sys"] }
-poem.workspace = true
 rcgen.workspace = true
 rlimit = "0.11"
 reqwest.workspace = true

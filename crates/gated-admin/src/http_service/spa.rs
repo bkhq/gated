@@ -1,55 +1,51 @@
+use axum::Router;
+use axum::http::{StatusCode, Uri, header};
+use axum::response::{IntoResponse, Response};
+use axum::routing::any;
 use gated_web::Assets;
-use poem::http::{StatusCode, header};
-use poem::{Endpoint, Request, Response, Result};
+
+/// Routes serving the web UI under `/ui`.
+pub fn routes() -> Router {
+    // A nested router does not match its own path with a trailing slash.
+    Router::new()
+        .route("/ui/", any(spa_endpoint))
+        .nest("/ui", Router::new().fallback(spa_endpoint))
+}
 
 /// Serves embedded static files with SPA fallback.
 /// Tries to serve the requested file; if not found, returns `index.html`.
-pub struct SpaEndpoint;
+pub async fn spa_endpoint(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
 
-impl SpaEndpoint {
-    pub fn new() -> Self {
-        Self
+    if let Some(resp) = serve_file(path) {
+        return resp;
     }
-}
 
-impl Default for SpaEndpoint {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Endpoint for SpaEndpoint {
-    type Output = Response;
-
-    async fn call(&self, req: Request) -> Result<Self::Output> {
-        let path = req.uri().path().trim_start_matches('/');
-
-        if let Some(resp) = serve_file(path) {
-            return Ok(resp);
-        }
-
-        // SPA fallback: serve index.html
-        match Assets::get("index.html") {
-            Some(file) => Ok(Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-                .header(header::CACHE_CONTROL, "no-cache")
-                .body(file.data.to_vec())),
-            None => Ok(Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body("not found")),
-        }
+    // SPA fallback: serve index.html
+    match Assets::get("index.html") {
+        Some(file) => (
+            [
+                (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                (header::CACHE_CONTROL, "no-cache"),
+            ],
+            file.data.to_vec(),
+        )
+            .into_response(),
+        None => (StatusCode::NOT_FOUND, "not found").into_response(),
     }
 }
 
 fn serve_file(path: &str) -> Option<Response> {
     let file = Assets::get(path)?;
     Some(
-        Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, content_type(path))
-            .header(header::CACHE_CONTROL, cache_control(path))
-            .body(file.data.to_vec()),
+        (
+            [
+                (header::CONTENT_TYPE, content_type(path)),
+                (header::CACHE_CONTROL, cache_control(path)),
+            ],
+            file.data.to_vec(),
+        )
+            .into_response(),
     )
 }
 
@@ -74,5 +70,28 @@ fn cache_control(path: &str) -> &'static str {
         "public, max-age=31536000, immutable"
     } else {
         "no-cache"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::Body;
+    use axum::extract::Request;
+    use tower::ServiceExt;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn every_path_below_the_mount_point_reaches_the_spa() {
+        let app = Router::new()
+            .merge(routes())
+            .fallback(|| async { StatusCode::IM_A_TEAPOT });
+        let expected = spa_endpoint(Uri::from_static("/")).await.status();
+
+        for path in ["/ui", "/ui/", "/ui/auth/login", "/ui/?gated-ticket=x"] {
+            let request = Request::builder().uri(path).body(Body::empty()).unwrap();
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), expected, "{path}");
+        }
     }
 }

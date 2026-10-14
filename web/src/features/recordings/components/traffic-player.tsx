@@ -14,8 +14,8 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   second: '2-digit',
 })
 
-function formatTimestamp(value: string | undefined): string {
-  if (value === undefined || value.length === 0)
+function formatTimestamp(value: string | null | undefined): string {
+  if (value == null || value.length === 0)
     return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime()))

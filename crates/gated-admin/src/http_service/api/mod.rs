@@ -1,4 +1,4 @@
-use poem_openapi::OpenApi;
+use utoipa_axum::router::OpenApiRouter;
 
 mod api_tokens;
 pub mod auth;
@@ -12,7 +12,7 @@ pub mod sso_provider_detail;
 pub mod sso_provider_list;
 pub mod targets_list;
 mod tickets;
-// Not part of OpenAPI — WebSocket upgrade is not representable in poem-openapi.
+// Not part of OpenAPI — a WebSocket upgrade is not representable there.
 // These endpoints are mounted with raw `#[handler]` in `lib.rs`:
 //   /api/ssh/terminal/:target_name
 //   /api/mysql/terminal/:target_name
@@ -24,19 +24,18 @@ pub(crate) mod session_monitor;
 pub(crate) mod sql_validation;
 pub(crate) mod ssh_terminal;
 
-pub use gated_common::api::AnySecurityScheme;
+pub use gated_common::web::AnySecurityScheme;
 
-pub fn get() -> impl OpenApi {
-    (
-        auth::Api,
-        info::Api,
-        targets_list::Api,
-        sso_provider_list::Api,
-        sso_provider_detail::Api,
-        credentials::Api,
-        api_tokens::Api,
-        tickets::Api,
-        sessions::Api,
-        db_query::Api,
-    )
+pub fn router() -> OpenApiRouter {
+    OpenApiRouter::new()
+        .merge(auth::router())
+        .merge(info::router())
+        .merge(targets_list::router())
+        .merge(sso_provider_list::router())
+        .merge(sso_provider_detail::router())
+        .merge(credentials::router())
+        .merge(api_tokens::router())
+        .merge(tickets::router())
+        .merge(sessions::router())
+        .merge(db_query::router())
 }

@@ -1,55 +1,250 @@
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex, PoisonError, RwLock};
 use std::time::{Duration, Instant};
 
+use axum::extract::{FromRequestParts, Request, State};
+use axum::http::header::{COOKIE, SET_COOKIE};
+use axum::http::request::Parts;
+use axum::http::{HeaderValue, StatusCode};
+use axum::middleware::Next;
+use axum::response::Response;
+use cookie::Cookie;
 use gated_common::SessionId;
-use poem::session::{MemoryStorage, Session, SessionStorage};
-use poem::{FromRequest, Request};
+use gated_common::helpers::rng::get_crypto_rng;
+use gated_common::web::ApiArgument;
+use rand::Rng;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tracing::*;
 
 use crate::http_service::session_handle::{ManagementSessionFromRequest, ManagementSessionHandle};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum SessionStatus {
+    Changed,
+    Purged,
+    Unchanged,
+}
+
+struct SessionInner {
+    status: SessionStatus,
+    entries: BTreeMap<String, Value>,
+}
+
+/// Server-side key/value state of one browser session. Changes are persisted
+/// and the cookie is issued once the request completes.
 #[derive(Clone)]
-pub struct SharedSessionStorage(pub Arc<Mutex<Box<MemoryStorage>>>);
+pub struct Session {
+    inner: Arc<RwLock<SessionInner>>,
+}
 
-static POEM_SESSION_ID_SESSION_KEY: &str = "poem_session_id";
-
-impl SessionStorage for SharedSessionStorage {
-    async fn load_session<'a>(
-        &'a self,
-        session_id: &'a str,
-    ) -> poem::Result<Option<BTreeMap<String, Value>>> {
-        self.0.lock().await.load_session(session_id).await.map(|o| {
-            o.map(|mut s| {
-                s.insert(
-                    POEM_SESSION_ID_SESSION_KEY.to_string(),
-                    session_id.to_string().into(),
-                );
-                s
-            })
-        })
+impl Session {
+    fn new(entries: BTreeMap<String, Value>) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(SessionInner {
+                status: SessionStatus::Unchanged,
+                entries,
+            })),
+        }
     }
 
-    /// Insert or update a session.
-    async fn update_session<'a>(
-        &'a self,
-        session_id: &'a str,
-        entries: &'a BTreeMap<String, Value>,
-        expires: Option<Duration>,
-    ) -> poem::Result<()> {
-        self.0
+    fn update(&self, change: impl FnOnce(&mut BTreeMap<String, Value>)) {
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        if inner.status != SessionStatus::Purged {
+            change(&mut inner.entries);
+            inner.status = SessionStatus::Changed;
+        }
+    }
+
+    pub fn get<T: DeserializeOwned>(&self, name: &str) -> Option<T> {
+        let inner = self.inner.read().unwrap_or_else(PoisonError::into_inner);
+        inner
+            .entries
+            .get(name)
+            .and_then(|value| serde_json::from_value(value.clone()).ok())
+    }
+
+    pub fn set(&self, name: &str, value: impl Serialize) {
+        if let Ok(value) = serde_json::to_value(&value) {
+            self.update(|entries| {
+                entries.insert(name.to_owned(), value);
+            });
+        }
+    }
+
+    pub fn remove(&self, name: &str) {
+        self.update(|entries| {
+            entries.remove(name);
+        });
+    }
+
+    pub fn clear(&self) {
+        self.update(BTreeMap::clear);
+    }
+
+    /// Drops the session together with its cookie.
+    pub fn purge(&self) {
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        inner.entries.clear();
+        inner.status = SessionStatus::Purged;
+    }
+
+    fn snapshot(&self) -> (SessionStatus, BTreeMap<String, Value>) {
+        let inner = self.inner.read().unwrap_or_else(PoisonError::into_inner);
+        (inner.status, inner.entries.clone())
+    }
+}
+
+impl<S: Send + Sync> FromRequestParts<S> for Session {
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+        parts.extensions.get::<Session>().cloned().ok_or((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "session layer is not installed",
+        ))
+    }
+}
+
+impl ApiArgument for Session {}
+
+struct StoredSession {
+    entries: BTreeMap<String, Value>,
+    expires_at: Instant,
+}
+
+/// In-memory session storage keyed by the random identifier carried in the
+/// session cookie.
+#[derive(Clone)]
+pub struct SessionLayer {
+    cookie_name: &'static str,
+    secure: bool,
+    max_age: Duration,
+    sessions: Arc<StdMutex<HashMap<String, StoredSession>>>,
+}
+
+/// Session identifier following the OWASP entropy recommendation.
+fn generate_session_id() -> String {
+    data_encoding::BASE64URL_NOPAD.encode(&get_crypto_rng().r#gen::<[u8; 32]>())
+}
+
+impl SessionLayer {
+    pub fn new(cookie_name: &'static str, secure: bool, max_age: Duration) -> Self {
+        Self {
+            cookie_name,
+            secure,
+            max_age,
+            sessions: Arc::default(),
+        }
+    }
+
+    fn load(&self, id: &str) -> Option<BTreeMap<String, Value>> {
+        let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
+        match sessions.get(id) {
+            Some(session) if session.expires_at > Instant::now() => Some(session.entries.clone()),
+            Some(_) => {
+                sessions.remove(id);
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn store(&self, id: &str, entries: BTreeMap<String, Value>) {
+        let session = StoredSession {
+            entries,
+            expires_at: Instant::now() + self.max_age,
+        };
+        self.sessions
             .lock()
-            .await
-            .update_session(session_id, entries, expires)
-            .await
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id.to_owned(), session);
     }
 
-    /// Remove a session by session id.
-    async fn remove_session<'a>(&'a self, session_id: &'a str) -> poem::Result<()> {
-        self.0.lock().await.remove_session(session_id).await
+    fn remove(&self, id: &str) {
+        self.sessions
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(id);
     }
+
+    /// Drops every expired session.
+    pub fn vacuum(&self) {
+        let now = Instant::now();
+        self.sessions
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .retain(|_, session| session.expires_at > now);
+    }
+
+    fn cookie(&self, value: String) -> Cookie<'static> {
+        let mut cookie = Cookie::new(self.cookie_name, value);
+        cookie.set_path("/");
+        cookie.set_secure(self.secure);
+        cookie.set_http_only(true);
+        cookie
+    }
+
+    fn session_id(&self, request: &Request) -> Option<String> {
+        request
+            .headers()
+            .get_all(COOKIE)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(Cookie::split_parse)
+            .filter_map(Result::ok)
+            .find(|cookie| cookie.name() == self.cookie_name)
+            .map(|cookie| cookie.value().to_owned())
+    }
+}
+
+/// Loads the session named by the request cookie, exposes it as a request
+/// extension and persists what the request changed.
+pub async fn session_middleware(
+    State(layer): State<SessionLayer>,
+    mut request: Request,
+    next: Next,
+) -> Response {
+    let mut session_id = layer.session_id(&request);
+    let session = match session_id.as_deref().and_then(|id| layer.load(id)) {
+        Some(entries) => Session::new(entries),
+        None => {
+            session_id = None;
+            Session::new(BTreeMap::new())
+        }
+    };
+    request.extensions_mut().insert(session.clone());
+
+    let mut response = next.run(request).await;
+
+    let cookie = match (session.snapshot(), session_id) {
+        ((SessionStatus::Changed, entries), Some(id)) => {
+            layer.store(&id, entries);
+            None
+        }
+        ((SessionStatus::Changed, entries), None) => {
+            let id = generate_session_id();
+            layer.store(&id, entries);
+            let mut cookie = layer.cookie(id);
+            cookie.set_max_age(cookie::time::Duration::try_from(layer.max_age).ok());
+            Some(cookie)
+        }
+        ((SessionStatus::Purged, _), Some(id)) => {
+            layer.remove(&id);
+            let mut cookie = layer.cookie(String::new());
+            cookie.make_removal();
+            Some(cookie)
+        }
+        _ => None,
+    };
+    if let Some(cookie) = cookie
+        && let Ok(value) = HeaderValue::from_str(&cookie.to_string())
+    {
+        response.headers_mut().append(SET_COOKIE, value);
+    }
+    response
 }
 
 pub struct ManagementSessionSummary {
@@ -74,9 +269,9 @@ impl SessionStore {
         }))
     }
 
-    pub async fn process_request(&mut self, req: Request) -> poem::Result<Request> {
-        let session = <&Session>::from_request_without_body(&req).await?;
-
+    /// Records activity on the session, or drops its cookie when the
+    /// server-side handle no longer exists.
+    pub fn touch(&mut self, session: &Session) {
         if let Some(session_id) = session.get::<SessionId>(SESSION_ID_SESSION_KEY) {
             if self.session_handles.contains_key(&session_id) {
                 self.session_timestamps.insert(session_id, Instant::now());
@@ -88,18 +283,11 @@ impl SessionStore {
                 session.purge();
             }
         };
-
-        Ok(req)
     }
 
-    pub async fn create_handle_for(
-        &mut self,
-        req: &Request,
-    ) -> poem::Result<ManagementSessionFromRequest> {
-        let session = <&Session>::from_request_without_body(req).await?;
-
+    pub fn create_handle_for(&mut self, session: &Session) -> ManagementSessionFromRequest {
         if let Some(handle) = self.handle_for(session) {
-            return Ok(handle.into());
+            return handle.into();
         }
 
         let id = uuid::Uuid::new_v4();
@@ -112,7 +300,7 @@ impl SessionStore {
         session.set(SESSION_ID_SESSION_KEY, id);
         self.session_timestamps.insert(id, Instant::now());
 
-        Ok(server_handle.into())
+        server_handle.into()
     }
 
     pub fn handle_for(&self, session: &Session) -> Option<Arc<Mutex<ManagementSessionHandle>>> {

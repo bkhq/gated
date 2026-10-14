@@ -22,7 +22,7 @@ futures.workspace = true
 git-version = { version = "0.3.9", default-features = false }
 governor.workspace = true
 hyper = { version = "1.11", default-features = false }
-hyper-util = { version = "0.1.20", default-features = false, features = ["http1", "http2", "server-auto", "tokio"] }
+hyper-util = { version = "0.1.20", default-features = false, features = ["http1", "http2", "server-auto", "server-graceful", "tokio"] }
 humantime-serde = { version = "1.1", default-features = false }
 password-hash.workspace = true
 pastey = "0.2"

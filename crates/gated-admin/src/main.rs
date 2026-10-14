@@ -1,31 +1,17 @@
 #![forbid(unsafe_code)]
-use poem_openapi::OpenApiService;
-use regex::Regex;
 
 #[allow(
     clippy::unwrap_used,
-    reason = "dev-only bin: static regex literal is known-valid"
+    reason = "dev-only bin: serializing the document cannot fail"
 )]
 pub fn main() {
-    let spec = if std::env::args().nth(1).as_deref() == Some("user") {
-        OpenApiService::new(
-            gated_admin::http_service::api::get(),
-            "Gated user API",
-            env!("CARGO_PKG_VERSION"),
-        )
-        .server("/api")
-        .spec()
+    let version = env!("CARGO_PKG_VERSION");
+    let router = if std::env::args().nth(1).as_deref() == Some("user") {
+        gated_admin::user_api_router(version)
     } else {
-        OpenApiService::new(
-            gated_admin::api::get(),
-            "Gated admin API",
-            env!("CARGO_PKG_VERSION"),
-        )
-        .server("/admin/api")
-        .spec()
+        gated_admin::admin_api_router(version)
     };
-    let re = Regex::new(r"PaginatedResponse<(?P<name>\w+)>").unwrap();
-    let spec = re.replace_all(&spec, "Paginated$name");
+    let spec = router.into_openapi().to_pretty_json().unwrap();
 
     println!("{spec}");
 }

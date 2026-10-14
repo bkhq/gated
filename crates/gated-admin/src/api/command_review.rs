@@ -8,21 +8,23 @@
 //! releases the paused SSH session. Feature is OFF by default — the list is
 //! empty unless an `action=review` command-ACL rule matched.
 
+use axum::extract::Path;
+use gated_common::web::{Data, Json};
+use gated_common::{api_response, api_routes};
+use serde::Serialize;
 use std::sync::Arc;
+use utoipa::ToSchema;
+use utoipa_axum::router::OpenApiRouter;
 
 use chrono::{DateTime, Utc};
 use gated_core::{CommandReviewDecision, CommandReviewInfo, CommandReviewStore};
-use poem::web::Data;
-use poem_openapi::param::Path;
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, Object, OpenApi};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
 
 /// One pending command review, for the admin list/decision UI.
-#[derive(Object)]
+#[derive(Serialize, ToSchema)]
 struct CommandReviewItem {
     id: Uuid,
     session_id: Option<Uuid>,
@@ -56,87 +58,81 @@ impl From<CommandReviewInfo> for CommandReviewItem {
     }
 }
 
-#[derive(ApiResponse)]
-enum ListResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<CommandReviewItem>>),
+api_response! {
+    enum ListResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<CommandReviewItem>>),
+    }
 }
 
-#[derive(ApiResponse)]
-enum DecisionResponse {
-    /// The paused session was released with the given decision.
-    #[oai(status = 200)]
-    Ok,
-    /// No pending review with this id (already decided, timed out, or unknown).
-    #[oai(status = 404)]
-    NotFound,
+api_response! {
+    enum DecisionResponse {
+        /// The paused session was released with the given decision.
+        #[oai(status = 200)]
+        Ok,
+        /// No pending review with this id (already decided, timed out, or unknown).
+        #[oai(status = 404)]
+        NotFound,
+    }
 }
 
-pub struct Api;
+#[utoipa::path(get, path = "/command-reviews", operation_id = "get_command_reviews")]
+async fn api_list(
+    store: Data<Arc<Mutex<CommandReviewStore>>>,
+    _sec_scheme: AnySecurityScheme,
+) -> ListResponse {
+    let items = store
+        .lock()
+        .await
+        .list()
+        .into_iter()
+        .map(CommandReviewItem::from)
+        .collect();
+    ListResponse::Ok(Json(items))
+}
 
-#[OpenApi]
-impl Api {
-    #[oai(
-        path = "/command-reviews",
-        method = "get",
-        operation_id = "get_command_reviews"
-    )]
-    async fn api_list(
-        &self,
-        store: Data<&Arc<Mutex<CommandReviewStore>>>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> ListResponse {
-        let items = store
-            .lock()
-            .await
-            .list()
-            .into_iter()
-            .map(CommandReviewItem::from)
-            .collect();
-        ListResponse::Ok(Json(items))
+#[utoipa::path(
+    post,
+    path = "/command-review/{id}/approve",
+    operation_id = "approve_command_review"
+)]
+async fn api_approve(
+    id: Path<Uuid>,
+    store: Data<Arc<Mutex<CommandReviewStore>>>,
+    _sec_scheme: AnySecurityScheme,
+) -> DecisionResponse {
+    if store
+        .lock()
+        .await
+        .complete(&id, CommandReviewDecision::Approved)
+    {
+        DecisionResponse::Ok
+    } else {
+        DecisionResponse::NotFound
     }
+}
 
-    #[oai(
-        path = "/command-review/:id/approve",
-        method = "post",
-        operation_id = "approve_command_review"
-    )]
-    async fn api_approve(
-        &self,
-        store: Data<&Arc<Mutex<CommandReviewStore>>>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> DecisionResponse {
-        if store
-            .lock()
-            .await
-            .complete(&id, CommandReviewDecision::Approved)
-        {
-            DecisionResponse::Ok
-        } else {
-            DecisionResponse::NotFound
-        }
+#[utoipa::path(
+    post,
+    path = "/command-review/{id}/reject",
+    operation_id = "reject_command_review"
+)]
+async fn api_reject(
+    id: Path<Uuid>,
+    store: Data<Arc<Mutex<CommandReviewStore>>>,
+    _sec_scheme: AnySecurityScheme,
+) -> DecisionResponse {
+    if store
+        .lock()
+        .await
+        .complete(&id, CommandReviewDecision::Rejected)
+    {
+        DecisionResponse::Ok
+    } else {
+        DecisionResponse::NotFound
     }
+}
 
-    #[oai(
-        path = "/command-review/:id/reject",
-        method = "post",
-        operation_id = "reject_command_review"
-    )]
-    async fn api_reject(
-        &self,
-        store: Data<&Arc<Mutex<CommandReviewStore>>>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> DecisionResponse {
-        if store
-            .lock()
-            .await
-            .complete(&id, CommandReviewDecision::Rejected)
-        {
-            DecisionResponse::Ok
-        } else {
-            DecisionResponse::NotFound
-        }
-    }
+pub fn router() -> OpenApiRouter {
+    api_routes!(api_list, api_approve, api_reject,)
 }

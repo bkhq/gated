@@ -1,3 +1,9 @@
+use axum::http::request::Parts;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{Extension, Router};
+use gated_common::GatedError;
+use gated_common::web::{Data, Json};
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -9,8 +15,6 @@ use gated_core::encryption::migration::{
 use gated_core::logging::http::get_client_ip;
 use governor::{DefaultKeyedRateLimiter, Quota};
 use http::StatusCode;
-use poem::web::{Data, Json};
-use poem::{EndpointExt, IntoEndpoint, IntoResponse, Request, Response, Route, handler};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -59,20 +63,19 @@ struct StatusResponse {
     retry_after: Option<u64>,
 }
 
-pub fn routes() -> impl IntoEndpoint {
-    Route::new()
-        .at("/lock-status", poem::get(lock_status))
-        .at("/status", poem::get(lock_status))
-        .at("/init", poem::post(init))
-        .at("/unlock", poem::post(unlock))
-        .at("/lock", poem::post(lock))
-        .at("/rekey-master", poem::post(rekey_master))
-        .data(EncryptionAdminState::default())
+pub fn routes() -> Router {
+    Router::new()
+        .route("/lock-status", get(lock_status))
+        .route("/status", get(lock_status))
+        .route("/init", post(init))
+        .route("/unlock", post(unlock))
+        .route("/lock", post(lock))
+        .route("/rekey-master", post(rekey_master))
+        .layer(Extension(EncryptionAdminState::default()))
 }
 
-#[handler]
-async fn lock_status(services: Data<&Services>) -> Response {
-    let status = match runtime(services.0).await {
+async fn lock_status(services: Data<Services>) -> Response {
+    let status = match runtime(&services).await {
         None => "disabled",
         Some(runtime) => status_name(&runtime.status().await),
     };
@@ -87,14 +90,13 @@ async fn lock_status(services: Data<&Services>) -> Response {
     )
 }
 
-#[handler]
 async fn init(
-    req: &Request,
-    services: Data<&Services>,
-    state: Data<&EncryptionAdminState>,
+    req: Parts,
+    services: Data<Services>,
+    state: Data<EncryptionAdminState>,
     Json(body): Json<InitRequest>,
 ) -> Response {
-    let client_ip = client_ip(req, services.0).await;
+    let client_ip = client_ip(&req, &services).await;
     if rate_limited(&state, &client_ip) {
         return error_response(
             StatusCode::TOO_MANY_REQUESTS,
@@ -103,7 +105,7 @@ async fn init(
         );
     }
 
-    let Some(runtime) = runtime(services.0).await else {
+    let Some(runtime) = runtime(&services).await else {
         return error_response(
             StatusCode::CONFLICT,
             "encryption_disabled",
@@ -117,7 +119,7 @@ async fn init(
             "Encryption is already initialized",
         );
     }
-    let existing_database = match existing_sqlite_database(services.0).await {
+    let existing_database = match existing_sqlite_database(&services).await {
         Ok(existing) => existing,
         Err(error) => {
             warn!(target: "audit",%error, "encryption_init_database_detection_failed");
@@ -158,7 +160,7 @@ async fn init(
 
     let init_result = if matches!(existing_database, ExistingSqliteDatabase::Plaintext) {
         init_with_plaintext_migration(
-            services.0,
+            &services,
             &runtime,
             SecretString::from(body.master_password),
         )
@@ -172,7 +174,7 @@ async fn init(
 
     match init_result {
         Ok(plaintext_backup) => {
-            if let Err(error) = open_unlocked_db(services.0, &runtime).await {
+            if let Err(error) = open_unlocked_db(&services, &runtime).await {
                 error!(%error, "encryption_init_open_db_failed");
                 runtime.lock().await;
                 services.close_db().await;
@@ -213,14 +215,13 @@ async fn init(
     }
 }
 
-#[handler]
 async fn unlock(
-    req: &Request,
-    services: Data<&Services>,
-    state: Data<&EncryptionAdminState>,
+    req: Parts,
+    services: Data<Services>,
+    state: Data<EncryptionAdminState>,
     Json(body): Json<UnlockRequest>,
 ) -> Response {
-    let client_ip = client_ip(req, services.0).await;
+    let client_ip = client_ip(&req, &services).await;
     if rate_limited(&state, &client_ip) {
         return error_response(
             StatusCode::TOO_MANY_REQUESTS,
@@ -229,7 +230,7 @@ async fn unlock(
         );
     }
 
-    let Some(runtime) = runtime(services.0).await else {
+    let Some(runtime) = runtime(&services).await else {
         return error_response(
             StatusCode::CONFLICT,
             "encryption_disabled",
@@ -249,7 +250,7 @@ async fn unlock(
         .await
     {
         Ok(()) => {
-            if let Err(error) = open_unlocked_db(services.0, &runtime).await {
+            if let Err(error) = open_unlocked_db(&services, &runtime).await {
                 error!(%error, "encryption_unlock_open_db_failed");
                 runtime.lock().await;
                 services.close_db().await;
@@ -279,14 +280,14 @@ async fn unlock(
     }
 }
 
-#[handler]
 async fn lock(
-    req: &Request,
-    services: Data<&Services>,
-    auth: Option<Data<&RequestAuthorization>>,
-) -> poem::Result<Response> {
-    require_admin(req, auth.as_ref()).await?;
-    let Some(runtime) = runtime(services.0).await else {
+    services: Data<Services>,
+    auth: Option<Data<RequestAuthorization>>,
+) -> Result<Response, GatedError> {
+    if let Err(response) = require_admin(&services, auth.as_ref()).await {
+        return Ok(response);
+    }
+    let Some(runtime) = runtime(&services).await else {
         return Ok(error_response(
             StatusCode::CONFLICT,
             "encryption_disabled",
@@ -306,15 +307,15 @@ async fn lock(
     Ok(json_response(StatusCode::OK, &json!({"status": "locked"})))
 }
 
-#[handler]
 async fn rekey_master(
-    req: &Request,
-    services: Data<&Services>,
-    auth: Option<Data<&RequestAuthorization>>,
+    services: Data<Services>,
+    auth: Option<Data<RequestAuthorization>>,
     Json(body): Json<RekeyMasterRequest>,
-) -> poem::Result<Response> {
-    require_admin(req, auth.as_ref()).await?;
-    let Some(runtime) = runtime(services.0).await else {
+) -> Result<Response, GatedError> {
+    if let Err(response) = require_admin(&services, auth.as_ref()).await {
+        return Ok(response);
+    }
+    let Some(runtime) = runtime(&services).await else {
         return Ok(error_response(
             StatusCode::CONFLICT,
             "encryption_disabled",
@@ -369,16 +370,16 @@ async fn open_unlocked_db(
 }
 
 async fn require_admin(
-    req: &Request,
-    auth: Option<&Data<&RequestAuthorization>>,
-) -> poem::Result<()> {
+    services: &Services,
+    auth: Option<&Data<RequestAuthorization>>,
+) -> Result<(), Response> {
     let Some(auth) = auth else {
-        return Err(poem::Error::from_status(StatusCode::UNAUTHORIZED));
+        return Err(StatusCode::UNAUTHORIZED.into_response());
     };
-    if is_user_admin(req, auth).await? {
-        Ok(())
-    } else {
-        Err(poem::Error::from_status(StatusCode::FORBIDDEN))
+    match is_user_admin(services, auth).await {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(StatusCode::FORBIDDEN.into_response()),
+        Err(error) => Err(error.into_response()),
     }
 }
 
@@ -412,7 +413,7 @@ async fn init_with_plaintext_migration(
     Ok(report.backup_path)
 }
 
-async fn client_ip(req: &Request, services: &Services) -> Option<String> {
+async fn client_ip(req: &Parts, services: &Services) -> Option<String> {
     get_client_ip(req, Some(services)).await
 }
 
@@ -435,17 +436,19 @@ fn audit_failure(kind: &'static str, client_ip: Option<&str>, reason: &'static s
     warn!(target: "audit",kind, client_ip, reason, "encryption_admin_audit");
 }
 
-fn audit_admin(kind: &'static str, auth: Option<&Data<&RequestAuthorization>>) {
+fn audit_admin(kind: &'static str, auth: Option<&Data<RequestAuthorization>>) {
     let username = auth.and_then(|auth| auth.username()).map(String::as_str);
     info!(target: "audit",kind, username, "encryption_admin_audit");
 }
 
 fn json_response<T: Serialize>(status: StatusCode, body: &T) -> Response {
     let body = serde_json::to_vec(body).unwrap_or_else(|_| b"{}".to_vec());
-    Response::builder()
-        .status(status)
-        .header(http::header::CONTENT_TYPE, "application/json")
-        .body(body)
+    (
+        status,
+        [(http::header::CONTENT_TYPE, "application/json")],
+        body,
+    )
+        .into_response()
 }
 
 fn error_response(status: StatusCode, code: &'static str, message: &'static str) -> Response {
@@ -458,17 +461,19 @@ fn error_response(status: StatusCode, code: &'static str, message: &'static str)
     {
         object.insert("retry_after".into(), json!(RETRY_AFTER_SECS));
     }
-    json_response(status, &body).into_response()
+    json_response(status, &body)
 }
 
 #[cfg(test)]
 mod tests {
+    use axum::body::Body;
+    use axum::extract::Request;
     use gated_common::{GatedConfig, GlobalParams, Secret};
     use gated_core::encryption::{BootstrapToken, EncryptionRuntime};
     use http::{Method, StatusCode};
-    use poem::{Body, Endpoint, EndpointExt, IntoEndpoint, Request};
     use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
     use serde_json::{Value, json};
+    use tower::ServiceExt;
     use uuid::Uuid;
 
     use super::*;
@@ -503,43 +508,41 @@ mod tests {
         services
     }
 
-    async fn send<E: Endpoint>(
-        app: &E,
+    async fn send(
+        app: &Router,
         method: Method,
         uri: &str,
         body: Option<Value>,
         auth: Option<RequestAuthorization>,
     ) -> Response {
-        let mut req = Request::builder()
-            .method(method)
-            .uri(uri.parse().expect("valid uri"))
-            .finish();
-        if let Some(body) = body {
-            req.headers_mut().insert(
-                http::header::CONTENT_TYPE,
-                http::HeaderValue::from_static("application/json"),
-            );
-            req.set_body(Body::from(serde_json::to_string(&body).expect("json body")));
+        let mut req = Request::builder().method(method).uri(uri);
+        if body.is_some() {
+            req = req.header(http::header::CONTENT_TYPE, "application/json");
         }
+        let mut req = req
+            .body(match body {
+                Some(body) => Body::from(serde_json::to_string(&body).expect("json body")),
+                None => Body::empty(),
+            })
+            .expect("request");
         if let Some(auth) = auth {
             req.extensions_mut().insert(auth);
         }
-        app.get_response(req).await
+        app.clone().oneshot(req).await.expect("response")
     }
 
     async fn assert_json_body(response: Response, expected: Value) {
-        let actual = response
-            .into_body()
-            .into_json::<Value>()
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
-            .expect("json response");
+            .expect("response body");
+        let actual: Value = serde_json::from_slice(&body).expect("json response");
         assert_eq!(actual, expected);
     }
 
     #[tokio::test]
     async fn init_lock_unlock_and_rekey_flow() {
         let services = test_services("flow").await;
-        let app = routes().data(services.clone()).into_endpoint();
+        let app = routes().layer(Extension(services.clone()));
 
         let response = send(&app, Method::GET, "/lock-status", None, None).await;
         assert_json_body(
@@ -690,7 +693,7 @@ mod tests {
     #[tokio::test]
     async fn bad_bootstrap_token_is_forbidden_and_rate_limited() {
         let services = test_services("bad-bootstrap").await;
-        let app = routes().data(services).into_endpoint();
+        let app = routes().layer(Extension(services));
 
         for _ in 0..5 {
             assert_eq!(
@@ -754,7 +757,7 @@ mod tests {
         }
         drop(plaintext);
 
-        let app = routes().data(services.clone()).into_endpoint();
+        let app = routes().layer(Extension(services.clone()));
         let response = send(
             &app,
             Method::POST,

@@ -1,437 +1,435 @@
+use axum::extract::{Path, Query};
+use gated_common::web::{Data, Json};
 use gated_common::{
     GatedError, Role as RoleConfig, SSHTargetAuth, Secret, SshTargetPasswordAuth,
     SshTargetPublicKeyAuth, Target as TargetConfig, TargetAccountMetadata, TargetAccountRole,
     TargetHttpOptions, TargetMySqlOptions, TargetOptions, TargetPostgresOptions, TargetSSHOptions,
     UpstreamAuth,
 };
+use gated_common::{api_response, api_routes};
 use gated_core::Services;
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::Target::TargetKind;
 use gated_db_entities::{Account, KnownHost, Role, Target, TargetAccount, TargetRoleAssignment};
-use poem::web::Data;
-use poem_openapi::param::{Path, Query};
-use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, Object, OpenApi};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait, QueryFilter,
     QueryOrder, Set, TransactionTrait,
 };
+use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
+
+use gated_common::api::types as api_types;
 
 use super::AnySecurityScheme;
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 struct TargetDataRequest {
     name: String,
     description: Option<String>,
-    options: TargetOptions,
+    options: api_types::TargetOptions,
     accounts: Option<Vec<TargetAccountBinding>>,
     rate_limit_bytes_per_second: Option<u32>,
     group_id: Option<Uuid>,
 }
 
-#[derive(Object)]
+#[derive(Deserialize, ToSchema)]
 struct TargetAccountBinding {
     account_id: i32,
     role: TargetAccountRole,
 }
 
-#[derive(ApiResponse)]
-enum GetTargetsResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<TargetConfig>>),
+api_response! {
+    enum GetTargetsResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<api_types::Target>>),
+    }
 }
 
-#[allow(clippy::large_enum_variant)]
-#[derive(ApiResponse)]
-enum CreateTargetResponse {
-    #[oai(status = 201)]
-    Created(Json<TargetConfig>),
+api_response! {
+    #[allow(clippy::large_enum_variant)]
+    enum CreateTargetResponse {
+        #[oai(status = 201)]
+        Created(Json<api_types::Target>),
 
-    #[oai(status = 409)]
-    Conflict(Json<String>),
+        #[oai(status = 409)]
+        Conflict(Json<String>),
 
-    #[oai(status = 400)]
-    BadRequest(Json<String>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
 
-    #[oai(status = 422)]
-    UnprocessableEntity(Json<String>),
+        #[oai(status = 422)]
+        UnprocessableEntity(Json<String>),
+    }
 }
 
-pub struct ListApi;
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct GetAllTargetsQuery {
+    search: Option<String>,
+    group_id: Option<Uuid>,
+}
 
-#[OpenApi]
-impl ListApi {
-    #[oai(path = "/targets", method = "get", operation_id = "get_targets")]
-    async fn api_get_all_targets(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        search: Query<Option<String>>,
-        group_id: Query<Option<Uuid>>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetTargetsResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+#[utoipa::path(
+    get,
+    path = "/targets",
+    operation_id = "get_targets",
+    params(GetAllTargetsQuery)
+)]
+async fn api_get_all_targets(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    Query(query): Query<GetAllTargetsQuery>,
+) -> Result<GetTargetsResponse, GatedError> {
+    let GetAllTargetsQuery { search, group_id } = query;
+    let db = gated_core::db_required(&db).await?;
 
-        let mut targets = Target::Entity::find().order_by_asc(Target::Column::Name);
+    let mut targets = Target::Entity::find().order_by_asc(Target::Column::Name);
 
-        if let Some(ref search) = *search {
-            let search = format!("%{search}%");
-            targets = targets.filter(Target::Column::Name.like(search));
-        }
-
-        if let Some(group_id) = *group_id {
-            targets = targets.filter(Target::Column::GroupId.eq(group_id));
-        }
-
-        let rows = targets
-            .find_with_related(Role::Entity)
-            .all(&db)
-            .await
-            .map_err(GatedError::from)?;
-
-        let mut targets = Vec::with_capacity(rows.len());
-        for (target, roles) in rows {
-            let mut dto = target_config_with_accounts(&db, target).await?;
-            dto.allow_roles = roles.into_iter().map(|r| r.id.to_string()).collect();
-            targets.push(dto);
-        }
-
-        Ok(GetTargetsResponse::Ok(Json(targets)))
+    if let Some(ref search) = search {
+        let search = format!("%{search}%");
+        targets = targets.filter(Target::Column::Name.like(search));
     }
 
-    #[oai(path = "/targets", method = "post", operation_id = "create_target")]
-    async fn api_create_target(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        body: Json<TargetDataRequest>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<CreateTargetResponse, GatedError> {
-        if body.name.is_empty() {
-            return Ok(CreateTargetResponse::BadRequest(Json("name".into())));
-        }
+    if let Some(group_id) = group_id {
+        targets = targets.filter(Target::Column::GroupId.eq(group_id));
+    }
 
-        let mut options = body.options.clone();
-        // An empty `accounts` list switches the target to inline credentials
-        // and drops existing bindings.
-        let bound_accounts = body
-            .accounts
-            .as_deref()
-            .filter(|accounts| !accounts.is_empty());
-        let accounts_mode = bound_accounts.is_some();
-        if accounts_mode && has_inline_credentials(&options) {
-            return Ok(CreateTargetResponse::UnprocessableEntity(Json(
-                "accounts cannot be mixed with inline credentials".into(),
-            )));
-        }
-        if accounts_mode {
-            clear_inline_credentials(&mut options);
-        }
+    let rows = targets
+        .find_with_related(Role::Entity)
+        .all(&db)
+        .await
+        .map_err(GatedError::from)?;
 
-        let db = gated_core::db_required(&db).await?;
-        let existing = Target::Entity::find()
-            .filter(Target::Column::Name.eq(body.name.clone()))
-            .one(&db)
-            .await?;
-        if existing.is_some() {
+    let mut targets = Vec::with_capacity(rows.len());
+    for (target, roles) in rows {
+        let mut dto = target_config_with_accounts(&db, target).await?;
+        dto.allow_roles = roles.into_iter().map(|r| r.id.to_string()).collect();
+        targets.push(dto.into());
+    }
+
+    Ok(GetTargetsResponse::Ok(Json(targets)))
+}
+
+#[utoipa::path(post, path = "/targets", operation_id = "create_target")]
+async fn api_create_target(
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<TargetDataRequest>,
+) -> Result<CreateTargetResponse, GatedError> {
+    if body.name.is_empty() {
+        return Ok(CreateTargetResponse::BadRequest(Json("name".into())));
+    }
+
+    let mut options: TargetOptions = body.options.clone().into();
+    // An empty `accounts` list switches the target to inline credentials
+    // and drops existing bindings.
+    let bound_accounts = body
+        .accounts
+        .as_deref()
+        .filter(|accounts| !accounts.is_empty());
+    let accounts_mode = bound_accounts.is_some();
+    if accounts_mode && has_inline_credentials(&options) {
+        return Ok(CreateTargetResponse::UnprocessableEntity(Json(
+            "accounts cannot be mixed with inline credentials".into(),
+        )));
+    }
+    if accounts_mode {
+        clear_inline_credentials(&mut options);
+    }
+
+    let db = gated_core::db_required(&db).await?;
+    let existing = Target::Entity::find()
+        .filter(Target::Column::Name.eq(body.name.clone()))
+        .one(&db)
+        .await?;
+    if existing.is_some() {
+        return Ok(CreateTargetResponse::Conflict(Json(
+            "Name already exists".into(),
+        )));
+    }
+    if let Some(accounts) = bound_accounts
+        && let Err(error) = validate_target_accounts(&db, &options, accounts).await
+    {
+        return Ok(CreateTargetResponse::UnprocessableEntity(Json(error)));
+    }
+
+    let txn = db.begin().await?;
+    let values = Target::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        name: Set(body.name.clone()),
+        description: Set(body.description.clone().unwrap_or_default()),
+        kind: Set((&options).into()),
+        options: Set(serde_json::to_value(options).map_err(GatedError::from)?),
+        rate_limit_bytes_per_second: Set(body.rate_limit_bytes_per_second.map(|x| x as i64)),
+        group_id: Set(body.group_id),
+    };
+
+    let target = match values.insert(&txn).await {
+        Ok(target) => target,
+        Err(error)
+            if matches!(
+                error.sql_err(),
+                Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
+            ) =>
+        {
             return Ok(CreateTargetResponse::Conflict(Json(
-                "Name already exists".into(),
+                "Target name already exists".into(),
             )));
         }
-        if let Some(accounts) = bound_accounts
-            && let Err(error) = validate_target_accounts(&db, &options, accounts).await
+        Err(error) => return Err(error.into()),
+    };
+    if let Some(accounts) = &body.accounts {
+        replace_target_accounts(&txn, target.id, accounts).await?;
+    }
+    txn.commit().await?;
+
+    Ok(CreateTargetResponse::Created(Json(
+        target_config_with_accounts(&db, target).await?.into(),
+    )))
+}
+
+api_response! {
+    #[allow(clippy::large_enum_variant)]
+    enum GetTargetResponse {
+        #[oai(status = 200)]
+        Ok(Json<api_types::Target>),
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
+
+api_response! {
+    #[allow(clippy::large_enum_variant)]
+    enum UpdateTargetResponse {
+        #[oai(status = 200)]
+        Ok(Json<api_types::Target>),
+        #[oai(status = 400)]
+        BadRequest,
+        #[oai(status = 422)]
+        UnprocessableEntity(Json<String>),
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
+
+api_response! {
+    enum DeleteTargetResponse {
+        #[oai(status = 204)]
+        Deleted,
+
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
+
+api_response! {
+    enum TargetKnownSshHostKeysResponse {
+        #[oai(status = 200)]
+        Found(Json<Vec<KnownHost::Model>>),
+
+        #[oai(status = 400)]
+        InvalidType,
+
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
+
+#[utoipa::path(get, path = "/targets/{id}", operation_id = "get_target")]
+async fn api_get_target(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetTargetResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+
+    let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(GetTargetResponse::NotFound);
+    };
+
+    Ok(GetTargetResponse::Ok(Json(
+        target_config_with_accounts(&db, target).await?.into(),
+    )))
+}
+
+#[utoipa::path(put, path = "/targets/{id}", operation_id = "update_target")]
+async fn api_update_target(
+    id: Path<Uuid>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<TargetDataRequest>,
+) -> Result<UpdateTargetResponse, GatedError> {
+    let db = services.db_required().await?;
+
+    let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(UpdateTargetResponse::NotFound);
+    };
+
+    if target.kind != (&TargetOptions::from(body.options.clone())).into() {
+        return Ok(UpdateTargetResponse::BadRequest);
+    }
+    if body.name.is_empty() {
+        return Ok(UpdateTargetResponse::BadRequest);
+    }
+    // Targets are resolved by name everywhere (authorization, tickets,
+    // terminals); a rename onto an existing name must be refused.
+    let name_taken = Target::Entity::find()
+        .filter(Target::Column::Name.eq(body.name.clone()))
+        .filter(Target::Column::Id.ne(id.0))
+        .one(&db)
+        .await?
+        .is_some();
+    if name_taken {
+        return Ok(UpdateTargetResponse::UnprocessableEntity(Json(
+            "Name already exists".into(),
+        )));
+    }
+
+    let mut options: TargetOptions = body.options.clone().into();
+    // An empty `accounts` list switches the target to inline credentials
+    // and drops existing bindings.
+    let bound_accounts = body
+        .accounts
+        .as_deref()
+        .filter(|accounts| !accounts.is_empty());
+    let accounts_mode = bound_accounts.is_some();
+    if accounts_mode && has_inline_credentials(&options) {
+        return Ok(UpdateTargetResponse::UnprocessableEntity(Json(
+            "accounts cannot be mixed with inline credentials".into(),
+        )));
+    }
+    if accounts_mode {
+        clear_inline_credentials(&mut options);
+    } else if let Ok(stored) = serde_json::from_value::<TargetOptions>(target.options.clone()) {
+        keep_stored_secrets(&mut options, &stored);
+    }
+    if let Some(accounts) = bound_accounts
+        && let Err(error) = validate_target_accounts(&db, &options, accounts).await
+    {
+        return Ok(UpdateTargetResponse::UnprocessableEntity(Json(error)));
+    }
+
+    let txn = db.begin().await?;
+    let mut model: Target::ActiveModel = target.into();
+    model.name = Set(body.name.clone());
+    model.description = Set(body.description.clone().unwrap_or_default());
+    model.options = Set(serde_json::to_value(options).map_err(GatedError::from)?);
+    model.rate_limit_bytes_per_second = Set(body.rate_limit_bytes_per_second.map(|x| x as i64));
+    model.group_id = Set(body.group_id);
+    let target = match model.update(&txn).await {
+        Ok(target) => target,
+        Err(error)
+            if matches!(
+                error.sql_err(),
+                Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
+            ) =>
         {
-            return Ok(CreateTargetResponse::UnprocessableEntity(Json(error)));
-        }
-
-        let txn = db.begin().await?;
-        let values = Target::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            name: Set(body.name.clone()),
-            description: Set(body.description.clone().unwrap_or_default()),
-            kind: Set((&options).into()),
-            options: Set(serde_json::to_value(options).map_err(GatedError::from)?),
-            rate_limit_bytes_per_second: Set(body.rate_limit_bytes_per_second.map(|x| x as i64)),
-            group_id: Set(body.group_id),
-        };
-
-        let target = match values.insert(&txn).await {
-            Ok(target) => target,
-            Err(error)
-                if matches!(
-                    error.sql_err(),
-                    Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
-                ) =>
-            {
-                return Ok(CreateTargetResponse::Conflict(Json(
-                    "Target name already exists".into(),
-                )));
-            }
-            Err(error) => return Err(error.into()),
-        };
-        if let Some(accounts) = &body.accounts {
-            replace_target_accounts(&txn, target.id, accounts).await?;
-        }
-        txn.commit().await?;
-
-        Ok(CreateTargetResponse::Created(Json(
-            target_config_with_accounts(&db, target).await?,
-        )))
-    }
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(ApiResponse)]
-enum GetTargetResponse {
-    #[oai(status = 200)]
-    Ok(Json<TargetConfig>),
-    #[oai(status = 404)]
-    NotFound,
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(ApiResponse)]
-enum UpdateTargetResponse {
-    #[oai(status = 200)]
-    Ok(Json<TargetConfig>),
-    #[oai(status = 400)]
-    BadRequest,
-    #[oai(status = 422)]
-    UnprocessableEntity(Json<String>),
-    #[oai(status = 404)]
-    NotFound,
-}
-
-#[derive(ApiResponse)]
-enum DeleteTargetResponse {
-    #[oai(status = 204)]
-    Deleted,
-
-    #[oai(status = 404)]
-    NotFound,
-}
-
-#[derive(ApiResponse)]
-enum TargetKnownSshHostKeysResponse {
-    #[oai(status = 200)]
-    Found(Json<Vec<KnownHost::Model>>),
-
-    #[oai(status = 400)]
-    InvalidType,
-
-    #[oai(status = 404)]
-    NotFound,
-}
-
-pub struct DetailApi;
-
-#[OpenApi]
-impl DetailApi {
-    #[oai(path = "/targets/:id", method = "get", operation_id = "get_target")]
-    async fn api_get_target(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetTargetResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-
-        let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(GetTargetResponse::NotFound);
-        };
-
-        Ok(GetTargetResponse::Ok(Json(
-            target_config_with_accounts(&db, target).await?,
-        )))
-    }
-
-    #[oai(path = "/targets/:id", method = "put", operation_id = "update_target")]
-    async fn api_update_target(
-        &self,
-        services: Data<&Services>,
-        body: Json<TargetDataRequest>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<UpdateTargetResponse, GatedError> {
-        let db = services.db_required().await?;
-
-        let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(UpdateTargetResponse::NotFound);
-        };
-
-        if target.kind != (&body.options).into() {
             return Ok(UpdateTargetResponse::BadRequest);
         }
-        if body.name.is_empty() {
-            return Ok(UpdateTargetResponse::BadRequest);
-        }
-        // Targets are resolved by name everywhere (authorization, tickets,
-        // terminals); a rename onto an existing name must be refused.
-        let name_taken = Target::Entity::find()
-            .filter(Target::Column::Name.eq(body.name.clone()))
-            .filter(Target::Column::Id.ne(id.0))
-            .one(&db)
-            .await?
-            .is_some();
-        if name_taken {
-            return Ok(UpdateTargetResponse::UnprocessableEntity(Json(
-                "Name already exists".into(),
-            )));
-        }
-
-        let mut options = body.options.clone();
-        // An empty `accounts` list switches the target to inline credentials
-        // and drops existing bindings.
-        let bound_accounts = body
-            .accounts
-            .as_deref()
-            .filter(|accounts| !accounts.is_empty());
-        let accounts_mode = bound_accounts.is_some();
-        if accounts_mode && has_inline_credentials(&options) {
-            return Ok(UpdateTargetResponse::UnprocessableEntity(Json(
-                "accounts cannot be mixed with inline credentials".into(),
-            )));
-        }
-        if accounts_mode {
-            clear_inline_credentials(&mut options);
-        } else if let Ok(stored) = serde_json::from_value::<TargetOptions>(target.options.clone()) {
-            keep_stored_secrets(&mut options, &stored);
-        }
-        if let Some(accounts) = bound_accounts
-            && let Err(error) = validate_target_accounts(&db, &options, accounts).await
-        {
-            return Ok(UpdateTargetResponse::UnprocessableEntity(Json(error)));
-        }
-
-        let txn = db.begin().await?;
-        let mut model: Target::ActiveModel = target.into();
-        model.name = Set(body.name.clone());
-        model.description = Set(body.description.clone().unwrap_or_default());
-        model.options = Set(serde_json::to_value(options).map_err(GatedError::from)?);
-        model.rate_limit_bytes_per_second = Set(body.rate_limit_bytes_per_second.map(|x| x as i64));
-        model.group_id = Set(body.group_id);
-        let target = match model.update(&txn).await {
-            Ok(target) => target,
-            Err(error)
-                if matches!(
-                    error.sql_err(),
-                    Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
-                ) =>
-            {
-                return Ok(UpdateTargetResponse::BadRequest);
-            }
-            Err(error) => return Err(error.into()),
-        };
-        if let Some(accounts) = &body.accounts {
-            replace_target_accounts(&txn, target.id, accounts).await?;
-        }
-        txn.commit().await?;
-        let target_id = target.id;
-
-        drop(db);
-
-        services
-            .rate_limiter_registry
-            .lock()
-            .await
-            .apply_new_rate_limits(&mut *services.state.write().await)
-            .await?;
-        services.db_pool_registry.invalidate(target_id).await;
-
-        let db = services.db_required().await?;
-        Ok(UpdateTargetResponse::Ok(Json(
-            target_config_with_accounts(&db, target).await?,
-        )))
+        Err(error) => return Err(error.into()),
+    };
+    if let Some(accounts) = &body.accounts {
+        replace_target_accounts(&txn, target.id, accounts).await?;
     }
+    txn.commit().await?;
+    let target_id = target.id;
 
-    #[oai(
-        path = "/targets/:id",
-        method = "delete",
-        operation_id = "delete_target"
-    )]
-    async fn api_delete_target(
-        &self,
-        services: Data<&Services>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<DeleteTargetResponse, GatedError> {
-        let db = services.db_required().await?;
+    drop(db);
 
-        let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(DeleteTargetResponse::NotFound);
-        };
+    services
+        .rate_limiter_registry
+        .lock()
+        .await
+        .apply_new_rate_limits(&mut *services.state.write().await)
+        .await?;
+    services.db_pool_registry.invalidate(target_id).await;
 
-        TargetRoleAssignment::Entity::delete_many()
-            .filter(TargetRoleAssignment::Column::TargetId.eq(target.id))
-            .exec(&db)
-            .await?;
+    let db = services.db_required().await?;
+    Ok(UpdateTargetResponse::Ok(Json(
+        target_config_with_accounts(&db, target).await?.into(),
+    )))
+}
 
-        if target.kind == TargetKind::Ssh {
-            let options: TargetOptions = serde_json::from_value(target.options.clone())?;
-            if let TargetOptions::Ssh(ssh_options) = options {
-                // `known_hosts` is keyed by host:port, not by target. Only
-                // drop the trusted key when no other SSH target still points
-                // at the same endpoint, otherwise the sibling loses its host
-                // key and is refused under `auto_reject`.
-                let still_referenced = ssh_endpoint_still_referenced(
-                    &db,
-                    target.id,
-                    &ssh_options.host,
-                    ssh_options.port,
-                )
-                .await?;
-                if !still_referenced {
-                    KnownHost::Entity::delete_many()
-                        .filter(KnownHost::Column::Host.eq(&ssh_options.host))
-                        .filter(KnownHost::Column::Port.eq(ssh_options.port as i32))
-                        .exec(&db)
-                        .await?;
-                }
+#[utoipa::path(delete, path = "/targets/{id}", operation_id = "delete_target")]
+async fn api_delete_target(
+    id: Path<Uuid>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<DeleteTargetResponse, GatedError> {
+    let db = services.db_required().await?;
+
+    let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(DeleteTargetResponse::NotFound);
+    };
+
+    TargetRoleAssignment::Entity::delete_many()
+        .filter(TargetRoleAssignment::Column::TargetId.eq(target.id))
+        .exec(&db)
+        .await?;
+
+    if target.kind == TargetKind::Ssh {
+        let options: TargetOptions = serde_json::from_value(target.options.clone())?;
+        if let TargetOptions::Ssh(ssh_options) = options {
+            // `known_hosts` is keyed by host:port, not by target. Only
+            // drop the trusted key when no other SSH target still points
+            // at the same endpoint, otherwise the sibling loses its host
+            // key and is refused under `auto_reject`.
+            let still_referenced =
+                ssh_endpoint_still_referenced(&db, target.id, &ssh_options.host, ssh_options.port)
+                    .await?;
+            if !still_referenced {
+                KnownHost::Entity::delete_many()
+                    .filter(KnownHost::Column::Host.eq(&ssh_options.host))
+                    .filter(KnownHost::Column::Port.eq(ssh_options.port as i32))
+                    .exec(&db)
+                    .await?;
             }
         }
-
-        let target_id = target.id;
-        target.delete(&db).await?;
-        drop(db);
-        services.db_pool_registry.invalidate(target_id).await;
-        services.notify_authorization_changed();
-        Ok(DeleteTargetResponse::Deleted)
     }
 
-    #[oai(
-        path = "/targets/:id/known-ssh-host-keys",
-        method = "get",
-        operation_id = "get_ssh_target_known_ssh_host_keys"
-    )]
-    async fn get_ssh_target_known_ssh_host_keys(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<TargetKnownSshHostKeysResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+    let target_id = target.id;
+    target.delete(&db).await?;
+    drop(db);
+    services.db_pool_registry.invalidate(target_id).await;
+    services.notify_authorization_changed();
+    Ok(DeleteTargetResponse::Deleted)
+}
 
-        let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
-            return Ok(TargetKnownSshHostKeysResponse::NotFound);
-        };
+#[utoipa::path(
+    get,
+    path = "/targets/{id}/known-ssh-host-keys",
+    operation_id = "get_ssh_target_known_ssh_host_keys"
+)]
+async fn get_ssh_target_known_ssh_host_keys(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<TargetKnownSshHostKeysResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
 
-        let target: TargetConfig = target.try_into()?;
+    let Some(target) = Target::Entity::find_by_id(id.0).one(&db).await? else {
+        return Ok(TargetKnownSshHostKeysResponse::NotFound);
+    };
 
-        let options: TargetSSHOptions = match target.options {
-            TargetOptions::Ssh(x) => x,
-            _ => return Ok(TargetKnownSshHostKeysResponse::InvalidType),
-        };
+    let target: TargetConfig = target.try_into()?;
 
-        let known_hosts = KnownHost::Entity::find()
-            .filter(
-                KnownHost::Column::Host
-                    .eq(&options.host)
-                    .and(KnownHost::Column::Port.eq(options.port)),
-            )
-            .all(&db)
-            .await?;
+    let options: TargetSSHOptions = match target.options {
+        TargetOptions::Ssh(x) => x,
+        _ => return Ok(TargetKnownSshHostKeysResponse::InvalidType),
+    };
 
-        Ok(TargetKnownSshHostKeysResponse::Found(Json(known_hosts)))
-    }
+    let known_hosts = KnownHost::Entity::find()
+        .filter(
+            KnownHost::Column::Host
+                .eq(&options.host)
+                .and(KnownHost::Column::Port.eq(options.port)),
+        )
+        .all(&db)
+        .await?;
+
+    Ok(TargetKnownSshHostKeysResponse::Found(Json(known_hosts)))
 }
 
 /// Whether another SSH target (not `exclude_id`) still uses `host:port`.
@@ -750,140 +748,139 @@ fn keep_stored_secrets(options: &mut TargetOptions, stored: &TargetOptions) {
     }
 }
 
-#[derive(ApiResponse)]
-enum GetTargetRolesResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<RoleConfig>>),
-    #[oai(status = 404)]
-    NotFound,
+api_response! {
+    enum GetTargetRolesResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<RoleConfig>>),
+        #[oai(status = 404)]
+        NotFound,
+    }
 }
 
-#[derive(ApiResponse)]
-enum AddTargetRoleResponse {
-    #[oai(status = 201)]
-    Created,
-    #[oai(status = 409)]
-    AlreadyExists,
+api_response! {
+    enum AddTargetRoleResponse {
+        #[oai(status = 201)]
+        Created,
+        #[oai(status = 409)]
+        AlreadyExists,
+    }
 }
 
-#[derive(ApiResponse)]
-enum DeleteTargetRoleResponse {
-    #[oai(status = 204)]
-    Deleted,
-    #[oai(status = 404)]
-    NotFound,
+api_response! {
+    enum DeleteTargetRoleResponse {
+        #[oai(status = 204)]
+        Deleted,
+        #[oai(status = 404)]
+        NotFound,
+    }
 }
 
-pub struct RolesApi;
+#[utoipa::path(get, path = "/targets/{id}/roles", operation_id = "get_target_roles")]
+async fn api_get_target_roles(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetTargetRolesResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
 
-#[OpenApi]
-impl RolesApi {
-    #[oai(
-        path = "/targets/:id/roles",
-        method = "get",
-        operation_id = "get_target_roles"
-    )]
-    async fn api_get_target_roles(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<GetTargetRolesResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+    let Some((_, roles)) = Target::Entity::find_by_id(*id)
+        .find_with_related(Role::Entity)
+        .all(&db)
+        .await
+        .map(|x| x.into_iter().next())
+        .map_err(GatedError::from)?
+    else {
+        return Ok(GetTargetRolesResponse::NotFound);
+    };
 
-        let Some((_, roles)) = Target::Entity::find_by_id(*id)
-            .find_with_related(Role::Entity)
-            .all(&db)
-            .await
-            .map(|x| x.into_iter().next())
-            .map_err(GatedError::from)?
-        else {
-            return Ok(GetTargetRolesResponse::NotFound);
-        };
+    Ok(GetTargetRolesResponse::Ok(Json(
+        roles.into_iter().map(|x| x.into()).collect(),
+    )))
+}
 
-        Ok(GetTargetRolesResponse::Ok(Json(
-            roles.into_iter().map(|x| x.into()).collect(),
-        )))
+#[utoipa::path(
+    post,
+    path = "/targets/{id}/roles/{role_id}",
+    operation_id = "add_target_role"
+)]
+async fn api_add_target_role(
+    Path((id, role_id)): Path<(Uuid, Uuid)>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<AddTargetRoleResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+
+    if !TargetRoleAssignment::Entity::find()
+        .filter(TargetRoleAssignment::Column::TargetId.eq(id))
+        .filter(TargetRoleAssignment::Column::RoleId.eq(role_id))
+        .all(&db)
+        .await
+        .map_err(GatedError::from)?
+        .is_empty()
+    {
+        return Ok(AddTargetRoleResponse::AlreadyExists);
     }
 
-    #[oai(
-        path = "/targets/:id/roles/:role_id",
-        method = "post",
-        operation_id = "add_target_role"
-    )]
-    async fn api_add_target_role(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        id: Path<Uuid>,
-        role_id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<AddTargetRoleResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
+    let values = TargetRoleAssignment::ActiveModel {
+        target_id: Set(id),
+        role_id: Set(role_id),
+        ..Default::default()
+    };
 
-        if !TargetRoleAssignment::Entity::find()
-            .filter(TargetRoleAssignment::Column::TargetId.eq(id.0))
-            .filter(TargetRoleAssignment::Column::RoleId.eq(role_id.0))
-            .all(&db)
-            .await
-            .map_err(GatedError::from)?
-            .is_empty()
-        {
-            return Ok(AddTargetRoleResponse::AlreadyExists);
-        }
+    values.insert(&db).await.map_err(GatedError::from)?;
 
-        let values = TargetRoleAssignment::ActiveModel {
-            target_id: Set(id.0),
-            role_id: Set(role_id.0),
-            ..Default::default()
-        };
+    Ok(AddTargetRoleResponse::Created)
+}
 
-        values.insert(&db).await.map_err(GatedError::from)?;
+#[utoipa::path(
+    delete,
+    path = "/targets/{id}/roles/{role_id}",
+    operation_id = "delete_target_role"
+)]
+async fn api_delete_target_role(
+    Path((id, role_id)): Path<(Uuid, Uuid)>,
+    db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<DeleteTargetRoleResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
 
-        Ok(AddTargetRoleResponse::Created)
+    if Target::Entity::find_by_id(id).one(&db).await?.is_none() {
+        return Ok(DeleteTargetRoleResponse::NotFound);
     }
 
-    #[oai(
-        path = "/targets/:id/roles/:role_id",
-        method = "delete",
-        operation_id = "delete_target_role"
-    )]
-    async fn api_delete_target_role(
-        &self,
-        db: Data<&SharedDatabaseConnection>,
-        services: Data<&Services>,
-        id: Path<Uuid>,
-        role_id: Path<Uuid>,
-        _sec_scheme: AnySecurityScheme,
-    ) -> Result<DeleteTargetRoleResponse, GatedError> {
-        let db = gated_core::db_required(&db).await?;
-
-        if Target::Entity::find_by_id(id.0).one(&db).await?.is_none() {
-            return Ok(DeleteTargetRoleResponse::NotFound);
-        }
-
-        if Role::Entity::find_by_id(role_id.0)
-            .one(&db)
-            .await?
-            .is_none()
-        {
-            return Ok(DeleteTargetRoleResponse::NotFound);
-        }
-
-        let Some(model) = TargetRoleAssignment::Entity::find()
-            .filter(TargetRoleAssignment::Column::TargetId.eq(id.0))
-            .filter(TargetRoleAssignment::Column::RoleId.eq(role_id.0))
-            .one(&db)
-            .await
-            .map_err(GatedError::from)?
-        else {
-            return Ok(DeleteTargetRoleResponse::NotFound);
-        };
-
-        model.delete(&db).await.map_err(GatedError::from)?;
-        services.notify_authorization_changed();
-
-        Ok(DeleteTargetRoleResponse::Deleted)
+    if Role::Entity::find_by_id(role_id).one(&db).await?.is_none() {
+        return Ok(DeleteTargetRoleResponse::NotFound);
     }
+
+    let Some(model) = TargetRoleAssignment::Entity::find()
+        .filter(TargetRoleAssignment::Column::TargetId.eq(id))
+        .filter(TargetRoleAssignment::Column::RoleId.eq(role_id))
+        .one(&db)
+        .await
+        .map_err(GatedError::from)?
+    else {
+        return Ok(DeleteTargetRoleResponse::NotFound);
+    };
+
+    model.delete(&db).await.map_err(GatedError::from)?;
+    services.notify_authorization_changed();
+
+    Ok(DeleteTargetRoleResponse::Deleted)
+}
+
+pub fn router() -> OpenApiRouter {
+    api_routes!(
+        api_get_all_targets,
+        api_create_target,
+        api_get_target,
+        api_update_target,
+        api_delete_target,
+        get_ssh_target_known_ssh_host_keys,
+        api_get_target_roles,
+        api_add_target_role,
+        api_delete_target_role,
+    )
 }
 
 #[cfg(test)]

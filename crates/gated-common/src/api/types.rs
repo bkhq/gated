@@ -206,14 +206,10 @@ impl From<TargetPostgresOptions> for stored::TargetPostgresOptions {
     }
 }
 
-/// Empty marker for the `None` variant of [`UpstreamAuth`].
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default, ToSchema)]
-pub struct NoUpstreamAuth {}
-
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(tag = "kind")]
 pub enum UpstreamAuth {
-    None(NoUpstreamAuth),
+    None,
     Headers(HeadersUpstreamAuth),
     BearerToken(BearerTokenUpstreamAuth),
     ClientCertificate(ClientCertificateUpstreamAuth),
@@ -222,7 +218,7 @@ pub enum UpstreamAuth {
 impl From<stored::UpstreamAuth> for UpstreamAuth {
     fn from(auth: stored::UpstreamAuth) -> Self {
         match auth {
-            stored::UpstreamAuth::None(_) => Self::None(NoUpstreamAuth {}),
+            stored::UpstreamAuth::None(_) => Self::None,
             stored::UpstreamAuth::Headers(auth) => Self::Headers(auth),
             stored::UpstreamAuth::BearerToken(auth) => Self::BearerToken(auth),
             stored::UpstreamAuth::ClientCertificate(auth) => Self::ClientCertificate(auth),
@@ -233,7 +229,7 @@ impl From<stored::UpstreamAuth> for UpstreamAuth {
 impl From<UpstreamAuth> for stored::UpstreamAuth {
     fn from(auth: UpstreamAuth) -> Self {
         match auth {
-            UpstreamAuth::None(_) => Self::None(stored::NoUpstreamAuth {}),
+            UpstreamAuth::None => Self::None(stored::NoUpstreamAuth {}),
             UpstreamAuth::Headers(auth) => Self::Headers(auth),
             UpstreamAuth::BearerToken(auth) => Self::BearerToken(auth),
             UpstreamAuth::ClientCertificate(auth) => Self::ClientCertificate(auth),
@@ -546,7 +542,7 @@ mod tests {
     #[test]
     fn empty_upstream_auth_accepts_only_its_tag() {
         let auth: UpstreamAuth = serde_json::from_value(json!({"kind": "None"})).unwrap();
-        assert_eq!(auth, UpstreamAuth::None(NoUpstreamAuth {}));
+        assert_eq!(auth, UpstreamAuth::None);
     }
 
     #[test]
