@@ -2113,7 +2113,10 @@ dependencies = [
  "git-version",
  "governor",
  "humantime-serde",
+ "hyper",
+ "hyper-util",
  "password-hash 0.5.0",
+ "pastey",
  "poem",
  "poem-openapi",
  "rand 0.8.8",
@@ -2122,6 +2125,7 @@ dependencies = [
  "reqwest 0.13.5",
  "reqwest-websocket",
  "russh",
+ "rustls",
  "schemars 0.9.0",
  "sea-orm",
  "serde",
@@ -2131,12 +2135,15 @@ dependencies = [
  "subtle",
  "thiserror 2.0.20",
  "tokio",
+ "tokio-rustls",
  "tokio-stream",
  "tokio-tungstenite 0.27.0",
  "totp-rs",
+ "tower-service",
  "tracing",
  "url",
  "utoipa",
+ "utoipa-axum",
  "uuid",
 ]
 
@@ -4225,6 +4232,12 @@ checksum = "aab41826031698d6ffcd9cff78ef56ef998e39dc7e5067cdfebe373842d4723b"
 dependencies = [
  "phc",
 ]
+
+[[package]]
+name = "pastey"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "pathdiff"
@@ -7315,6 +7328,19 @@ dependencies = [
  "serde",
  "serde_json",
  "utoipa-gen",
+]
+
+[[package]]
+name = "utoipa-axum"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "865319162dc3d0032e1e40ed11bd49d5b78e8ef576740589fd6823e2e9977423"
+dependencies = [
+ "axum 0.8.9",
+ "pastey",
+ "tower-layer",
+ "tower-service",
+ "utoipa",
 ]
 
 [[package]]

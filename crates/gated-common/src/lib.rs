@@ -11,6 +11,7 @@ mod state;
 mod try_macro;
 mod types;
 pub mod version;
+pub mod web;
 
 pub use config::*;
 pub use error::GatedError;
