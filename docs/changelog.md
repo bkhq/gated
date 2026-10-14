@@ -31,3 +31,7 @@ Workspace migrated to edition 2024 and resolver 3 with `cargo fix --edition`. `t
 ## 2026-10-14 00:00 [decision]
 
 Decision event z0ytlcaj (option B): `gated` no longer depends on `serde_yaml`. The config file is parsed by the `config` crate into a `serde_json::Value` for the legacy-key migration, and setup writes the generated config with `serde-saphyr` 2.0 (pure Rust, serializer feature only). RUSTSEC-2024-0449 is still reported because the vendored `poem` and `poem-openapi` depend on `serde_yaml`.
+
+## 2026-10-14 00:12 [decision]
+
+Decision event jnk3t54s: the vendored poem crates will not be patched further; poem is to be replaced. Proposed as task and plan `20261014-0012-replace-poem-with-axum`, pending approval. Until that work lands, `cargo deny check advisories` keeps failing on RUSTSEC-2024-0449.
