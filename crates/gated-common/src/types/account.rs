@@ -1,27 +1,29 @@
 use poem_openapi::{Object, Union};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct SshPasswordAccountCredentials {
     pub username: String,
     pub password: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct SshKeyAccountCredentials {
     pub username: String,
     pub private_key_pem: String,
     pub passphrase: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct DbPasswordAccountCredentials {
     pub engine: DbPasswordEngine,
     pub username: String,
     pub password: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, poem_openapi::Enum)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, poem_openapi::Enum, utoipa::ToSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 #[oai(rename_all = "kebab-case")]
 pub enum DbPasswordEngine {
@@ -29,14 +31,14 @@ pub enum DbPasswordEngine {
     Postgres,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct K8sTokenAccountCredentials {
     pub token: String,
     pub ca_pem: Option<String>,
     pub namespace: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct K8sClientCertAccountCredentials {
     pub client_certificate_pem: String,
     pub client_private_key_pem: String,
@@ -45,19 +47,19 @@ pub struct K8sClientCertAccountCredentials {
     pub namespace: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct HttpHeaderAccountCredential {
     pub name: String,
     pub value: String,
     pub sensitive: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct HttpHeadersAccountCredentials {
     pub headers: Vec<HttpHeaderAccountCredential>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Union)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Union, utoipa::ToSchema)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 #[oai(discriminator_name = "kind", one_of, rename_all = "kebab-case")]
 pub enum AccountCredentials {

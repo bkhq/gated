@@ -1,3 +1,5 @@
+pub mod types;
+
 use poem_openapi::SecurityScheme;
 use poem_openapi::auth::ApiKey;
 

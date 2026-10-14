@@ -31,16 +31,21 @@ pub enum SSHTargetAuth {
     PublicKey(SshTargetPublicKeyAuth),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct SshTargetPasswordAuth {
+    #[schema(value_type = String)]
     pub password: Secret<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, Default)]
+#[derive(
+    Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, Default, utoipa::ToSchema,
+)]
 pub struct SshTargetPublicKeyAuth {
     #[serde(default)]
+    #[schema(value_type = Option<String>)]
     pub private_key_pem: Option<Secret<String>>,
     #[serde(default)]
+    #[schema(value_type = Option<String>)]
     pub passphrase: Option<Secret<String>>,
 }
 
@@ -159,19 +164,25 @@ pub struct TargetHttpOptions {
 #[serde(deny_unknown_fields)]
 pub struct NoUpstreamAuth {}
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, Default)]
+#[derive(
+    Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, Default, utoipa::ToSchema,
+)]
 pub struct HeadersUpstreamAuth {
+    #[schema(value_type = HashMap<String, String>)]
     pub headers: HashMap<String, Secret<String>>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct BearerTokenUpstreamAuth {
+    #[schema(value_type = String)]
     pub token: Secret<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct ClientCertificateUpstreamAuth {
+    #[schema(value_type = String)]
     pub certificate: Secret<String>,
+    #[schema(value_type = String)]
     pub private_key: Secret<String>,
 }
 
@@ -204,7 +215,9 @@ impl Default for UpstreamAuth {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Enum, Default)]
+#[derive(
+    Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Enum, Default, utoipa::ToSchema,
+)]
 #[serde(rename_all = "lowercase")]
 #[oai(rename_all = "lowercase")]
 pub enum HttpProxyFlavor {
@@ -213,7 +226,7 @@ pub enum HttpProxyFlavor {
     Kubernetes,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Enum)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Enum, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 #[oai(rename_all = "kebab-case")]
 pub enum TargetAccountRole {
@@ -233,7 +246,7 @@ impl TargetAccountRole {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Object, utoipa::ToSchema)]
 pub struct TargetAccountMetadata {
     pub account_id: i32,
     pub account_name: String,

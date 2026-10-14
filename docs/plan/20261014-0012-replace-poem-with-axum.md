@@ -48,3 +48,10 @@ All seven crates listed above, the root manifest, `vendor/`, `deny.toml`, `docs/
 ## Annotations
 
 Approved through decision event pxsdlnmi (option A: all five phases on a branch, merged to main once everything passes).
+
+### Phase 1 findings (2026-10-14)
+
+- utoipa 6.0 is the current release; its derive and `utoipa-axum` APIs match 5.x.
+- poem-openapi kept two independent codecs: its own `Object`/`Union` JSON for the API and serde for storage. They disagree for the target and credential-policy configuration types (`Target`, `TargetOptions` and the option structs, `SSHTargetAuth`, `UpstreamAuth`, `Tls`, `TlsMode`, `CredentialKind`, `UserRequireCredentialsPolicy`, `User`): tagged by `kind` on the wire, untagged or externally tagged with lowercase names in the database. With a single serde codec the stored format must not move, so the wire format lives in dedicated types in `gated_common::api::types` with conversions to the stored ones; tests pin both representations.
+- Phases 1 and 2 are additive (utoipa derives next to the poem ones) so every commit builds; the poem derives are removed in phase 5.
+- Response documentation will be driven by the handler return type, as with poem: a derive generates both `IntoResponse` and the response metadata, and the route registration merges it into the operation.

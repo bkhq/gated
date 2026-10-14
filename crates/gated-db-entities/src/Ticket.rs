@@ -9,9 +9,10 @@ use uuid::Uuid;
 // `secret` is redacted from `Serialize` (`#[serde(skip)]`) and the
 // OpenAPI schema (`#[oai(skip)]`), and from the manual `Debug` impl below, so
 // the ticket secret never leaks through API responses or logs.
-#[derive(Clone, PartialEq, Eq, DeriveEntityModel, Serialize, Object)]
+#[derive(Clone, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
 #[sea_orm(table_name = "tickets")]
 #[oai(rename = "Ticket")]
+#[schema(as = Ticket)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,

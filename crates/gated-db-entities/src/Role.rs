@@ -4,9 +4,10 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
 #[sea_orm(table_name = "roles")]
 #[oai(rename = "Role")]
+#[schema(as = Role)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,

@@ -227,9 +227,10 @@ impl Deref for UserDetails {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Object)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Object, utoipa::ToSchema)]
 pub struct Role {
     #[serde(default)]
+    #[schema(required)]
     pub id: Uuid,
     pub name: String,
     pub description: String,

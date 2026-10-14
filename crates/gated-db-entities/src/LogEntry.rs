@@ -5,9 +5,10 @@ use sea_orm::query::JsonValue;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
 #[sea_orm(table_name = "log")]
 #[oai(rename = "LogEntry")]
+#[schema(as = LogEntry)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,

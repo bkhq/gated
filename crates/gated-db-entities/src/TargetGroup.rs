@@ -3,7 +3,9 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Clone, Enum, EnumIter, DeriveActiveEnum)]
+#[derive(
+    Debug, PartialEq, Eq, Serialize, Clone, Enum, EnumIter, DeriveActiveEnum, utoipa::ToSchema,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(16))")]
 pub enum BootstrapThemeColor {
     #[sea_orm(string_value = "primary")]
@@ -24,9 +26,10 @@ pub enum BootstrapThemeColor {
     Dark,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
 #[sea_orm(table_name = "target_groups")]
 #[oai(rename = "TargetGroup")]
+#[schema(as = TargetGroup)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,

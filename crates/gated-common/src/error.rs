@@ -58,6 +58,12 @@ pub enum GatedError {
 }
 
 impl ResponseError for GatedError {
+    fn status(&self) -> poem::http::StatusCode {
+        self.status_code()
+    }
+}
+
+impl GatedError {
     /// Map the typed error variant to a sensible HTTP status. Variants
     /// that can only result from server-side faults (DB / CA / TLS /
     /// I/O / SSO network failures) stay 500. Anything that can
@@ -65,8 +71,8 @@ impl ResponseError for GatedError {
     /// an expired session gets a 4xx so callers (and dashboards) can
     /// distinguish operator-actionable server faults from normal client
     /// errors instead of seeing every failure as a 500.
-    fn status(&self) -> poem::http::StatusCode {
-        use poem::http::StatusCode;
+    pub fn status_code(&self) -> axum::http::StatusCode {
+        use axum::http::StatusCode;
         match self {
             // Client input / lookup misses → 400 / 404.
             Self::InvalidTicket(_) => StatusCode::NOT_FOUND,
@@ -100,6 +106,12 @@ impl ResponseError for GatedError {
 impl GatedError {
     pub fn other<E: Error + Send + Sync + 'static>(err: E) -> Self {
         Self::Other(Box::new(err))
+    }
+}
+
+impl axum::response::IntoResponse for GatedError {
+    fn into_response(self) -> axum::response::Response {
+        (self.status_code(), self.to_string()).into_response()
     }
 }
 

@@ -4,9 +4,10 @@ use sea_orm::sea_query::ForeignKeyAction;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Object, utoipa::ToSchema)]
 #[sea_orm(table_name = "target_accounts")]
 #[oai(rename = "TargetAccount")]
+#[schema(as = TargetAccount)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub target_id: Uuid,
