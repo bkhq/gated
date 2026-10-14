@@ -1,8 +1,8 @@
 # 20261014-0012-replace-poem-with-axum Replace poem with axum and utoipa
 
-- **status**: draft
+- **status**: implementing
 - **createdAt**: 2026-10-14 00:12
-- **approvedAt**: (pending)
+- **approvedAt**: 2026-10-14 00:13
 - **relatedTask**: 20261014-0012-replace-poem-with-axum
 
 ## Context
@@ -47,4 +47,4 @@ All seven crates listed above, the root manifest, `vendor/`, `deny.toml`, `docs/
 
 ## Annotations
 
-(pending)
+Approved through decision event pxsdlnmi (option A: all five phases on a branch, merged to main once everything passes).
