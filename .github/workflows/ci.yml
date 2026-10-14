@@ -208,7 +208,7 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libssl-dev pkg-config openssh-client expect gnome-keyring kubectl
+          sudo apt-get install -y libssl-dev pkg-config openssh-client sshpass expect gnome-keyring kubectl
           command -v just || cargo install --locked just
 
       - name: Build frontend
@@ -230,6 +230,11 @@ jobs:
       - name: Build test images
         working-directory: tests
         run: make all
+
+      # The suites start their upstream containers on this network and reach
+      # them by container IP.
+      - name: Create test network
+        run: docker network create traefik
 
       - name: Install test dependencies
         working-directory: tests

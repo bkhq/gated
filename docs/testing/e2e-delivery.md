@@ -105,9 +105,13 @@ All probes run inside sidecar containers attached to the compose network
 - Pulled images (fetched on first use): `rancher/k3s:v1.35.2-k3s1`
   (override with `K3S_IMAGE`), `ghcr.io/soluto/oidc-server-mock:0.10.1`
   (`tests/helpers/process-manager.ts`).
-- Host binaries used by the tests themselves: `psql` (`tests/db/`), `expect`
-  (`tests/ssh/`), `kubectl` (`tests/kubernetes/`), `ssh`. The CI integration
-  job installs `openssh-client expect gnome-keyring kubectl`.
+- Host binaries used by the tests themselves: `psql` and `mysql` (`tests/db/`),
+  `sshpass` and `expect` (`tests/ssh/`), `kubectl` (`tests/kubernetes/`), `ssh`.
+  The CI integration job installs `openssh-client sshpass expect gnome-keyring
+  kubectl` and relies on the runner's database clients.
+- Docker network: the suites start upstream containers on a `traefik` network
+  and reach them by container IP; CI creates it with
+  `docker network create traefik`.
 - Node deps: `bun install` inside `tests/` (run.sh does this when
   `node_modules` is missing).
 - Ports: allocated randomly per test by the helpers — no fixed ports to free.
