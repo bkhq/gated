@@ -51,3 +51,7 @@ The HTTP/Kubernetes proxy listener (`gated-protocol-http`) runs on axum and the 
 ## 2026-10-14 01:20 [pitfall]
 
 axum's `WebSocketUpgrade::protocols` chooses the first entry of the *server's* list that the client offered, and exposes the client's list only as a sorted set. A proxy that must agree with an upstream negotiation (here `kubectl exec` over `v5.channel.k8s.io`) has to pick from the raw `Sec-WebSocket-Protocol` header in the client's order (`kubernetes::websocket::preferred_protocol`, with tests).
+
+## 2026-10-14 03:02 [decision]
+
+Decision event 46scm3iv: the OpenAPI documents keep utoipa's 3.1 representation (optional fields marked nullable); the regenerated snapshots are the new baseline and no post-processing is added.
