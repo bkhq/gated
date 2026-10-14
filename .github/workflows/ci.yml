@@ -208,7 +208,7 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libssl-dev pkg-config openssh-client sshpass expect gnome-keyring kubectl
+          sudo apt-get install -y libssl-dev pkg-config openssh-client sshpass expect gnome-keyring kubectl mariadb-client postgresql-client
           command -v just || cargo install --locked just
 
       - name: Build frontend

@@ -55,7 +55,7 @@ async function waitMysqlReady(host: string, port: number, timeoutMs = 60000): Pr
     const proc = Bun.spawn(
       [
         "mysql", "--host", host, "--port", String(port),
-        "--user=root", "--password=123", "--connect-timeout=3",
+        "--user=root", "--password=123", "--connect-timeout=3", "--skip-ssl",
         "-e", "SELECT 1;",
       ],
       { stdout: "ignore", stderr: "ignore" }

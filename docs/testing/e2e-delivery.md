@@ -107,8 +107,9 @@ All probes run inside sidecar containers attached to the compose network
   (`tests/helpers/process-manager.ts`).
 - Host binaries used by the tests themselves: `psql` and `mysql` (`tests/db/`),
   `sshpass` and `expect` (`tests/ssh/`), `kubectl` (`tests/kubernetes/`), `ssh`.
-  The CI integration job installs `openssh-client sshpass expect gnome-keyring
-  kubectl` and relies on the runner's database clients.
+  The tests use MariaDB client options, so the CI integration job installs
+  `mariadb-client` (replacing the runner's MySQL client) together with
+  `openssh-client sshpass expect gnome-keyring kubectl postgresql-client`.
 - Docker network: the suites start upstream containers on a `traefik` network
   and reach them by container IP; CI creates it with
   `docker network create traefik`.
