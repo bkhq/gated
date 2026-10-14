@@ -27,3 +27,7 @@ Shutdown now closes live sessions and waits up to ten seconds for them to deregi
 ## 2026-10-13 23:55 [decision]
 
 Workspace migrated to edition 2024 and resolver 3 with `cargo fix --edition`. `tail_expr_drop_order` flagged 130 sites where a tail-expression temporary is now dropped before locals; they were sampled (mostly awaited futures, lock guards and database handles released earlier), not reviewed one by one. `wrap_stream` gained a precise capture bound because the new `impl Trait` capture rules tied its result to the handle lock guard. `rand`'s `gen` is called as `r#gen` until the dependency is upgraded.
+
+## 2026-10-14 00:00 [decision]
+
+Decision event z0ytlcaj (option B): `gated` no longer depends on `serde_yaml`. The config file is parsed by the `config` crate into a `serde_json::Value` for the legacy-key migration, and setup writes the generated config with `serde-saphyr` 2.0 (pure Rust, serializer feature only). RUSTSEC-2024-0449 is still reported because the vendored `poem` and `poem-openapi` depend on `serde_yaml`.

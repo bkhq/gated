@@ -22,7 +22,7 @@ rlimit = "0.11"
 reqwest.workspace = true
 rustls.workspace = true
 serde_json.workspace = true
-serde_yaml = { version = "0.9", default-features = false }
+serde-saphyr = { version = "2.0", default-features = false, features = ["serialize"] }
 sea-orm.workspace = true
 time = { version = "0.3", default-features = false }
 tokio.workspace = true

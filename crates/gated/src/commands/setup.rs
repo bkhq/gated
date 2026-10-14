@@ -331,7 +331,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
 
     // The generated config contains secrets (e.g. `database_url`).
     // Do not dump it to stdout; it is written to the secured config file below.
-    let yaml = serde_yaml::to_string(&store)?;
+    let yaml = crate::config::serialize_config_store(&store)?;
 
     let yaml = format!(
         "# Config generated in version {version}\n# yaml-language-server: $schema=https://raw.githubusercontent.com/bkhq/gated/refs/heads/main/config-schema.json\n\n{yaml}",
