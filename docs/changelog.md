@@ -55,3 +55,7 @@ axum's `WebSocketUpgrade::protocols` chooses the first entry of the *server's* l
 ## 2026-10-14 03:02 [decision]
 
 Decision event 46scm3iv: the OpenAPI documents keep utoipa's 3.1 representation (optional fields marked nullable); the regenerated snapshots are the new baseline and no post-processing is added.
+
+## 2026-10-14 03:03 [decision]
+
+Decision event d0eogad3: the poem replacement branch is merged into `main` and pushed. Task `20261014-0012-replace-poem-with-axum` is completed.

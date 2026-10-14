@@ -1,6 +1,6 @@
 # 20261014-0012-replace-poem-with-axum Replace poem with axum and utoipa
 
-- **status**: in_progress
+- **status**: completed
 - **priority**: P1
 - **owner**: worker/9zjkmujd
 - **createdAt**: 2026-10-14 00:12
