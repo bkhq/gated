@@ -1,0 +1,2272 @@
+{
+  "app": {
+    "name": "Gated"
+  },
+  "common": {
+    "bulkActions": "批量操作",
+    "selectedCount_one": "已选 {{count}} 项",
+    "selectedCount_other": "已选 {{count}} 项",
+    "clearSelection": "清空选择"
+  },
+  "shared": {
+    "passwordInput": {
+      "show": "显示密码",
+      "hide": "隐藏密码"
+    },
+    "backendPending": {
+      "title": "后端尚未支持",
+      "notice": "这些选项尚未对接网关 API,目前仅作设计预览,无法修改。"
+    }
+  },
+  "a11y": {
+    "admin": {
+      "monitor": {
+        "sessions": {
+          "selectAll": "选择全部会话",
+          "selectRow": "选择会话 {{id}}",
+          "autoRefreshOn": "自动刷新已开启,每 5 秒轮询一次",
+          "autoRefreshOff": "自动刷新已关闭",
+          "openRecording": "打开录像 {{name}}",
+          "downloadRecording": "下载录像 {{name}}"
+        }
+      },
+      "config": {
+        "users": {
+          "selectAll": "选择本页全部用户",
+          "selectRow": "选择用户 {{name}}"
+        },
+        "accounts": {
+          "togglePasswordVisibility": "切换密码可见性"
+        },
+        "sso": {
+          "toggleEnabled": "切换 SSO 登录",
+          "toggleProvider": "切换提供者 {{name}}",
+          "copyRedirectUri": "复制回调地址到剪贴板"
+        },
+        "notifications": {
+          "toggleRouting": "将 {{event}} 路由到 {{channel}}"
+        }
+      }
+    },
+    "auth": {
+      "mainLandmark": "登录",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "otpGroup": "一次性验证码",
+      "otpDigit": "第 {{position}} 位(共 6 位)",
+      "credentialsError": "登录错误"
+    },
+    "encryption": {
+      "mainLandmark": "解锁网关"
+    },
+    "authRequests": {
+      "pendingInbox": "待审批请求列表",
+      "selectedRequest": "已选择请求:{{target}}",
+      "pendingRequestRow": "对 {{target}} 的审批请求",
+      "expandRow": "展开请求详情",
+      "collapseRow": "收起请求详情",
+      "rowDetailsRegion": "{{target}} 的请求详情",
+      "statusFilterGroup": "按状态筛选",
+      "sortAscending": "已升序排列 — 激活以切换为降序",
+      "sortDescending": "已降序排列 — 激活以切换为升序",
+      "countdownLive": "剩余审批时间",
+      "liveIndicator": "实时更新已启用"
+    },
+    "overview": {
+      "openTargetButton": "打开目标 {{name}}",
+      "statsLoading": "正在加载概览统计",
+      "frequentLoading": "正在加载常用目标",
+      "recentLoading": "正在加载最近活动"
+    },
+    "shell": {
+      "primaryNav": "主导航",
+      "expandSidebar": "展开侧边栏",
+      "collapseSidebar": "收起侧边栏",
+      "userMenu": "用户菜单",
+      "userMenuPopup": "账户菜单",
+      "navBadgeCount": "{{count}} 项待处理",
+      "opensInNewTab": "(在新窗口打开)",
+      "search": {
+        "dialogTitle": "快速搜索",
+        "dialogDescription": "搜索页面、主机和用户。使用方向键导航，回车键打开。",
+        "input": "搜索页面、主机和用户",
+        "results": "搜索结果"
+      },
+      "toggleSidebar": "切换侧边栏"
+    },
+    "components": {
+      "breadcrumb": "面包屑",
+      "emptyStateRegion": "空状态"
+    },
+    "profile": {
+      "passwordShow": "显示密码",
+      "passwordHide": "隐藏密码",
+      "ticketsSearch": "搜索临时授权",
+      "ticketsFilterState": "按状态筛选授权",
+      "tokensSearch": "搜索 API token"
+    },
+    "user": {
+      "tickets": {
+        "search": "搜索我签发的票据",
+        "filterState": "按状态筛选我的票据"
+      },
+      "apiTokens": {
+        "search": "搜索我的 API 令牌"
+      }
+    },
+    "targets": {
+      "viewModeGroup": "视图模式",
+      "viewGrid": "网格视图",
+      "viewTable": "表格视图",
+      "searchLabel": "搜索目标",
+      "filterProtocol": "按协议筛选",
+      "filterGroup": "按分组筛选",
+      "resultCount": "已显示 {{filtered}} / {{total}} 个目标",
+      "loading": "正在加载资源列表",
+      "clearFilters": "清除当前筛选条件",
+      "sortBy": "按{{column}}排序",
+      "statsLoading": "正在加载资源统计"
+    },
+    "targetDetail": {
+      "loading": "正在加载目标详情",
+      "sessions": "我的会话列表",
+      "connectCommand": "连接命令（可复制）"
+    },
+    "sessions": {
+      "workspace": "会话工作区",
+      "tablist": "打开的会话",
+      "closeSession": "关闭会话 {{name}}",
+      "newConnection": "新建连接",
+      "schemaTreeFilter": "筛选数据库表"
+    },
+    "terminal": {
+      "workspace": "终端工作区"
+    }
+  },
+  "section": {
+    "workspace": "工作台",
+    "admin": "管理",
+    "adminResources": "资源",
+    "adminIam": "身份与权限",
+    "adminMonitoring": "监控与审计",
+    "adminSystem": "系统",
+    "adminCommandControl": "命令管控"
+  },
+  "nav": {
+    "overview": "概览",
+    "targets": "我的资产",
+    "sessions": "终端",
+    "authRequests": "登录审批",
+    "credentials": "我的凭证",
+    "tickets": "临时授权",
+    "apiTokens": "API 令牌",
+    "profile": "个人设置",
+    "adminSessions": "会话监控",
+    "adminRecordings": "录像",
+    "adminAudit": "审计",
+    "adminTargets": "全部资产",
+    "adminAccounts": "认证信息",
+    "adminUsers": "用户",
+    "adminRoles": "角色",
+    "adminTickets": "临时授权",
+    "adminKnownHosts": "Known Hosts",
+    "adminParams": "系统设置",
+    "adminCommandAcl": "命令访问控制",
+    "adminCommandReviews": "命令审批",
+    "adminCommandRecords": "命令记录",
+    "adminFileRecords": "文件记录"
+  },
+  "actions": {
+    "new": "新建",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "details": "详情",
+    "confirm": "确认",
+    "close": "关闭",
+    "connect": "连接",
+    "open": "打开",
+    "search": "搜索",
+    "refresh": "刷新",
+    "filter": "筛选",
+    "clearFilters": "清除筛选",
+    "signIn": "登录",
+    "signOut": "退出登录",
+    "approve": "批准",
+    "reject": "拒绝",
+    "back": "返回",
+    "view": "查看"
+  },
+  "fields": {
+    "actions": "操作",
+    "status": "状态",
+    "name": "名称",
+    "type": "类型",
+    "address": "地址",
+    "user": "用户",
+    "target": "目标",
+    "started": "开始时间",
+    "duration": "时长",
+    "protocol": "协议",
+    "lastUsed": "最近使用",
+    "never": "从未",
+    "created": "创建时间",
+    "role": "角色",
+    "roles": "角色",
+    "description": "描述",
+    "port": "端口"
+  },
+  "status": {
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "live": "进行中",
+    "closed": "已结束",
+    "pending": "待审批",
+    "approved": "已批准",
+    "rejected": "已拒绝",
+    "expired": "已过期",
+    "active": "进行中"
+  },
+  "menu": {
+    "profile": "个人设置",
+    "authRequests": "登录审批",
+    "theme": {
+      "title": "主题",
+      "followSystem": "跟随系统",
+      "light": "浅色",
+      "dark": "深色"
+    },
+    "language": {
+      "title": "语言",
+      "zh-CN": "简体中文",
+      "en": "English"
+    },
+    "docs": "文档",
+    "github": "GitHub 仓库",
+    "about": "关于"
+  },
+  "profile": {
+    "description": "你的账号、登录方式、API 令牌、临时授权 — 全部集中在这里管理。",
+    "tabs": {
+      "info": "资料",
+      "auth": "认证",
+      "tickets": "临时授权",
+      "authRequests": "登录审批",
+      "apiTokens": "API 令牌"
+    },
+    "header": {
+      "activeNow": "在线",
+      "memberSince": "加入于 {{when}}"
+    },
+    "info": {
+      "identity": "身份信息",
+      "identityHint": "团队成员看到的资料。用户名由管理员分配。",
+      "preferences": "偏好",
+      "preferencesHint": "界面语言与时区设置。",
+      "activity": "活动",
+      "language": "语言",
+      "timezone": "时区",
+      "signOutOthers": "退出其它会话",
+      "signOutOthersHint": "撤销在其它设备上的登录会话。",
+      "avatar": "头像",
+      "avatarHint": "至少 256×256，PNG / JPG。",
+      "avatarUpload": "上传",
+      "avatarRemove": "移除",
+      "displayName": "显示名",
+      "username": "用户名",
+      "usernameLocked": "用户名由管理员分配，无法自行修改。",
+      "role": "角色",
+      "dirtyHint": "有未保存的修改。",
+      "saveSuccess": "已保存。",
+      "discard": "放弃修改",
+      "discardTitle": "放弃这些修改？",
+      "discardBody": "未保存的修改将丢失。",
+      "keepEditing": "继续编辑",
+      "validate": {
+        "nameRequired": "请填写显示名。",
+        "nameTooLong": "显示名最多 64 个字符。"
+      },
+      "localPreferencesHint": "语言保存在当前浏览器，时区仅对当前会话生效。这些偏好不会修改账号资料。"
+    },
+    "auth": {
+      "password": "密码",
+      "passwordHint": "上次修改于 {{when}}",
+      "passwordPolicy": "至少 12 位，需包含大小写字母与数字。",
+      "passwordChange": "修改密码",
+      "sshKeys": "SSH 公钥",
+      "sshKeysHint": "命令行登录及连接目标主机时使用。",
+      "addKey": "添加公钥",
+      "noKeys": "尚未添加 SSH 公钥",
+      "noKeysHint": "添加公钥后即可通过 SSH 登录。",
+      "otp": "MFA 设备",
+      "otpHint": "硬件 Token 或认证器应用，用作第二认证因子。",
+      "addOtp": "添加设备",
+      "noOtp": "尚未绑定 MFA 设备",
+      "noOtpHint": "为保护账号安全，请至少绑定一个 MFA 设备。",
+      "sessions": "活跃会话",
+      "sessionsHint": "当前以你身份登录的设备。",
+      "thisDevice": "当前设备",
+      "added": "添加于 {{when}}",
+      "lastUsed": "最近使用 {{when}}",
+      "pwDrawer": {
+        "title": "修改密码",
+        "description": "至少 12 位，需包含大小写字母与数字。",
+        "current": "当前密码",
+        "new": "新密码",
+        "confirm": "再次输入新密码",
+        "validate": {
+          "currentRequired": "请输入当前密码。",
+          "newRequired": "请输入新密码。",
+          "newTooShort": "新密码至少 12 位。",
+          "newWeak": "新密码需包含大小写字母与数字。",
+          "confirmMismatch": "两次输入的密码不一致。",
+          "sameAsCurrent": "新密码不能与当前密码相同。"
+        }
+      },
+      "keyDrawer": {
+        "titleNew": "添加 SSH 公钥",
+        "titleEdit": "重命名公钥",
+        "description": "粘贴 ~/.ssh/id_ed25519.pub 的内容。",
+        "label": "标签",
+        "labelPlaceholder": "MacBook Pro",
+        "material": "公钥",
+        "materialPlaceholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI… alex@laptop",
+        "validate": {
+          "labelRequired": "请填写标签。",
+          "materialRequired": "请粘贴公钥内容。",
+          "materialInvalid": "公钥格式不正确，仅支持 ssh-ed25519 / ssh-rsa / ecdsa-* 开头。"
+        }
+      },
+      "otpDrawer": {
+        "titleNew": "注册 MFA 设备",
+        "titleEdit": "重命名 MFA 设备",
+        "description": "硬件 Token 或认证器应用，用作第二认证因子。",
+        "deviceName": "设备名",
+        "deviceNamePlaceholder": "1Password · phone",
+        "validate": {
+          "nameRequired": "请填写设备名。"
+        }
+      },
+      "removeKey": {
+        "title": "移除 SSH 公钥",
+        "body": "确定要移除 {{name}} 吗？移除后将无法使用此密钥登录。"
+      },
+      "removeOtp": {
+        "title": "移除 MFA 设备",
+        "body": "确定要移除 {{name}} 吗？",
+        "lastWarningTitle": "你将失去 MFA 保护",
+        "lastWarningBody": "这是你绑定的最后一个 MFA 设备，移除后账号只剩密码保护。",
+        "lastConfirm": "我已了解风险，仍要移除"
+      },
+      "revokeSession": "退出该设备"
+    },
+    "tokens": {
+      "expiry": {
+        "d30": "30 天",
+        "d90": "90 天",
+        "d365": "365 天",
+        "never": "永不过期"
+      },
+      "fields": {
+        "name": "名称",
+        "created": "创建时间",
+        "expiresIn": "有效期"
+      },
+      "createDrawer": {
+        "title": "新建 API 令牌",
+        "description": "令牌将以你的身份调用 API。建议为不同用途单独创建，避免共享。",
+        "nameLabel": "名称",
+        "namePlaceholder": "Deploy bot · CI/CD",
+        "expiresLabel": "有效期",
+        "submit": "创建令牌",
+        "validate": {
+          "nameRequired": "请填写名称。",
+          "nameDuplicate": "已存在同名令牌。"
+        }
+      },
+      "secret": {
+        "title": "令牌已创建",
+        "description": "请立刻保存 — 关闭此窗口后将无法再次查看。",
+        "copy": "复制",
+        "copied": "已复制",
+        "acknowledge": "我已保存"
+      },
+      "revoke": {
+        "title": "撤销 API 令牌",
+        "body": "撤销 {{name}} 后，使用此令牌的脚本或 CI 任务将立即失败。",
+        "warningTitle": "撤销将立即生效",
+        "warningBody": "请确认没有线上任务仍在依赖此令牌。",
+        "confirm": "确认撤销"
+      },
+      "create": "新建令牌",
+      "description": "个人访问令牌，供脚本和 CI 代你调用 Gated API。",
+      "empty": "尚无 API 令牌",
+      "emptyHint": "签发一个令牌即可在脚本或 CI 中调用 Gated API。",
+      "searchPlaceholder": "搜索令牌名…",
+      "stats": {
+        "total": "全部",
+        "expiring": "30 天内到期"
+      }
+    },
+    "tickets": {
+      "description": "你当前持有的临时授权。限时或一次性 — 到期自动失效。",
+      "newClaim": "领取授权",
+      "empty": "暂无临时授权",
+      "emptyHint": "请管理员签发，或通过链接领取一项临时授权。",
+      "stats": {
+        "active": "有效",
+        "consumed": "已用完",
+        "expired": "已过期",
+        "expiring": "即将到期"
+      },
+      "filter": {
+        "allState": "全部状态"
+      },
+      "searchPlaceholder": "搜索授权名或范围…",
+      "fields": {
+        "name": "名称",
+        "scope": "授权范围",
+        "uses": "使用次数",
+        "expiresIn": "到期",
+        "state": "状态"
+      },
+      "menu": {
+        "copyLink": "复制访问链接",
+        "viewUsage": "查看使用日志"
+      },
+      "revoke": {
+        "title": "撤销临时授权",
+        "body": "撤销 {{name}} 后，该授权立即失效，正在使用中的连接会被中止。",
+        "scope": "范围：{{scope}}",
+        "confirm": "确认撤销"
+      }
+    },
+    "actions": {
+      "copy": "复制",
+      "revoke": "吊销",
+      "remove": "移除",
+      "edit": "编辑",
+      "rename": "重命名",
+      "copied": "已复制"
+    }
+  },
+  "overview": {
+    "welcome": {
+      "greeting": "你好，{{firstName}}",
+      "description": "您今天的特权访问概览。"
+    },
+    "stats": {
+      "reachableTargets": "我能连的目标",
+      "activeSessions": "活动会话",
+      "recording": "正在录像",
+      "sessionsIdle": "当前没有活动",
+      "pendingApprovals": "待审批",
+      "awaiting": "等待您审批",
+      "pendingNone": "无待处理",
+      "myTickets": "我的票据",
+      "ticketsExpiring_one": "其中 {{count}} 个 24h 内到期",
+      "ticketsExpiring_other": "其中 {{count}} 个 24h 内到期",
+      "ticketsClean": "暂无即将到期"
+    },
+    "frequentTargets": {
+      "title": "常用目标",
+      "description": "按最近 30 天使用频次排序",
+      "viewAll": "全部目标",
+      "empty": "您还没有可连接的目标",
+      "emptyDescription": "请联系管理员授予目标访问权限。"
+    },
+    "recentActivity": {
+      "title": "近期活动",
+      "viewAll": "查看全部",
+      "eventCount_one": "{{label}}",
+      "eventCount_other": "{{label}} ×{{count}}",
+      "description": "您过去 7 天的会话",
+      "empty": "过去 7 天没有会话",
+      "emptyDescription": "下次连接目标后，会话记录会出现在这里。"
+    }
+  },
+  "login": {
+    "title": "登录",
+    "username": "用户名",
+    "password": "密码",
+    "forgot": "忘记密码？",
+    "signing": "登录中…",
+    "or": "或",
+    "ssoGoogle": "Google",
+    "ssoGithub": "GitHub",
+    "ssoOkta": "Okta · Acme SSO",
+    "otpPrompt": "请输入 6 位验证码：",
+    "verifying": "验证中…",
+    "verifyAndSignIn": "验证并登录",
+    "recovery": "使用备用码",
+    "errorCreds": "请输入用户名和密码",
+    "errorOtp": "请输入完整的 6 位代码",
+    "errorFailed": "登录失败，请检查账号信息后重试。",
+    "errorNotStarted": "登录会话尚未开始，请从密码步骤重新开始。",
+    "errorPublicKey": "此账号需要公钥认证，浏览器无法完成。",
+    "ssoChoose": "请选择单点登录方式继续。",
+    "waitingApproval": "等待审批人确认你的登录请求。"
+  },
+  "encryption": {
+    "passwordShow": "显示密码",
+    "passwordHide": "隐藏密码",
+    "rateLimited": "尝试过于频繁,请在 {{seconds}} 秒后重试。",
+    "pending": {
+      "title": "正在检测网关",
+      "label": "正在连接网关……"
+    },
+    "error": {
+      "title": "无法连接网关",
+      "description": "无法获取加密状态。网关可能正在启动,或暂时不可用。",
+      "retry": "重试",
+      "retrying": "正在重试……"
+    },
+    "unlock": {
+      "title": "解锁网关",
+      "description": "请输入主密码以解密网关数据库。",
+      "passwordLabel": "主密码",
+      "passwordPlaceholder": "••••••••••••",
+      "submit": "解锁",
+      "submitting": "正在解锁……",
+      "errorPasswordRequired": "请输入主密码。",
+      "errorInvalid": "主密码不正确,主密码长度为 {{min}} 位以上。",
+      "errorGeneric": "解锁失败,请重试。"
+    },
+    "bootstrap": {
+      "title": "初始化加密",
+      "description": "首次启动。请输入初始化令牌并设置主密码。",
+      "tokenHelpTitle": "如何获取初始化令牌",
+      "tokenHelpBody": "初始化令牌在网关启动时生成,并写入服务器的 data 目录。请到服务器上读取,浏览器无法获取。",
+      "tokenLabel": "初始化令牌",
+      "tokenPlaceholder": "粘贴初始化令牌",
+      "passwordLabel": "主密码",
+      "passwordPlaceholder": "设置一个强密码",
+      "passwordHint": "至少 {{min}} 位。请妥善保管 —— 一旦遗失,数据库无法再解锁。",
+      "confirmLabel": "确认主密码",
+      "confirmPlaceholder": "再次输入密码",
+      "submit": "初始化",
+      "submitting": "正在初始化……",
+      "errorTokenRequired": "请输入初始化令牌。",
+      "errorPasswordRequired": "请输入主密码。",
+      "errorPasswordTooShort": "主密码至少需要 {{min}} 位。",
+      "errorConfirmMismatch": "两次输入的密码不一致。",
+      "errorTokenInvalid": "初始化令牌无效或已被使用。",
+      "errorEncryptionDisabled": "该网关未启用加密,无需初始化。",
+      "errorAlreadyInitialized": "加密已初始化,请使用解锁。",
+      "errorDbDetectionFailed": "无法检测数据库是否可以安全初始化。",
+      "errorDbNotPlaintext": "数据库已包含加密数据,初始化已中止。",
+      "errorInitFailed": "网关初始化失败,请查看服务器日志。",
+      "errorGeneric": "初始化失败,请重试。",
+      "backupTitle": "加密已初始化",
+      "backupDescription": "数据库现已加密。",
+      "backupBody": "服务器上保留了一份迁移前的未加密数据库副本用于恢复，其中所有已存储的密钥均为明文。确认网关工作正常后，请删除该文件：",
+      "backupContinue": "我已知晓，继续"
+    }
+  },
+  "spotlight": {
+    "placeholder": "搜索页面、目标、用户…",
+    "groupPages": "页面",
+    "groupTargets": "目标",
+    "groupUsers": "用户",
+    "navigate": "选择",
+    "openHint": "打开",
+    "closeHint": "关闭",
+    "results": "结果",
+    "empty": "未找到匹配项"
+  },
+  "sessions": {
+    "newConnection": "新建连接",
+    "emptyTitle": "打开一个连接开始工作",
+    "emptyDescription": "可以同时打开多个标签页：SSH、MySQL、PostgreSQL、HTTP — 都在这里。",
+    "browseAll": "浏览所有目标",
+    "recent": "最近使用",
+    "fullscreen": "全屏 (F11)",
+    "exitFullscreen": "退出全屏 (Esc)",
+    "connected": "已连接",
+    "recording": "录制中",
+    "connectionInfo": "连接信息",
+    "copy": "复制",
+    "settings": "设置",
+    "close": "关闭",
+    "readOnly": "只读",
+    "limitHint": "limit 10000 rows · 30s",
+    "rowsAndTime": "{{rows}} 行 · {{ms}}ms",
+    "tabQuery": "SQL 查询",
+    "tabTerminal": "CLI 终端",
+    "tabSchema": "表结构",
+    "filterTables": "搜索表…",
+    "filterNoMatch": "无匹配的表",
+    "run": "执行",
+    "exportCsv": "导出 CSV",
+    "createTable": "CREATE TABLE",
+    "rttLabel": "RTT",
+    "mtuLabel": "MTU",
+    "tzLabel": "UTC+08:00",
+    "subSessionId": "会话",
+    "subDuration": "时长"
+  },
+  "quickConnect": {
+    "placeholder": "连接到… 例：prod-api, billing, deploy@…",
+    "navigate": "选择",
+    "connect": "连接",
+    "close": "关闭",
+    "noMatch": "未找到匹配目标"
+  },
+  "targets": {
+    "userDescription": "您当前角色授权可访问的全部资源。",
+    "adminDescription": "受网关代理的全部资源 — SSH、数据库、HTTP 等。",
+    "userSearchPlaceholder": "搜索名称、主机、用户…",
+    "ungrouped": "未分组",
+    "filters": {
+      "allProtocols": "全部协议",
+      "allGroups": "全部分组"
+    },
+    "stats": {
+      "reachable": "可访问目标",
+      "reachableHint": "我当前角色授权可达的全部资源",
+      "recentlyUsed": "最近使用",
+      "recentlyUsedHint_one": "我最近 7 天访问的 {{count}} 个资源",
+      "recentlyUsedHint_other": "我最近 7 天访问的 {{count}} 个资源",
+      "recentlyUsedHintNone": "最近 7 天无活动"
+    },
+    "empty": {
+      "title": "暂无可访问的资源",
+      "description": "您的角色被授权访问某些资源后会在此显示。"
+    },
+    "emptyFiltered": {
+      "title": "没有匹配的资源",
+      "description": "尝试清除当前的筛选条件或调整搜索词。"
+    },
+    "error": {
+      "title": "加载失败",
+      "description": "无法获取资源列表，请稍后再试。",
+      "retry": "重试"
+    },
+    "actions": {
+      "import": "导入",
+      "newTarget": "新建目标"
+    },
+    "menu": {
+      "copyConnect": "复制连接命令",
+      "hostKeys": "查看主机密钥",
+      "testConnection": "测试连接"
+    },
+    "detail": {
+      "loading": "加载中…",
+      "notFoundTitle": "目标不存在",
+      "notFoundDescription": "可能已被删除或您没有访问权限。",
+      "errorTitle": "加载失败",
+      "errorDescription": "无法获取目标详情，请稍后再试或刷新页面。",
+      "lastUpdated": "更新于 {{time}}",
+      "copyConnectCmd": "复制连接命令",
+      "actions": {
+        "refresh": "刷新",
+        "favoriteOn": "已收藏",
+        "favoriteOff": "收藏",
+        "replayLast": "回放上次会话",
+        "openSqlConsole": "打开 SQL 控制台",
+        "openFiles": "文件",
+        "more": "更多操作"
+      },
+      "tabs": {
+        "overview": "概览",
+        "sessions": "我的会话",
+        "security": "安全",
+        "permissions": "我的权限"
+      },
+      "overview": {
+        "connection": "连接信息",
+        "targetId": "目标 ID",
+        "host": "主机",
+        "port": "端口",
+        "defaultUser": "默认用户",
+        "group": "分组",
+        "connectHint": "可使用以下命令直接连接：",
+        "policySummary": "策略摘要",
+        "recording": "会话录像",
+        "readOnly": "只读",
+        "approvalRequired": "需要审批",
+        "idleTimeout": "空闲超时 30 分钟",
+        "notes": "描述",
+        "notesEmpty": "暂无描述",
+        "connectUnavailable": "连接命令不可用(协议监听器未启用或未登录)。",
+        "browserOpen": {
+          "title": "测试访问",
+          "hint": "生成一个 token(或自己粘贴):上面的 curl 命令会自动填入,也可点击在新标签页直接打开资产。生成的 token 可在「个人资料 → API tokens」里吊销。",
+          "tokenPlaceholder": "粘贴 API token",
+          "button": "打开",
+          "generate": "生成 token"
+        }
+      },
+      "policy": {
+        "enabled": "已开启",
+        "off": "关闭"
+      },
+      "sessions": {
+        "id": "会话 ID",
+        "view": "查看",
+        "replay": "回放",
+        "empty": "暂无我的会话",
+        "emptyDescription": "您在该目标上还没有任何会话记录。点击「连接」即可发起一次新会话。",
+        "openSession": "查看会话 {{id}}",
+        "replaySession": "回放会话 {{id}}"
+      },
+      "security": {
+        "title": "已知主机密钥",
+        "description": "网关与该目标建立 SSH/TLS 连接时使用的指纹。首次连接前会与此处比对。",
+        "copyFingerprint": "复制指纹",
+        "firstConnectHint": "主机密钥在首次连接时校验并记录。",
+        "noKnownKeys": "尚未记录主机密钥——首次连接时自动学习。",
+        "tlsTitle": "上游 TLS",
+        "tlsDescription": "网关连接该资产时使用的 TLS 设置。",
+        "tlsMode": "TLS 模式",
+        "tlsModes": {
+          "Disabled": "禁用",
+          "Preferred": "优先",
+          "Required": "必需"
+        },
+        "verify": "证书校验",
+        "verifyOn": "校验",
+        "verifyOff": "不校验",
+        "certTitle": "上游证书",
+        "certDescription": "上游出示的证书链，按系统根证书和该资产配置的 CA 校验。",
+        "certLoadError": "无法获取上游证书。",
+        "certNoTls": "上游使用 HTTP 明文，没有证书。",
+        "certTrusted": "网关信任该证书",
+        "certLeaf": "服务器证书",
+        "certIntermediate": "中间证书",
+        "certSubject": "主题",
+        "certIssuer": "签发者",
+        "certValidity": "有效期",
+        "certSans": "名称",
+        "certSerial": "序列号"
+      },
+      "permissions": {
+        "userRoles": "通过哪些角色获得访问",
+        "adminRoles": "已授权访问该目标的角色",
+        "youAreMember": "您是此角色成员",
+        "adminGrantsAccess": "该角色成员可访问此目标",
+        "allowedActions": "允许的操作",
+        "noRoles": "尚无角色授权访问此目标。请在目标表单中分配角色。"
+      }
+    },
+    "form": {
+      "titleNew": "新建目标",
+      "titleEdit": "编辑目标",
+      "descNew": "添加一个新的受管资源。",
+      "descEdit": "编辑目标配置。",
+      "descriptionPlaceholder": "可选 — 团队/Owner/作用域备注",
+      "tabs": {
+        "general": "基本",
+        "auth": "认证",
+        "policy": "策略",
+        "roles": "授权角色"
+      },
+      "auth": {
+        "methodLabel": "认证方式",
+        "methodKey": "SSH 私钥（推荐）",
+        "methodPassword": "密码（保存在 Vault）",
+        "methodAgent": "用户自带",
+        "hostKeyTitle": "主机密钥指纹",
+        "hostKeyDesc": "保存前预探测目标 SSH 主机密钥。",
+        "probe": "探测主机密钥",
+        "probing": "探测中…",
+        "handshakeOk": "握手成功",
+        "credRef": "凭证（Vault 引用）",
+        "tlsRequired": "必需 · 绑定服务端证书",
+        "tlsPreferred": "尽量启用",
+        "tlsOff": "关闭（仅实验用）",
+        "selectorLabel": "主账号",
+        "selectorPlaceholder": "选择一个账号",
+        "required": "请选择主账号。",
+        "source": "凭证来源",
+        "sourceAccount": "选择账号",
+        "sourceManual": "手动输入",
+        "username": "用户名",
+        "usernameSshHint": "留空则使用连接者的 Gated 用户名登录。",
+        "methods": {
+          "password": "密码",
+          "key": "私钥",
+          "none": "无认证",
+          "bearer": "Bearer Token"
+        },
+        "password": "密码",
+        "privateKey": "私钥（PEM）",
+        "passphrase": "私钥口令（可选）",
+        "token": "Bearer Token",
+        "keepSecret": "留空则保留已保存的值",
+        "empty": {
+          "title": "没有可用账号",
+          "body": "创建一个与此目标协议匹配的账号，作为主凭证绑定。",
+          "create": "新建账号"
+        }
+      },
+      "policy": {
+        "recording": "记录此目标的会话",
+        "recordingHint": "保存到对象存储 · 默认 365 天",
+        "approval": "需要审批",
+        "approvalHint": "每次连接前需经管理员批准",
+        "readOnly": "只读模式",
+        "readOnlyHint": "拒绝 DDL / DML / 写入操作",
+        "idleTimeout": "空闲超时",
+        "idleTimeoutHint": "无输入达到此时长后自动断开",
+        "denyRules": "命令禁止规则（正则）",
+        "denyRulesHint": "命中后会话立即终止并触发警报。",
+        "readOnlyDbOnly": "只读策略仅对数据库目标生效。"
+      },
+      "httpFlavor": "HTTP 类型",
+      "httpFlavorGeneric": "通用",
+      "httpFlavorKubernetes": "Kubernetes",
+      "httpFlavorHint": "选择 Kubernetes 启用网关的 K8s API 代理行为及其专用上游认证（令牌 / 客户端证书）；通用用于普通 HTTP 反向代理目标。",
+      "groupNone": "无分组",
+      "rolesHint": "授予访问此目标的角色。用户必须拥有其中至少一个角色才能连接。",
+      "httpUrl": "上游 URL",
+      "httpUrlHint": "包含协议的完整 URL —— http:// 或 https://(协议是地址的一部分)。",
+      "missing": "请填写：{{fields}}"
+    },
+    "delete": {
+      "title": "删除目标",
+      "body": "确定删除目标 {{name}}？其角色绑定也会一并移除，此操作不可撤销。"
+    },
+    "hostKeysDialog": {
+      "title": "主机密钥 — {{name}}",
+      "error": "加载主机密钥失败。",
+      "empty": "尚未记录主机密钥——首次连接时自动学习。",
+      "copy": "复制密钥"
+    },
+    "views": {
+      "targets": "资产",
+      "groups": "分组"
+    }
+  },
+  "targetGroups": {
+    "searchPlaceholder": "按名称或描述搜索…",
+    "actions": {
+      "newGroup": "新建分组"
+    },
+    "empty": {
+      "title": "暂无目标分组",
+      "description": "按业务、环境或所有权聚合目标 — 一次性授权给所需角色。",
+      "filteredTitle": "没有匹配的分组",
+      "filteredDescription": "换一个关键字，或清空搜索查看全部分组。"
+    },
+    "form": {
+      "titleNew": "新建分组",
+      "titleEdit": "编辑分组",
+      "descNew": "创建一个目标分组，作为单一单元授权。",
+      "descEdit": "更新名称、描述与授权角色。",
+      "nameLabel": "名称",
+      "namePlaceholder": "Production · API",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "可选 — 这个分组包含什么 / 归谁所有。",
+      "rolesLabel": "授权角色",
+      "rolesHint": "授权可访问本分组下目标的角色。",
+      "noRoles": "尚未选择角色"
+    },
+    "delete": {
+      "title": "删除分组",
+      "body": "确认删除 \"{{name}}\"？分组下的目标不会被删除。",
+      "warnTitle": "分组仍在使用中",
+      "warnBody": "本分组仍包含 {{members}} 个目标。请先将这些目标转移到其他分组再删除。"
+    },
+    "unsaved": {
+      "title": "放弃修改？",
+      "body": "存在未保存的修改，确认关闭？",
+      "discard": "放弃"
+    },
+    "errors": {
+      "nameRequired": "名称不能为空。"
+    },
+    "targets": "资产数",
+    "showTargets": "查看该分组的资产"
+  },
+  "users": {
+    "description": "可登录 Gated 的人员账号。身份可来自本地或联邦认证；角色与可达资源在每次会话时评估。",
+    "searchPlaceholder": "搜索姓名或用户名…",
+    "actions": {
+      "newUser": "新建用户",
+      "invite": "发送邀请",
+      "resetPassword": "重置密码"
+    },
+    "filter": {
+      "allRoles": "全部角色"
+    },
+    "fields": {
+      "username": "用户名",
+      "password": "密码"
+    },
+    "empty": {
+      "title": "尚无用户",
+      "description": "添加本地账号或对接身份提供方，开始引导人员加入。",
+      "filteredTitle": "没有匹配的用户",
+      "filteredDescription": "尝试清除筛选条件或调整搜索关键词。"
+    },
+    "loadError": {
+      "title": "无法加载用户列表",
+      "description": "用户目录暂时不可用，请刷新后重试。",
+      "retry": "重试"
+    },
+    "selection": {
+      "delete": "删除"
+    },
+    "bulkDelete": {
+      "title": "删除选中的 {{count}} 个用户？",
+      "body": "这些账号将立即被移除。进行中的会话会保留直至自然结束。",
+      "warnTitle": "存在进行中的会话",
+      "warnBody": "已选中的用户共有 {{sessions}} 个进行中的会话。建议先停用账号，或关闭会话后再删除。"
+    },
+    "pagination": {
+      "page": "第 {{page}} / {{total}} 页",
+      "prev": "上一页",
+      "next": "下一页",
+      "range": "第 {{from}}–{{to}} 条，共 {{total}} 条"
+    },
+    "form": {
+      "titleNew": "新建用户",
+      "titleEdit": "编辑用户",
+      "descNew": "创建一个可登录 Gated 的人员账号。",
+      "descEdit": "管理该用户的资料、角色与可达资源。",
+      "tabs": {
+        "general": "基本",
+        "roles": "角色",
+        "sessions": "会话"
+      },
+      "namePlaceholder": "显示名",
+      "usernamePlaceholder": "wei.zhang",
+      "noRoles": "尚未授权任何角色",
+      "noRolesHint": "未授权角色时该用户可以登录，但无法访问任何目标。",
+      "noSessions": "暂无近期会话",
+      "passwordPlaceholder": "输入密码",
+      "passwordHint": "可选——为该用户设置初始密码凭证。"
+    },
+    "errors": {
+      "nameRequired": "显示名不能为空。",
+      "usernameRequired": "用户名不能为空。",
+      "usernameFormat": "请使用小写字母、数字、英文句点、连字符或下划线。"
+    },
+    "unsaved": {
+      "title": "放弃未保存的修改？",
+      "body": "你尚有未保存的修改。仍然关闭？",
+      "discard": "放弃"
+    },
+    "delete": {
+      "title": "删除用户",
+      "body": "确定要删除 {{name}} 吗？",
+      "warnTitle": "存在引用",
+      "warnBody": "该用户拥有 {{roles}} 个角色授权与 {{sessions}} 个进行中的会话。建议先停用账号，或解除全部授权后再删除。",
+      "openInstead": "打开用户编辑"
+    },
+    "resetPassword": {
+      "title": "重置密码 — {{name}}"
+    }
+  },
+  "roles": {
+    "description": "角色决定谁可以访问哪些目标，以及连接后允许执行的操作范围。",
+    "searchPlaceholder": "搜索名称或描述…",
+    "actions": {
+      "newRole": "新建角色",
+      "duplicate": "复制",
+      "batchDelete": "删除所选"
+    },
+    "filter": {
+      "allKind": "全部角色",
+      "builtin": "仅内置",
+      "custom": "仅自定义"
+    },
+    "fields": {
+      "kind": "类型"
+    },
+    "kind": {
+      "builtin": "内置",
+      "custom": "自定义"
+    },
+    "list": {
+      "selectAll": "全选",
+      "selectRow": "选中 {{name}}",
+      "noFileTransfer": "禁止文件传输"
+    },
+    "empty": {
+      "title": "尚无角色",
+      "description": "新建第一个角色，开始为用户授权。",
+      "filteredTitle": "没有匹配的角色",
+      "filteredDescription": "尝试清除筛选或调整搜索关键词。"
+    },
+    "unsaved": {
+      "title": "放弃更改？",
+      "body": "存在未保存的更改，关闭后将丢失。",
+      "discard": "放弃"
+    },
+    "errors": {
+      "nameRequired": "角色名称必填。",
+      "nameTooShort": "名称至少 2 个字符。",
+      "nameTooLong": "名称不能超过 64 个字符。"
+    },
+    "form": {
+      "titleNew": "新建角色",
+      "titleEdit": "编辑角色",
+      "descNew": "定义一组可复用的权限集合。",
+      "descEdit": "编辑角色适用的用户与允许的操作。",
+      "namePlaceholder": "operator",
+      "descriptionPlaceholder": "用途、Owner、作用范围说明…",
+      "builtin": "内置角色",
+      "builtinHint": "内置角色不能重命名或删除，但可以增减成员。",
+      "allowFileTransfer": "允许文件传输",
+      "allowFileTransferHint": "控制此角色下资产的 SFTP 和网页文件管理，不影响终端访问。"
+    },
+    "delete": {
+      "title": "删除角色",
+      "body": "确定要删除 {{name}} 吗？",
+      "warnTitle": "角色仍在使用",
+      "warnBody": "该角色已授权给 {{users}} 个用户，并绑定到 {{accounts}} 个认证信息。请先解除授权再删除。",
+      "openInstead": "打开角色编辑",
+      "builtinBlocked": "内置角色不可删除。",
+      "batchTitle": "删除 {{count}} 个角色",
+      "batchBody": "将删除 {{count}} 个自定义角色，所选中的内置角色将跳过。",
+      "batchConfirm": "删除 {{count}}"
+    }
+  },
+  "tickets": {
+    "description": "限时、一次性或限流的临时授权。可用于事故响应、外包人员或审计场景，无需修改常规策略。",
+    "searchPlaceholder": "搜索名称、范围、用途、签发人…",
+    "selectAll": "选择全部授权",
+    "selectRow": "选择授权 {{name}}",
+    "expiresSoonLabel": "将在 1 小时内过期",
+    "actions": {
+      "newTicket": "签发授权",
+      "revoke": "吊销",
+      "extend": "延期",
+      "copyLink": "复制领取链接",
+      "revokeSelected": "吊销所选",
+      "deleteSelected": "删除所选"
+    },
+    "stats": {
+      "total": "授权总数",
+      "active": "生效中",
+      "activeHint": "{{count}} 项将于 1 小时内过期",
+      "consumed": "已用完",
+      "expired": "已过期"
+    },
+    "filter": {
+      "state": "按状态筛选",
+      "allState": "全部状态",
+      "issuer": "按签发人筛选",
+      "allIssuers": "全部签发人"
+    },
+    "fields": {
+      "scope": "作用范围",
+      "uses": "使用次数",
+      "expiresIn": "剩余有效期",
+      "issuedBy": "签发人"
+    },
+    "state": {
+      "active": "生效中",
+      "consumed": "已用完",
+      "expired": "已过期"
+    },
+    "empty": {
+      "title": "暂无授权",
+      "description": "需要在不修改常规策略的情况下给出窄范围访问时，可签发限时授权。",
+      "filteredTitle": "没有匹配的授权",
+      "filteredDescription": "尝试清除筛选条件或调整搜索关键字。"
+    },
+    "form": {
+      "titleNew": "签发临时授权",
+      "titleEdit": "编辑授权",
+      "descNew": "创建一个限定范围、限时有效的访问授权。",
+      "descEdit": "已签发的票据不可编辑。需要更改访问权限时，请撤销后重新创建。",
+      "namePlaceholder": "Incident #4012 — db hotfix",
+      "scopeHint": "授权对单个目标的访问。",
+      "scopePlaceholder": "选择目标…",
+      "usesLabel": "使用次数上限",
+      "usesHint": "在自动消耗前允许领取的最大次数。",
+      "usesHintEdit": "已使用 {{used}} / {{limit}}。",
+      "expiresLabel": "有效期",
+      "expiresPresets": {
+        "1h": "1 小时",
+        "4h": "4 小时",
+        "24h": "24 小时",
+        "7d": "7 天",
+        "14d": "14 天",
+        "30d": "30 天",
+        "custom": "自定义…"
+      },
+      "expiresPreview": "{{when}} 后过期",
+      "expiresSoon": "不足 1 小时",
+      "customDateLabel": "过期时间",
+      "purposeLabel": "用途说明",
+      "purposePlaceholder": "为什么需要签发这个授权？",
+      "purposeHint": "每次领取时会一并记入审计日志。",
+      "issuedBy": "签发人",
+      "issuedAt": "签发时间",
+      "revoked": "已吊销",
+      "consumed": "次数已耗尽",
+      "readonlyHint": "该授权不再可修改。可删除以移出列表，或保留以维持审计记录。",
+      "details": "票据详情",
+      "immutableHint": "已签发的票据不可编辑。需要更改访问权限时，请撤销后重新创建。",
+      "usesUnlimited": "不限次数"
+    },
+    "errors": {
+      "nameRequired": "请填写名称。",
+      "scopeRequired": "请选择或填写作用范围。",
+      "usesInvalid": "使用次数上限至少为 1，或选择不限次数。",
+      "expiresInvalid": "过期时间必须在当前时间之后。"
+    },
+    "unsaved": {
+      "title": "放弃未保存的修改？",
+      "body": "关闭抽屉将丢失对该授权所做的修改。",
+      "discard": "放弃修改"
+    },
+    "revoke": {
+      "title": "吊销授权",
+      "body": "确定要吊销 {{name}} 吗？剩余次数将立即失效。",
+      "auditHint": "该授权会以 \"已过期\" 状态保留在列表中以保留审计记录。"
+    },
+    "bulk": {
+      "revokeTitle": "吊销所选授权",
+      "revokeBody": "确定吊销 {{count}} 项生效中的授权？每项会以 \"已过期\" 状态保留用于审计。",
+      "deleteTitle": "删除所选授权",
+      "deleteBody": "永久删除 {{count}} 项授权？此操作不可恢复。"
+    },
+    "delete": {
+      "title": "删除授权",
+      "body": "确定要删除 {{name}} 吗？",
+      "warnTitle": "授权仍在生效",
+      "warnBody": "该授权仍在生效，剩余 {{uses}} 次可用。建议先吊销以便审计追溯。",
+      "openInstead": "打开授权",
+      "revokeInstead": "改为吊销",
+      "warnBodyUnlimited": "该授权仍在生效，且不限使用次数。建议先吊销以便审计追溯。"
+    },
+    "uses": {
+      "unlimited": "不限次数",
+      "left_one": "剩余 {{count}} 次",
+      "left_other": "剩余 {{count}} 次"
+    }
+  },
+  "user": {
+    "tickets": {
+      "title": "我签发的临时授权",
+      "description": "签发给他人或一次性任务使用的短期凭据，限定范围、限定次数、自动过期，与您自己的长期凭据严格区分。",
+      "searchPlaceholder": "搜索名称、范围、用途…",
+      "rowMenu": "打开授权 {{name}} 菜单",
+      "copiedId": "已复制票据 ID",
+      "copiedLink": "已复制领取链接",
+      "actions": {
+        "issue": "签发票据"
+      },
+      "stats": {
+        "active": "有效",
+        "expiringSoon": "1 小时内过期",
+        "consumed": "已用尽",
+        "expired": "已过期",
+        "expiringHint": "{{count}} 个将在 1 小时内过期"
+      },
+      "intro": {
+        "ticketsTitle": "票据（本页）",
+        "ticketsBody": "签给别人或一次性任务使用 · 限定目标 · 限定次数 · 自动过期。",
+        "apiTokensTitle": "API 令牌（您自己用）",
+        "apiTokensBody": "您自己的长期凭据，以您的身份调 API。请在 凭证 → API 令牌 中管理。"
+      },
+      "menu": {
+        "copyId": "复制票据 ID",
+        "copyLink": "复制领取链接"
+      },
+      "empty": {
+        "title": "尚未签发任何票据",
+        "description": "当需要给同事或一次性任务一段窄范围的访问时，签发一张限时票据。"
+      },
+      "share": {
+        "title": "分享链接",
+        "oneTimeHint": "此链接包含一次性工单密钥,仅此一次显示——请在关闭前复制。",
+        "copy": "复制链接"
+      }
+    },
+    "apiTokens": {
+      "title": "API 令牌",
+      "description": "用于自动化 / CI / 监控等机器场景的长期凭据。令牌以您的身份调用 API，创建后只显示一次。",
+      "searchPlaceholder": "按名称搜索…",
+      "rowMenu": "打开令牌 {{name}} 菜单",
+      "actions": {
+        "create": "新建令牌"
+      },
+      "stats": {
+        "total": "总数",
+        "expiring": "30 天内到期"
+      },
+      "empty": {
+        "title": "尚无 API 令牌",
+        "description": "创建一个令牌，用于在 CI、监控或本地脚本中调用 Gated API。",
+        "filteredTitle": "没有令牌符合筛选条件",
+        "filteredDescription": "尝试清除筛选或调整搜索。"
+      }
+    },
+    "credentials": {
+      "title": "我的凭证",
+      "description": "管理用于登录 Gated 的认证因子。",
+      "copiedFingerprint": "已复制指纹",
+      "identity": {
+        "active": "活跃",
+        "local": "本地"
+      },
+      "password": {
+        "title": "网关密码",
+        "description": "用于登录 Web 控制台。SSH 协议建议使用密钥。",
+        "change": "修改",
+        "lastChanged": "上次修改",
+        "policy": "策略",
+        "policyValue": "12+ 位，需大小写与数字"
+      },
+      "sshKeys": {
+        "rowMenu": "打开 SSH 密钥 {{name}} 菜单"
+      },
+      "otp": {
+        "rowMenu": "打开 MFA 设备 {{name}} 菜单"
+      },
+      "sso": {
+        "title": "SSO 绑定",
+        "description": "已关联到此账号的第三方身份。",
+        "link": "关联身份",
+        "unlink": "解除关联",
+        "anyProvider": "任意提供方",
+        "since": "自 {{when}} 起",
+        "empty": "尚未关联第三方身份",
+        "emptyHint": "把 Google、Okta 等 SSO 身份关联到此账号。"
+      },
+      "sessions": {
+        "signOutOthers": "登出其它会话",
+        "confirmTitle": "登出其它会话？",
+        "confirmBody": "将登出 {{count}} 台其它设备，下次需重新登录。",
+        "revokeOne": "登出 {{device}}",
+        "device": {
+          "macChrome": "MacBook Pro · Chrome 147",
+          "iPhoneSafari": "iPhone 15 · Mobile Safari",
+          "linuxFirefox": "Linux 工作站 · Firefox"
+        }
+      }
+    }
+  },
+  "monitor": {
+    "sessions": {
+      "description": "实时观察、回放与终止所有特权会话。",
+      "tabs": {
+        "live": "进行中",
+        "past": "历史"
+      },
+      "stats": {
+        "liveNow": "进行中",
+        "liveNowHint": "{{ssh}} SSH · {{db}} DB",
+        "liveNowHintOther": "{{ssh}} SSH · {{db}} DB · {{other}} 其他"
+      },
+      "relative": {
+        "justNow": "刚刚",
+        "secondsAgo": "{{value}} 秒前",
+        "minutesAgo": "{{value}} 分钟前"
+      },
+      "actions": {
+        "exportCsv": "导出 CSV",
+        "autoRefresh": "自动刷新",
+        "forceClose": "强制结束",
+        "watchLive": "实时观看",
+        "replay": "回放",
+        "more": "更多操作",
+        "viewDetail": "查看详情",
+        "copyId": "复制会话 ID",
+        "delete": "删除",
+        "clearHistory": "清空历史",
+        "deleteSelected": "删除所选"
+      },
+      "filter": {
+        "allProtocols": "全部协议",
+        "anyTime": "任意时间",
+        "lastHour": "最近 1 小时",
+        "last24h": "最近 24 小时",
+        "last7d": "最近 7 天"
+      },
+      "fields": {
+        "session": "会话 ID"
+      },
+      "searchPlaceholder": "搜索用户、目标、IP…",
+      "lastUpdated": "更新于 {{when}}",
+      "neverUpdated": "尚未刷新",
+      "emptyLive": "当前没有进行中的会话。",
+      "emptyPast": "当前时间窗口内没有历史会话。",
+      "emptyHintLive": "当用户通过网关连接时，会在此处显示进行中的会话。",
+      "emptyHintPast": "尝试清除筛选或扩大时间范围。",
+      "confirm": {
+        "deleteOne": "删除该会话记录及其录制？",
+        "deleteSelected": "删除选中的 {{count}} 条会话记录？同时会删除它们的录制。",
+        "clearHistory": "删除全部历史会话记录及其录制？此操作不可恢复。",
+        "title": "确认删除"
+      },
+      "management": {
+        "tab": "浏览器登录",
+        "empty": "当前没有已登录的浏览器会话。",
+        "emptyHint": "已登录的 Web 界面和 API 会话会显示在这里。",
+        "created": "登录时间",
+        "lastActive": "最近活动",
+        "current": "当前会话",
+        "revoke": "撤销",
+        "confirmTitle": "撤销浏览器会话",
+        "confirmBody": "确定让 {{user}} 退出此浏览器会话？其下一次请求需要重新登录。"
+      }
+    },
+    "detail": {
+      "breadcrumb": "会话监控",
+      "notFoundTitle": "未找到会话",
+      "notFoundDescription": "该会话可能已被清理，或 ID 不正确。",
+      "timelineTitle": "事件时间线",
+      "timelineEmpty": "暂无事件",
+      "timelineEmptyHint": "该会话没有可显示的事件。",
+      "detailsTitle": "会话详情",
+      "recordingsTitle": "录像",
+      "recordingEmpty": "该会话暂无录像",
+      "recordingEmptyHint": "该会话没有可回放的录像。",
+      "recordingEmptyLiveHint": "会话结束后即可查看录像。",
+      "actions": {
+        "downloadRecording": "下载录像",
+        "replay": "回放",
+        "downloadUnsupportedKind": "{{kind}} 类型的录像不支持下载"
+      }
+    },
+    "live": {
+      "readOnly": "只读",
+      "breadcrumb": "实时监视",
+      "description": "正在监视 {{user}} @ {{target}}",
+      "notLiveTitle": "会话未在线",
+      "notLiveDescription": "该会话已结束或当前没有输出流。"
+    }
+  },
+  "accounts": {
+    "description": "可复用的目标登录身份。一个账号绑定到多台目标、授权给多个角色，凭据集中存储于 Vault，旋转一次即可全员生效。",
+    "searchPlaceholder": "搜索名称或备注…",
+    "actions": {
+      "newAccount": "新建账号"
+    },
+    "stats": {
+      "total": "账号总数",
+      "rotationDue": "凭据待轮换",
+      "rotationHint": "已到轮换日期",
+      "usedToday": "今日使用"
+    },
+    "filter": {
+      "allProtocols": "全部协议"
+    },
+    "fields": {
+      "credential": "凭据类型",
+      "boundTargets": "绑定目标"
+    },
+    "credLabels": {
+      "ssh-password": "SSH 密码",
+      "ssh-key": "SSH 密钥",
+      "db-password": "数据库密码",
+      "k8s-token": "K8s 令牌",
+      "k8s-client-cert": "K8s 客户端证书",
+      "http-headers": "HTTP 请求头"
+    },
+    "form": {
+      "titleNew": "新建账号",
+      "descNew": "在目标系统上的可复用登录身份",
+      "descriptionPlaceholder": "用途、Owner、注意事项…",
+      "tabs": {
+        "details": "详情",
+        "targets": "绑定目标",
+        "usage": "使用记录"
+      },
+      "cred": {
+        "kindLabel": "凭据类型",
+        "username": "用户名",
+        "password": "密码",
+        "privateKeyPem": "私钥（PEM）",
+        "passphrase": "私钥口令",
+        "engine": "数据库引擎",
+        "engineMysql": "MySQL",
+        "enginePostgres": "PostgreSQL",
+        "token": "Token",
+        "caPem": "CA 证书（PEM）",
+        "namespace": "命名空间",
+        "clientCertPem": "客户端证书（PEM）",
+        "clientKeyPem": "客户端私钥（PEM）",
+        "headers": "HTTP 请求头",
+        "headerName": "Header 名称",
+        "headerValue": "Header 值",
+        "headerSensitive": "敏感",
+        "addHeader": "添加 Header",
+        "removeHeader": "移除 Header",
+        "emptyOnEditHint": "密钥字段默认为空：留空表示保留原值，填写新值则替换。"
+      },
+      "rotation": {
+        "label": "轮换期限",
+        "hint": "凭据永不过期。",
+        "dueOn": "将于 {{date}} 标记为待轮换。",
+        "keep": "保持当前（{{date}}）",
+        "d30": "30 天",
+        "d90": "90 天",
+        "d180": "半年",
+        "d365": "1 年",
+        "never": "永不过期"
+      },
+      "reveal": {
+        "show": "显示凭据",
+        "hide": "隐藏凭据",
+        "autoClearHint": "显示值会在短时间后自动清除。",
+        "factor": "验证身份",
+        "password": "当前密码",
+        "otp": "当前动态验证码",
+        "useRevealed": "使用此值"
+      },
+      "targets": {
+        "title": "已绑定目标",
+        "emptyTitle": "尚未绑定任何目标",
+        "emptyDescription": "此账号需绑定至少一个目标才能用于登录。",
+        "bind": "绑定目标",
+        "unbind": "解除绑定"
+      },
+      "missing": "请填写：{{fields}}",
+      "saveVerified": "验证并保存",
+      "sections": {
+        "credential": "凭据"
+      }
+    },
+    "delete": {
+      "title": "删除账号",
+      "body": "确定要删除 {{name}} 吗？",
+      "warnTitle": "存在引用",
+      "warnBody": "该账号被 {{targets}} 个目标和 {{roles}} 个角色引用，删除前请先解除绑定。",
+      "openInstead": "打开账号编辑"
+    },
+    "view": {
+      "credentialTitle": "已存凭据",
+      "revealHint": "密钥已隐藏，查看需要二次认证并会记录审计。",
+      "rotationDue": "待轮换",
+      "editing": "编辑中"
+    },
+    "stepUp": {
+      "createTitle": "确认创建账号",
+      "updateTitle": "确认修改账号",
+      "saveDescription": "修改托管凭据需要二次认证，操作会记录审计。",
+      "confirmSave": "确认并保存",
+      "revealTitle": "确认查看凭据",
+      "revealDescription": "查看密钥需要二次认证，操作会记录审计。",
+      "errors": {
+        "unauthorized": "认证失败，请检查密码或验证码；同一个 OTP 验证码只能使用一次。",
+        "rateLimited": "尝试次数过多，请稍等一分钟后重试。"
+      }
+    },
+    "empty": {
+      "title": "暂无账号",
+      "description": "创建一个可复用的凭据，再绑定到资产上。",
+      "noMatch": "没有符合筛选条件的账号"
+    },
+    "unsaved": {
+      "title": "放弃修改？",
+      "body": "该账号有未保存的修改。",
+      "discard": "放弃"
+    }
+  },
+  "audit": {
+    "pageDescription": "会话审计日志、命令记录与文件操作记录。",
+    "tabs": {
+      "log": "审计日志",
+      "commands": "命令记录",
+      "files": "文件记录"
+    },
+    "description": "所有面向 API 的特权操作 — 默认保留 365 天。",
+    "searchAria": "搜索审计记录",
+    "rangeAria": "时间范围",
+    "actions": {
+      "exportJsonl": "导出 JSONL"
+    },
+    "fields": {
+      "time": "时间",
+      "actor": "操作者",
+      "action": "操作"
+    },
+    "ranges": {
+      "24h": "近 24 小时",
+      "7d": "近 7 天",
+      "30d": "近 30 天"
+    },
+    "status": {
+      "lastUpdated": "更新于 {{at}}",
+      "rowsOf": "{{shown}} 条 · {{date}}"
+    },
+    "empty": {
+      "title": "没有匹配的记录",
+      "description": "调整搜索条件或时间范围以扩大查询结果。"
+    },
+    "plane": "审计来源",
+    "sessionPlane": "目标连接",
+    "managementPlane": "管理操作",
+    "details": {
+      "expand": "展开详情",
+      "collapse": "收起详情"
+    }
+  },
+  "settings": {
+    "description": "运行时配置 — 修改即时生效,无需重启网关。",
+    "parameters": {
+      "hint": "通过 /admin/api/parameters 持久化的实时网关设置。",
+      "allowOwnCredentialManagement": "允许用户自助管理凭据",
+      "allowOwnCredentialManagementHint": "允许用户添加、轮换和删除自己的 SSH 密钥和密码。",
+      "rateLimitBytesPerSecond": "单会话带宽限制",
+      "rateLimitBytesPerSecondHint": "每个会话的字节/秒上限,留空表示不限速。",
+      "rateLimitBytesPerSecondUnit": "B/s",
+      "sqlConsoleRateLimitPerUser": "SQL 控制台每用户请求数",
+      "sqlConsoleRateLimitPerUserHint": "单个用户对 SQL 控制台和数据库终端网关接口每分钟可发起的最大请求数。",
+      "sqlConsoleRateLimitPerTarget": "SQL 控制台每目标请求数",
+      "sqlConsoleRateLimitPerTargetHint": "所有用户合计对单个数据库目标每分钟可发起的最大请求数。",
+      "sqlConsoleRateLimitUnit": "次/分钟",
+      "sshClientAuthPublickey": "允许公钥认证",
+      "sshClientAuthPassword": "允许密码认证",
+      "sshClientAuthKeyboardInteractive": "允许交互式认证",
+      "minimizePasswordLogin": "弱化密码登录入口",
+      "minimizePasswordLoginHint": "优先使用 SSO / 公钥登录,尽可能隐藏密码表单。",
+      "saved": "网关参数已保存。",
+      "save": "保存参数",
+      "saving": "保存中…",
+      "loadError": "加载网关参数失败。",
+      "terminalWatermarkEnabled": "终端水印",
+      "terminalWatermarkEnabledHint": "在 Web 终端上叠加平铺的身份与时间戳水印。",
+      "siteTitle": "网站标题",
+      "siteTitleHint": "显示在登录页 Logo 下方、侧边栏和浏览器标签页中。留空则使用“Gated”。"
+    },
+    "encryptionAdmin": {
+      "title": "数据库加密",
+      "hint": "由主密码控制的 SQLCipher 元数据库加密。",
+      "loadError": "加载加密状态失败。",
+      "disabledNotice": "本网关未启用数据库加密。请在启动配置中启用后再使用此区域。",
+      "unlockedNotice": "元数据库已解锁。您可以立即锁定网关或轮换主密码。",
+      "notUnlocked": {
+        "locked": "元数据库当前处于锁定状态。请先在启动界面解锁后再修改主密码。",
+        "uninitialized": "已启用加密但尚未初始化。请先完成引导向导,再使用以下操作。",
+        "error": "加密处于错误状态。请检查网关日志后再重试。"
+      },
+      "status": {
+        "disabled": "未启用",
+        "uninitialized": "未初始化",
+        "locked": "已锁定",
+        "unlocked": "已解锁",
+        "error": "错误"
+      },
+      "actions": {
+        "lockNow": "立即锁定",
+        "rotateMaster": "轮换主密码"
+      },
+      "lockDialog": {
+        "title": "确认锁定元数据库?",
+        "description": "锁定后所有会话将立即失去访问密钥的能力。",
+        "warning": "锁定后,包括您本人在内的所有用户都必须使用主密码解锁网关,才能恢复正常使用。",
+        "cancel": "取消",
+        "confirm": "立即锁定",
+        "locking": "锁定中…",
+        "error": "锁定网关失败。"
+      },
+      "rekeyDialog": {
+        "title": "轮换主密码",
+        "description": "使用新主密码重新包装数据加密密钥,不会重新加密数据库内容。",
+        "oldPassword": "当前主密码",
+        "newPassword": "新主密码",
+        "newPasswordHint": "至少 {{min}} 个字符。建议使用可妥善保管的长口令。",
+        "confirmPassword": "确认新主密码",
+        "cancel": "取消",
+        "confirm": "确认轮换",
+        "rotating": "轮换中…",
+        "close": "关闭",
+        "success": "主密码已轮换。下次锁定后将需要使用新密码解锁。",
+        "error": "轮换主密码失败。",
+        "errors": {
+          "oldRequired": "请填写当前主密码。",
+          "newTooShort": "新密码长度至少为 {{min}} 个字符。",
+          "newSameAsOld": "新密码不能与当前密码相同。",
+          "confirmMismatch": "确认密码与新密码不一致。"
+        }
+      }
+    },
+    "footer": {
+      "reset": "重置"
+    },
+    "tabs": {
+      "general": "常规",
+      "sessions": "会话",
+      "ssh": "SSH 认证",
+      "update": "更新",
+      "security": "安全",
+      "about": "关于"
+    },
+    "update": {
+      "title": "更新",
+      "hint": "通过 lode 检查更新、更新和重启网关。",
+      "notSupervised": "当前网关未由 lode 托管，无法在这里更新或重启。通过 lode 启动网关后即可使用这些操作。",
+      "loadError": "加载更新状态失败。",
+      "current": "当前版本",
+      "available": "可用更新",
+      "none": "已是最新",
+      "status": "状态",
+      "lastCheck": "上次检查",
+      "lastError": "上次错误",
+      "statusValues": {
+        "starting": "启动中",
+        "running": "运行中",
+        "held": "已暂停",
+        "updating": "更新中",
+        "rolling-back": "回滚中",
+        "stopping": "停止中",
+        "stopped": "已停止",
+        "error": "错误"
+      },
+      "check": "检查更新",
+      "checking": "正在检查…",
+      "update": "更新到 {{version}}",
+      "restart": "重启网关",
+      "checkFailed": "检查更新失败：{{error}}",
+      "checkTimeout": "lode 没有响应检查请求。",
+      "upToDate": "已是最新版本。",
+      "found": "发现新版本 {{version}}。",
+      "confirm": {
+        "updateTitle": "将网关更新到 {{version}}？",
+        "restartTitle": "重启网关？",
+        "description": "所有在线会话（SSH、数据库、Web 终端）都会断开，网关恢复后需要重新登录。",
+        "encryptedNote": "网关已启用加密，重启后需要输入主密码解锁。",
+        "confirm": "确认",
+        "cancel": "取消"
+      },
+      "progress": {
+        "restarting": "正在重启，网关恢复后页面会自动刷新…",
+        "updating": "正在更新到 {{version}}，网关恢复后页面会自动刷新…",
+        "timeout": "网关长时间没有恢复，请检查服务器。"
+      }
+    }
+  },
+  "authRequests": {
+    "tabs": {
+      "pending": "待处理",
+      "history": "全部记录"
+    },
+    "status": {
+      "pending": "待处理",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "expired": "已过期"
+    },
+    "filters": {
+      "search": "搜索目标 / 发起人 / 客户端…",
+      "allStatus": "状态",
+      "dateRange": "时间范围",
+      "range": {
+        "today": "今天",
+        "7d": "近 7 天",
+        "30d": "近 30 天",
+        "all": "全部"
+      }
+    },
+    "columns": {
+      "createdAt": "时间",
+      "actor": "发起人",
+      "target": "目标",
+      "protocol": "协议",
+      "client": "客户端",
+      "status": "状态",
+      "decidedAt": "决策时间",
+      "decidedBy": "决策者"
+    },
+    "countdown": {
+      "expiresIn": "剩余",
+      "expired": "已过期"
+    },
+    "detail": {
+      "title": "新的登录请求",
+      "subtitle": "批准前请核对详情 —— 批准会立即向请求端授予会话。",
+      "warningTitle": "是本人操作吗？批准前请确认。",
+      "warningBody": "如果不是本人请拒绝并立即更换密码。所有决策都会记入审计日志。",
+      "decidedBy": "决策者",
+      "relatedSession": "关联会话",
+      "fields": {
+        "target": "目标",
+        "protocol": "协议",
+        "actor": "发起人",
+        "fromIp": "来源 IP",
+        "location": "位置",
+        "client": "客户端",
+        "initiated": "发起时间",
+        "expiresAt": "过期时间",
+        "requestId": "请求 ID"
+      }
+    },
+    "empty": {
+      "pending": "暂无待处理审批",
+      "pendingHint": "新的登录审批将在此实时显示。",
+      "history": "没有匹配的记录",
+      "historyHint": "清除筛选条件以查看全部历史。"
+    },
+    "pagination": {
+      "range": "{{start}}-{{end}} / 共 {{total}}",
+      "prev": "上一页",
+      "next": "下一页"
+    }
+  },
+  "admin": {
+    "knownHosts": {
+      "title": "已知主机指纹",
+      "description": "全局 known_hosts 表 — 审计与清理已发现的远端主机密钥。",
+      "range": "显示 {{showing}} / {{total}} 条",
+      "selectAll": "全选已知主机",
+      "selectRow": "选中 {{host}}",
+      "stats": {
+        "total": "全部主机",
+        "ed25519": "ED25519",
+        "rsa": "RSA",
+        "ecdsa": "ECDSA"
+      },
+      "search": {
+        "placeholder": "搜索主机或指纹…"
+      },
+      "actions": {
+        "export": "导出",
+        "purge": "批量清理",
+        "deleteOne": "清理该条"
+      },
+      "table": {
+        "host": "主机",
+        "algorithm": "算法",
+        "fingerprint": "指纹",
+        "actions": "操作"
+      },
+      "selection": {
+        "purge": "清理"
+      },
+      "delete": {
+        "cancel": "取消",
+        "confirm": "清理",
+        "one": {
+          "title": "确认清理这条 known host?",
+          "body": "Gated 将遗忘 {{host}}，客户端下次连接时会重新固定该指纹。"
+        },
+        "batch": {
+          "title": "确认清理 {{count}} 条记录?",
+          "body": "Gated 将遗忘 {{count}} 条指纹，客户端下次连接时会重新固定。此操作不可撤销。"
+        }
+      },
+      "toast": {
+        "deletedOne": "已清理 1 条",
+        "deletedBatch_one": "已清理 {{count}} 条",
+        "deletedBatch_other": "已清理 {{count}} 条"
+      },
+      "empty": {
+        "title": "尚无已知主机",
+        "hint": "客户端首次连接远端主机时会自动记录指纹。",
+        "filtered": {
+          "title": "没有匹配的记录",
+          "clear": "清除搜索"
+        }
+      },
+      "loadError": {
+        "title": "无法加载已知主机",
+        "description": "known_hosts 表暂时不可用，刷新后再试。",
+        "retry": "重试"
+      }
+    }
+  },
+  "sqlConsole": {
+    "title": "SQL 控制台",
+    "subtitle": "在 {{target}} 上执行 SQL。",
+    "readonly": "只读",
+    "kind": {
+      "mysql": "MySQL",
+      "postgres": "Postgres"
+    },
+    "schemaTree": {
+      "title": "Schema",
+      "default": "默认",
+      "loading": "正在加载 Schema…",
+      "empty": {
+        "title": "没有 Schema",
+        "description": "该连接未暴露任何 Schema。"
+      },
+      "error": {
+        "title": "无法加载 Schema",
+        "retry": "重试"
+      },
+      "expandTable": "展开表 {{table}} 的列",
+      "collapseTable": "收起表 {{table}} 的列",
+      "tableType": {
+        "table": "表",
+        "view": "视图"
+      },
+      "tables": {
+        "empty": "该 Schema 下没有表。",
+        "error": "无法加载表列表。"
+      },
+      "columns": {
+        "empty": "没有列。",
+        "error": "无法加载列。",
+        "primaryKey": "主键",
+        "notNull": "非空"
+      }
+    },
+    "editor": {
+      "title": "编辑器",
+      "ariaLabel": "SQL 编辑器",
+      "placeholder": "-- SELECT * FROM table_name LIMIT 100;",
+      "run": "执行",
+      "running": "执行中…",
+      "runHint": "Cmd/Ctrl+Enter",
+      "limit": "行数上限",
+      "limitOption_one": "{{count}} 行",
+      "limitOption_other": "{{count}} 行"
+    },
+    "results": {
+      "idle": "尚未执行查询",
+      "idleHint": "在上方写入 SQL 并点击执行，或从左侧选择一张表开始。",
+      "loading": "正在执行查询…",
+      "error": "查询失败",
+      "errorHint": "详情见上方提示条。",
+      "empty": "未返回任何行",
+      "emptyHintSelect": "查询执行成功，但结果集为空。",
+      "emptyHintNonSelect": "语句执行成功，未返回行。",
+      "elapsed": "{{ms}} 毫秒",
+      "rowsAffected_one": "影响 {{count}} 行",
+      "rowsAffected_other": "影响 {{count}} 行",
+      "rowsReturned_one": "返回 {{count}} 行",
+      "rowsReturned_other": "返回 {{count}} 行",
+      "limit": "上限 {{limit}}",
+      "truncated": "结果已被截断至 {{limit}} 行。提高行数上限可查看更多。",
+      "null": "NULL",
+      "kind": {
+        "SELECT": "SELECT",
+        "SHOW": "SHOW",
+        "EXPLAIN": "EXPLAIN",
+        "DESCRIBE": "DESCRIBE",
+        "INSERT": "INSERT",
+        "UPDATE": "UPDATE",
+        "DELETE": "DELETE",
+        "CREATE": "CREATE",
+        "ALTER": "ALTER",
+        "DROP": "DROP",
+        "TRUNCATE": "TRUNCATE",
+        "OTHER": "OTHER",
+        "UNKNOWN": "UNKNOWN"
+      }
+    },
+    "error": {
+      "dismiss": "关闭",
+      "unauthorized": "会话已过期，请重新登录。",
+      "readonly": "只读连接 — 只允许 SELECT 类语句。（{{message}}）",
+      "forbidden": "禁止访问：{{message}}",
+      "notFound": "未找到：{{message}}",
+      "rateLimited": "请求被限流，请在 {{seconds}} 秒后重试。",
+      "rateLimitedNoHint": "请求被限流，稍后再试。",
+      "upstream": "上游数据库错误：{{message}}",
+      "generic": "查询失败：{{message}}"
+    },
+    "route": {
+      "loading": "正在加载目标…",
+      "notFoundTitle": "未找到目标",
+      "notFoundDescription": "没有名为 {{target}} 的可用目标。",
+      "unsupportedTitle": "SQL 控制台不可用",
+      "unsupportedDescription": "SQL 控制台仅支持 MySQL 和 Postgres 目标（不支持 {{kind}}）。",
+      "backToTargets": "返回目标列表"
+    }
+  },
+  "terminal": {
+    "title": {
+      "ssh": "SSH — {{name}}",
+      "mysql": "MySQL — {{name}}",
+      "postgres": "PostgreSQL — {{name}}",
+      "unsupported": "终端"
+    },
+    "actions": {
+      "disconnect": "断开连接"
+    },
+    "status": {
+      "connecting": "连接中…",
+      "connected": "已连接",
+      "closed": "会话已关闭",
+      "error": "会话错误",
+      "rateLimited": "已达到速率限制",
+      "info": "信息"
+    },
+    "hostKey": {
+      "title": "验证主机密钥",
+      "description": "目标主机为未知主机。请确认指纹与您信任的指纹一致 — 接受后将固定该密钥以便后续连接复用。",
+      "target": "目标",
+      "algorithm": "算法",
+      "fingerprint": "SHA-256 指纹",
+      "publicKey": "公钥",
+      "countdown": "{seconds} 秒后自动拒绝",
+      "accept": "接受",
+      "reject": "拒绝"
+    },
+    "keys": {
+      "toolbar": "快捷键",
+      "up": "上",
+      "down": "下",
+      "left": "左",
+      "right": "右"
+    },
+    "unsupported": {
+      "title": "不支持的协议",
+      "description": "网页终端仅支持 SSH、MySQL 与 PostgreSQL。当前协议:{{kind}}"
+    },
+    "connection": {
+      "title": "连接信息",
+      "message": "消息",
+      "target": "资产",
+      "address": "地址",
+      "username": "用户",
+      "connectedAt": "连接时间",
+      "duration": "已连接",
+      "sessionId": "会话 ID",
+      "hostKey": "主机密钥",
+      "tls": "TLS",
+      "tlsVerified": "已校验证书",
+      "tlsNotVerified": "未校验证书",
+      "client": "客户端",
+      "database": "数据库"
+    }
+  },
+  "recordings": {
+    "audit": {
+      "viewAllCommands": "查看全部命令记录",
+      "viewAllFiles": "查看全部文件记录"
+    },
+    "dispatch": {
+      "title": "录像",
+      "loading": "正在加载录像…",
+      "notFound": "未找到录像",
+      "notFoundHint": "该录像可能已被清理，或从未存在。",
+      "unknownKind": "播放器暂不支持此类型的录像。",
+      "backToSessions": "返回会话列表"
+    },
+    "httpProxy": {
+      "title": "HTTP 代理请求记录",
+      "empty": "此会话未记录任何 HTTP 请求。",
+      "headers": {
+        "timestamp": "时间",
+        "method": "方法",
+        "path": "路径",
+        "status": "状态"
+      },
+      "expand": "展开请求与响应体",
+      "collapse": "收起请求与响应体",
+      "requestBody": "请求体",
+      "responseBody": "响应体",
+      "bodyNone": "—"
+    },
+    "terminal": {
+      "loading": "正在加载录制…",
+      "error": "无法加载此录制",
+      "empty": "未捕获任何终端输出",
+      "live": "正在等待实时流…"
+    },
+    "sqlAudit": {
+      "title": "SQL 审计录像",
+      "started": "开始时间",
+      "ended": "结束时间",
+      "metadata": "元数据",
+      "notWired": "该审计的专用查看页面尚未接通——SQL 事件的真实来源仍是审计日志页面。",
+      "openAudit": "打开审计日志"
+    },
+    "traffic": {
+      "title": "流量抓包",
+      "download": "下载 .pcap",
+      "started": "开始时间",
+      "ended": "结束时间",
+      "metadata": "元数据",
+      "wrongKind": "该录制不是流量抓包。"
+    }
+  },
+  "states": {
+    "loading": "加载中…",
+    "routeError": {
+      "title": "页面出错了",
+      "description": "此页面渲染失败。请重试，或返回首页。",
+      "retry": "重试",
+      "home": "返回首页"
+    }
+  },
+  "commandAcl": {
+    "description": "用于放行、拦截或送审 Shell 与数据库命令的规则。按优先级评估；规则为空时全部放行。",
+    "searchPlaceholder": "搜索规则、匹配模式…",
+    "actions": {
+      "newRule": "新建规则"
+    },
+    "stats": {
+      "total": "规则总数",
+      "enabled": "已启用"
+    },
+    "filter": {
+      "allActions": "全部动作"
+    },
+    "fields": {
+      "priority": "优先级",
+      "priorityHint": "数值越小越先评估。",
+      "action": "动作",
+      "matchType": "匹配方式",
+      "pattern": "匹配模式",
+      "patternRegexHint": "正则表达式，需在服务端成功编译。",
+      "patternKeywordHint": "区分大小写的子串，匹配命令中的任意位置。",
+      "targetScope": "目标范围",
+      "roleScope": "角色范围",
+      "enabled": "启用"
+    },
+    "protocol": {
+      "any": "任意",
+      "ssh": "SSH",
+      "mysql": "MySQL",
+      "postgres": "PostgreSQL"
+    },
+    "matchType": {
+      "regex": "正则",
+      "keyword": "关键字"
+    },
+    "action": {
+      "allow": "放行",
+      "deny": "拦截",
+      "review": "送审"
+    },
+    "status": {
+      "enabled": "已启用",
+      "disabled": "已停用"
+    },
+    "scope": {
+      "allTargets": "全部目标",
+      "allRoles": "全部角色"
+    },
+    "form": {
+      "titleNew": "新建命令规则",
+      "titleEdit": "编辑命令规则",
+      "descNew": "匹配 Shell 或数据库命令并选择处理方式。",
+      "descEdit": "更新此命令规则的匹配与处理方式。",
+      "namePlaceholder": "拦截危险删除操作",
+      "descriptionPlaceholder": "关于此规则的可选备注"
+    },
+    "errors": {
+      "nameRequired": "名称为必填项。",
+      "patternRequired": "匹配模式为必填项。",
+      "regexHint": "正则可能无法编译：{{error}}"
+    },
+    "unsaved": {
+      "title": "放弃更改？",
+      "body": "此命令规则有未保存的更改。",
+      "discard": "放弃"
+    },
+    "empty": {
+      "title": "暂无命令规则",
+      "description": "添加规则以放行、拦截或送审 Shell 与数据库命令。",
+      "filteredTitle": "无匹配规则",
+      "filteredDescription": "没有命令规则符合当前筛选条件。"
+    },
+    "delete": {
+      "title": "删除命令规则",
+      "body": "确定删除规则“{{name}}”？此操作无法撤销。"
+    }
+  },
+  "commandRecords": {
+    "description": "检索各会话中已执行的 Shell 与 SQL 命令记录。",
+    "searchPlaceholder": "搜索命令文本…",
+    "filter": {
+      "allSources": "全部来源"
+    },
+    "source": {
+      "shell": "Shell",
+      "sql": "SQL"
+    },
+    "ranges": {
+      "any": "任意时间",
+      "24h": "近 24 小时",
+      "7d": "近 7 天",
+      "30d": "近 30 天"
+    },
+    "fields": {
+      "timestamp": "时间",
+      "source": "来源",
+      "command": "命令",
+      "outcome": "结果",
+      "sessionId": "会话 ID",
+      "range": "时间范围",
+      "matchedRule": "命中规则"
+    },
+    "outcome": {
+      "ok": "成功",
+      "failed": "失败"
+    },
+    "pagination": {
+      "range": "第 {{from}}–{{to}} 条，共 {{total}} 条",
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "empty": {
+      "title": "暂无命令记录",
+      "description": "没有 Shell 或 SQL 命令符合当前筛选条件。"
+    }
+  },
+  "commandReviews": {
+    "description": "被送审规则暂停的 Shell 命令，等待放行或拒绝决定。",
+    "stats": {
+      "pending": "待处理"
+    },
+    "unknownUser": "未知用户",
+    "actions": {
+      "approve": "放行",
+      "reject": "拒绝"
+    },
+    "empty": {
+      "title": "暂无待审命令",
+      "description": "被送审规则暂停的命令将显示在此处等待处理。"
+    }
+  },
+  "otpEnrollment": {
+    "instructions": "将设置密钥添加到验证器，然后输入当前验证码。设置将在几分钟后过期。",
+    "secret": "设置密钥",
+    "openApp": "打开验证器应用",
+    "code": "验证码",
+    "confirm": "验证并启用",
+    "begin": "开始设置"
+  },
+  "files": {
+    "breadcrumbs": "路径",
+    "pathLabel": "目录路径",
+    "editPath": "编辑路径",
+    "empty": "此文件夹为空",
+    "dropHint": "松开以上传到 {{path}}",
+    "fields": {
+      "size": "大小",
+      "modified": "修改时间",
+      "permissions": "权限"
+    },
+    "actions": {
+      "up": "上级目录",
+      "newFolder": "新建文件夹",
+      "upload": "上传",
+      "download": "下载 {{name}}",
+      "more": "{{name}} 的操作",
+      "rename": "重命名"
+    },
+    "mkdir": {
+      "title": "新建文件夹"
+    },
+    "rename": {
+      "title": "重命名"
+    },
+    "remove": {
+      "title": "删除",
+      "body": "确定删除文件 {{name}}？此操作无法撤销。",
+      "bodyDir": "确定删除文件夹 {{name}}？只能删除空文件夹。"
+    },
+    "overwrite": {
+      "title": "替换文件？",
+      "body": "此文件夹中已存在 {{name}}，是否替换？",
+      "confirm": "替换"
+    },
+    "uploads": {
+      "title": "上传",
+      "clear": "清除已完成",
+      "done": "完成"
+    }
+  },
+  "fileRecords": {
+    "description": "查询通过 SFTP 和网页文件管理进行的文件传输与文件变更。",
+    "searchPlaceholder": "搜索路径…",
+    "filter": {
+      "allOrigins": "全部来源",
+      "allOperations": "全部操作"
+    },
+    "origin": {
+      "sftp": "SFTP",
+      "web": "网页"
+    },
+    "operation": {
+      "read": "下载",
+      "write": "上传",
+      "remove": "删除",
+      "rename": "重命名",
+      "mkdir": "新建文件夹",
+      "rmdir": "删除文件夹",
+      "symlink": "符号链接",
+      "setstat": "修改属性"
+    },
+    "fields": {
+      "timestamp": "时间",
+      "origin": "来源",
+      "operation": "操作",
+      "path": "路径",
+      "bytes": "大小",
+      "result": "结果",
+      "sessionId": "会话 ID",
+      "range": "时间范围"
+    },
+    "empty": {
+      "title": "暂无文件记录",
+      "description": "没有符合当前筛选条件的文件操作。"
+    }
+  },
+  "events": {
+    "targetConnected": "连接目标",
+    "recordingStarted": "开始录像",
+    "accessDenied": "访问被拒绝",
+    "hostKeyUnknown": "主机密钥未知",
+    "hostKeyInvalid": "主机密钥不匹配",
+    "hostKeyUntrusted": "主机密钥不受信任",
+    "hostKeyAutoAccepted": "已自动接受不受信任的主机密钥",
+    "hostKeyAutoRejected": "已自动拒绝不受信任的主机密钥",
+    "targetNotAuthorized": "无权访问目标",
+    "webApprovalFailed": "网页审批失败",
+    "webApprovalSucceeded": "网页审批通过",
+    "fileTransferDenied": "文件传输被拒绝",
+    "fileOperation": "文件操作",
+    "loginSucceeded": "登录成功",
+    "loginRejected": "登录被拒绝",
+    "loginRateLimited": "登录尝试过于频繁",
+    "otpSucceeded": "OTP 验证成功",
+    "otpInvalid": "OTP 验证码无效",
+    "otpRateLimited": "OTP 尝试过于频繁",
+    "logout": "退出登录",
+    "originRejected": "请求来源被拒绝",
+    "ssoLogin": "SSO 登录",
+    "ssoVerifyFailed": "SSO 验证失败",
+    "ssoUserCreated": "自动创建 SSO 用户",
+    "ssoRoleAdded": "通过 SSO 添加角色",
+    "ssoRoleRemoved": "通过 SSO 移除角色",
+    "passwordChanged": "修改密码",
+    "passwordChangeReauthFailed": "修改密码时身份验证失败",
+    "publicKeyAdded": "添加公钥",
+    "publicKeyDeleted": "删除公钥",
+    "otpEnrollmentStarted": "开始绑定 OTP",
+    "otpAdded": "添加 OTP",
+    "otpDeleted": "删除 OTP",
+    "certificateIssued": "签发证书",
+    "certificateRevoked": "吊销证书",
+    "encryptionInitSucceeded": "加密初始化成功",
+    "encryptionInitFailed": "加密初始化失败",
+    "encryptionUnlockSucceeded": "加密解锁成功",
+    "encryptionUnlockFailed": "加密解锁失败",
+    "encryptionRekeyFailed": "主密钥轮换失败",
+    "encryptionPlaintextBackupRetained": "已保留明文备份",
+    "encryptionAdminAction": "加密管理操作",
+    "encryptionBootstrapTokenDeleteFailed": "删除引导令牌失败",
+    "other": "其他事件",
+    "copyId": "复制 ID",
+    "copied": "已复制"
+  },
+  "about": {
+    "title": "关于",
+    "description": "网关版本和访问地址。",
+    "version": "版本",
+    "host": "对外主机名",
+    "httpBaseDomain": "HTTP 代理域名",
+    "listeners": {
+      "title": "监听端口",
+      "admin": "管理端",
+      "http": "HTTP 代理"
+    },
+    "disabled": "未启用",
+    "copy": "复制",
+    "copied": "已复制"
+  },
+  "pagination": {
+    "range": "第 {{from}}–{{to}} 条，共 {{total}} 条",
+    "prev": "上一页",
+    "next": "下一页",
+    "loadMore": "加载更多"
+  }
+}

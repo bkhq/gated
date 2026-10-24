@@ -1,0 +1,31 @@
+[package]
+edition.workspace = true
+rust-version.workspace = true
+license = "Apache-2.0"
+name = "gated-protocol-mysql"
+version = "0.0.1"
+
+[dependencies]
+gated-common = { version = "*", path = "../gated-common", default-features = false }
+gated-tls = { version = "*", path = "../gated-tls", default-features = false }
+gated-core = { version = "*", path = "../gated-core", default-features = false }
+gated-database-protocols = { version = "*", path = "../gated-database-protocols", default-features = false }
+anyhow.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
+bytes.workspace = true
+mysql_common = { version = "0.34", default-features = false }
+rand.workspace = true
+sha1 = { version = "0.10", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+rsa = { version = "0.9", default-features = false, features = ["sha1", "pem"] }
+password-hash.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

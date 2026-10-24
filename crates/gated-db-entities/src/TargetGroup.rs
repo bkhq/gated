@@ -1,0 +1,54 @@
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Clone,
+    EnumIter,
+    DeriveActiveEnum,
+    utoipa::ToSchema,
+)]
+#[sea_orm(rs_type = "String", db_type = "String(StringLen::N(16))")]
+pub enum BootstrapThemeColor {
+    #[sea_orm(string_value = "primary")]
+    Primary,
+    #[sea_orm(string_value = "secondary")]
+    Secondary,
+    #[sea_orm(string_value = "success")]
+    Success,
+    #[sea_orm(string_value = "danger")]
+    Danger,
+    #[sea_orm(string_value = "warning")]
+    Warning,
+    #[sea_orm(string_value = "info")]
+    Info,
+    #[sea_orm(string_value = "light")]
+    Light,
+    #[sea_orm(string_value = "dark")]
+    Dark,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]
+#[sea_orm(table_name = "target_groups")]
+#[schema(as = TargetGroup)]
+pub struct Model {
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub id: Uuid,
+    pub name: String,
+    #[sea_orm(column_type = "Text")]
+    pub description: String,
+    pub color: Option<BootstrapThemeColor>, // Bootstrap theme color for UI display
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(has_many = "super::Target::Entity")]
+    Target,
+}
+
+impl ActiveModelBehavior for ActiveModel {}

@@ -1,0 +1,50 @@
+# Demo lode.toml for running gated under lode (https://lode.bk.io).
+#
+# Layout (LODE_DIR = /srv/gated-lode):
+#   /srv/gated-lode/lode.toml      this file
+#   /srv/gated-lode/config.yaml    gated config; relative data paths resolve
+#                                  next to it, outside lode's version dirs
+#   /srv/gated-lode/versions/ …    installed releases, managed by lode
+#
+# First start (once, before the service runs; the data dir must exist):
+#   mkdir -p /srv/gated-lode/data
+#   GATED_ADMIN_PASSWORD=… LODE_DIR=/srv/gated-lode lode unattended-setup \
+#     --data-path /srv/gated-lode/data --admin-port 8888 --ssh-port 2222
+# Then run the service:
+#   LODE_DIR=/srv/gated-lode lode
+#
+# Release asset: a tarball named exactly as `[update].asset` below, holding
+# the `gated` binary at its root (built with `--all-features --release`).
+
+[global]
+app = "gated"                     # must equal the registry package slug
+dir = "/srv/gated-lode"
+
+[update]
+manifest = "https://lode.bk.io/r/<namespace>/gated/manifest.json"
+asset    = "gated-linux-x64.tar.gz"
+channel  = "stable"
+# Database migrations run on startup and a binary downgrade is not a safe
+# migration rollback, so review updates and apply them with
+# `lode-cli update` after a backup instead of `policy = "auto"`.
+policy   = "check"
+
+[trust]
+require_signature = "enforce"
+trusted_keys = ["<key_id>:<public-key>"]
+
+# Private package only:
+# [http]
+# headers = ["Authorization: Bearer ${LODE_REGISTRY_TOKEN}"]
+
+[command]
+run  = "./gated --config /srv/gated-lode/config.yaml run"
+exec = "./gated --config /srv/gated-lode/config.yaml"
+
+[supervise]
+restart       = "on-failure"
+# gated reports ready once its listeners are up (or, with encryption
+# enabled, once the pre-unlock UI is serving).
+readiness     = "state"
+ready_timeout = 120               # first start after an upgrade runs migrations
+stop_timeout  = 30                # gated exits on SIGTERM
