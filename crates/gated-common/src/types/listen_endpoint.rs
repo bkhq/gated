@@ -19,20 +19,6 @@ impl ListenEndpoint {
         self.0
     }
 
-    /// Compute the concrete addresses we need to bind, factoring in the
-    /// `[::]` IPv6-unspecified case where some kernels need an explicit
-    /// IPv4 socket alongside the IPv6 one.
-    pub fn addresses_to_listen_on(&self) -> Result<Vec<SocketAddr>, GatedError> {
-        if self.0.ip() == Ipv6Addr::UNSPECIFIED {
-            Ok(vec![
-                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), self.0.port()),
-                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), self.0.port()),
-            ])
-        } else {
-            Ok(vec![self.0])
-        }
-    }
-
     /// Bind every required address with `SO_REUSEADDR` so a previous
     /// instance's `TIME_WAIT` sockets don't block restart. Returns
     /// blocking `std::net::TcpListener`s ready to be promoted to tokio

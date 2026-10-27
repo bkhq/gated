@@ -12,8 +12,7 @@ use rustls::server::danger::ClientCertVerifier;
 /// The returned verifier cryptographically validates that any presented
 /// client certificate chains to the instance CA (chain + signature) *and*
 /// that the TLS handshake `CertificateVerify` was produced by the private key
-/// matching the end-entity certificate — both via rustls/webpki's real
-/// verification, not the previous no-op `Ok(assertion())`. This defeats
+/// matching the end-entity certificate, both via rustls/webpki. This defeats
 /// replay of a known (public) certificate blob: an attacker without the
 /// matching private key cannot complete the handshake.
 ///

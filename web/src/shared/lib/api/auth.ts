@@ -34,7 +34,3 @@ export async function getAuthState(signal?: AbortSignal): Promise<AuthStateRespo
     throw err
   }
 }
-
-export function isLoginFailureResponse(body: unknown): body is LoginFailureResponse {
-  return !!body && typeof body === 'object' && 'state' in body && typeof (body).state === 'string'
-}

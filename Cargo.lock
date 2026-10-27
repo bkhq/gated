@@ -2128,7 +2128,6 @@ dependencies = [
  "chacha20poly1305",
  "chrono",
  "data-encoding",
- "dialoguer",
  "enum_dispatch",
  "futures",
  "gated-ca",

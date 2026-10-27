@@ -149,8 +149,9 @@ Management mutations persist actor, path, method, correlation ID, and requested 
 completed phases in the dedicated `management_audit` table. Request bodies,
 query strings, confirmation credentials and response payloads are excluded.
 A requested record without completion needs investigation. Browser logins use
-an independent in-memory management registry and no longer create proxy-session
-rows, metrics or recording handles. Password changes revoke other browser and
+an independent in-memory management registry and create no proxy-session
+rows, metrics or recording handles. Failed logins create no session rows either;
+each one writes an `auth_login_rejected` entry to the connection audit log. Password changes revoke other browser and
 proxy sessions; proxy-session termination does not log the operator out.
 
 The audit UI selects either target connections (`POST /admin/api/logs`) or

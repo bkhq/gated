@@ -13,15 +13,11 @@ use crate::mysql::protocol::response::Status;
 
 #[derive(Debug)]
 pub struct Handshake {
-    #[allow(unused)]
     pub protocol_version: u8,
     pub server_version: String,
-    #[allow(unused)]
     pub connection_id: u32,
     pub server_capabilities: Capabilities,
-    #[allow(unused)]
     pub server_default_collation: u8,
-    #[allow(unused)]
     pub status: Status,
     pub auth_plugin: Option<AuthPlugin>,
     pub auth_plugin_data: Chain<Bytes, Bytes>,

@@ -13,17 +13,17 @@ Route layout (`crates/gated-admin/src/http_service/mod.rs`):
 - `/admin/api` — admin REST API (axum + utoipa), wrapped in the
   `require_auth` and `require_admin` middleware so it requires both an
   authenticated session/token *and* the built-in `admin` role
-  (`mod.rs:176-177`); OpenAPI spec at `/admin/api/openapi.json` with a
+  (`mod.rs`); OpenAPI spec at `/admin/api/openapi.json` with a
   Stoplight Elements playground.
 - `/api` — user portal API (axum + utoipa), available to any authenticated
-  session; spec at `/api/openapi.json` (`mod.rs:174`).
+  session; spec at `/api/openapi.json` (`mod.rs`).
 - `/api/ssh-terminal`, `/api/db-terminal` — raw WebSocket endpoints for the
   in-browser SSH terminal and SQL console (not expressible in OpenAPI,
   mounted directly).
 - `/ui` — the embedded SPA (below); unauthenticated page loads redirect to
   the login route.
 
-Middleware stack (`mod.rs:243-261`), outermost last:
+Middleware stack (`mod.rs`), outermost last:
 
 1. `TicketMiddleware` — turns a `gated-ticket` query parameter into a
    scoped session (`middleware/ticket.rs`).
@@ -90,9 +90,9 @@ web approval.
 ## Embedded web UI (`crates/gated-web` + `web/`)
 
 `gated-web` embeds the built SPA with `rust-embed`
-(`crates/gated-web/src/lib.rs:3-5`, folder `web/dist`). The admin service
+(`crates/gated-web/src/lib.rs`, folder `web/dist`). The admin service
 serves it under `/ui` with an `index.html` SPA fallback
-(`http_service/spa.rs:31-32`), immutable caching for hashed assets, and
+(`http_service/spa.rs`), immutable caching for hashed assets, and
 `no-cache` for `index.html`.
 
 The SPA (`web/`) is React 19 + TanStack Router + Tailwind 4, built with Vite
@@ -112,19 +112,19 @@ snapshots as fallback). Feature areas:
 
 ## CLI (`crates/gated`)
 
-Subcommands (`crates/gated/src/main.rs:44-166`):
+Subcommands (`crates/gated/src/main.rs`):
 
 | Command | Purpose |
 |---|---|
-| `setup` / `unattended-setup` | first-run bootstrap: writes the YAML config, creates the data dir, database, admin user, self-signed TLS certs, SSH keys (`main.rs:47,58`) |
-| `run` | start all enabled listeners; `--enable-admin-token`, `--admin-port` (accepts the literal `NSL_PORT` for dev) (`main.rs:107`) |
-| `check` | validate the config file (`main.rs:118`) |
-| `create-user` | create a user, optional password/role (`main.rs:120`) |
-| `recover-access` | reset a user's password and credential policy (`main.rs:130`) |
-| `client-keys` | print the SSH public keys gated uses toward targets (`main.rs:105`) |
-| `healthcheck` | liveness probe; `--deep` adds DB ping, migration status, TLS and SSO checks (`main.rs:143`) |
-| `encrypt-existing-db` | migrate a plaintext SQLite database to SQLCipher (`main.rs:155`) |
-| `version` | print version (`main.rs:135`) |
+| `setup` / `unattended-setup` | first-run bootstrap: writes the YAML config, creates the data dir, database, admin user, self-signed TLS certs, SSH keys |
+| `run` | start all enabled listeners; `--enable-admin-token`, `--admin-port` (accepts the literal `NSL_PORT` for dev) |
+| `check` | validate the config file |
+| `create-user` | create a user, optional password/role |
+| `recover-access` | reset a user's password and credential policy |
+| `client-keys` | print the SSH public keys gated uses toward targets |
+| `healthcheck` | liveness probe; `--deep` adds DB ping, migration status, TLS and SSO checks |
+| `encrypt-existing-db` | migrate a plaintext SQLite database to SQLCipher |
+| `version` | print version |
 
 `run` wiring is described in [README.md](README.md#deployment-model);
 sessions, retention cleanup, config watch, and systemd notification are in
@@ -132,7 +132,7 @@ sessions, retention cleanup, config watch, and systemd notification are in
 
 ## Configuration schema (`crates/gated-common/src/config/`)
 
-`GatedConfigStore` (`crates/gated-common/src/config/mod.rs:677`) is the YAML
+`GatedConfigStore` (`crates/gated-common/src/config/mod.rs`) is the YAML
 root:
 
 | Section | Highlights |
@@ -142,16 +142,18 @@ root:
 | `external_host` | public hostname used for URLs/SSO redirects |
 | `database_url` | secret; default `sqlite:data/db` |
 | `ssh` | enable, listen, keys path, host-key verification mode, inactivity timeout, keepalive |
-| `http` | listen, TLS cert/key, SNI certificates, session/cookie max-age, `trust_x_forwarded_headers` |
-| `proxy` | reverse-proxy listen, TLS cert/key, `base_domain` for host-based routing |
+| `admin` | management/portal listener: listen, TLS cert/key (or `tls: false`), SNI certificates, cookie domain, session/cookie max-age, `trust_x_forwarded_headers` |
+| `http` | reverse-proxy listener: enable, listen, TLS cert/key, `base_domain` for host-based routing, `behind_proxy`, session max-age |
 | `mysql` / `postgres` | enable, listen, TLS cert/key |
 | `metrics` | enable + listen for `/metrics`, `/healthz`, `/readyz` |
 | `encryption` | enable at-rest database encryption |
-| `log` | retention (default 7 days), level, console/file sinks, optional syslog socket and OTLP exporter |
+| `log` | retention and management-audit retention (default 7 days each), level, format, console/file sinks, optional syslog socket and OTLP exporter |
 
-Loading: the YAML file (path from `-c`/`GATED_CONFIG`, default
-`/etc/gated.yaml`) is merged with `GATED_*` environment overrides; relative
-paths resolve against the config file's directory; secrets are wrapped in a
+Loading: the YAML file is `<dir>/config.yaml` with `--data-dir`/
+`GATED_DATA_DIR`, otherwise `-c`/`GATED_CONFIG` (default
+`/etc/gated.yaml`). It is merged with `GATED_*` environment overrides;
+relative paths resolve against the data directory, or the config file's
+directory without one; secrets are wrapped in a
 `Secret` type that masks debug output. `config-schema.json` at the repo root
 is generated from these types via `schemars` and checked for drift in CI.
 
@@ -159,4 +161,4 @@ Targets are **not** in the YAML: they live in the database and are managed
 through the admin API/UI. A target row carries `allow_roles`, an optional
 group, an optional byte-rate limit, bound accounts, and a `TargetOptions`
 union (`ssh` / `http` / `mysql` / `postgres`,
-`crates/gated-common/src/config/target.rs:281-291`).
+`crates/gated-common/src/config/target.rs`).

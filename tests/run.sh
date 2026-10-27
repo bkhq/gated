@@ -3,9 +3,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-# Build gated if not specified
+# Build gated if not specified (the default cargo target is musl, see .cargo/config.toml)
 if [ -z "${GATED_BINARY:-}" ]; then
-    GATED_BINARY="target/debug/gated"
+    GATED_BINARY="target/x86_64-unknown-linux-musl/debug/gated"
     echo "Building gated..."
     (cd .. && cargo build)
 fi

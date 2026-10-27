@@ -12,7 +12,7 @@ import {
 } from '@/shared/lib/api/tickets'
 import { formatTicketExpiresIn } from '@/shared/types/domain'
 
-function adminTicketToMock(api: AdminTicket): Ticket {
+function adminTicketToDomain(api: AdminTicket): Ticket {
   const usesLimit = api.uses_left ?? 0
   const expiresAt = api.expiry ?? ''
   const isExpired = expiresAt !== '' && new Date(expiresAt).getTime() <= Date.now()
@@ -49,24 +49,9 @@ export function useTickets() {
       if (!isAdmin)
         return []
       const list = await listAdminTickets(signal)
-      return list.map(adminTicketToMock)
+      return list.map(adminTicketToDomain)
     },
     enabled: isAdmin,
-  })
-}
-
-export function useTicket(id: string | undefined) {
-  const isAdmin = useIsAdmin()
-  const qc = useQueryClient()
-  return useQuery<Ticket | null>({
-    queryKey: ['tickets', id ?? null],
-    queryFn: async () => {
-      if (!id || !isAdmin)
-        return null
-      const cached = qc.getQueryData<Ticket[]>(['tickets']) ?? []
-      return cached.find(item => item.id === id) ?? null
-    },
-    enabled: typeof id === 'string' && isAdmin,
   })
 }
 
@@ -89,7 +74,7 @@ export function useCreateTicket() {
           number_of_uses: draft.usesLimit > 0 ? draft.usesLimit : undefined,
           description: draft.purpose ?? '',
         })
-        return { ticket: adminTicketToMock(created.ticket), secret: created.secret }
+        return { ticket: adminTicketToDomain(created.ticket), secret: created.secret }
       }
       const created = await profileApi.tickets.create({
         target_name: draft.scope,

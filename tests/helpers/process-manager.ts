@@ -9,7 +9,7 @@ import { allocPort, waitPort } from "./util";
 
 const TESTS_DIR = resolve(import.meta.dir, "..");
 const CARGO_ROOT = resolve(TESTS_DIR, "..");
-const BINARY_PATH = process.env.GATED_BINARY || "target/debug/gated";
+const BINARY_PATH = process.env.GATED_BINARY || "target/x86_64-unknown-linux-musl/debug/gated";
 
 export interface GatedProcess {
   configPath: string;

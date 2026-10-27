@@ -5,11 +5,8 @@ import { userApi } from './http'
 export type DbSchemaList = UserComponents['schemas']['SchemaList']
 export type DbTableList = UserComponents['schemas']['TableList']
 export type DbColumnList = UserComponents['schemas']['ColumnList']
-export type DbColumnInfo = UserComponents['schemas']['ColumnInfo']
-export type DbTableInfo = UserComponents['schemas']['TableInfo']
 export type DbQueryRequest = UserComponents['schemas']['QueryRequest']
 export type DbQueryResponse = UserComponents['schemas']['QueryResponse']
-export type DbQueryColumn = UserComponents['schemas']['QueryColumn']
 
 // Backend's SchemaList.kind is generated as `string`. The actual emitted values
 // are constrained to these two; narrow at the boundary so UI code can switch

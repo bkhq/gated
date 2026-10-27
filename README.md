@@ -59,13 +59,14 @@ natively; the gated CLI accepts `--admin-port`, so `just dev` passes the literal
 `NSL_PORT` placeholder and nsl rewrites it at spawn time. Nothing is bound to
 a hard-coded port.
 
-`config.yaml` ships with `admin.tls: false` for dev so nsl can plain-HTTP
-proxy to the gateway. Production should use `tls: true`. The `admin.listen`
-port in config is irrelevant under `just dev` because `--admin-port` overrides
-it.
+`just dev` runs the gateway with a local, git-ignored `config.yaml` (create
+it once with `gated --config config.yaml unattended-setup ...`). Set
+`admin.tls: false` in it so nsl can plain-HTTP proxy to the gateway;
+production should keep TLS on. The `admin.listen` port in config is
+irrelevant under `just dev` because `--admin-port` overrides it.
 
 ```bash
-just bun install      # pulls @nsio/nsl + concurrently on first run
+just bun install      # pulls @nsio/nsl on first run
 just dev              # backend + frontend, Ctrl-C tears down both
 just nsl-status       # daemon state and route table
 ```

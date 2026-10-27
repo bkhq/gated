@@ -1,12 +1,7 @@
-//! Per-target sqlx connection pool registry.
+//! Per-target sqlx connection pool registry. Pool lifecycle tracks config
+//! changes instead of living until process restart.
 //!
-//! Moved out of `crates/gated-protocol-http/src/api/db_query.rs` so that
-//! pool lifecycle tracks config changes instead of leaking until process
-//! restart.
-//!
-//! - Keyed by `Target::id` (UUID). The previous implementation keyed by
-//!   `Target::name`, which meant renaming a target silently stranded the
-//!   old pool.
+//! - Keyed by `Target::id` (UUID), so renaming a target keeps its pool.
 //! - Each cached pool carries a *fingerprint* of the connection-relevant
 //!   option subset (host / port / credentials / database / TLS mode /
 //!   read-only flag). A `get_or_create` call with a mismatching

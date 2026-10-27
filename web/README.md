@@ -7,4 +7,4 @@ bun install
 bun run dev
 ```
 
-The dev server registers as `gated:/ui`; access it through `gated.localhost:1355/ui/`.
+The dev server registers with nsl as `gated:/ui`; open `http://gated.localhost:<port>/ui/`, where `<port>` is the nsl proxy port (`nsl status`). See the root README for the full dev workflow.

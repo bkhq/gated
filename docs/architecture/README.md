@@ -33,7 +33,7 @@ A single Rust binary (`gated`) that:
   own database (SQLite by default, optionally SQLCipher-encrypted; PostgreSQL
   and MySQL are also supported via SeaORM);
 - embeds the management web UI (a React SPA) into the binary at compile time
-  (`crates/gated-web/src/lib.rs:3-5`);
+  (`crates/gated-web/src/lib.rs`);
 - records terminal sessions, raw traffic, HTTP exchanges, and SQL statements
   to disk with metadata in the database.
 
@@ -42,47 +42,48 @@ A single Rust binary (`gated`) that:
 Gated is deployed as one process, typically:
 
 - **Bare metal / VM**: `gated setup` (interactive) or `gated unattended-setup`
-  generates `/etc/gated.yaml` (overridable via `GATED_CONFIG`,
-  `crates/gated/src/main.rs:22`) plus a data directory containing the SQLite
-  database (`data/db`), SSH host/client keys (`data/keys`), recordings
-  (`data/recordings`), and a self-signed TLS certificate shared by all
-  listeners (`crates/gated/src/commands/setup.rs`).
+  writes the config and a data directory (`crates/gated/src/commands/setup.rs`):
+  the SQLite database (`db/`), SSH keys (`ssh-keys/`), recordings
+  (`recordings/`), and a self-signed TLS certificate and key shared by all
+  listeners. With the global `--data-dir <dir>` (`GATED_DATA_DIR`) the config is
+  `<dir>/config.yaml` and every relative path, including the encryption state
+  and bootstrap token, resolves inside `<dir>`; otherwise `--config`
+  (`GATED_CONFIG`, default `/etc/gated.yaml`) selects the file and relative
+  paths resolve next to it (`crates/gated-common/src/state.rs`).
 - **Docker**: a two-stage image (`docker/Dockerfile`) builds the web UI with
   Bun/Vite, embeds it, compiles a release binary with the `mysql,postgres`
   feature flags, and runs as a non-root `gated` user with a `/data` volume and
-  `GATED_CONFIG=/data/gated.yaml`. `gated healthcheck` is the container health
-  probe.
+  `GATED_DATA_DIR=/data`. `gated healthcheck` is the container health probe.
 - **Static binary**: the default cargo target is `x86_64-unknown-linux-musl`
   (`.cargo/config.toml`), producing a dependency-free binary. Release builds
   disable LTO and use `panic = "abort"` (workspace `Cargo.toml`).
 
 The `gated run` command boots every enabled component as a future in a single
-`FuturesUnordered` set (`crates/gated/src/commands/run.rs:270-330`):
+`FuturesUnordered` set (`crates/gated/src/commands/run.rs`):
 
-1. HTTP admin/portal server (always on) — `crates/gated/src/commands/run.rs:272`
-2. SSH proxy (if `ssh.enable`) — `run.rs:281`
-3. MySQL proxy (if `mysql.enable`) — `run.rs:291`
-4. PostgreSQL proxy (if `postgres.enable`) — `run.rs:301`
-5. HTTP reverse proxy (if `http.enable`) — `run.rs:314`
+1. HTTP admin/portal server (always on)
+2. SSH proxy (if `ssh.enable`)
+3. MySQL proxy (if `mysql.enable`)
+4. PostgreSQL proxy (if `postgres.enable`)
+5. HTTP reverse proxy (if `http.enable`)
 6. Observability listener serving `/metrics`, `/healthz`, `/readyz`
-   (if `metrics.enable`) — `run.rs:326`
+   (if `metrics.enable`)
 
 Background tasks handle database retention cleanup, config-file hot reload,
 and systemd readiness/watchdog notification. If database encryption is
 enabled but the key has not been provided yet, a minimal HTTP server is
-started first that only exposes the unlock API and the SPA
-(`run.rs:238`).
+started first that only exposes the unlock API and the SPA.
 
 Default listen addresses (`crates/gated-common/src/config/defaults.rs`):
 
 | Listener | Default |
 |---|---|
-| HTTP admin/portal | `[::]:8888` (defaults.rs:43-45) |
-| SSH | `[::]:2222` (defaults.rs:82-84) |
-| MySQL | `[::]:33306` (defaults.rs:48-50) |
-| PostgreSQL | `[::]:55432` (defaults.rs:53-55) |
-| HTTP reverse proxy | `http.listen` (defaults.rs:58-60) |
-| Metrics/health | `127.0.0.1:9090` (defaults.rs:86-90) |
+| HTTP admin/portal | `[::]:8888` |
+| SSH | `[::]:2222` |
+| MySQL | `[::]:33306` |
+| PostgreSQL | `[::]:55432` |
+| HTTP reverse proxy | `[::]:8443` |
+| Metrics/health | `127.0.0.1:9090` |
 
 ## Workspace layout
 
@@ -90,7 +91,7 @@ Default listen addresses (`crates/gated-common/src/config/defaults.rs`):
 
 | Crate | Role |
 |---|---|
-| `gated` | CLI binary: `run`, `setup`, `unattended-setup`, `check`, `create-user`, `recover-access`, `client-keys`, `healthcheck`, `encrypt-existing-db`, `version` (`crates/gated/src/main.rs:44-166`) |
+| `gated` | CLI binary: `run`, `setup`, `unattended-setup`, `check`, `create-user`, `recover-access`, `client-keys`, `healthcheck`, `encrypt-existing-db`, `version` (`crates/gated/src/main.rs`) |
 | `gated-common` | Shared types: config schema, credential/auth types, target options, helpers |
 | `gated-core` | Session registry, services container, auth state store, config providers (DB-backed), recordings, logging, metrics, database bootstrap |
 | `gated-admin` | axum-based HTTP service: admin API, user portal API, SPA serving, web terminals |
@@ -169,11 +170,11 @@ flowchart LR
 ## Core runtime objects
 
 Everything shares a cloneable `Services` struct
-(`crates/gated-core/src/services.rs:58-78`):
+(`crates/gated-core/src/services.rs`):
 
 - `db` — `Arc<RwLock<Option<DatabaseConnection>>>` (None while encrypted DB is
   locked)
-- `state` — live session registry (`crates/gated-core/src/state.rs:17`)
+- `state` — live session registry (`crates/gated-core/src/state.rs`)
 - `config` / `config_provider` — config store and the DB-backed
   `ConfigProvider` that answers credential validation and authorization
   queries
@@ -184,7 +185,7 @@ Everything shares a cloneable `Services` struct
 
 Each protocol proxy implements the `ProtocolServer` trait and is handed a
 clone of `Services`; the HTTP reverse proxy is the one exception and runs as a
-free function (`crates/gated-protocol-http/src/server.rs:45`).
+free function (`crates/gated-protocol-http/src/server.rs`).
 
 ## Trust boundaries (summary)
 
@@ -200,5 +201,5 @@ See [data-flows.md](data-flows.md) for the full diagram. In short:
   API-token secrets, the CA private key, and session/audit metadata; it is the
   most sensitive store and supports at-rest encryption for SQLite.
 - **Admin plane** — the admin API requires the built-in `admin` role
-  (`crates/gated-core/src/consts.rs:1`); the user portal API only requires an
+  (`crates/gated-core/src/consts.rs`); the user portal API only requires an
   authenticated session.

@@ -13,13 +13,13 @@ proxies consume it.
 ## Default OFF
 
 With no enabled rules the ruleset is empty and every command evaluates to
-`Allow`. Existing deployments see no behavior change until an administrator adds
-rules.
+`Allow`.
 
 ## Fail-OPEN on rule-load error (all proxies)
 
 When the ACL ruleset cannot be **loaded** (DB unavailable, query error), all
-three proxies now **fail-OPEN**: the command is forwarded rather than blocked.
+three proxies **fail-OPEN**: the command is forwarded rather than blocked.
+This is not configurable.
 
 Rationale: command control is a policy layer on top of a bastion whose primary
 job is access. A transient policy-DB blip must not lock every user out of every
@@ -33,17 +33,13 @@ is made observable instead of silent:
   - SSH: a `ShellCommandRecordingItem::Command` with `acl_action = "allow"` and
     `outcome = "acl-load-error: command control degraded (fail-open)"`.
 
-Before this change the DB proxies (MySQL/Postgres) failed **closed** on a load
-error (blocking with outcome `blocked-acl-load-error`) while SSH failed open
-silently. Behavior is now consistent across all three.
-
 ## Evaluated verdicts stay fail-SAFE
 
 The fail-open policy applies **only** to the load-error path. Once a ruleset is
 loaded and a command is actually evaluated, `Deny` and `Review` still **block**:
 
-- MySQL / Postgres: `Deny` and `Review` both block (there is no interactive
-  approval path for the DB proxies in this campaign; `Review` is recorded as
+- MySQL / Postgres: `Deny` and `Review` both block (the DB proxies have no
+  interactive approval path; `Review` is recorded as
   `blocked-review-unsupported`).
 - SSH `exec`: `Deny` blocks; `Review` pauses the session for admin
   approval/rejection with a bounded timeout that also blocks on timeout.
@@ -51,12 +47,8 @@ loaded and a command is actually evaluated, `Deny` and `Review` still **block**:
 
 ## Role-scoped rules on SSH
 
-Role-scoped ACL rules now match on SSH. The acting user's role UUIDs are resolved
+Role-scoped ACL rules match on SSH. The acting user's role UUIDs are resolved
 once at authentication time (`load_user_role_ids`, the same loader the DB proxies
 use) and stored on the session, then passed into `AclContext.role_ids` for both
 `exec` and best-effort PTY evaluation. If role resolution fails the
 set stays empty (best-effort) and global/protocol/target rules still apply.
-
-## Load-error policy
-
-The fail-open behavior on a rule-load error is not configurable.

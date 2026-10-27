@@ -3,19 +3,15 @@
 How to run every test layer of the gated project, what each layer needs, what
 it covers, and the gate list to run before delivering a change.
 
-All commands were verified against the repository files cited next to them.
-Anything that could not be confirmed from a repo file is explicitly marked
-**unverified** or **inferred**.
-
 ---
 
 ## 1. Test inventory
 
 | Layer | Location | Runner | What it covers |
 |---|---|---|---|
-| Rust unit tests | inline `#[cfg(test)]` modules in `crates/*/src` (14 files at the time of writing; no crate has a separate `tests/` dir) | `cargo test` | Pure-Rust logic per crate |
-| Integration suites | `tests/` (Bun + TypeScript, drives a real `gated` binary) | `bun test` | Admin API, gateway HTTP API, SSH / PostgreSQL / Kubernetes proxying, SQL console, health/metrics/logs |
-| Web unit tests | `web/src/**/*.test.ts(x)` (19 files at the time of writing) | Vitest (jsdom) | React components, hooks, API client modules, recording players, terminal codec |
+| Rust unit tests | inline `#[cfg(test)]` modules in `crates/*/src` (no crate has a separate `tests/` dir) | `cargo nextest` / `cargo test` | Pure-Rust logic per crate |
+| Integration suites | `tests/` (Bun + TypeScript, drives a real `gated` binary) | `bun test` | Admin API, gateway HTTP API, SSH / MySQL / PostgreSQL / HTTP / Kubernetes proxying, command control, SFTP, SQL console, health/metrics/logs, data directory and encryption lifecycle |
+| Web unit tests | `web/src/**/*.test.ts(x)` | Vitest (jsdom) | React components, hooks, API client modules, recording players, terminal codec |
 | Dockerized full-stack e2e | `tests/e2e-docker/` | `tests/e2e-docker/run.sh` | Production-like container: bootstrap via admin token, then protocol probes (SSH, MySQL, PostgreSQL, HTTP headers, Kubernetes token + client cert) from sidecar containers |
 | Browser (Playwright) e2e | `web/scripts/e2e-smoke.ts`, `web/scripts/e2e-auth-terminals.ts` | `bun run e2e` (smoke) / `bun scripts/e2e-auth-terminals.ts` | Real browser against a running gateway: login/session, admin forms, web terminals, ticket links |
 
@@ -25,21 +21,29 @@ Each subdirectory is a suite; `tests/package.json` defines per-suite scripts.
 
 - `tests/api/` — admin REST API (`/admin/api`, authenticated with the
   `X-Gated-Token` header; see `tests/helpers/api-client.ts`). Subdirectories:
-  `auth/` (cookie auth, unauthorized), `credentials/` (password, OTP,
-  public-key, certificate, SSO), `parameters/`, `roles/`, `sessions/`,
-  `ssh/` (known-hosts, own-keys), `targets/`, `tickets/`, `users/`.
-- `tests/http/` — gateway HTTP API: `/api/info`, `/api/auth/login`,
-  `/api/targets` RBAC filtering, `/api/profile/api-tokens`.
+  `accounts/`, `auth/` (cookie auth, unauthorized), `credentials/` (password,
+  OTP, public-key, certificate, SSO), `parameters/`, `roles/`, `sessions/`,
+  `ssh/` (known-hosts, own-keys), `system/`, `target-groups/`, `targets/`,
+  `tickets/`, `users/`; top-level files cover the RBAC matrix, the
+  authentication contract, command records and recordings.
+- `tests/http/` — gateway HTTP API: `/api/info`, `/api/auth/login` and its
+  rate limit, OIDC security, `/api/targets` RBAC filtering, API tokens,
+  ticket scoping, WebSocket origin checks.
+- `tests/http-proxy/` — HTTP reverse proxy: access control, the plaintext
+  listener guard, upstream TLS.
 - `tests/ssh/` — SSH proxy end-to-end against a containerized sshd:
-  password, OTP, public-key, ticket, and in-browser auth; protocol behavior
-  (`proto.test.ts`), target selection, client auth config.
+  password, OTP, public-key, ticket, and in-browser auth; failed-login audit,
+  session list filters, account binding, command ACL and review, SFTP,
+  RBAC, web-terminal revocation, protocol behavior (`proto.test.ts`), target
+  selection, client auth config.
 - `tests/db/` — PostgreSQL proxy auth (password, in-browser) driven by a real
-  `psql` client, and the web SQL console for both MySQL and PostgreSQL
-  (`sql-console.test.ts`).
+  `psql` client, the native MySQL client through the proxy, command ACL
+  filtering, multi-protocol tickets, RBAC, and the web SQL console for both
+  MySQL and PostgreSQL.
 - `tests/kubernetes/` — Kubernetes proxy against a `rancher/k3s` container,
   with token and client-certificate target auth, exercised through `kubectl`.
-- `tests/misc/` — `/healthz` + `/readyz`, JSON log output, Prometheus
-  `/metrics`.
+- `tests/misc/` — `/healthz` + `/readyz`, JSON log output, log injection,
+  Prometheus `/metrics`, `--data-dir`, and the encryption lifecycle.
 - `tests/helpers/` — shared infrastructure, not tests:
   `process-manager.ts` runs `gated unattended-setup` then
   `gated run --enable-admin-token` on random ports per test, and starts
@@ -81,7 +85,7 @@ All probes run inside sidecar containers attached to the compose network
 - **Rust** — pinned by `rust-toolchain.toml`: channel 1.95.0 with clippy and
   rustfmt. `just` recipes default `CARGO_BUILD_TARGET` to
   `x86_64-unknown-linux-gnu` (see `justfile`).
-- **Bun** — used for `web/` and `tests/` (CI installs `bun-version: latest`).
+- **Bun** — used for `web/` and `tests/` (CI pins the version in the workflows).
 - **Docker** — required by `tests/` (containerized sshd/MySQL/PostgreSQL/
   k3s/OIDC mock) and by `tests/e2e-docker/` (compose + sidecars).
 - **just** — command runner for the repo-root `justfile`.
@@ -169,7 +173,8 @@ is what CI does for the `test` and `quality` jobs).
 ```sh
 just test            # cargo test --target <target> --workspace --all-features
 # or, as CI runs it:
-cargo test --all-features
+cargo nextest run --profile ci --workspace --all-features --locked
+cargo test --doc --workspace --all-features --locked
 ```
 
 ### Integration suites (`tests/`)
@@ -179,7 +184,7 @@ Easiest path (auto-builds a debug binary, installs deps, fixes key perms):
 ```sh
 cd tests
 make all             # one-time: build the three local docker images
-./run.sh             # builds gated if GATED_BINARY unset, then `bun test`
+./run.sh             # builds a debug gated if GATED_BINARY is unset, then `bun test`
 ```
 
 Manual / selective:
@@ -187,7 +192,7 @@ Manual / selective:
 ```sh
 cd tests
 bun install
-GATED_BINARY=../target/release/gated bun test --timeout 300000   # all suites
+GATED_BINARY=target/x86_64-unknown-linux-musl/release/gated bun test --timeout 300000   # all suites
 bun run test:http    # gateway HTTP API only
 bun run test:ssh     # SSH suites only
 bun run test:db      # database suites only
@@ -301,7 +306,7 @@ cd web && bun install --frozen-lockfile && cd ..
 # 1. Format
 just fmt
 
-# 2. Rust lints (cargo-cranky over each workspace package)
+# 2. Rust lints (workspace lint policy in Cargo.toml)
 just clippy
 
 # 3. Frontend static gates
@@ -320,14 +325,14 @@ just test
 
 # 7. Integration suites against a release binary
 cargo build --all-features --release
-cd tests && GATED_BINARY=../target/release/gated bun test --timeout 300000 && cd ..
+cd tests && GATED_BINARY=target/x86_64-unknown-linux-musl/release/gated bun test --timeout 300000 && cd ..
 
 # 8. Full-stack dockerized e2e
 docker build -f tests/e2e-docker/Dockerfile.gated -t gated:e2e-build .   # inferred, see section 2
 cd tests/e2e-docker && ./run.sh && cd ../..
 
 # 9. Supply chain / dead deps (CI "quality" job)
-cargo machete --with-metadata
+cargo machete --with-metadata crates
 cargo deny check advisories bans sources licenses
 ```
 

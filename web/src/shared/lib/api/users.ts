@@ -6,7 +6,6 @@ export type AdminUserListItem = AdminComponents['schemas']['UserListItem']
 export type AdminUserDataRequest = AdminComponents['schemas']['UserDataRequest']
 export type AdminCreateUserRequest = AdminComponents['schemas']['CreateUserRequest']
 export type AdminRole = AdminComponents['schemas']['Role']
-export type AdminSessionSnapshot = AdminComponents['schemas']['SessionSnapshot']
 export type AdminPaginatedSessions = AdminComponents['schemas']['PaginatedResponse_SessionSnapshot']
 
 export async function listAdminUsers(signal?: AbortSignal): Promise<AdminUserListItem[]> {

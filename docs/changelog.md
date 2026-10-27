@@ -160,3 +160,7 @@ Global `--data-dir` (`GATED_DATA_DIR`): gated reads `<dir>/config.yaml` and keep
 ## 2026-10-27 06:30 [pitfall]
 
 The v0.0.2 release build failed at `cargo deny` on RUSTSEC-2026-0391 and 0395–0399 (`zstd`/`zstd-safe`, published the same day), pulled in by `mysql_common` 0.34. `mysql_common` is now 0.38 with default features off, where `zstd` is only needed for the unused `binlog` feature; the tag produced no release.
+
+## 2026-10-27 08:10 [progress]
+
+Cleanup pass. Removed dead code: the unused MySQL collation table, `Row` and `ColumnDefinition` decoders and packet helpers in `gated-database-protocols` (and its crate-wide `allow(dead_code)`), unused `pub` items in other crates, and unused web hooks/API helpers; web adapters named `*ToMock` are now `*ToDomain`. Completed PMA tasks and plans were removed; only the open SQLCipher exit-abort task remains. Architecture and design docs drop line-number references and were corrected against the code (mTLS is verified in the TLS handshake and matched by serial, ticket and API-token secrets are hashed, session rows are written on authentication, `admin`/`http` config sections, six recording kinds); `docs/api.md` gains the command-control, step-up, OTP enrollment, own-sessions and session terminate/delete endpoints. Integration tests default to the musl debug binary that a plain `cargo build` produces, and the SSH connection-test suite removes its temporary sshd directories.

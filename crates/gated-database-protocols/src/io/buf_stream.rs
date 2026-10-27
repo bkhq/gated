@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io;
 use std::io::Cursor;
 use std::ops::{Deref, DerefMut};

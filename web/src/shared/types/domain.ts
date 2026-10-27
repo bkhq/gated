@@ -82,10 +82,6 @@ export interface AuthRequest {
   relatedSessionId?: string
 }
 
-export function formatTicketUses(input: { usedCount: number, usesLimit: number }): string {
-  return `${input.usedCount} / ${input.usesLimit}`
-}
-
 export function formatTicketExpiresIn(expiresAt: string, now: number = Date.now()): string {
   const ms = new Date(expiresAt).getTime() - now
   if (Number.isNaN(ms) || ms <= 0) {

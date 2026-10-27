@@ -76,9 +76,9 @@ ssh alice:prod-box@gated -p 2222
 ```
 
 1. TCP accept; session registered in `State`; russh handshake with gated's
-   host key (`crates/gated-protocol-ssh/src/server/mod.rs:32`).
+   host key (`crates/gated-protocol-ssh/src/server/mod.rs`).
 2. Username parsed by `AuthSelector` into user `alice`, target `prod-box`
-   (`crates/gated-common/src/auth/selector.rs:16-36`).
+   (`crates/gated-common/src/auth/selector.rs`).
 3. Credentials collected (publickey/password/keyboard-interactive OTP or web
    approval) until the user's policy is satisfied; then
    `authorize_target` RBAC check.
@@ -118,7 +118,7 @@ mysql -h gated -P 33306 -u alice#appdb --ssl ...
 ```
 
 1. Gated sends a handshake advertising SSL; the client must upgrade to TLS
-   or is rejected (`crates/gated-protocol-mysql/src/session.rs:150`).
+   or is rejected (`crates/gated-protocol-mysql/src/session.rs`).
 2. Username `alice#appdb` selects user and target; the client is switched to
    clear-password auth (inside TLS) and the password is verified; policy +
    RBAC checks follow.

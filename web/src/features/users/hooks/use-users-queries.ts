@@ -18,8 +18,8 @@ import {
   updateAdminUser,
 } from '@/shared/lib/api/users'
 
-function adminUserToMock(user: AdminUser | AdminUserListItem): User {
-  const mock: User = {
+function adminUserToDomain(user: AdminUser | AdminUserListItem): User {
+  const result: User = {
     id: user.id,
     username: user.username,
     name: user.description || user.username,
@@ -27,8 +27,8 @@ function adminUserToMock(user: AdminUser | AdminUserListItem): User {
     roles: 'roles' in user ? user.roles : [],
   }
   if (user.rate_limit_bytes_per_second != null)
-    mock.rate_limit_bytes_per_second = user.rate_limit_bytes_per_second
-  return mock
+    result.rate_limit_bytes_per_second = user.rate_limit_bytes_per_second
+  return result
 }
 
 function userDraftToCreateRequest(draft: UserDraft): { username: string, description?: string } {
@@ -56,33 +56,8 @@ export function useUsers() {
     queryKey: ['users'],
     queryFn: async ({ signal }) => {
       const list = await listAdminUsers(signal)
-      return list.map(adminUserToMock)
+      return list.map(adminUserToDomain)
     },
-  })
-}
-
-export function useUser(id: string | undefined) {
-  return useQuery<User | null>({
-    queryKey: ['users', id ?? null],
-    queryFn: async ({ signal }) => {
-      if (!id)
-        return null
-      try {
-        const [user, roles] = await Promise.all([
-          getAdminUser(id, signal),
-          getAdminUserRoles(id, signal).catch(() => []),
-        ])
-        const mock = adminUserToMock(user)
-        mock.roles = roles.map(role => role.name)
-        return mock
-      }
-      catch (err) {
-        if (err instanceof ApiError && err.status === 404)
-          return null
-        throw err
-      }
-    },
-    enabled: typeof id === 'string',
   })
 }
 
@@ -115,7 +90,7 @@ export function useCreateUser() {
         await createUserPasswordCredential(created.id, password)
       if (roleIds && roleIds.length > 0)
         await syncUserRoles(created.id, roleIds)
-      return adminUserToMock(created)
+      return adminUserToDomain(created)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['users'] }) },
   })
@@ -130,7 +105,7 @@ export function useUpdateUser() {
       const updated = await updateAdminUser(id, body)
       if (roleIds)
         await syncUserRoles(id, roleIds)
-      return adminUserToMock(updated)
+      return adminUserToDomain(updated)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['users'] }) },
   })

@@ -2618,11 +2618,6 @@ impl ServerSession {
         }
     }
 
-    pub async fn _disconnect(&mut self) {
-        debug!("Client disconnect requested");
-        self.request_disconnect().await;
-    }
-
     async fn request_disconnect(&mut self) {
         debug!("Disconnecting");
         let _ = self.rc_abort_tx.send(());

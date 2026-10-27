@@ -1,13 +1,2 @@
 # Tasks
-- [x] [**20261013-2315-fix-audit-defects Fix audit defects and turn CI green**](20261013-2315-fix-audit-defects.md) `P0`
-- [x] [**20261013-2315-adopt-quality-gates Adopt workspace lint policy and quality gates**](20261013-2315-adopt-quality-gates.md) `P1`
-- [x] [**20261013-2315-harden-runtime-edition-2024 Harden runtime and migrate to edition 2024**](20261013-2315-harden-runtime-edition-2024.md) `P2`
 - [ ] [**20261013-2332-sqlcipher-exit-abort Investigate abort at process exit after SQLCipher use**](20261013-2332-sqlcipher-exit-abort.md) `P2`
-- [x] [**20261014-0012-replace-poem-with-axum Replace poem with axum and utoipa**](20261014-0012-replace-poem-with-axum.md) `P1`
-- [x] [**20261020-2140-improve-web-ssh-terminal Improve the web SSH terminal host key flow and input ergonomics**](20261020-2140-improve-web-ssh-terminal.md) `P2`
-- [x] [**20261021-0228-web-sftp-file-manager Add an audited SFTP file manager to the web UI**](20261021-0228-web-sftp-file-manager.md) `P2`
-- [x] [**20261022-1826-step-up-grace-window Keep account step-up confirmations valid for a sliding 15-minute window**](20261022-1826-step-up-grace-window.md) `P2`
-- [x] [**20261022-1925-rename-listener-config Rename the admin and HTTP-proxy listener config sections**](20261022-1925-rename-listener-config.md) `P2`
-- [x] [**20261022-1955-system-page-lode Group settings into tabs with lode-backed update, security and about**](20261022-1955-system-page-lode.md) `P2`
-- [x] [**20261023-2230-targets-session-ui Connect from the target list, session details popover, per-protocol security tab, groups on the targets page, consistent lists**](20261023-2230-targets-session-ui.md) `P2`
-- [x] [**20261024-0120-auth-failures-pagination Keep failed authentications out of sessions and paginate unbounded lists**](20261024-0120-auth-failures-pagination.md) `P2`

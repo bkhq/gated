@@ -13,7 +13,7 @@ import {
   updateAdminRole,
 } from '@/shared/lib/api/roles'
 
-function adminRoleToMock(role: AdminRole): Role {
+function adminRoleToDomain(role: AdminRole): Role {
   return {
     id: role.id,
     name: role.name,
@@ -43,28 +43,8 @@ export function useRoles() {
     queryKey: ['roles'],
     queryFn: async ({ signal }) => {
       const list = await listAdminRoles(signal)
-      return list.map(adminRoleToMock)
+      return list.map(adminRoleToDomain)
     },
-  })
-}
-
-export function useRole(id: string | undefined) {
-  return useQuery<Role | null>({
-    queryKey: ['roles', id ?? null],
-    queryFn: async ({ signal }) => {
-      if (!id)
-        return null
-      try {
-        const role = await getAdminRole(id, signal)
-        return adminRoleToMock(role)
-      }
-      catch (err) {
-        if (err instanceof ApiError && err.status === 404)
-          return null
-        throw err
-      }
-    },
-    enabled: typeof id === 'string',
   })
 }
 
@@ -74,7 +54,7 @@ export function useCreateRole() {
     mutationFn: async (draft) => {
       const body = roleDraftToCreateRequest(draft)
       const created = await createAdminRole(body)
-      return adminRoleToMock(created)
+      return adminRoleToDomain(created)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['roles'] }) },
   })
@@ -87,7 +67,7 @@ export function useUpdateRole() {
       const existing = await getAdminRole(id)
       const body = rolePatchToDataRequest(existing, patch)
       const updated = await updateAdminRole(id, body)
-      return adminRoleToMock(updated)
+      return adminRoleToDomain(updated)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['roles'] }) },
   })

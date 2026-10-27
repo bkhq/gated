@@ -6,12 +6,12 @@ bridged one-to-one between the two connections.
 
 ## Listener
 
-`SSHProtocolServer` (`crates/gated-protocol-ssh/src/lib.rs:20`) implements the
-`ProtocolServer` trait (`lib.rs:35`); its `run()` delegates to `run_server()`
-(`crates/gated-protocol-ssh/src/server/mod.rs:32`), which:
+`SSHProtocolServer` (`crates/gated-protocol-ssh/src/lib.rs`) implements the
+`ProtocolServer` trait (`lib.rs`); its `run()` delegates to `run_server()`
+(`crates/gated-protocol-ssh/src/server/mod.rs`), which:
 
 - generates or loads two key sets on startup via `generate_keys()` /
-  `load_keys()` (`crates/gated-protocol-ssh/src/keys.rs:17,49`): **host keys**
+  `load_keys()` (`crates/gated-protocol-ssh/src/keys.rs`): **host keys**
   (presented to inbound clients) and **client keys** (used to authenticate to
   targets), in Ed25519 and RSA variants, stored as PEM under the configured
   `ssh.keys` directory (default `data/keys`);
@@ -28,10 +28,10 @@ bridged one-to-one between the two connections.
 ### Target selection via username
 
 The SSH username encodes both identity and target. It is parsed by
-`AuthSelector` (`crates/gated-common/src/auth/selector.rs:16-36`):
+`AuthSelector` (`crates/gated-common/src/auth/selector.rs`):
 
 - `ticket-<secret>` selects ticket authentication (prefix constant in
-  `crates/gated-common/src/consts.rs:1`);
+  `crates/gated-common/src/consts.rs`);
 - otherwise the username is split on `#` or `:` into
   `username` + `target_name`, e.g. `ssh alice:prod-box@gated -p 2222`.
 
@@ -47,7 +47,7 @@ system (`crates/gated-protocol-ssh/src/server/mod.rs`):
   (`server/session.rs`, `_auth_publickey*` handlers).
 - **Password** — submitted as `AuthCredential::Password` and checked against
   the Argon2 hash via `ConfigProvider::validate_credential`
-  (`crates/gated-core/src/config_providers/db.rs:248`).
+  (`crates/gated-core/src/config_providers/db.rs`).
 - **Keyboard-interactive** — used for second factors: it prompts for a TOTP
   code (`AuthCredential::Otp`) or, when the policy requires in-browser
   approval, prints a login URL and waits on the auth-state store's broadcast
@@ -65,7 +65,7 @@ uses.
 
 After the state machine reports `Accepted`, the session resolves the target
 by name and checks `ConfigProvider::authorize_target`
-(`crates/gated-core/src/config_providers/db.rs:344`) — the user must share at
+(`crates/gated-core/src/config_providers/db.rs`) — the user must share at
 least one role with the target. Only then is `TargetSelection::Found` set.
 
 ## Target connection
@@ -80,7 +80,7 @@ the first channel-level request (shell/exec/forward), not at auth time
   password auth, or public-key auth using either a per-target private key or
   gated's own client keys (`client/mod.rs`, `ssh_auth_keys()`); per-target
   bound accounts are resolved through
-  `ssh_options_with_account` (`crates/gated-core/src/account_credentials.rs:92`).
+  `ssh_options_with_account` (`crates/gated-core/src/account_credentials.rs`).
   RSA targets get SHA-2 first with a SHA-1 retry for legacy servers.
 - **Host key verification** uses the known-hosts table with three modes
   (`SshHostKeyVerificationMode`): auto-accept, auto-reject, or interactive
@@ -120,8 +120,11 @@ Recorder write failures detach the recorder but do not kill the session.
 
 ## Lifecycle
 
-- Sessions register in `State` on accept and are removed (and their DB row
-  closed) when the handle drops (`crates/gated-core/src/state.rs:38,100`).
+- Sessions register in `State` on accept; the DB row is written once the
+  user authenticates, and the session is removed (and its row closed) when
+  the handle drops (`crates/gated-core/src/state.rs`). A connection whose
+  authentication fails writes one `auth_login_rejected` audit entry listing
+  the methods tried, and no session row.
 - Admins can close a live session from the web UI; the session receives
   `SessionHandleCommand::Close`, emits a service message, and disconnects
   both legs (`server/session.rs`, `handle_session_control`).

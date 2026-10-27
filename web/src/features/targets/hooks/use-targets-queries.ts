@@ -26,7 +26,7 @@ import {
 
 export type TargetWithAccounts = Target & { accounts?: TargetAccountMetadata[], inlineAuth?: InlineAuth }
 
-function apiKindToMockKind(kind: AdminTargetOptions['kind'] | UserTargetKind): TargetKind {
+function apiKindToDomainKind(kind: AdminTargetOptions['kind'] | UserTargetKind): TargetKind {
   switch (kind) {
     case 'Ssh': return 'ssh'
     case 'MySql': return 'mysql'
@@ -55,7 +55,7 @@ async function listGroupNames(signal?: AbortSignal): Promise<Map<string, string>
 }
 
 // Mutation results skip the group lookup; the list is refetched on success.
-function adminTargetToMock(target: AdminTarget, groupNames = new Map<string, string>()): TargetWithAccounts {
+function adminTargetToDomain(target: AdminTarget, groupNames = new Map<string, string>()): TargetWithAccounts {
   const { host, port, user } = extractEndpoint(target.options)
   const readonly = (target.options.kind === 'MySql' || target.options.kind === 'Postgres')
     ? !!target.options.readonly
@@ -63,7 +63,7 @@ function adminTargetToMock(target: AdminTarget, groupNames = new Map<string, str
   return {
     id: target.id,
     name: target.name,
-    kind: apiKindToMockKind(target.options.kind),
+    kind: apiKindToDomainKind(target.options.kind),
     host,
     port,
     user,
@@ -96,11 +96,11 @@ function inlineAuthFromOptions(options: AdminTargetOptions): InlineAuth {
   }
 }
 
-function userSnapshotToMock(snapshot: UserTargetSnapshot): Target {
+function userSnapshotToDomain(snapshot: UserTargetSnapshot): Target {
   return {
     id: snapshot.name,
     name: snapshot.name,
-    kind: apiKindToMockKind(snapshot.kind),
+    kind: apiKindToDomainKind(snapshot.kind),
     host: '',
     port: 0,
     user: '',
@@ -111,7 +111,7 @@ function userSnapshotToMock(snapshot: UserTargetSnapshot): Target {
   }
 }
 
-function mockKindToOptions(draft: Pick<TargetDraft, 'kind' | 'host' | 'port' | 'user' | 'flavor' | 'readonly' | 'inlineAuth'>): AdminTargetOptions {
+function domainKindToOptions(draft: Pick<TargetDraft, 'kind' | 'host' | 'port' | 'user' | 'flavor' | 'readonly' | 'inlineAuth'>): AdminTargetOptions {
   const auth = draft.inlineAuth
   const password = auth?.method === 'password' && auth.password ? auth.password : undefined
   switch (draft.kind) {
@@ -166,7 +166,7 @@ function mockKindToOptions(draft: Pick<TargetDraft, 'kind' | 'host' | 'port' | '
   }
 }
 
-function mockDraftToApiRequest(draft: TargetDraft): AdminTargetDataRequest {
+function draftToApiRequest(draft: TargetDraft): AdminTargetDataRequest {
   const accounts = draft.accounts?.map(a => ({
     account_id: a.account_id,
     role: a.role,
@@ -174,7 +174,7 @@ function mockDraftToApiRequest(draft: TargetDraft): AdminTargetDataRequest {
   return {
     name: draft.name,
     description: draft.description || undefined,
-    options: mockKindToOptions(draft),
+    options: domainKindToOptions(draft),
     accounts,
     group_id: draft.group || undefined,
   }
@@ -206,10 +206,10 @@ export function useTargets() {
     queryFn: async ({ signal }) => {
       if (isAdmin) {
         const [list, groupNames] = await Promise.all([listAdminTargets(signal), listGroupNames(signal)])
-        return list.map(target => adminTargetToMock(target, groupNames))
+        return list.map(target => adminTargetToDomain(target, groupNames))
       }
       const list = await listUserTargets(signal)
-      return list.map(userSnapshotToMock)
+      return list.map(userSnapshotToDomain)
     },
   })
 }
@@ -250,7 +250,7 @@ export function useTarget(id: string | undefined) {
         return null
       if (isAdmin) {
         const [target, groupNames] = await Promise.all([getAdminTarget(id, signal), listGroupNames(signal)])
-        return adminTargetToMock(target, groupNames)
+        return adminTargetToDomain(target, groupNames)
       }
       const cached = qc.getQueryData<Target[]>(['targets']) ?? []
       return cached.find(item => item.id === id) ?? null
@@ -263,11 +263,11 @@ export function useCreateTarget() {
   const qc = useQueryClient()
   return useMutation<Target, ApiError, TargetDraft & { roleIds?: string[] }>({
     mutationFn: async ({ roleIds, ...draft }) => {
-      const req = mockDraftToApiRequest(draft)
+      const req = draftToApiRequest(draft)
       const created = await createAdminTarget(req)
       if (roleIds && roleIds.length > 0)
         await syncTargetRoles(created.id, roleIds)
-      return adminTargetToMock(created)
+      return adminTargetToDomain(created)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['targets'] }) },
   })
@@ -279,15 +279,15 @@ export function useUpdateTarget() {
     mutationFn: async ({ id, patch, roleIds }) => {
       const existing = await getAdminTarget(id)
       const merged: TargetDraft = {
-        ...adminTargetToMock(existing),
+        ...adminTargetToDomain(existing),
         ...patch,
         name: patch.name ?? existing.name,
       }
-      const req = mockDraftToApiRequest(merged)
+      const req = draftToApiRequest(merged)
       const updated = await updateAdminTarget(id, req)
       if (roleIds)
         await syncTargetRoles(id, roleIds)
-      return adminTargetToMock(updated)
+      return adminTargetToDomain(updated)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['targets'] }) },
   })

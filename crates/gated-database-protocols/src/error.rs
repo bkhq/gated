@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 use std::error::Error as StdError;
-use std::fmt::Display;
 use std::io;
 use std::result::Result as StdResult;
 
@@ -12,14 +11,6 @@ pub type Result<T> = StdResult<T, Error>;
 // Convenience type alias for usage within SQLx.
 // Do not make this type public.
 pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
-
-/// An unexpected `NULL` was encountered during decoding.
-///
-/// Returned from [`Row::get`](crate::row::Row::get) if the value from the database is `NULL`,
-/// and you are not decoding into an `Option`.
-#[derive(thiserror::Error, Debug)]
-#[error("unexpected null; try decoding as an `Option`")]
-pub struct UnexpectedNullError;
 
 /// Represents all the ways a method can fail within SQLx.
 #[derive(Debug, thiserror::Error)]
@@ -98,20 +89,6 @@ pub enum Error {
 
 impl StdError for Box<dyn DatabaseError> {}
 
-impl Error {
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn protocol(err: impl Display) -> Self {
-        Error::Protocol(err.to_string())
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn config(err: impl StdError + Send + Sync + 'static) -> Self {
-        Error::Configuration(err.into())
-    }
-}
-
 /// An error that was returned from the database.
 pub trait DatabaseError: 'static + Send + Sync + StdError {
     /// The primary, human-readable error message.
@@ -143,29 +120,6 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
     /// Currently only populated by the Postgres driver.
     fn constraint(&self) -> Option<&str> {
         None
-    }
-}
-
-impl dyn DatabaseError {
-    /// Downcast a reference to this generic database error to a specific
-    /// database error type.
-    #[inline]
-    pub fn try_downcast_ref<E: DatabaseError>(&self) -> Option<&E> {
-        self.as_error().downcast_ref()
-    }
-
-    /// Downcast this generic database error to a specific database error type.
-    #[inline]
-    pub fn try_downcast<E: DatabaseError>(self: Box<Self>) -> StdResult<Box<E>, Box<Self>> {
-        if self.as_error().is::<E>() {
-            #[allow(
-                clippy::unwrap_used,
-                reason = "is::<E>() guard above guarantees downcast succeeds"
-            )]
-            Ok(self.into_error().downcast().unwrap())
-        } else {
-            Err(self)
-        }
     }
 }
 

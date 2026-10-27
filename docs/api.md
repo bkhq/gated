@@ -86,6 +86,11 @@
 - Path：`id: uuid`。
 - Responses：`200 OK` `Json<AuthStateDescription>`（`state: Failed`）/ `404` / `401`。
 
+#### `POST /api/auth/state/continue` — `continue_default_auth` [OAS]
+
+- Summary：剩余因子已在其它设备上通过网页审批授予时，由发起登录的浏览器调用以完成登录。审批端点运行在审批者的会话里，无法授权发起者的 HTTP 会话。
+- Responses：`200 OK` `Json<AuthStateDescription>`；状态为 `Success` 时同时授权当前会话、清掉 `auth_state_id` 并写 `auth_web_approval_succeeded` 审计。`404` 会话没有 `auth_state_id` 或已不在 store 中。
+
 #### `GET /api/auth/web-auth-requests/stream` — `api_get_web_auth_requests_stream` [raw]
 
 - 升级为 **WebSocket**（不是 SSE）。需要 `Session::User`，否则 `require_auth` 返回 `401`。
@@ -164,9 +169,14 @@
 - Path：`id: uuid`。
 - Responses：`204` / `401` / `404` / `403`。
 
+#### `POST /api/profile/credentials/otp/begin` — `begin_my_otp` [OAS]
+
+- 开始 OTP 绑定：服务端生成密钥并暂存待确认（10 分钟有效），只返回 provisioning URI，原始密钥不会返回。
+- Responses：`201 Created` `{ provisioning_uri: string }`（`otpauth://`）/ `401` / `403`（含 ticket 会话）。
+
 #### `POST /api/profile/credentials/otp` — `add_my_otp` [OAS]
 
-- Body：`Json<NewOtpCredential> { secret_key: byte[] }`（secret — write-only）。副作用：在 `http`/`ssh` 链上 push `Totp`。
+- 确认 OTP 绑定：Body `{ otp: string }`，必须是 `begin` 生成的密钥对应的当前验证码。成功后才保存凭据，并在 `http`/`ssh` 链上 push `Totp`。
 - Responses：`201 Created` `Json<ExistingOtpCredential> { id: uuid }` / `401` / `403`。
 
 #### `DELETE /api/profile/credentials/otp/:id` — `delete_my_otp` [OAS]
@@ -220,6 +230,13 @@
 #### `DELETE /api/profile/tickets/:id` — `delete_my_ticket` [OAS]
 
 - Responses：`204` / `401` / `404`。
+
+### 1.6.1 个人会话 (`sessions.rs`)
+
+#### `GET /api/profile/sessions` — `get_my_sessions` [OAS]
+
+- 当前用户自己的会话，按开始时间倒序，最多 500 条；不含管理面 HTTP 会话。
+- Responses：`200 OK` `Json<SessionSnapshot[]>` / `401`。
 
 ### 1.7 SQL 控制台 (`db_query.rs`)
 
@@ -334,6 +351,21 @@
 #### `POST /admin/api/sessions/:id/close` — `close_session` [OAS]
 
 - Responses：`201 Created` 空 body / `404`（会话当前不在 state 中）。
+
+#### `POST /admin/api/sessions/:id/terminate` — `terminate_session` [OAS]
+
+- 强制终止：通知会话 handle 的同时立即从实时注册表移除并在数据库标记结束，协议循环卡住时也不会残留。`close` 只发信号、等协议循环自行退出。
+- Responses：`201 Created` 空 body / `404`。
+
+#### `DELETE /admin/api/sessions/:id` — `delete_session` [OAS]
+
+- 删除会话记录及其录像文件与记录、日志行；仍在线的会话先关闭。删除前写管理审计。
+- Responses：`200` 空 body / `404`。
+
+#### `DELETE /admin/api/sessions/closed` — `delete_closed_sessions` [OAS]
+
+- 删除所有已结束会话及其录像和日志行，在线会话不受影响。删除前写管理审计。
+- Responses：`200 OK` `Json<number>`（删除的会话数）。
 
 #### `GET /admin/api/sessions/changes` — `api_get_sessions_changes_stream` [raw]
 
@@ -549,6 +581,11 @@
   - `404`。
   - `409` `AccountDeleteConflict { error: "account_in_use", reference_count: u32, references: AccountReference[] }`。
 
+#### `GET /admin/api/accounts/step-up` — `get_account_step_up` [OAS]
+
+- 当前浏览器会话的二次确认窗口。
+- Responses：`200 OK` `{ valid_until: date-time | null }`；`null` 表示下一次敏感操作需要确认（API Token 调用始终为 `null`，它们免确认）。
+
 #### `POST /admin/api/accounts/:id/reveal` — `reveal_account` [OAS]
 
 - Summary：校验调用者身份后返回明文 `credentials`，并写审计日志（`account.credentials.reveal`，含 actor、reason、确认方式）。仅限有用户名的调用者（共享 admin token 返回 `401`）。按调用者每分钟 10 次、按调用者 + 账户每分钟 5 次限流；同一用户 120 秒内 OTP 确认只能使用一次。
@@ -671,6 +708,41 @@
 - Body `LifecycleRequest { version?, password?, otp?, reason? }`；`version` 仅更新使用，缺省为 `available`。浏览器会话需要二次确认（同共享账户，15 分钟滑动窗口内可省略），API Token 免确认。
 - 更新写入 `target`，重启递增 `restart_nonce`，各写一条 `system.update` / `system.restart` 管理审计。
 - Responses：`202`；`400` 需要确认或没有可用更新；`401` 确认失败；`409` 未托管；`429` 确认过于频繁。
+
+### 2.16 命令控制 (`command_acl.rs`, `command_review.rs`, `command_records.rs`)
+
+默认关闭：没有规则时一切放行。详见 `docs/design/command-control.md`。
+
+#### `GET /admin/api/command-acl-rules` — `get_command_acl_rules` [OAS]
+
+- Responses：`200 OK` `CommandAclRule[]`。
+
+#### `POST /admin/api/command-acl-rules` — `create_command_acl_rule` [OAS]
+#### `PUT /admin/api/command-acl-rule/:id` — `update_command_acl_rule` [OAS]
+
+- Body `CommandAclRuleRequest { name, enabled?（默认 true）, priority（小者先评估）, protocol: ssh|mysql|postgres|any, match_type: regex|keyword, pattern, action: allow|deny|review, target_id?（null = 所有目标）, role_id?（null = 所有角色）, description? }`。
+- Responses：创建 `201`、更新 `200` 返回 `CommandAclRule`；`400` `Json<string>`（必填字段为空、枚举值非法或正则无法编译）；更新时 `404`。
+
+#### `GET /admin/api/command-acl-rule/:id` — `get_command_acl_rule` [OAS]
+#### `DELETE /admin/api/command-acl-rule/:id` — `delete_command_acl_rule` [OAS]
+
+- Responses：`200 OK` `CommandAclRule` / `204` 已删除 / `404`。
+
+#### `GET /admin/api/command-reviews` — `get_command_reviews` [OAS]
+
+- 等待审批的命令（命中 `action=review` 规则时 SSH 会话暂停）。
+- Responses：`200 OK` `CommandReviewItem[]`：`{ id, session_id?, user_id?, username?, target_id?, target_name, origin, command, acl_rule_id?, acl_rule_name?, requested_at }`。
+
+#### `POST /admin/api/command-review/:id/approve` — `approve_command_review` [OAS]
+#### `POST /admin/api/command-review/:id/reject` — `reject_command_review` [OAS]
+
+- 放行或拒绝，暂停的会话随即继续。
+- Responses：`200` / `404`（已处理、已超时或不存在）。
+
+#### `GET /admin/api/command-records` — `get_command_records` [OAS]
+
+- 合并 shell 命令审计与 SQL 审计。Query：`session_id? / user_id? / username? / target_id? / source?`（`shell`|`sql`）`/ from? / to?`（RFC 3339）`/ q?`（命令文本子串，大小写不敏感）`/ limit?`（默认 100）`/ offset?`。
+- Responses：`200 OK` `{ items: CommandRecord[], total, offset, limit }`，按时间倒序；shell 记录带 `origin`、`acl_action`、`acl_rule_id`、`acl_rule_name`、`outcome`，SQL 记录带 `success`、`error`。`400` 时间格式错误。
 
 ---
 

@@ -41,10 +41,6 @@ export async function closeSession(id: string, signal?: AbortSignal): Promise<vo
   await adminApi.post<void>(`/sessions/${encodeURIComponent(id)}/close`, undefined, signal)
 }
 
-export async function closeAllSessions(signal?: AbortSignal): Promise<void> {
-  await adminApi.delete<void>('/sessions', signal)
-}
-
 export async function deleteSession(id: string, signal?: AbortSignal): Promise<void> {
   await adminApi.delete<void>(`/sessions/${encodeURIComponent(id)}`, signal)
 }

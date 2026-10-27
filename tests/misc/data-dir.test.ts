@@ -4,7 +4,7 @@ import { join, resolve } from "path";
 import { ProcessManager } from "../helpers/process-manager";
 import { allocPort, waitPort } from "../helpers/util";
 
-const BINARY = resolve(import.meta.dir, "../..", process.env.GATED_BINARY || "target/debug/gated");
+const BINARY = resolve(import.meta.dir, "../..", process.env.GATED_BINARY || "target/x86_64-unknown-linux-musl/debug/gated");
 
 describe("--data-dir", () => {
   const processes = new ProcessManager(Number(process.env.TIMEOUT || 10));

@@ -10,15 +10,15 @@ packet, with query packets parsed out for SQL audit recording.
 
 ### Listener
 
-`MySQLProtocolServer` (`crates/gated-protocol-mysql/src/lib.rs:24`)
-implements `ProtocolServer` (`lib.rs:36`). It loads the listener TLS
+`MySQLProtocolServer` (`crates/gated-protocol-mysql/src/lib.rs`)
+implements `ProtocolServer` (`lib.rs`). It loads the listener TLS
 certificate from `mysql.certificate`/`mysql.key`, accepts TCP connections
 with `TCP_NODELAY`, and runs one `Session` per connection.
 
 **TLS is mandatory for clients.** The proxy advertises the `SSL` capability
-in its handshake (`crates/gated-protocol-mysql/src/session.rs:94`) and, if
+in its handshake (`crates/gated-protocol-mysql/src/session.rs`) and, if
 the client does not request the TLS upgrade, rejects the connection with
-error 1002: "Gated requires TLS" (`session.rs:150`). The client's
+error 1002: "Gated requires TLS" (`session.rs`). The client's
 `SSL_REQUEST` packet triggers a rustls upgrade on the wrapped stream, then
 the handshake continues encrypted.
 
@@ -29,20 +29,20 @@ the handshake continues encrypted.
   obtain the actual password (safe because the connection is already TLS).
 - The username encodes the target with the same `user#target` / `user:target`
   syntax as SSH, and `ticket-<secret>` selects ticket auth
-  (`crates/gated-common/src/auth/selector.rs:16-36`).
+  (`crates/gated-common/src/auth/selector.rs`).
 - The password is checked via `ConfigProvider::validate_credential`, then the
   credential policy and `authorize_target` are applied; tickets go through
   `authorize_ticket`/`consume_ticket`
-  (`crates/gated-core/src/config_providers/mod.rs:65,109`).
+  (`crates/gated-core/src/config_providers/mod.rs`).
 
 ### Target connection
 
 `crates/gated-protocol-mysql/src/client.rs` connects with credentials from
 `TargetMySqlOptions`; if the target has a bound account it is resolved with
-`resolve_db_account` (`crates/gated-core/src/account_credentials.rs:68`) and
+`resolve_db_account` (`crates/gated-core/src/account_credentials.rs`) and
 overrides the inline username/password. Outbound TLS follows the target's
 `tls.mode` — `disabled`, `preferred` (fall back to plaintext), or `required`
-(`client.rs:71-88`) — with certificate verification governed by
+(`client.rs`) — with certificate verification governed by
 `tls.verify`. The upstream auth plugins supported include
 `mysql_native_password`, `caching_sha2_password` (full RSA flow),
 `sha256_password`, and `mysql_clear_password`.
@@ -57,8 +57,8 @@ and capture error messages; all other commands pass through unmodified
 (`session.rs`).
 
 Each query is written as a `SqlAuditRecordingItem::Query`
-(`crates/gated-core/src/recordings/structured.rs:27`) through a
-`StructuredRecorder` (`structured.rs:43`) with timestamp, target, database,
+(`crates/gated-core/src/recordings/structured.rs`) through a
+`StructuredRecorder` (`structured.rs`) with timestamp, target, database,
 SQL text, statement kind, elapsed milliseconds, success flag, and error
 message; session metadata is `SqlAuditSessionMetadata::MySqlProxySession`.
 
@@ -66,8 +66,8 @@ message; session metadata is `SqlAuditSessionMetadata::MySqlProxySession`.
 
 ### Listener
 
-`PostgresProtocolServer` (`crates/gated-protocol-postgres/src/lib.rs:26`)
-implements `ProtocolServer` (`lib.rs:38`). It sets TCP keepalives and
+`PostgresProtocolServer` (`crates/gated-protocol-postgres/src/lib.rs`)
+implements `ProtocolServer` (`lib.rs`). It sets TCP keepalives and
 `TCP_NODELAY` on accepted sockets. TLS toward the client is **negotiated, not
 forced**: if the client opens with `SSLRequest`, the proxy answers `Accept`
 and upgrades; otherwise the startup continues in plaintext
@@ -88,7 +88,7 @@ and upgrades; otherwise the startup continues in plaintext
 `crates/gated-protocol-postgres/src/client.rs` authenticates upstream with
 whatever the server demands: cleartext password, MD5, or SASL (SCRAM via the
 `rsasl` crate). Outbound TLS follows `tls.mode`
-(`client.rs:65-87`) with `tls.verify` controlling certificate checks. Bound
+(`client.rs`) with `tls.verify` controlling certificate checks. Bound
 accounts are resolved with the same `resolve_db_account` helper.
 
 ### Stream model and recording

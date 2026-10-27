@@ -67,16 +67,6 @@ export function useAuthRequests() {
   })
 }
 
-export function useAuthRequestsAll() {
-  return useQuery<AuthRequest[]>({
-    queryKey: ['auth-requests'],
-    queryFn: async ({ signal }) => {
-      const list = await listWebAuthRequests(signal)
-      return list.map(adapt)
-    },
-  })
-}
-
 export function useAuthRequestsPending() {
   return useQuery<AuthRequest[]>({
     queryKey: ['auth-requests', 'pending'],

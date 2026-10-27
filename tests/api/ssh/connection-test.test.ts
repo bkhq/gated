@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { ProcessManager, type GatedProcess } from "../../helpers/process-manager";
 import { waitPort } from "../../helpers/util";
 import { randomUUID } from "crypto";
-import { mkdirSync, writeFileSync, chmodSync } from "fs";
+import { mkdirSync, writeFileSync, chmodSync, rmSync } from "fs";
 import { join, resolve } from "path";
 import { createConnection, type Socket } from "net";
 
@@ -110,6 +110,7 @@ describe("API SSH - Connection Test (check-host-key)", () => {
   let wg: GatedProcess;
   let url: string;
   const containers: string[] = [];
+  const dataDirs: string[] = [];
   const timeout = Number(process.env.TIMEOUT || 20);
 
   beforeAll(async () => {
@@ -124,11 +125,15 @@ describe("API SSH - Connection Test (check-host-key)", () => {
     for (const name of containers) {
       Bun.spawnSync(["docker", "rm", "-f", name]);
     }
+    for (const dir of dataDirs) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("reports the host key for a reachable SSH upstream", async () => {
     const ssh = await startSshInNetwork();
     containers.push(ssh.name);
+    dataDirs.push(ssh.dataDir);
 
     const res = await checkHostKey(url, ssh.host, 22);
     expect(res.status).toBe(200);
@@ -143,6 +148,7 @@ describe("API SSH - Connection Test (check-host-key)", () => {
     // closed port (bounded), not a DNS / routing hang.
     const ssh = await startSshInNetwork();
     containers.push(ssh.name);
+    dataDirs.push(ssh.dataDir);
 
     const started = Date.now();
     const res = await checkHostKey(url, ssh.host, 9);

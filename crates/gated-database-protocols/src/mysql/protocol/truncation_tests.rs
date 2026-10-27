@@ -8,7 +8,7 @@ use crate::mysql::protocol::Capabilities;
 use crate::mysql::protocol::auth::AuthPlugin;
 use crate::mysql::protocol::connect::{AuthSwitchRequest, Handshake, HandshakeResponse};
 use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket};
-use crate::mysql::protocol::text::{ColumnDefinition, Query};
+use crate::mysql::protocol::text::Query;
 
 /// Decodes the full packet and every strict prefix of it. The full packet
 /// must decode; the empty prefix must be an error; nothing may panic.
@@ -103,24 +103,6 @@ fn response_packets_reject_truncated_packets() {
     err.extend(b"42000syntax error");
     check_prefixes(&err, |buf| {
         ErrPacket::decode_with(buf, Capabilities::PROTOCOL_41)
-    });
-}
-
-#[test]
-fn column_definition_rejects_truncated_packets() {
-    let mut packet = Vec::new();
-    for field in ["def", "schema", "t", "table", "c", "column"] {
-        packet.push(field.len() as u8);
-        packet.extend(field.as_bytes());
-    }
-    packet.push(0x0c);
-    packet.extend([45, 0]);
-    packet.extend(11_u32.to_le_bytes());
-    packet.push(0x03);
-    packet.extend([0, 0]);
-    packet.push(0);
-    check_prefixes(&packet, |buf| {
-        ColumnDefinition::decode_with(buf, Capabilities::PROTOCOL_41)
     });
 }
 

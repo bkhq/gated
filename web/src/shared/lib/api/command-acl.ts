@@ -46,10 +46,6 @@ export async function listCommandAclRules(signal?: AbortSignal): Promise<Command
   return adminApi.get<CommandAclRule[]>('/command-acl-rules', signal)
 }
 
-export async function getCommandAclRule(id: number, signal?: AbortSignal): Promise<CommandAclRule> {
-  return adminApi.get<CommandAclRule>(`/command-acl-rule/${encodeURIComponent(id)}`, signal)
-}
-
 export async function createCommandAclRule(body: CommandAclRuleRequest, signal?: AbortSignal): Promise<CommandAclRule> {
   return adminApi.post<CommandAclRule>('/command-acl-rules', body, signal)
 }

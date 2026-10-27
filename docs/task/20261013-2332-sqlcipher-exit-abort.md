@@ -20,4 +20,4 @@ Investigating exit-time abort
 
 ## Notes
 
-Found while adopting cargo-nextest in `20261013-2315-adopt-quality-gates`. The `ci` nextest profile retries failed tests twice, which hides this in CI.
+Found while adopting cargo-nextest. The `ci` nextest profile retries failed tests twice, which hides this in CI.

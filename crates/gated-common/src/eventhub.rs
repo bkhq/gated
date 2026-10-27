@@ -25,23 +25,6 @@ impl<E> EventSender<E> {
     }
 }
 
-impl<'h, E: Clone + 'h> EventSender<E> {
-    pub async fn send_all(&'h self, event: E) -> Result<(), SendError<E>> {
-        let mut subscriptions = self.cleanup_subscriptions().await;
-
-        for &mut (ref f, ref mut s) in subscriptions.iter_mut().rev() {
-            if f(&event) {
-                let _ = s.send(event.clone());
-            }
-        }
-        if subscriptions.is_empty() {
-            Err(SendError(event))
-        } else {
-            Ok(())
-        }
-    }
-}
-
 impl<'h, E: 'h> EventSender<E> {
     pub async fn send_once(&'h self, event: E) -> Result<(), SendError<E>> {
         let mut subscriptions = self.cleanup_subscriptions().await;

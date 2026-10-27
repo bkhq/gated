@@ -2,10 +2,8 @@ use std::ops::{Deref, DerefMut};
 
 use bytes::Bytes;
 
-use crate::error::Error;
-use crate::io::{Decode, Encode};
+use crate::io::Encode;
 use crate::mysql::protocol::Capabilities;
-use crate::mysql::protocol::response::{EofPacket, OkPacket};
 
 #[derive(Debug)]
 pub struct Packet<T>(pub T);
@@ -39,39 +37,6 @@ where
         }
 
         *sequence_id = sequence_id.wrapping_add(1);
-    }
-}
-
-impl Packet<Bytes> {
-    pub(crate) fn decode<'de, T>(self) -> Result<T, Error>
-    where
-        T: Decode<'de, ()>,
-    {
-        self.decode_with(())
-    }
-
-    pub(crate) fn decode_with<'de, T, C>(self, context: C) -> Result<T, Error>
-    where
-        T: Decode<'de, C>,
-    {
-        T::decode_with(self.0, context)
-    }
-
-    pub(crate) fn ok(self) -> Result<OkPacket, Error> {
-        self.decode()
-    }
-
-    pub(crate) fn eof(self, capabilities: Capabilities) -> Result<EofPacket, Error> {
-        if capabilities.contains(Capabilities::DEPRECATE_EOF) {
-            let ok = self.ok()?;
-
-            Ok(EofPacket {
-                warnings: ok.warnings,
-                status: ok.status,
-            })
-        } else {
-            self.decode_with(capabilities)
-        }
     }
 }
 
