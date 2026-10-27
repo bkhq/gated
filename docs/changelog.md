@@ -151,4 +151,4 @@ Repository history squashed into a single commit and versioning restarted at 0.0
 
 ## 2026-10-27 06:10 [progress]
 
-Releases also carry `gated-linux-x64.tar.gz` and `gated-linux-arm64.tar.gz`, stable-named archives that lode can follow with `github = "bkhq/gated"`. When the `LODE_SIGNING_KEY` secret is set, the release job signs them with lode-cli v0.4.0 and uploads `<archive>.sig` sidecars.
+Release assets no longer include the CycloneDX SBOMs (still uploaded as workflow artifacts). Releases also carry `gated-linux-x64.tar.gz` and `gated-linux-arm64.tar.gz`, stable-named archives that lode can follow with `github = "bkhq/gated"`. When the `LODE_SIGNING_KEY` secret is set, the release job signs them with lode-cli v0.4.0 and uploads `<archive>.sig` sidecars.

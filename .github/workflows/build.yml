@@ -170,8 +170,6 @@ jobs:
               chmod +x "$dir/gated"
               tar czf "dist/$lode_name" -C "$dir" gated
               mv "$dir/gated" "dist/$name"
-            elif [ -f "$dir/cdx.xml" ]; then
-              mv "$dir/cdx.xml" "dist/$name"
             fi
           done
 
