@@ -13,7 +13,7 @@
 #
 # Base: the lode slim image (debian:13-slim). Pinned by the multi-arch index
 # digest; re-resolve it when bumping the tag.
-FROM docker.io/bkhq/lode:v0.1.0-slim@sha256:4fe64c557e68e8e7a8cd0e45bb309a74bd12aa0f5ef4863ca1a4b6fe2e7b7629
+FROM docker.io/bkhq/lode:v0.4.0-slim@sha256:b4147dcf3ade9165743720d90998005b37dda4ac35df9bebff2db59b2ee76feb
 
 # mycli gives the MySQL terminal working arrow keys and history; without it
 # gated falls back to the MariaDB `mysql` client.

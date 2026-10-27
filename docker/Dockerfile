@@ -66,7 +66,7 @@ COPY --from=build /opt/gated/gated /usr/local/bin/gated
 
 VOLUME /data
 
-ENV GATED_CONFIG=/data/gated.yaml
+ENV GATED_DATA_DIR=/data
 
 HEALTHCHECK CMD gated healthcheck
 

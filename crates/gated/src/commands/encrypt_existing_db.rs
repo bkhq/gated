@@ -1,8 +1,6 @@
-use std::path::{Path, PathBuf};
-
 use anyhow::{Context, Result, ensure};
 use dialoguer::Password;
-use gated_common::{GlobalParams, Secret};
+use gated_common::GlobalParams;
 use gated_core::encryption::migration::{
     ExistingSqliteDatabase, MigrationOptions, detect_existing_database,
 };
@@ -14,13 +12,9 @@ use crate::config::load_config;
 pub(crate) async fn command(
     params: &GlobalParams,
     auto_delete_plaintext: bool,
-    data_dir: Option<PathBuf>,
     master_password: Option<String>,
 ) -> Result<()> {
-    let mut config = load_config(params, true)?;
-    if let Some(data_dir) = &data_dir {
-        config.store.database_url = Secret::new(format!("sqlite:{}/db", data_dir.display()));
-    }
+    let config = load_config(params, true)?;
 
     let Some(database_path) = gated_core::db::sqlite_database_path(&config, params)? else {
         anyhow::bail!("encrypt-existing-db only supports sqlite database URLs");
@@ -34,7 +28,7 @@ pub(crate) async fn command(
         database_path.display()
     );
 
-    let encryption_dir = encryption_dir(params, data_dir.as_deref());
+    let encryption_dir = params.encryption_dir();
     let runtime = EncryptionRuntime::new(&encryption_dir)
         .await
         .context("opening encryption runtime")?;
@@ -83,10 +77,4 @@ pub(crate) async fn command(
         println!("plaintext backup deleted");
     }
     Ok(())
-}
-
-fn encryption_dir(params: &GlobalParams, data_dir: Option<&Path>) -> PathBuf {
-    data_dir
-        .map(|data_dir| data_dir.join("encryption"))
-        .unwrap_or_else(|| params.paths_relative_to().join("data/encryption"))
 }

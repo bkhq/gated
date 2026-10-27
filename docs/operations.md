@@ -27,18 +27,23 @@ as if it were an immutable release artifact.
 
 ## First start and configuration
 
-Choose a private data directory writable only by the service account. Use
-`gated --config /etc/gated/gated.yaml unattended-setup --data-path /var/lib/gated
---admin-port 8888 --ssh-port 2222 --external-host access.example.net
---record-sessions` on one line. Supply the initial password through the
+Choose a private data directory writable only by the service account and pass
+it as `--data-dir` (or `GATED_DATA_DIR`). gated then reads `<dir>/config.yaml`
+and keeps the database, host keys, TLS keys, recordings and encryption state
+in the same directory, with paths in the config stored relative to it, so the
+directory can be backed up and restored or moved as a unit. Use
+`gated --data-dir /var/lib/gated unattended-setup --admin-port 8888
+--ssh-port 2222 --external-host access.example.net --record-sessions` on one
+line. Supply the initial password through the
 `GATED_ADMIN_PASSWORD` environment variable from the deployment secret store;
 do not put it in shell history or command-line arguments. Unset it after setup.
 Do not rerun setup over an existing installation.
 
 The setup command generates configuration and keys. Inspect that configuration
-before starting `gated --config /etc/gated/gated.yaml run`. Relative data paths
-must resolve to the same directory on every restart; use a fixed working
-directory or absolute paths. Keep the config, database, host keys, TLS keys,
+before starting `gated --data-dir /var/lib/gated run`. Without `--data-dir`,
+`--config` (default `/etc/gated.yaml`) selects the config file and relative
+paths resolve next to it. The container image sets `GATED_DATA_DIR=/data`.
+Keep the config, database, host keys, TLS keys,
 and recording directory private. Bind management access only to the operator
 network or a trusted TLS reverse proxy. Disable protocols you do not use.
 
@@ -116,8 +121,10 @@ alone is not a safe migration rollback. Do not initialize over existing state.
 ### Running under lode
 
 [`deploy/lode/lode.toml`](../deploy/lode/lode.toml) is a demo configuration for
-the [lode](https://lode.bk.io) supervisor. Pass an absolute `--config` in
-`[command]` so data paths stay outside lode's version directories. `gated run`
+the [lode](https://lode.bk.io) supervisor. It follows the signed `gated-linux-*.tar.gz`
+archives on the bkhq/gated GitHub Releases and passes an absolute
+`--data-dir` in `[command]` so all state stays outside lode's version
+directories. `gated run`
 exits cleanly on SIGTERM and, with `readiness = "state"`, reports ready to lode
 once its listeners are up (or, with encryption enabled, once the pre-unlock UI
 serves). Keep `policy = "check"` and apply updates after a backup: migrations

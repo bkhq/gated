@@ -2,26 +2,26 @@
 #
 # Layout (LODE_DIR = /srv/gated-lode):
 #   /srv/gated-lode/lode.toml      this file
-#   /srv/gated-lode/config.yaml    gated config; relative data paths resolve
-#                                  next to it, outside lode's version dirs
+#   /srv/gated-lode/data/          gated --data-dir: config.yaml, database,
+#                                  keys, recordings, encryption state
 #   /srv/gated-lode/versions/ …    installed releases, managed by lode
 #
-# First start (once, before the service runs; the data dir must exist):
-#   mkdir -p /srv/gated-lode/data
+# First start (once, before the service runs):
 #   GATED_ADMIN_PASSWORD=… LODE_DIR=/srv/gated-lode lode unattended-setup \
-#     --data-path /srv/gated-lode/data --admin-port 8888 --ssh-port 2222
+#     --admin-port 8888 --ssh-port 2222 --external-host <host>
 # Then run the service:
 #   LODE_DIR=/srv/gated-lode lode
 #
-# Release asset: a tarball named exactly as `[update].asset` below, holding
-# the `gated` binary at its root (built with `--all-features --release`).
+# Releases come from GitHub: every bkhq/gated release carries the signed
+# `gated-linux-x64.tar.gz` / `gated-linux-arm64.tar.gz` archives (pick the
+# one for this host in `[update].asset`) with `.sig` sidecars.
 
 [global]
-app = "gated"                     # must equal the registry package slug
+app = "gated"                     # bound into the release signatures
 dir = "/srv/gated-lode"
 
 [update]
-manifest = "https://lode.bk.io/r/<namespace>/gated/manifest.json"
+github   = "bkhq/gated"
 asset    = "gated-linux-x64.tar.gz"
 channel  = "stable"
 # Database migrations run on startup and a binary downgrade is not a safe
@@ -31,15 +31,12 @@ policy   = "check"
 
 [trust]
 require_signature = "enforce"
-trusted_keys = ["<key_id>:<public-key>"]
-
-# Private package only:
-# [http]
-# headers = ["Authorization: Bearer ${LODE_REGISTRY_TOKEN}"]
+# bkhq/gated release signing key
+trusted_keys = ["7b62fbe83268bc31:ghCrNW3v-BL5bkbdhXCNx3QhLkCdrB7_dWpp6uavFDc"]
 
 [command]
-run  = "./gated --config /srv/gated-lode/config.yaml run"
-exec = "./gated --config /srv/gated-lode/config.yaml"
+run  = "./gated --data-dir /srv/gated-lode/data run"
+exec = "./gated --data-dir /srv/gated-lode/data"
 
 [supervise]
 restart       = "on-failure"

@@ -20,8 +20,14 @@ pub struct Cli {
     #[clap(subcommand)]
     command: Commands,
 
-    #[clap(long, short, default_value = "/etc/gated.yaml", action=ArgAction::Set, env="GATED_CONFIG")]
-    config: PathBuf,
+    /// Config file (default: `<data dir>/config.yaml` with `--data-dir`, else /etc/gated.yaml)
+    #[clap(long, short, action=ArgAction::Set, env="GATED_CONFIG")]
+    config: Option<PathBuf>,
+
+    /// Directory holding the config, database, keys, recordings and
+    /// encryption state; relative paths in the config resolve against it
+    #[clap(long, env = "GATED_DATA_DIR")]
+    data_dir: Option<PathBuf>,
 
     #[clap(long, short, action=ArgAction::Count)]
     debug: u8,
@@ -38,7 +44,19 @@ pub struct Cli {
 impl Cli {
     #[allow(clippy::wrong_self_convention)]
     pub fn into_global_params(&self) -> anyhow::Result<GlobalParams> {
-        gated_common::GlobalParams::new(self.config.clone(), !self.skip_securing_files)
+        match &self.data_dir {
+            Some(data_dir) => gated_common::GlobalParams::with_data_dir(
+                data_dir,
+                self.config.clone(),
+                !self.skip_securing_files,
+            ),
+            None => gated_common::GlobalParams::new(
+                self.config
+                    .clone()
+                    .unwrap_or_else(|| PathBuf::from("/etc/gated.yaml")),
+                !self.skip_securing_files,
+            ),
+        }
     }
 }
 
@@ -66,9 +84,9 @@ pub(crate) enum Commands {
         #[clap(long, env = "GATED_ADMIN_USERNAME")]
         admin_username: Option<String>,
 
-        /// Directory to store data in
+        /// Directory to store data in (required unless the global `--data-dir` is given)
         #[clap(long)]
-        data_path: String,
+        data_path: Option<String>,
 
         /// Admin UI/API port
         #[clap(long)]
@@ -157,9 +175,6 @@ pub(crate) enum Commands {
         /// Delete db.sqlite3.plain.bak after a successful migration.
         #[clap(long, action)]
         auto_delete_plaintext: bool,
-        /// Override the data directory used for sqlite DB and encryption metadata.
-        #[clap(long)]
-        data_dir: Option<PathBuf>,
         /// Master password used to initialize encryption.
         #[clap(long, env = "GATED_ENCRYPT_MASTER_PASSWORD")]
         master_password: Option<String>,
@@ -228,13 +243,11 @@ async fn _main() -> Result<()> {
         }
         Commands::EncryptExistingDb {
             auto_delete_plaintext,
-            data_dir,
             master_password,
         } => {
             crate::commands::encrypt_existing_db::command(
                 &params,
                 *auto_delete_plaintext,
-                data_dir.clone(),
                 master_password.clone(),
             )
             .await

@@ -27,7 +27,7 @@ RUN apt-get -y update -qq \
 RUN adduser gated --disabled-password --gecos "" --uid 1000 --home /data --shell /usr/sbin/nologin
 COPY --from=build /opt/gated/target/x86_64-unknown-linux-gnu/release/gated /usr/local/bin/gated
 VOLUME /data
-ENV GATED_CONFIG=/data/gated.yaml
+ENV GATED_DATA_DIR=/data
 ENV DOCKER=1
 HEALTHCHECK CMD gated healthcheck
 USER gated

@@ -47,8 +47,9 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
     let version = gated_version();
     info!("Welcome to Gated {version}");
 
-    if cli.config.exists() {
-        error!("Config file already exists at {}.", cli.config.display());
+    let config_path = params.config_path();
+    if config_path.exists() {
+        error!("Config file already exists at {}.", config_path.display());
         error!("To generate a new config file, rename or delete the existing one first.");
         std::process::exit(1);
     }
@@ -57,7 +58,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
         assert_interactive_terminal();
     }
 
-    let mut config_dir = cli.config.parent().unwrap_or_else(|| Path::new(&"."));
+    let mut config_dir = config_path.parent().unwrap_or_else(|| Path::new(&"."));
     if config_dir.as_os_str().is_empty() {
         config_dir = Path::new(&".");
     }
@@ -66,7 +67,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
     info!("Let's do some basic setup first.");
     info!(
         "The new config will be written in {}.",
-        cli.config.display()
+        config_path.display()
     );
 
     let theme = ColorfulTheme::default();
@@ -74,7 +75,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
 
     // ---
 
-    if !is_docker() {
+    if !is_docker() && !params.has_data_dir() {
         info!(
             "* Paths can be either absolute or relative to {}.",
             config_dir.canonicalize()?.display()
@@ -83,7 +84,13 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
 
     // ---
 
-    let data_path: String = if let Commands::UnattendedSetup { data_path, .. } = &cli.command {
+    let data_path: String = if params.has_data_dir() {
+        params.data_dir().to_string_lossy().to_string()
+    } else if let Commands::UnattendedSetup { data_path, .. } = &cli.command {
+        let Some(data_path) = data_path else {
+            error!("Pass --data-path, or the global --data-dir.");
+            std::process::exit(1);
+        };
         data_path.to_owned()
     } else {
         #[cfg(target_os = "linux")]
@@ -101,8 +108,18 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
         }
     };
 
-    let data_path = config_dir.join(PathBuf::from(&data_path)).canonicalize()?;
+    let data_path = config_dir.join(PathBuf::from(&data_path));
     create_dir_all(&data_path)?;
+    let data_path = data_path.canonicalize()?;
+    // With --data-dir the config stores paths relative to it, so the whole
+    // directory can be moved or restored elsewhere.
+    let stored_path = |name: &str| -> String {
+        if params.has_data_dir() {
+            name.to_owned()
+        } else {
+            data_path.join(name).to_string_lossy().to_string()
+        }
+    };
 
     let db_path = data_path.join("db");
     create_dir_all(&db_path)?;
@@ -120,7 +137,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
             ..
         } => url.to_owned(),
         _ => {
-            let mut db_path = db_path.to_string_lossy().to_string();
+            let mut db_path = stored_path("db");
 
             if let Some(x) = db_path.strip_suffix("./") {
                 db_path = x.to_string();
@@ -250,12 +267,9 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
         }
     }
 
-    store.admin.certificate = data_path
-        .join("tls.certificate.pem")
-        .to_string_lossy()
-        .to_string();
+    store.admin.certificate = stored_path("tls.certificate.pem");
 
-    store.admin.key = data_path.join("tls.key.pem").to_string_lossy().to_string();
+    store.admin.key = stored_path("tls.key.pem");
 
     store.mysql.certificate = store.admin.certificate.clone();
     store.mysql.key = store.admin.key.clone();
@@ -268,7 +282,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
 
     // ---
 
-    store.ssh.keys = data_path.join("ssh-keys").to_string_lossy().to_string();
+    store.ssh.keys = stored_path("ssh-keys");
 
     // ---
 
@@ -283,7 +297,7 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
             .with_prompt("Do you want to record user sessions?")
             .interact()?;
     }
-    store.recordings.path = data_path.join("recordings").to_string_lossy().to_string();
+    store.recordings.path = stored_path("recordings");
 
     // ---
 
@@ -338,8 +352,8 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
         version = gated_version()
     );
 
-    File::create(&cli.config)?.write_all(yaml.as_bytes())?;
-    info!("Saved into {}", cli.config.display());
+    File::create(config_path)?.write_all(yaml.as_bytes())?;
+    info!("Saved into {}", config_path.display());
 
     let config = load_config(params, true)?;
     gated_protocol_ssh::generate_keys(&config, params, "host")?;
@@ -382,12 +396,17 @@ pub(crate) async fn command(cli: &Cli, params: &GlobalParams) -> Result<()> {
             "docker run -p 8888:8888 -p 2222:2222 -it -v <your data dir>:/data ghcr.io/bkhq/gated"
         );
     } else {
+        let (flag, path) = if params.has_data_dir() {
+            ("--data-dir", params.data_dir())
+        } else {
+            ("--config", config_path.clone())
+        };
         info!(
-            "  {} --config {} run",
+            "  {} {flag} {} run",
             std::env::args()
                 .next()
                 .unwrap_or_else(|| "gated".to_string()),
-            cli.config.display()
+            path.display()
         );
     }
 

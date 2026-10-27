@@ -152,3 +152,11 @@ Repository history squashed into a single commit and versioning restarted at 0.0
 ## 2026-10-27 06:10 [progress]
 
 Release assets no longer include the CycloneDX SBOMs (still uploaded as workflow artifacts). Releases also carry `gated-linux-x64.tar.gz` and `gated-linux-arm64.tar.gz`, stable-named archives that lode can follow with `github = "bkhq/gated"`. When the `LODE_SIGNING_KEY` secret is set, the release job signs them with lode-cli v0.4.0 and uploads `<archive>.sig` sidecars.
+
+## 2026-10-27 06:30 [progress]
+
+Global `--data-dir` (`GATED_DATA_DIR`): gated reads `<dir>/config.yaml` and keeps the database, keys, recordings, encryption state and bootstrap token in that directory. `unattended-setup` with `--data-dir` writes paths relative to it, so the directory can be moved, and no longer needs `--data-path`. `encrypt-existing-db --data-dir` is replaced by the global option. The container images set `GATED_DATA_DIR=/data`, so their config is now `/data/config.yaml` instead of `/data/gated.yaml`. `deploy/lode` follows GitHub releases with the release signing key on lode v0.4.0.
+
+## 2026-10-27 06:30 [pitfall]
+
+The v0.0.2 release build failed at `cargo deny` on RUSTSEC-2026-0391 and 0395–0399 (`zstd`/`zstd-safe`, published the same day), pulled in by `mysql_common` 0.34. `mysql_common` is now 0.38 with default features off, where `zstd` is only needed for the unused `binlog` feature; the tag produced no release.

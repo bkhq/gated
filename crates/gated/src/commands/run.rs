@@ -226,15 +226,11 @@ pub(crate) async fn command(
     let mut sigterm = tokio::signal::unix::signal(SignalKind::terminate())?;
 
     if config.store.encryption.enable {
-        let runtime = Arc::new(
-            EncryptionRuntime::new(&params.paths_relative_to().join("data/encryption")).await?,
-        );
+        let runtime = Arc::new(EncryptionRuntime::new(&params.encryption_dir()).await?);
         services.set_encryption_runtime(runtime.clone()).await;
         if matches!(runtime.status().await, EncryptionStatus::Uninitialized) {
             services
-                .set_encryption_bootstrap_token(Some(generate_bootstrap_token(
-                    &params.paths_relative_to().join("data"),
-                )?))
+                .set_encryption_bootstrap_token(Some(generate_bootstrap_token(&params.data_dir())?))
                 .await;
         }
 
