@@ -1,5 +1,7 @@
 # E2E Test Delivery Guide
 
+English | [简体中文](e2e-delivery.zh-CN.md)
+
 How to run every test layer of the gated project, what each layer needs, what
 it covers, and the gate list to run before delivering a change.
 
@@ -100,8 +102,9 @@ All probes run inside sidecar containers attached to the compose network
 
 ### Integration suites (`tests/`)
 
-- A `gated` binary. `tests/run.sh` builds `target/debug/gated` automatically
-  when `GATED_BINARY` is unset; set `GATED_BINARY=<path>` to use another
+- A `gated` binary. `tests/run.sh` builds
+  `target/x86_64-unknown-linux-musl/debug/gated` automatically when
+  `GATED_BINARY` is unset; set `GATED_BINARY=<path>` to use another
   build (CI points it at the release binary).
 - Local docker images: `cd tests && make all` builds
   `gated-e2e-ssh-server`, `gated-e2e-mysql-server`, `gated-e2e-postgres-server`
@@ -275,7 +278,7 @@ The Playwright dependency also powers the screenshot scripts
 | SSH proxy — password / OTP / public-key / ticket / in-browser auth, protocol behavior, target selection, client auth config | `tests/ssh/`; bound-account precedence also in `tests/e2e-docker` (`probe-ssh.sh`, `scenarios/ssh-key`) |
 | PostgreSQL proxy — password and in-browser auth via native `psql` | `tests/db/`, `tests/e2e-docker/scenarios/postgres` |
 | MySQL proxy — native `mysql` client through the proxy | `tests/db/mysql-native.test.ts`, `tests/e2e-docker/probe-mysql.sh` |
-| SQL console (web WS console) — MySQL and PostgreSQL | `tests/db/sql-console.test.ts` |
+| SQL console (web) — MySQL and PostgreSQL | `tests/db/sql-console.test.ts` |
 | Kubernetes proxy — token and client-cert target auth, `kubectl` through the proxy, upstream mTLS client cert | `tests/kubernetes/`, `tests/e2e-docker/scenarios/k8s-token`, `scenarios/k8s-client-cert` |
 | HTTP target proxying — routing, auth, header hygiene, response cap, upstream TLS, plaintext-listener guard | `tests/http-proxy/`, `tests/e2e-docker/scenarios/http-headers` |
 | SSO / OIDC login (mock IdP) | `tests/` suites that start the OIDC mock (e.g. `tests/api/credentials/sso.test.ts`, in-browser auth tests) |

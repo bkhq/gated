@@ -1,5 +1,7 @@
 # Data Flows and Trust Boundaries
 
+English | [简体中文](data-flows.zh-CN.md)
+
 ## Trust boundary diagram
 
 ```mermaid
@@ -62,10 +64,10 @@ Boundary properties:
 4. **User plane vs admin plane** — the portal API exposes only the caller's
    own resources and authorized targets; mutation of inventory requires the
    built-in `admin` role.
-5. **Gated to its stores** — the database holds Argon2 password hashes but
-   also plaintext ticket/API-token secrets and the CA private key; the
-   database and recording directory are therefore as sensitive as the
-   bastion itself (SQLite supports at-rest encryption).
+5. **Gated to its stores** — the database holds Argon2 password hashes and
+   ticket/API-token digests, but also the target and account credentials and
+   the CA private key; the database and recording directory are therefore as
+   sensitive as the bastion itself (SQLite supports at-rest encryption).
 
 ## End-to-end flows
 
@@ -100,8 +102,9 @@ kubectl --server https://gated:8443 ...         (X-Gated-Target or base domain)
    captured.
 2. Target resolved from `X-Gated-Target` or `<target>.<base_domain>`
    (`crates/gated-protocol-http/src/resolver.rs`).
-3. Authentication: Bearer API token or the captured client certificate
-   matched against issued `CertificateCredential`s; then `authorize_target`.
+3. Authentication: API token (Bearer header or `?gated-token=`) or the
+   captured client certificate matched against issued
+   `CertificateCredential`s; then `authorize_target`.
 4. Session resolved: per-request (generic) or correlated per
    user/target/IP (Kubernetes).
 5. The request is rebuilt against the target base URL, stripped of gated
@@ -149,9 +152,9 @@ psql "host=gated port=55432 user=alice#appdb sslmode=require dbname=app"
 1. Browser loads `/ui` (embedded SPA) and logs in via `/api/auth/*`
    (password, then OTP/SSO/web approval as required); a `gated-http-session`
    cookie is issued.
-2. The portal lists authorized targets, offers web terminals (SSH and SQL
-   console over WebSockets), credential self-service, API tokens, and
-   tickets.
+2. The portal lists authorized targets, offers web terminals (SSH, MySQL
+   and PostgreSQL over WebSockets), the SQL console, the file manager,
+   credential self-service, API tokens, and tickets.
 3. Admins additionally manage inventory and watch live sessions; closing a
    session calls `SessionHandle::close()` on the live connection
    (`crates/gated-admin/src/api/sessions_detail.rs`).

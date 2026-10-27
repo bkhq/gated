@@ -1,5 +1,7 @@
 # TLS and the Built-in CA
 
+English | [简体中文](tls-and-ca.zh-CN.md)
+
 Two crates handle X.509 concerns: `gated-tls` (rustls plumbing shared by all
 listeners and outbound connections) and `gated-ca` (a minimal certificate
 authority that issues client certificates for mTLS proof-of-possession).
@@ -26,7 +28,7 @@ authority that issues client certificates for mTLS proof-of-possession).
 ### Listener certificates
 
 Every listener loads its certificate/key from its own config section
-(`http`, `proxy`, `mysql`, `postgres`). `gated setup` generates one
+(`admin`, `http`, `mysql`, `postgres`). `gated setup` generates one
 self-signed certificate (SANs `gated.local`, `localhost`, via `rcgen`) at
 `<data>/tls.certificate.pem` / `tls.key.pem` and points all four sections at
 it (`crates/gated/src/commands/setup.rs`); production deployments replace

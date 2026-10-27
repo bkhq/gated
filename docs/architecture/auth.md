@@ -1,5 +1,7 @@
 # Authentication and Authorization
 
+English | [简体中文](auth.zh-CN.md)
+
 All protocols funnel into one credential model, one auth state machine, and
 one authorization check, implemented in `gated-common` (types),
 `gated-core` (state store + DB-backed config provider), and `gated-sso`

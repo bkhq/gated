@@ -1,5 +1,7 @@
 # Operating Gated
 
+English | [简体中文](operations.zh-CN.md)
+
 ## Build and install
 
 Use the toolchain pinned in `rust-toolchain.toml`, Bun, a C/C++ compiler,

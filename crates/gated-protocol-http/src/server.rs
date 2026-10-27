@@ -418,7 +418,7 @@ async fn authenticate_request(
     // A plain browser navigation can't set an Authorization header, so this
     // lets a copy-pasteable URL carry the API token. This server
     // scrubs `gated-token` from URLs before they are logged (see
-    // `scrub_gated_token`), so the secret does not reach our request logs.
+    // `scrub_secret_query_params`), so the secret does not reach our request logs.
     // Residual risk remains on the client side — the token still lands in
     // browser history and any `Referer` header — so Bearer/mTLS should be
     // preferred for automation, and this fallback used only for interactive

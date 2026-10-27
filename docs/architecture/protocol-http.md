@@ -1,5 +1,7 @@
 # HTTP Reverse Proxy (`crates/gated-protocol-http`)
 
+English | [简体中文](protocol-http.zh-CN.md)
+
 The HTTP proxy is a dedicated HTTPS listener that forwards requests to
 HTTP targets. It is separate from the admin/portal HTTP server in
 `gated-admin` (see [management-plane.md](management-plane.md)); the proxy
@@ -47,10 +49,11 @@ its target independently.
 
 ## Authentication and authorization
 
-`authenticate_request` (`server.rs`) accepts exactly two credentials:
+`authenticate_request` (`server.rs`) accepts two kinds of credential:
 
-- **Bearer API token** — `Authorization: Bearer <token>` validated via
-  `ConfigProvider::validate_api_token`
+- **API token** — `Authorization: Bearer <token>`, or for plain browser
+  navigation a `?gated-token=<token>` query parameter (scrubbed from logged
+  URLs), validated via `ConfigProvider::validate_api_token`
   (`crates/gated-core/src/config_providers/db.rs`);
 - **mTLS client certificate** — the captured handshake certificate is checked
   by `validate_client_certificate`

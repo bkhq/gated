@@ -1,5 +1,7 @@
 # Command Control (Command ACL) — Design Note
 
+English | [简体中文](command-control.zh-CN.md)
+
 This note documents the cross-proxy behavior of the command-ACL feature: how
 each protocol proxy evaluates commands against the `command_acl_rule` table and,
 in particular, how they behave on a rule **load** error versus an evaluated

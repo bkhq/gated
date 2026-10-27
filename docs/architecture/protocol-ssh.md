@@ -1,5 +1,7 @@
 # SSH Protocol Proxy (`crates/gated-protocol-ssh`)
 
+English | [简体中文](protocol-ssh.zh-CN.md)
+
 The SSH proxy is built on the `russh` crate and acts as a full SSH server
 toward the client and a full SSH client toward the target. Channels are
 bridged one-to-one between the two connections.

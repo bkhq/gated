@@ -1,5 +1,7 @@
 # Gated Code Design
 
+English | [简体中文](code-design.zh-CN.md)
+
 How the main runtime pieces fit together: shared services, the session
 registry, the session lifecycle, the boundary between the management plane
 and the session plane, and the frontend/backend contract. Crate roles, the
@@ -152,7 +154,7 @@ Notification channels in the system:
   (`crates/gated-admin/src/http_service/mod.rs`).
 - **Log pipeline**: a global `broadcast::Sender<LogEntry::ActiveModel>`
   (`crates/gated-core/src/logging/database.rs`) decouples tracing from
-  DB writes (section 2.5).
+  DB writes (section 2.4).
 - **Encryption unlock**: `Services.encryption_notify` (`services.rs`)
   wakes the startup loop when the operator unlocks the DB
   (`run.rs`).
@@ -466,8 +468,9 @@ The frontend does **not** generate client code; it generates TypeScript
 *types* with `openapi-typescript`
 (`web/scripts/generate-openapi-types.ts`, run via `bun run openapi`):
 `/admin/api/openapi.json` → `web/src/shared/lib/api/admin.types.ts` and
-`/api/openapi.json` → `web/src/shared/lib/api/user.types.ts`, with
-committed snapshot fallbacks under `web/scripts/openapi/`. Hand-written
+`/api/openapi.json` → `web/src/shared/lib/api/user.types.ts`; the specs
+are exported from the Rust sources, and the committed snapshots under
+`web/scripts/openapi/` are checked in CI with `bun run openapi --check`. Hand-written
 thin clients in `web/src/shared/lib/api/http.ts` (`userApi` → `/api`,
 `adminApi` → `/admin/api`, cookie credentials, a global `onUnauthorized`
 hook) are wrapped by feature-level TanStack Query hooks.
@@ -503,6 +506,7 @@ A shared reconnecting WebSocket hook
 (`web/src/shared/hooks/use-websocket.ts`) handles scheme upgrade
 (ws/wss), exponential backoff, and pluggable decoding.
 
-Recording playback is plain HTTP streaming, not WebSocket:
-`/admin/api/recordings/:id/{cast,stream,tcpdump}`
-(`crates/gated-admin/src/lib.rs`).
+Recording playback downloads are plain HTTP
+(`/admin/api/recordings/:id/cast` and `/tcpdump`); live tailing of an
+in-progress terminal recording uses the WebSocket
+`/admin/api/recordings/:id/stream` (`crates/gated-admin/src/lib.rs`).

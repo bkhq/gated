@@ -1,5 +1,7 @@
 # Database Protocol Proxies (MySQL and PostgreSQL)
 
+English | [简体中文](protocol-database.zh-CN.md)
+
 Both database proxies speak the native wire protocol to the client,
 authenticate the user against gated's credential store, then open a second
 native-protocol connection to the real server using credentials from the

@@ -1,5 +1,7 @@
 # Gated Architecture
 
+English | [简体中文](README.zh-CN.md)
+
 Gated is a smart SSH, HTTP, MySQL, and PostgreSQL bastion host (a fork of
 [Warpgate](https://github.com/warp-tech/warpgate)). It sits between users and
 protected targets, terminates each protocol itself, authenticates the user

@@ -1,5 +1,7 @@
 # Gated
 
+English | [简体中文](README.zh-CN.md)
+
 A smart bastion host / access gateway for SSH, HTTPS, MySQL, PostgreSQL, and Kubernetes.
 
 Based on [Warpgate](https://github.com/warp-tech/warpgate) by Warpgate contributors.

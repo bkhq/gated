@@ -1,5 +1,7 @@
 # Sessions, Recordings, Audit, and the Database Layer
 
+English | [简体中文](sessions-recordings-audit.zh-CN.md)
+
 ## Session registry (`crates/gated-core/src/state.rs`)
 
 `State` (`state.rs`) is the in-memory registry of live sessions: a map of
