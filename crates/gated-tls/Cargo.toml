@@ -3,7 +3,7 @@ edition.workspace = true
 rust-version.workspace = true
 license = "Apache-2.0"
 name = "gated-tls"
-version = "0.0.1"
+version = "0.0.2"
 
 [dependencies]
 rustls-native-certs = { version = "0.8", default-features = false }

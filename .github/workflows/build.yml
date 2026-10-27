@@ -161,10 +161,37 @@ jobs:
           for dir in artifacts/gated-*; do
             name=$(basename "$dir")
             if [ -f "$dir/gated" ]; then
+              # Stable-named archive for lode, which selects assets by filename.
+              case "$name" in
+                *-x86_64-linux) lode_name=gated-linux-x64.tar.gz ;;
+                *-arm64-linux) lode_name=gated-linux-arm64.tar.gz ;;
+                *) echo "unknown arch in $name"; exit 1 ;;
+              esac
+              chmod +x "$dir/gated"
+              tar czf "dist/$lode_name" -C "$dir" gated
               mv "$dir/gated" "dist/$name"
             elif [ -f "$dir/cdx.xml" ]; then
               mv "$dir/cdx.xml" "dist/$name"
             fi
+          done
+
+      - name: Sign lode archives
+        env:
+          LODE_SIGNING_KEY: ${{ secrets.LODE_SIGNING_KEY }}
+          LODE_CLI_SHA256: b25e2340cdafd4b04fd2974cafa3ce723cbacbf5d32ebd3d75c9f6de5c141910
+        run: |
+          set -euo pipefail
+          if [ -z "${LODE_SIGNING_KEY:-}" ]; then
+            echo "::warning::LODE_SIGNING_KEY not set; lode archives are uploaded unsigned"
+            exit 0
+          fi
+          curl -fsSL -o lode.tar.gz https://github.com/bkhq/lode/releases/download/v0.4.0/lode-linux-x64.tar.gz
+          echo "$LODE_CLI_SHA256  lode.tar.gz" | sha256sum -c -
+          mkdir lode && tar xzf lode.tar.gz -C lode
+          for f in dist/gated-linux-*.tar.gz; do
+            lode/lode-cli sign "$f" --app gated --version "${GITHUB_REF_NAME#v}" --key-env LODE_SIGNING_KEY \
+              | awk '/^sig:/ {print $2}' > "$f.sig"
+            test -s "$f.sig"
           done
 
       - name: Upload release

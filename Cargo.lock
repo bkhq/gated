@@ -1953,7 +1953,7 @@ dependencies = [
 
 [[package]]
 name = "gated"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -2000,7 +2000,7 @@ dependencies = [
 
 [[package]]
 name = "gated-admin"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -2049,7 +2049,7 @@ dependencies = [
 
 [[package]]
 name = "gated-ca"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "aws-lc-rs",
  "const-oid 0.9.6",
@@ -2067,7 +2067,7 @@ dependencies = [
 
 [[package]]
 name = "gated-common"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "argon2 0.5.3",
@@ -2117,7 +2117,7 @@ dependencies = [
 
 [[package]]
 name = "gated-core"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2169,7 +2169,7 @@ dependencies = [
 
 [[package]]
 name = "gated-database-protocols"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "bitflags 2.13.2",
  "bytes",
@@ -2182,7 +2182,7 @@ dependencies = [
 
 [[package]]
 name = "gated-db-entities"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "chrono",
  "gated-common",
@@ -2195,7 +2195,7 @@ dependencies = [
 
 [[package]]
 name = "gated-db-migrations"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2209,7 +2209,7 @@ dependencies = [
 
 [[package]]
 name = "gated-protocol-http"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -2244,7 +2244,7 @@ dependencies = [
 
 [[package]]
 name = "gated-protocol-mysql"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2270,7 +2270,7 @@ dependencies = [
 
 [[package]]
 name = "gated-protocol-postgres"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2293,7 +2293,7 @@ dependencies = [
 
 [[package]]
 name = "gated-protocol-ssh"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -2315,7 +2315,7 @@ dependencies = [
 
 [[package]]
 name = "gated-sso"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "data-encoding",
  "futures",
@@ -2330,7 +2330,7 @@ dependencies = [
 
 [[package]]
 name = "gated-tls"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "rcgen",
  "rustls",
@@ -2347,7 +2347,7 @@ dependencies = [
 
 [[package]]
 name = "gated-web"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "rust-embed",
 ]

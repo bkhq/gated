@@ -148,3 +148,7 @@ Session rows are written when authentication succeeds instead of on connect, so 
 ## 2026-10-24 16:10 [decision]
 
 Repository history squashed into a single commit and versioning restarted at 0.0.1; the earlier v0.21.1–v0.23.0 tags and releases were removed. Installations still on 0.23.x will not see 0.0.1 as an update and need a manual reinstall.
+
+## 2026-10-27 06:10 [progress]
+
+Releases also carry `gated-linux-x64.tar.gz` and `gated-linux-arm64.tar.gz`, stable-named archives that lode can follow with `github = "bkhq/gated"`. When the `LODE_SIGNING_KEY` secret is set, the release job signs them with lode-cli v0.4.0 and uploads `<archive>.sig` sidecars.
