@@ -37,7 +37,7 @@ const MYSQL_IMAGE: DbImage = {
   namePrefix: "gated-sqlr",
   image: "gated-e2e-mysql-server",
   port: 3306,
-  readyCmd: ["mariadb", "-uroot", "-p123", "-e", "SELECT 1"],
+  readyCmd: ["mariadb", "-h127.0.0.1", "--protocol=TCP", "-uroot", "-p123", "-e", "SELECT 1"],
   label: "MariaDB",
 };
 

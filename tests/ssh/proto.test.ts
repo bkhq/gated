@@ -19,6 +19,28 @@ const commonArgs = [
   "-o", "PreferredAuthentications=password",
 ];
 
+// Read `stream` until `marker` appears; throws on EOF or timeout.
+async function waitForOutput(stream: ReadableStream<Uint8Array>, marker: string, timeoutMs = 30_000) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  const deadline = Date.now() + timeoutMs;
+  try {
+    while (!text.includes(marker)) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error(`timed out waiting for "${marker}"`);
+      const chunk = await Promise.race([
+        reader.read(),
+        Bun.sleep(remaining).then(() => ({ done: true, value: undefined })),
+      ]);
+      if (chunk.done) throw new Error(`stream ended before "${marker}":\n${text}`);
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 async function setupSshTest(
   processes: ProcessManager,
   wg: GatedProcess,
@@ -140,8 +162,10 @@ describe("SSH Proto", () => {
       ...commonArgs,
       "-R", `${fwPort}:www.google.com:443`,
       "-N",
-      { password: "123" }
+      { password: "123", stderr: "pipe" }
     );
+    // The listener exists on the target only once the forward is confirmed.
+    await waitForOutput(pfClient.stderr as ReadableStream<Uint8Array>, `remote forward success for: listen ${fwPort}`);
 
     const sshClient = processes.startSshClient(
       `${user.username}:${target.name}@localhost`,

@@ -54,7 +54,7 @@ async function startMysqlInNetwork(): Promise<{ host: string; name: string }> {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     const check = Bun.spawnSync([
-      "docker", "exec", name, "mariadb", "-uroot", "-p123", "-e", "SELECT 1",
+      "docker", "exec", name, "mariadb", "-h127.0.0.1", "--protocol=TCP", "-uroot", "-p123", "-e", "SELECT 1",
     ]);
     if (check.exitCode === 0) return { host, name };
     await Bun.sleep(500);

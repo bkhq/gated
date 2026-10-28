@@ -168,3 +168,7 @@ Cleanup pass. Removed dead code: the unused MySQL collation table, `Row` and `Co
 ## 2026-10-27 08:30 [progress]
 
 Docs are bilingual: each English doc (`README.md`, `docs/api.md`, `docs/operations.md`, `docs/architecture/*`, `docs/design/*`, `docs/testing/e2e-delivery.md`) has a Simplified Chinese sibling `*.zh-CN.md` with language links at the top; PMA records and decisions stay English-only. `docs/api.md` is now English, and `bun run openapi` writes the generated operation index into both language versions. Facts corrected while translating: the HTTP proxy also accepts the API token as `?gated-token=`, web terminal and SFTP route paths, the SQL console is REST rather than WebSocket, the recording `stream` endpoint is a WebSocket, the database stores ticket and API-token digests, and committed OpenAPI snapshots are checked in CI rather than used as a fallback.
+
+## 2026-10-28 17:35 [BUG-P2]
+
+Two integration tests failed intermittently in CI. The MariaDB readiness checks used `docker exec mariadb -e "SELECT 1"` over the unix socket, which also succeeds against the entrypoint's temporary init server (`--skip-networking`); gated then got `Connection refused` on TCP 3306 while the real server restarted. The checks now connect over TCP. `SSH Proto > tcpip forward` started `curl` before the `-R` forward was confirmed; it now waits for the client's `remote forward success` line first.
