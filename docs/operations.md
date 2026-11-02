@@ -36,14 +36,14 @@ same directory, with paths in the config stored relative to it, so the
 directory can be backed up and restored or moved as a unit. Use
 `gated --data-dir /var/lib/gated unattended-setup --admin-port 8888
 --ssh-port 2222 --external-host access.example.net --record-sessions` on one
-line; add `--encryption` (or `GATED_ENCRYPTION=true`) for at-rest encryption.
+line; add `--encryption` (or `GATED_ENCRYPTION_ENABLE=true`) for at-rest encryption.
 Do not rerun setup over an existing installation.
 
 With `--data-dir`, `run` performs this setup itself when `<dir>/config.yaml`
 does not exist: admin port from `--admin-port` (default 8888), SSH on
 `GATED_SSH_PORT` (default 2222), HTTP proxy on `GATED_HTTP_PORT` (default
 8443), external host from `GATED_EXTERNAL_HOST`, encryption from
-`GATED_ENCRYPTION`, session recording on. MySQL and PostgreSQL stay off. An
+`GATED_ENCRYPTION_ENABLE`, session recording on. MySQL and PostgreSQL stay off. An
 existing config file always takes precedence.
 
 Setup writes only the configuration and the TLS certificate. No admin account

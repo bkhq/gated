@@ -103,7 +103,7 @@ pub(crate) enum Commands {
         record_sessions: bool,
 
         /// Encrypt the database at rest; it is initialized from the admin UI
-        #[clap(long, env = "GATED_ENCRYPTION")]
+        #[clap(long, env = "GATED_ENCRYPTION_ENABLE")]
         encryption: bool,
 
         /// External host used to construct URLs (without a port or scheme)

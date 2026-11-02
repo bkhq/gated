@@ -10,7 +10,7 @@ services:
     # Port set matches the listeners the Docker setup path enables
     # (see crates/gated/src/commands/setup.rs: is_docker() turns on
     # admin/SSH/MySQL/PostgreSQL/HTTP proxy). Starting on an empty ./data
-    # without setup enables admin, SSH and the HTTP proxy (GATED_ENCRYPTION=true
+    # without setup enables admin, SSH and the HTTP proxy (GATED_ENCRYPTION_ENABLE=true
     # adds at-rest encryption) and prints a one-time bootstrap token; create
     # the first admin account with it in the admin UI.
     ports:

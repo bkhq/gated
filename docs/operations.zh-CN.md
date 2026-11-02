@@ -31,11 +31,11 @@ Rust 二进制**之前**构建前端：UI 在编译时嵌入。保留上一版�
 配置中的路径相对该目录存储，因此整个目录可以作为一个整体备份、恢复或迁移。在一行中执行
 `gated --data-dir /var/lib/gated unattended-setup --admin-port 8888
 --ssh-port 2222 --external-host access.example.net --record-sessions`；需要静态加密时加上
-`--encryption`（或 `GATED_ENCRYPTION=true`）。不要在已有安装上重复执行初始化。
+`--encryption`（或 `GATED_ENCRYPTION_ENABLE=true`）。不要在已有安装上重复执行初始化。
 
 使用 `--data-dir` 时，如果 `<dir>/config.yaml` 不存在，`run` 会自动执行这次初始化：管理端口取
 `--admin-port`（默认 8888），SSH 端口取 `GATED_SSH_PORT`（默认 2222），HTTP 代理端口取
-`GATED_HTTP_PORT`（默认 8443），外部主机名取 `GATED_EXTERNAL_HOST`，是否加密取 `GATED_ENCRYPTION`，
+`GATED_HTTP_PORT`（默认 8443），外部主机名取 `GATED_EXTERNAL_HOST`，是否加密取 `GATED_ENCRYPTION_ENABLE`，
 开启会话录制；MySQL 和 PostgreSQL 保持关闭。已有配置文件时始终以配置文件为准。
 
 初始化只写出配置和 TLS 证书，不创建管理员账号和密码，也不在磁盘上写 SSH 密钥。数据库中还没有用户时，

@@ -145,4 +145,21 @@ describe("--data-dir", () => {
     proc.kill("SIGINT");
     await proc.exited;
   });
+
+  test("first run with GATED_ENCRYPTION_ENABLE writes an encrypted config and starts locked", async () => {
+    const dataDir = join(processes.ctx.tmpdir, "fresh-encrypted");
+    const httpPort = allocPort();
+    // The env overlay must not break later config loads.
+    const proc = await run(["--data-dir", dataDir, "run", "--admin-port", String(httpPort)], {
+      GATED_ENCRYPTION_ENABLE: "true",
+      GATED_SSH_PORT: String(allocPort()),
+      GATED_HTTP_PORT: String(allocPort()),
+    });
+    await waitPort(httpPort, { recv: false, process: proc });
+    expect(readFileSync(join(dataDir, "config.yaml"), "utf-8")).toMatch(/encryption:\s*\n\s*enable: true/);
+    const res = await fetch(`http://127.0.0.1:${httpPort}/api/admin/encryption/status`);
+    expect(((await res.json()) as { status: string }).status).toBe("uninitialized");
+    proc.kill("SIGINT");
+    await proc.exited;
+  });
 });

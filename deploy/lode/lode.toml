@@ -10,7 +10,7 @@
 #   LODE_DIR=/srv/gated-lode lode
 # On first start gated writes a default config into data/ (admin 8888, SSH
 # 2222, HTTP proxy 8443; GATED_EXTERNAL_HOST sets the external host,
-# GATED_ENCRYPTION=true turns on at-rest encryption) and prints a one-time
+# GATED_ENCRYPTION_ENABLE=true turns on at-rest encryption) and prints a one-time
 # bootstrap token. Open the admin UI and create the first admin account with
 # it. For other settings, run `unattended-setup` first:
 #   LODE_DIR=/srv/gated-lode lode unattended-setup --admin-port 8888 ...

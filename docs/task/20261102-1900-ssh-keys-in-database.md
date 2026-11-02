@@ -22,14 +22,14 @@ Completed
 
 Current code: `crates/gated-protocol-ssh/src/keys.rs` (`generate_keys`/`load_keys`), callers in `gated/src/commands/{setup,recover_access,client_keys}.rs`, `gated-protocol-ssh/src/{lib.rs,server/mod.rs,client/mod.rs}`, `gated-admin/src/api/ssh_keys.rs`. Precedent: the CA key lives in `parameters.ca_private_key_pem`.
 
-Decisions (user, 2026-11-02): development phase, no existing installs, so old key files are ignored and the `client-keys` command is removed; whether first start enables encryption follows the config file, or `GATED_ENCRYPTION` when the config is generated.
+Decisions (user, 2026-11-02): development phase, no existing installs, so old key files are ignored and the `client-keys` command is removed; whether first start enables encryption follows the config file, or `GATED_ENCRYPTION_ENABLE` when the config is generated.
 
 Plan:
 1. Migration `m00013_ssh_keys` + entity `SshKey` (kind host/client, algorithm, PEM). `gated-protocol-ssh::keys` reads/generates rows; `ssh.keys` config field removed.
 2. SSH listener waits until host keys exist; outbound public-key auth loads client keys from the database.
 3. `GET /api/admin/setup/status`, `POST /api/admin/setup` (bootstrap token or admin token; refused once any user exists): creates the admin user, generates SSH keys, wakes the SSH listener, clears the bootstrap token.
 4. `run` issues a bootstrap token when the opened database has no users; encryption init keeps the token until setup.
-5. CLI setup writes config only (`--encryption`/`GATED_ENCRYPTION`); no admin user, no password generation, no keys. `client-keys` removed.
+5. CLI setup writes config only (`--encryption`/`GATED_ENCRYPTION_ENABLE`); no admin user, no password generation, no keys. `client-keys` removed.
 6. Web: setup page behind the boot gate; i18n en/zh-CN.
 7. Tests: integration helpers run setup through the API and install the fixture client keys; data-dir, encryption-lifecycle and e2e-docker updated.
 

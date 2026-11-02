@@ -204,3 +204,7 @@ Private key material and the first admin password are no longer produced on disk
 ## 2026-11-02 21:10 [decision]
 
 First-run setup only registers the first admin account. SSH keys are managed separately under Settings → SSH (`GET /admin/api/ssh/keys`, `POST /admin/api/ssh/keys/generate`, `POST /admin/api/ssh/keys/import`): generation fills in Ed25519 and RSA keys for each kind (host, client) that has none, and import stores an OpenSSH/PKCS#8 private key (optionally passphrase-protected), replacing the stored key of the same kind and algorithm. The stored `algorithm` is the key type (`ssh-ed25519`, `ssh-rsa`). The SSH listener starts once host keys exist. Integration helpers import the `tests/ssh-keys/wg` client keys through the API instead of writing the database.
+
+## 2026-11-02 22:30 [BUG-P1]
+
+First start with `GATED_ENCRYPTION=true` failed with `invalid type: string "true", expected struct EncryptionConfig`: the `GATED_` environment overlay in `load_config` mapped the variable onto the `encryption` config section. The first-start/`unattended-setup --encryption` variable is renamed to `GATED_ENCRYPTION_ENABLE`, which matches no config key. Regression test: `tests/misc/data-dir.test.ts` (first run with `GATED_ENCRYPTION_ENABLE`).

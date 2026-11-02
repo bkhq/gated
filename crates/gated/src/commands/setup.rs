@@ -371,7 +371,7 @@ async fn initialize(command: &Commands, params: &GlobalParams) -> Result<()> {
 }
 
 /// Writes a default config into an empty `--data-dir`, so a fresh container
-/// starts without a separate setup step. `GATED_ENCRYPTION` turns on
+/// starts without a separate setup step. `GATED_ENCRYPTION_ENABLE` turns on
 /// at-rest encryption.
 pub(crate) async fn first_start(params: &GlobalParams, admin_port: Option<u16>) -> Result<()> {
     info!("No config file found, running first-start setup");
@@ -385,7 +385,7 @@ pub(crate) async fn first_start(params: &GlobalParams, admin_port: Option<u16>) 
         Some(port) => port.parse().context("GATED_HTTP_PORT")?,
         None => HttpConfig::default().listen.port(),
     };
-    let encryption = env("GATED_ENCRYPTION").is_some_and(|v| {
+    let encryption = env("GATED_ENCRYPTION_ENABLE").is_some_and(|v| {
         !matches!(
             v.to_ascii_lowercase().as_str(),
             "0" | "false" | "no" | "off"
