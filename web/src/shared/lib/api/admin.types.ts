@@ -835,6 +835,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tls/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The certificate of each TLS listener (public parts only). */
+        get: operations["get_tls_certificates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tls/certificates/{listener}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Stores a certificate and private key for the listener, replacing the
+         *     current one. Running listeners serve it to new connections.
+         */
+        put: operations["import_tls_certificate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tls/certificates/{listener}/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replaces the listener's certificate with a new self-signed one. Running
+         *     listeners serve it to new connections.
+         */
+        post: operations["generate_tls_certificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -1502,6 +1559,12 @@ export interface components {
             /** @description OpenSSH or PKCS#8 PEM private key. */
             private_key_pem: string;
         };
+        ImportTLSCertificateRequest: {
+            /** @description PEM certificate chain, leaf first. */
+            certificate_pem: string;
+            /** @description Unencrypted PEM private key of the leaf certificate. */
+            private_key_pem: string;
+        };
         IssueCertificateCredentialRequest: {
             label: string;
             public_key_pem: string;
@@ -1532,6 +1595,13 @@ export interface components {
             reason?: string | null;
             /** @description Version to switch to; defaults to the available update. */
             version?: string | null;
+        };
+        ListenerCertificate: {
+            /** @description Leaf first; empty until the listener has a certificate. */
+            chain: components["schemas"]["CertificateInfo"][];
+            /** Format: date-time */
+            created?: string | null;
+            listener: components["schemas"]["TLSListener"];
         };
         LogEntry: {
             /** Format: uuid */
@@ -1762,6 +1832,8 @@ export interface components {
             kind: string;
             public_key_openssh: string;
         };
+        /** @enum {string} */
+        TLSListener: "http" | "mysql" | "postgres";
         Target: {
             accounts: components["schemas"]["TargetAccountMetadata"][];
             allow_roles: string[];
@@ -4057,6 +4129,83 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_tls_certificates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ListenerCertificate"][];
+                };
+            };
+        };
+    };
+    import_tls_certificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["ImportTLSCertificateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ListenerCertificate"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
+        };
+    };
+    generate_tls_certificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ListenerCertificate"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };

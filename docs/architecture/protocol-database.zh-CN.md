@@ -10,7 +10,7 @@
 ### 监听器
 
 `MySQLProtocolServer`（`crates/gated-protocol-mysql/src/lib.rs`）实现 `ProtocolServer`（`lib.rs`）。它从
-`mysql.certificate`/`mysql.key` 加载监听器 TLS 证书，以 `TCP_NODELAY` 接受 TCP 连接，每个连接运行一个 `Session`。
+`tls_certificates` 表的 `mysql` 行加载监听器 TLS 证书（缺失时自动生成自签证书，导入后热替换），以 `TCP_NODELAY` 接受 TCP 连接，每个连接运行一个 `Session`。
 
 **客户端必须使用 TLS。** 代理在握手中声明 `SSL` 能力（`crates/gated-protocol-mysql/src/session.rs`），如果
 客户端不请求 TLS 升级，就以错误 1002 "Gated requires TLS" 拒绝连接（`session.rs`）。客户端的 `SSL_REQUEST`

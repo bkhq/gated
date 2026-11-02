@@ -394,12 +394,6 @@ pub struct MySqlConfig {
 
     #[serde(default)]
     pub external_port: Option<u16>,
-
-    #[serde(default)]
-    pub certificate: String,
-
-    #[serde(default)]
-    pub key: String,
 }
 
 impl Default for MySqlConfig {
@@ -408,8 +402,6 @@ impl Default for MySqlConfig {
             enable: false,
             listen: _default_mysql_listen(),
             external_port: None,
-            certificate: "".to_owned(),
-            key: "".to_owned(),
         }
     }
 }
@@ -431,19 +423,14 @@ pub struct HttpConfig {
     #[serde(default)]
     pub external_port: Option<u16>,
 
-    #[serde(default)]
-    pub certificate: String,
-
-    #[serde(default)]
-    pub key: String,
-
     #[serde(default = "_default_session_max_age", with = "humantime_serde")]
     #[schemars(with = "String")]
     pub session_max_age: Duration,
 
     /// When false, serve the proxy listener as plaintext HTTP so a
     /// TLS-terminating reverse proxy in front (Traefik / nsl) handles TLS.
-    /// When true (default), terminate TLS here using `certificate`/`key`.
+    /// When true (default), terminate TLS here with the HTTP proxy certificate
+    /// stored in the database.
     /// Mirrors `admin.tls`.
     #[serde(default = "_default_true")]
     pub tls: bool,
@@ -470,8 +457,6 @@ impl Default for HttpConfig {
             enable: false,
             listen: _default_http_listen(),
             external_port: None,
-            certificate: "".to_owned(),
-            key: "".to_owned(),
             session_max_age: _default_session_max_age(),
             tls: true,
             behind_proxy: false,
@@ -496,12 +481,6 @@ pub struct PostgresConfig {
 
     #[serde(default)]
     pub external_port: Option<u16>,
-
-    #[serde(default)]
-    pub certificate: String,
-
-    #[serde(default)]
-    pub key: String,
 }
 
 impl Default for PostgresConfig {
@@ -510,8 +489,6 @@ impl Default for PostgresConfig {
             enable: false,
             listen: _default_postgres_listen(),
             external_port: None,
-            certificate: "".to_owned(),
-            key: "".to_owned(),
         }
     }
 }

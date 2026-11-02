@@ -108,8 +108,8 @@ SPA（`web/`）基于 React 19 + TanStack Router + Tailwind 4，用 Vite（base 
 | `database_url` | 密钥；默认 `sqlite:data/db` |
 | `ssh` | enable、listen、主机密钥验证模式、空闲超时、keepalive |
 | `admin` | 管理 / 门户监听器：listen、TLS 证书 / 密钥（或 `tls: false`）、SNI 证书、cookie 域、会话 / cookie max-age、`trust_x_forwarded_headers` |
-| `http` | 反向代理监听器：enable、listen、TLS 证书 / 密钥、用于按主机路由的 `base_domain`、`behind_proxy`、会话 max-age |
-| `mysql` / `postgres` | enable、listen、TLS 证书 / 密钥 |
+| `http` | 反向代理监听器：enable、listen、`tls`、用于按主机路由的 `base_domain`、`behind_proxy`、会话 max-age |
+| `mysql` / `postgres` | enable、listen（这两个监听器和 HTTP 代理的 TLS 证书保存在数据库中） |
 | `metrics` | 为 `/metrics`、`/healthz`、`/readyz` 设置 enable + listen |
 | `encryption` | 开启数据库静态加密 |
 | `log` | 保留期和管理审计保留期（默认各 7 天）、级别、格式、控制台 / 文件输出、可选的 syslog socket 和 OTLP 导出器 |

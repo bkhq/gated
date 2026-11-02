@@ -16,7 +16,8 @@ axum 应用。
 
 TLS 终结：
 
-- 证书 / 密钥来自 `http.certificate` / `http.key`（`server.rs`）；
+- 证书 / 密钥是 `tls_certificates` 表中的 `http` 行，缺失时自动生成自签证书，导入或重新生成后原地替换
+  （`gated-core::tls_certificates`、`ReloadableCertResolver`）；
 - rustls `ServerConfig` 使用 `build_client_cert_verifier`
   （`crates/gated-protocol-http/src/kubernetes/client_certs.rs`）提供的客户端证书验证器：客户端证书是可选的，
   因此 Bearer 令牌客户端仍能连接，但出示的证书必须链到实例 CA，且握手证明了对其私钥的持有；

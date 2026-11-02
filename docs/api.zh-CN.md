@@ -624,6 +624,9 @@
 - `GET /admin/api/ssh/keys` — `200 OK` `Json<StoredSSHKey[]>`（`{ id, kind: "host" | "client", algorithm, public_key_openssh, fingerprint, created }`）。数据库中的主机密钥和客户端密钥；永不返回私钥。
 - `POST /admin/api/ssh/keys/generate` — 为还没有密钥的类型生成 Ed25519 和 RSA 密钥，保留已有密钥；主机密钥存在后启动 SSH 监听；`200 OK` `Json<StoredSSHKey[]>`。
 - `POST /admin/api/ssh/keys/import` — Body `ImportSSHKeyRequest { kind: "host" | "client", private_key_pem, passphrase? }`（OpenSSH 或 PKCS#8 PEM）；替换同类型、同算法的已存密钥，以解密后的形式保存（开启数据库加密时受其保护）；`200 OK` `Json<StoredSSHKey>` / `400` `Json<string>`（无法解析或解密私钥）。
+- `GET /admin/api/tls/certificates` — `200 OK` `Json<ListenerCertificate[]>`（`{ listener: "http" | "mysql" | "postgres", chain: CertificateInfo[], created }`），每个监听一项；监听首次启动前 `chain` 为空。从不返回私钥。
+- `POST /admin/api/tls/certificates/:listener/generate` — 用新的自签证书（`external_host` 和 `localhost`）替换该监听的证书；`200 OK` `Json<ListenerCertificate>`。
+- `PUT /admin/api/tls/certificates/:listener` — Body `ImportTLSCertificateRequest { certificate_pem, private_key_pem }`（PEM 证书链，叶证书在前，及其未加密私钥）；`200 OK` `Json<ListenerCertificate>` / `400` `Json<string>`（PEM 无法解析或私钥与叶证书不匹配）。生成和导入的证书无需重启即对新连接生效。
 - `POST /admin/api/ssh/known-hosts` — Body `AddSshKnownHostRequest { host, port: i32, key_type, key_base64 }`；`200 OK` `Json<SSHKnownHost>`。
 - `GET /admin/api/ssh/known-hosts` — `200 OK` `Json<SSHKnownHost[]>`。
 - `DELETE /admin/api/ssh/known-hosts/:id` — `204` / `404`。
@@ -1265,6 +1268,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/admin/api/targets/:id` | `get_target` |  |
 | GET | `/admin/api/targets` | `get_targets` |  |
 | GET | `/admin/api/tickets` | `get_tickets` |  |
+| GET | `/admin/api/tls/certificates` | `get_tls_certificates` | The certificate of each TLS listener (public parts only). |
 | GET | `/admin/api/users/:id/roles` | `get_user_roles` |  |
 | GET | `/admin/api/users/:id` | `get_user` |  |
 | GET | `/admin/api/users/:user_id/api-tokens` | `get_user_api_tokens` |  |
@@ -1296,6 +1300,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/admin/api/targets/:id/roles/:role_id` | `add_target_role` |  |
 | POST | `/admin/api/targets` | `create_target` |  |
 | POST | `/admin/api/tickets` | `create_ticket` |  |
+| POST | `/admin/api/tls/certificates/:listener/generate` | `generate_tls_certificate` | Replaces the listener's certificate with a new self-signed one. Running |
 | POST | `/admin/api/users/:id/roles/:role_id` | `add_user_role` |  |
 | POST | `/admin/api/users/:user_id/api-tokens` | `create_user_api_token` |  |
 | POST | `/admin/api/users/:user_id/credentials/certificates` | `issue_certificate_credential` |  |
@@ -1310,6 +1315,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | PUT | `/admin/api/role/:id` | `update_role` |  |
 | PUT | `/admin/api/target-groups/:id` | `update_target_group` |  |
 | PUT | `/admin/api/targets/:id` | `update_target` |  |
+| PUT | `/admin/api/tls/certificates/:listener` | `import_tls_certificate` | Stores a certificate and private key for the listener, replacing the |
 | PUT | `/admin/api/users/:id` | `update_user` |  |
 | PUT | `/admin/api/users/:user_id/credentials/public-keys/:id` | `update_public_key_credential` |  |
 | PUT | `/admin/api/users/:user_id/credentials/sso/:id` | `update_sso_credential` |  |

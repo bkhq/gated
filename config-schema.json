@@ -40,10 +40,8 @@
       "default": {
         "base_domain": "",
         "behind_proxy": false,
-        "certificate": "",
         "enable": false,
         "external_port": null,
-        "key": "",
         "listen": "[::]:8443",
         "session_max_age": "30m",
         "tls": true
@@ -81,20 +79,16 @@
     "mysql": {
       "$ref": "#/$defs/MySqlConfig",
       "default": {
-        "certificate": "",
         "enable": false,
         "external_port": null,
-        "key": "",
         "listen": "[::]:33306"
       }
     },
     "postgres": {
       "$ref": "#/$defs/PostgresConfig",
       "default": {
-        "certificate": "",
         "enable": false,
         "external_port": null,
-        "key": "",
         "listen": "[::]:55432"
       }
     },
@@ -223,10 +217,6 @@
           "type": "boolean",
           "default": false
         },
-        "certificate": {
-          "type": "string",
-          "default": ""
-        },
         "enable": {
           "type": "boolean",
           "default": false
@@ -241,10 +231,6 @@
           "maximum": 65535,
           "minimum": 0
         },
-        "key": {
-          "type": "string",
-          "default": ""
-        },
         "listen": {
           "$ref": "#/$defs/ListenEndpoint",
           "default": "[::]:8443"
@@ -254,7 +240,7 @@
           "default": "30m"
         },
         "tls": {
-          "description": "When false, serve the proxy listener as plaintext HTTP so a\n TLS-terminating reverse proxy in front (Traefik / nsl) handles TLS.\n When true (default), terminate TLS here using `certificate`/`key`.\n Mirrors `admin.tls`.",
+          "description": "When false, serve the proxy listener as plaintext HTTP so a\n TLS-terminating reverse proxy in front (Traefik / nsl) handles TLS.\n When true (default), terminate TLS here with the HTTP proxy certificate\n stored in the database.\n Mirrors `admin.tls`.",
           "type": "boolean",
           "default": true
         }
@@ -457,10 +443,6 @@
     "MySqlConfig": {
       "type": "object",
       "properties": {
-        "certificate": {
-          "type": "string",
-          "default": ""
-        },
         "enable": {
           "type": "boolean",
           "default": false
@@ -474,10 +456,6 @@
           "default": null,
           "maximum": 65535,
           "minimum": 0
-        },
-        "key": {
-          "type": "string",
-          "default": ""
         },
         "listen": {
           "$ref": "#/$defs/ListenEndpoint",
@@ -495,10 +473,6 @@
     "PostgresConfig": {
       "type": "object",
       "properties": {
-        "certificate": {
-          "type": "string",
-          "default": ""
-        },
         "enable": {
           "type": "boolean",
           "default": false
@@ -512,10 +486,6 @@
           "default": null,
           "maximum": 65535,
           "minimum": 0
-        },
-        "key": {
-          "type": "string",
-          "default": ""
         },
         "listen": {
           "$ref": "#/$defs/ListenEndpoint",

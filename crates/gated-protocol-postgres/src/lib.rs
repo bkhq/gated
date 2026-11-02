@@ -13,10 +13,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use futures::TryStreamExt;
 use gated_common::ListenEndpoint;
+use gated_core::tls_certificates::TlsListener;
 use gated_core::{ProtocolServer, Services, SessionStateInit, State};
-use gated_tls::{
-    ResolveServerCert, TlsCertificateAndPrivateKey, TlsCertificateBundle, TlsPrivateKey,
-};
 use rustls::ServerConfig;
 use rustls::server::NoClientAuth;
 use session::PostgresSession;
@@ -38,35 +36,15 @@ impl PostgresProtocolServer {
 
 impl ProtocolServer for PostgresProtocolServer {
     async fn run(self, address: ListenEndpoint) -> Result<()> {
-        let certificate_and_key = {
-            let config = self.services.config.read().await;
-            let paths_rel_to = self.services.global_params.paths_relative_to();
-            let certificate_path = paths_rel_to.join(&config.store.postgres.certificate);
-            let key_path = paths_rel_to.join(&config.store.postgres.key);
-
-            TlsCertificateAndPrivateKey {
-                certificate: TlsCertificateBundle::from_file(&certificate_path)
-                    .await
-                    .with_context(|| {
-                        format!("reading SSL private key from '{}'", key_path.display())
-                    })?,
-                private_key: TlsPrivateKey::from_file(&key_path).await.with_context(|| {
-                    format!(
-                        "reading SSL certificate from '{}'",
-                        certificate_path.display()
-                    )
-                })?,
-            }
-        };
+        let resolver =
+            gated_core::tls_certificates::activate(&self.services, TlsListener::Postgres).await?;
 
         let tls_config = ServerConfig::builder_with_provider(Arc::new(
             rustls::crypto::aws_lc_rs::default_provider(),
         ))
         .with_safe_default_protocol_versions()?
         .with_client_cert_verifier(Arc::new(NoClientAuth))
-        .with_cert_resolver(Arc::new(ResolveServerCert(Arc::new(
-            certificate_and_key.into(),
-        ))));
+        .with_cert_resolver(resolver);
 
         let mut listener = address
             .tcp_accept_stream()

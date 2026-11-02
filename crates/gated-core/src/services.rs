@@ -16,6 +16,7 @@ use crate::metrics::MetricsHandle;
 use crate::rate_limiting::RateLimiterRegistry;
 use crate::recordings::SessionRecordings;
 use crate::sql_console_rate_limit::SqlConsoleRateLimiter;
+use crate::tls_certificates::TlsResolvers;
 use crate::{
     AuthStateStore, CommandReviewStore, ConfigProviderEnum, DatabaseConfigProvider, State,
 };
@@ -86,6 +87,8 @@ pub struct Services {
     pub authorization_changed: Arc<Notify>,
     /// Signalled when the SSH keys are generated during first-run setup.
     pub ssh_keys_ready: Arc<Notify>,
+    /// Certificates served by the HTTP proxy, MySQL and PostgreSQL listeners.
+    pub tls_resolvers: Arc<TlsResolvers>,
 }
 
 impl Services {
@@ -157,6 +160,7 @@ impl Services {
             encryption_notify: Arc::new(Notify::new()),
             authorization_changed: Arc::new(Notify::new()),
             ssh_keys_ready: Arc::new(Notify::new()),
+            tls_resolvers: Arc::new(TlsResolvers::default()),
         })
     }
 

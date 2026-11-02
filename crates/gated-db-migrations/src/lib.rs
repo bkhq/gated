@@ -16,6 +16,7 @@ mod m00010_management_audit;
 mod m00011_site_title;
 mod m00012_role_file_transfer;
 mod m00013_ssh_keys;
+mod m00014_tls_certificates;
 
 pub struct Migrator;
 
@@ -40,6 +41,7 @@ impl MigratorTrait for Migrator {
             Box::new(m00011_site_title::Migration),
             Box::new(m00012_role_file_transfer::Migration),
             Box::new(m00013_ssh_keys::Migration),
+            Box::new(m00014_tls_certificates::Migration),
         ]
     }
 }

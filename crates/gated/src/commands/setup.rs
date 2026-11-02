@@ -10,8 +10,8 @@ use dialoguer::theme::ColorfulTheme;
 use gated_common::helpers::fs::{secure_directory, secure_file};
 use gated_common::version::gated_version;
 use gated_common::{
-    AdminConfig, GatedConfigStore, GlobalParams, HttpConfig, ListenEndpoint, MySqlConfig,
-    PostgresConfig, Secret, SshConfig,
+    AdminConfig, GatedConfig, GatedConfigStore, GlobalParams, HttpConfig, ListenEndpoint,
+    MySqlConfig, PostgresConfig, Secret, SshConfig,
 };
 use rcgen::generate_simple_self_signed;
 use tracing::*;
@@ -295,15 +295,6 @@ async fn initialize(command: &Commands, params: &GlobalParams) -> Result<()> {
 
     store.admin.key = stored_path("tls.key.pem");
 
-    store.mysql.certificate = store.admin.certificate.clone();
-    store.mysql.key = store.admin.key.clone();
-
-    store.postgres.certificate = store.admin.certificate.clone();
-    store.postgres.key = store.admin.key.clone();
-
-    store.http.certificate = store.admin.certificate.clone();
-    store.http.key = store.admin.key.clone();
-
     // ---
 
     if let Commands::UnattendedSetup {
@@ -347,17 +338,11 @@ async fn initialize(command: &Commands, params: &GlobalParams) -> Result<()> {
 
     // The config file marks the install as set up, so write the certificate
     // first: a failure in between must not leave a config without it.
-    info!("Generating a TLS certificate");
-    let cert =
-        generate_simple_self_signed(vec!["gated.local".to_string(), "localhost".to_string()])?;
-    let certificate_path = data_path.join("tls.certificate.pem");
-    let key_path = data_path.join("tls.key.pem");
-    std::fs::write(&certificate_path, cert.cert.pem())?;
-    std::fs::write(&key_path, cert.key_pair.serialize_pem())?;
-    if params.should_secure_files() {
-        secure_file(&certificate_path)?;
-        secure_file(&key_path)?;
-    }
+    write_admin_certificate(
+        params,
+        &data_path.join("tls.certificate.pem"),
+        &data_path.join("tls.key.pem"),
+    )?;
 
     File::create(config_path)?.write_all(yaml.as_bytes())?;
     info!("Saved into {}", config_path.display());
@@ -365,6 +350,43 @@ async fn initialize(command: &Commands, params: &GlobalParams) -> Result<()> {
     load_config(params, true)?;
 
     Ok(())
+}
+
+/// Writes a self-signed certificate and key for the admin listener.
+fn write_admin_certificate(
+    params: &GlobalParams,
+    certificate_path: &Path,
+    key_path: &Path,
+) -> Result<()> {
+    info!("Generating a TLS certificate");
+    let cert =
+        generate_simple_self_signed(vec!["gated.local".to_string(), "localhost".to_string()])?;
+    std::fs::write(certificate_path, cert.cert.pem())?;
+    std::fs::write(key_path, cert.key_pair.serialize_pem())?;
+    if params.should_secure_files() {
+        secure_file(certificate_path)?;
+        secure_file(key_path)?;
+    }
+    Ok(())
+}
+
+/// Regenerates the admin listener's certificate when both of its files are
+/// missing. The other listeners keep their certificates in the database.
+pub(crate) fn ensure_admin_certificate(params: &GlobalParams, config: &GatedConfig) -> Result<()> {
+    let admin = &config.store.admin;
+    if !admin.tls || admin.certificate.is_empty() || admin.key.is_empty() {
+        return Ok(());
+    }
+    let certificate_path = params.paths_relative_to().join(&admin.certificate);
+    let key_path = params.paths_relative_to().join(&admin.key);
+    if certificate_path.exists() || key_path.exists() {
+        return Ok(());
+    }
+    warn!(
+        path = %certificate_path.display(),
+        "Admin TLS certificate is missing"
+    );
+    write_admin_certificate(params, &certificate_path, &key_path)
 }
 
 /// Writes a default config into an empty `--data-dir`, so a fresh container

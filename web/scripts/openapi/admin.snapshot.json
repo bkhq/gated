@@ -2849,6 +2849,112 @@
         ]
       }
     },
+    "/tls/certificates": {
+      "get": {
+        "summary": "The certificate of each TLS listener (public parts only).",
+        "operationId": "get_tls_certificates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListenerCertificate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/tls/certificates/{listener}": {
+      "put": {
+        "summary": "Stores a certificate and private key for the listener, replacing the\ncurrent one. Running listeners serve it to new connections.",
+        "operationId": "import_tls_certificate",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportTLSCertificateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListenerCertificate"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/tls/certificates/{listener}/generate": {
+      "post": {
+        "summary": "Replaces the listener's certificate with a new self-signed one. Running\nlisteners serve it to new connections.",
+        "operationId": "generate_tls_certificate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListenerCertificate"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
     "/users": {
       "get": {
         "operationId": "get_users",
@@ -5404,6 +5510,23 @@
           }
         }
       },
+      "ImportTLSCertificateRequest": {
+        "type": "object",
+        "required": [
+          "certificate_pem",
+          "private_key_pem"
+        ],
+        "properties": {
+          "certificate_pem": {
+            "type": "string",
+            "description": "PEM certificate chain, leaf first."
+          },
+          "private_key_pem": {
+            "type": "string",
+            "description": "Unencrypted PEM private key of the leaf certificate."
+          }
+        }
+      },
       "IssueCertificateCredentialRequest": {
         "type": "object",
         "required": [
@@ -5518,6 +5641,32 @@
               "null"
             ],
             "description": "Version to switch to; defaults to the available update."
+          }
+        }
+      },
+      "ListenerCertificate": {
+        "type": "object",
+        "required": [
+          "listener",
+          "chain"
+        ],
+        "properties": {
+          "chain": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CertificateInfo"
+            },
+            "description": "Leaf first; empty until the listener has a certificate."
+          },
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "listener": {
+            "$ref": "#/components/schemas/TLSListener"
           }
         }
       },
@@ -6277,6 +6426,14 @@
             "type": "string"
           }
         }
+      },
+      "TLSListener": {
+        "type": "string",
+        "enum": [
+          "http",
+          "mysql",
+          "postgres"
+        ]
       },
       "Target": {
         "type": "object",

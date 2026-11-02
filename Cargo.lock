@@ -2145,6 +2145,7 @@ dependencies = [
  "password-hash 0.5.0",
  "rand 0.8.8",
  "rand_core 0.6.4",
+ "rcgen",
  "regex",
  "sea-orm",
  "sea-orm-migration",

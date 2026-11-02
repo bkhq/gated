@@ -14,7 +14,8 @@ packet, with query packets parsed out for SQL audit recording.
 
 `MySQLProtocolServer` (`crates/gated-protocol-mysql/src/lib.rs`)
 implements `ProtocolServer` (`lib.rs`). It loads the listener TLS
-certificate from `mysql.certificate`/`mysql.key`, accepts TCP connections
+certificate from the `mysql` row of `tls_certificates` (generated self-signed
+when missing, hot-swapped on import), accepts TCP connections
 with `TCP_NODELAY`, and runs one `Session` per connection.
 
 **TLS is mandatory for clients.** The proxy advertises the `SSL` capability

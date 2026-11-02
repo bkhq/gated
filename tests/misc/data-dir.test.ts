@@ -1,10 +1,21 @@
 import { describe, test, expect, afterAll } from "bun:test";
-import { existsSync, readFileSync, readdirSync, renameSync } from "fs";
+import { existsSync, readFileSync, readdirSync, renameSync, rmSync } from "fs";
+import { connect } from "tls";
 import { join, resolve } from "path";
 import { ProcessManager } from "../helpers/process-manager";
 import { allocPort, waitPort } from "../helpers/util";
 
 const BINARY = resolve(import.meta.dir, "../..", process.env.GATED_BINARY || "target/x86_64-unknown-linux-musl/debug/gated");
+
+function servedFingerprint(port: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const socket = connect({ host: "127.0.0.1", port, rejectUnauthorized: false }, () => {
+      resolve(socket.getPeerCertificate().fingerprint256);
+      socket.end();
+    });
+    socket.on("error", reject);
+  });
+}
 
 async function api(httpPort: number, path: string, init: RequestInit & { token?: string } = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -136,6 +147,35 @@ describe("--data-dir", () => {
     await waitPort(sshPort, { recv: false, process: proc });
     expect(existsSync(join(dataDir, "ssh-keys"))).toBe(false);
 
+    // The HTTP proxy serves its own certificate from the database, and a
+    // regenerated one without a restart.
+    const listCerts = async () => {
+      const res = await fetch(`https://localhost:${httpPort}/admin/api/tls/certificates`, {
+        headers: { Cookie: cookie },
+        tls: { rejectUnauthorized: false },
+      } as any);
+      expect(res.status).toBe(200);
+      return (await res.json()) as { listener: string; chain: { sha256_fingerprint: string }[] }[];
+    };
+    const httpCert = () => listCerts().then((certs) => certs.find((c) => c.listener === "http")!.chain[0].sha256_fingerprint);
+    const before = await httpCert();
+    expect(await servedFingerprint(proxyPort)).toBe(before);
+    expect(await servedFingerprint(httpPort)).not.toBe(before);
+    const regenerated = await fetch(`https://localhost:${httpPort}/admin/api/tls/certificates/http/generate`, {
+      method: "POST",
+      headers: { Cookie: cookie },
+      tls: { rejectUnauthorized: false },
+    } as any);
+    expect(regenerated.status).toBe(200);
+    const after = await httpCert();
+    expect(after).not.toBe(before);
+    expect(await servedFingerprint(proxyPort)).toBe(after);
+    // Only the admin listener has certificate files.
+    expect(readdirSync(dataDir).filter((name) => name.endsWith(".pem")).sort()).toEqual([
+      "tls.certificate.pem",
+      "tls.key.pem",
+    ]);
+
     // Setup cannot run again.
     const again = await api(httpPort, "/api/admin/setup/init", { method: "POST", body: body(token) });
     expect(again.status).toBe(409);
@@ -178,6 +218,27 @@ describe("--data-dir", () => {
     await waitPort(httpPort, { recv: false, process: proc });
     const status = await api(httpPort, "/api/admin/setup/status");
     expect(await status.json()).toEqual({ needs_setup: true });
+    proc.kill("SIGINT");
+    await proc.exited;
+  });
+
+  test("missing admin certificate files are regenerated on start", async () => {
+    const dataDir = join(processes.ctx.tmpdir, "fresh-no-admin-cert");
+    const httpPort = allocPort();
+    const args = ["--data-dir", dataDir, "run", "--admin-port", String(httpPort)];
+    const env = { GATED_SSH_PORT: String(allocPort()), GATED_HTTP_PORT: String(allocPort()) };
+    let proc = await run(args, env);
+    await waitPort(httpPort, { recv: false, process: proc });
+    proc.kill("SIGINT");
+    await proc.exited;
+
+    rmSync(join(dataDir, "tls.certificate.pem"));
+    rmSync(join(dataDir, "tls.key.pem"));
+    proc = await run(args, env);
+    await waitPort(httpPort, { recv: false, process: proc });
+    expect(existsSync(join(dataDir, "tls.certificate.pem"))).toBe(true);
+    const status = await api(httpPort, "/api/admin/setup/status");
+    expect(status.status).toBe(200);
     proc.kill("SIGINT");
     await proc.exited;
   });

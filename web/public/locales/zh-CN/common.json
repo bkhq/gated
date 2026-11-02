@@ -1589,6 +1589,7 @@
       "general": "常规",
       "sessions": "会话",
       "ssh": "SSH 认证",
+      "tls": "TLS 证书",
       "update": "更新",
       "security": "安全",
       "about": "关于"
@@ -1659,6 +1660,36 @@
         "error": "导入密钥失败。",
         "cancel": "取消",
         "submit": "导入"
+      }
+    },
+    "tlsCertificates": {
+      "title": "TLS 证书",
+      "hint": "每个监听使用各自的证书，保存在数据库中。监听启动时如果没有证书，会自动生成自签证书。修改后对新连接立即生效，无需重启。管理后台证书仍保存在数据目录中。",
+      "listener": {
+        "http": "HTTP 代理",
+        "mysql": "MySQL",
+        "postgres": "PostgreSQL"
+      },
+      "none": "监听启动时自动生成。",
+      "expires": "到期时间 {{when}}",
+      "generate": "重新生成",
+      "import": "导入",
+      "cancel": "取消",
+      "loadError": "无法加载 TLS 证书。",
+      "generateDialog": {
+        "title": "重新生成{{name}}证书？",
+        "description": "当前证书将被新的自签证书替换。信任当前证书的客户端需要重新信任新证书。",
+        "submit": "替换证书",
+        "error": "生成证书失败。"
+      },
+      "importDialog": {
+        "title": "导入{{name}}证书",
+        "description": "将替换当前证书。请粘贴 PEM 证书链（叶证书在前）及其未加密的私钥。",
+        "certificate": "证书链",
+        "privateKey": "私钥",
+        "required": "请同时粘贴证书和私钥。",
+        "error": "导入证书失败。",
+        "submit": "导入证书"
       }
     }
   },

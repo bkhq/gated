@@ -30,6 +30,7 @@ mod target_groups;
 mod targets;
 mod tickets_detail;
 mod tickets_list;
+mod tls_certificates;
 mod upstream_certificate;
 pub mod users;
 
@@ -46,6 +47,7 @@ pub fn router() -> OpenApiRouter {
         .merge(known_hosts_list::router())
         .merge(known_hosts_detail::router())
         .merge(ssh_keys::router())
+        .merge(tls_certificates::router())
         .merge(logs::router())
         .merge(targets::router())
         .merge(target_groups::router())

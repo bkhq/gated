@@ -21,7 +21,7 @@ use super::AnySecurityScheme;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Serialize, ToSchema)]
-struct CertificateInfo {
+pub(super) struct CertificateInfo {
     subject: String,
     issuer: String,
     serial: String,
@@ -30,7 +30,7 @@ struct CertificateInfo {
     /// RFC 3339.
     not_after: String,
     /// DNS names and IP addresses from the subjectAltName extension.
-    subject_alt_names: Vec<String>,
+    pub(super) subject_alt_names: Vec<String>,
     /// Uppercase colon-separated SHA-256 of the DER certificate.
     sha256_fingerprint: String,
 }
@@ -75,7 +75,7 @@ fn rfc3339(time: x509_parser::time::ASN1Time) -> String {
         .unwrap_or_default()
 }
 
-fn describe(der: &[u8]) -> Option<CertificateInfo> {
+pub(super) fn describe(der: &[u8]) -> Option<CertificateInfo> {
     let (_, cert) = X509Certificate::from_der(der).ok()?;
     let subject_alt_names = cert
         .subject_alternative_name()

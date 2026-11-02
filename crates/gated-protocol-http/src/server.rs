@@ -23,10 +23,8 @@ use gated_core::logging::http::{
     get_client_ip, log_request_error, log_request_result, span_for_request,
 };
 use gated_core::recordings::SessionRecordings;
+use gated_core::tls_certificates::TlsListener;
 use gated_core::{ConfigProvider, Services, SessionStateInit, State};
-use gated_tls::{
-    SingleCertResolver, TlsCertificateAndPrivateKey, TlsCertificateBundle, TlsPrivateKey,
-};
 use rustls::ServerConfig;
 use tokio::sync::Mutex;
 use tracing::*;
@@ -85,31 +83,7 @@ pub async fn run_server(
 
     info!(?address, "HTTP-proxy listener starting");
 
-    let certificate_and_key = {
-        let config = services.config.read().await;
-        let certificate_path = services
-            .global_params
-            .paths_relative_to()
-            .join(&config.store.http.certificate);
-        let key_path = services
-            .global_params
-            .paths_relative_to()
-            .join(&config.store.http.key);
-
-        TlsCertificateAndPrivateKey {
-            certificate: TlsCertificateBundle::from_file(&certificate_path)
-                .await
-                .with_context(|| {
-                    format!(
-                        "reading TLS certificate from '{}'",
-                        certificate_path.display()
-                    )
-                })?,
-            private_key: TlsPrivateKey::from_file(&key_path).await.with_context(|| {
-                format!("reading TLS private key from '{}'", key_path.display())
-            })?,
-        }
-    };
+    let resolver = gated_core::tls_certificates::activate(&services, TlsListener::Http).await?;
 
     // Load the instance CA so presented client certificates can be
     // cryptographically verified (chain + proof-of-possession) during the TLS
@@ -130,7 +104,7 @@ pub async fn run_server(
         .with_safe_default_protocol_versions()
         .map_err(|e| anyhow::anyhow!("Failed to configure TLS protocol versions: {}", e))?
         .with_client_cert_verifier(client_cert_verifier)
-        .with_cert_resolver(Arc::new(SingleCertResolver::new(certificate_and_key)));
+        .with_cert_resolver(resolver);
 
     serve(&address, Some(Arc::new(tls_config)), app)
         .await

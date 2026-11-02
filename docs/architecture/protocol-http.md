@@ -21,8 +21,9 @@ the run command (`crates/gated/src/commands/run.rs`) when
 
 TLS termination:
 
-- the certificate/key come from `http.certificate` / `http.key`
-  (`server.rs`);
+- the certificate/key are the `http` row of the `tls_certificates` table,
+  generated self-signed when missing and swapped in place on import or
+  regeneration (`gated-core::tls_certificates`, `ReloadableCertResolver`);
 - the rustls `ServerConfig` uses the client-certificate verifier from
   `build_client_cert_verifier`
   (`crates/gated-protocol-http/src/kubernetes/client_certs.rs`): client

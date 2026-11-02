@@ -22,6 +22,7 @@ pub mod TargetAccount;
 pub mod TargetGroup;
 pub mod TargetRoleAssignment;
 pub mod Ticket;
+pub mod TlsCertificate;
 pub mod User;
 pub mod UserRoleAssignment;
 

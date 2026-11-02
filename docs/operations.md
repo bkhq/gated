@@ -46,7 +46,11 @@ does not exist: admin port from `--admin-port` (default 8888), SSH on
 `GATED_ENCRYPTION_ENABLE`, session recording on. MySQL and PostgreSQL stay off. An
 existing config file always takes precedence.
 
-Setup writes only the configuration and the TLS certificate. No admin account
+Setup writes only the configuration and the admin listener's TLS certificate
+(`run` regenerates it when both files are missing). The HTTP proxy, MySQL and
+PostgreSQL listeners each keep their own certificate in the database: a
+self-signed one is generated on first start, and Settings → TLS certificates
+regenerates it or imports your own (applied without a restart). No admin account
 or password is created, and no SSH key is written to disk. While the database
 has no users, `run` issues a one-time bootstrap token, printed on the console
 or, without one, written to `<dir>/db/bootstrap-token.txt`. Open the admin UI:

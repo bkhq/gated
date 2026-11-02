@@ -200,6 +200,8 @@ pub(crate) async fn command(
         config.store.admin.listen = addr.into();
     }
 
+    crate::commands::setup::ensure_admin_certificate(params, &config)?;
+
     // `metrics` macros are no-ops until a recorder is installed, so the
     // emission sites don't care whether this succeeds. If the user
     // enabled metrics but we can't install the recorder (e.g. another

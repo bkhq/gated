@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError, RwLock};
 
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::ResolvesServerCert;
@@ -145,6 +145,19 @@ impl TlsPrivateKey {
     }
 }
 
+impl TlsCertificateAndPrivateKey {
+    /// Parses a PEM certificate chain and private key, rejecting a key that
+    /// does not belong to the leaf certificate.
+    pub fn from_pem(certificate: &[u8], private_key: &[u8]) -> Result<Self, RustlsSetupError> {
+        let pair = Self {
+            certificate: TlsCertificateBundle::from_bytes(certificate.to_vec())?,
+            private_key: TlsPrivateKey::from_bytes(private_key.to_vec())?,
+        };
+        CertifiedKey::from(pair.clone()).keys_match()?;
+        Ok(pair)
+    }
+}
+
 impl From<TlsCertificateBundle> for Vec<u8> {
     fn from(val: TlsCertificateBundle) -> Self {
         val.bytes
@@ -184,6 +197,37 @@ impl ResolvesServerCert for SingleCertResolver {
         _client_hello: rustls::server::ClientHello<'_>,
     ) -> Option<Arc<rustls::sign::CertifiedKey>> {
         Some(self.0.clone())
+    }
+}
+
+/// Serves a certificate that can be replaced while the listener runs.
+/// Handshakes fail until the first certificate is set.
+#[derive(Debug, Default)]
+pub struct ReloadableCertResolver(RwLock<Option<Arc<CertifiedKey>>>);
+
+impl ReloadableCertResolver {
+    pub fn set(&self, certificate: TlsCertificateAndPrivateKey) {
+        *self.0.write().unwrap_or_else(PoisonError::into_inner) =
+            Some(Arc::new(certificate.into()));
+    }
+
+    pub fn current(&self) -> Option<Arc<CertifiedKey>> {
+        self.0
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
+
+impl ResolvesServerCert for ReloadableCertResolver {
+    fn resolve(
+        &self,
+        _client_hello: rustls::server::ClientHello<'_>,
+    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        self.0
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 }
 

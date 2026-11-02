@@ -150,8 +150,8 @@ root:
 | `database_url` | secret; default `sqlite:data/db` |
 | `ssh` | enable, listen, host-key verification mode, inactivity timeout, keepalive |
 | `admin` | management/portal listener: listen, TLS cert/key (or `tls: false`), SNI certificates, cookie domain, session/cookie max-age, `trust_x_forwarded_headers` |
-| `http` | reverse-proxy listener: enable, listen, TLS cert/key, `base_domain` for host-based routing, `behind_proxy`, session max-age |
-| `mysql` / `postgres` | enable, listen, TLS cert/key |
+| `http` | reverse-proxy listener: enable, listen, `tls`, `base_domain` for host-based routing, `behind_proxy`, session max-age |
+| `mysql` / `postgres` | enable, listen (TLS certificates of these listeners and the HTTP proxy live in the database) |
 | `metrics` | enable + listen for `/metrics`, `/healthz`, `/readyz` |
 | `encryption` | enable at-rest database encryption |
 | `log` | retention and management-audit retention (default 7 days each), level, format, console/file sinks, optional syslog socket and OTLP exporter |

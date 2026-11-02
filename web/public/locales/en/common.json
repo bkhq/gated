@@ -1589,6 +1589,7 @@
       "general": "General",
       "sessions": "Sessions",
       "ssh": "SSH authentication",
+      "tls": "TLS certificates",
       "update": "Update",
       "security": "Security",
       "about": "About"
@@ -1659,6 +1660,36 @@
         "error": "Importing the key failed.",
         "cancel": "Cancel",
         "submit": "Import"
+      }
+    },
+    "tlsCertificates": {
+      "title": "TLS certificates",
+      "hint": "Each listener serves its own certificate, stored in the database. A self-signed one is generated when a listener starts without one. Changes apply to new connections without a restart. The admin UI certificate stays in the data directory.",
+      "listener": {
+        "http": "HTTP proxy",
+        "mysql": "MySQL",
+        "postgres": "PostgreSQL"
+      },
+      "none": "Generated when the listener starts.",
+      "expires": "Expires {{when}}",
+      "generate": "Regenerate",
+      "import": "Import",
+      "cancel": "Cancel",
+      "loadError": "Could not load the TLS certificates.",
+      "generateDialog": {
+        "title": "Regenerate the {{name}} certificate?",
+        "description": "The current certificate is replaced with a new self-signed one. Clients that trust the current certificate must trust the new one.",
+        "submit": "Replace certificate",
+        "error": "Generating the certificate failed."
+      },
+      "importDialog": {
+        "title": "Import {{name}} certificate",
+        "description": "Replaces the current certificate. Paste the PEM certificate chain (leaf first) and its unencrypted private key.",
+        "certificate": "Certificate chain",
+        "privateKey": "Private key",
+        "required": "Paste both the certificate and the private key.",
+        "error": "Importing the certificate failed.",
+        "submit": "Import certificate"
       }
     }
   },

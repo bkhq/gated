@@ -19,6 +19,7 @@ pub mod recordings;
 mod services;
 pub mod sql_console_rate_limit;
 mod state;
+pub mod tls_certificates;
 pub use auth_state_store::*;
 pub use config_providers::*;
 pub use data::*;
