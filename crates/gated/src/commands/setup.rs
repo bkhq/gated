@@ -345,27 +345,24 @@ async fn initialize(command: &Commands, params: &GlobalParams) -> Result<()> {
         version = gated_version()
     );
 
+    // The config file marks the install as set up, so write the certificate
+    // first: a failure in between must not leave a config without it.
+    info!("Generating a TLS certificate");
+    let cert =
+        generate_simple_self_signed(vec!["gated.local".to_string(), "localhost".to_string()])?;
+    let certificate_path = data_path.join("tls.certificate.pem");
+    let key_path = data_path.join("tls.key.pem");
+    std::fs::write(&certificate_path, cert.cert.pem())?;
+    std::fs::write(&key_path, cert.key_pair.serialize_pem())?;
+    if params.should_secure_files() {
+        secure_file(&certificate_path)?;
+        secure_file(&key_path)?;
+    }
+
     File::create(config_path)?.write_all(yaml.as_bytes())?;
     info!("Saved into {}", config_path.display());
 
-    let config = load_config(params, true)?;
-
-    {
-        info!("Generating a TLS certificate");
-        let cert =
-            generate_simple_self_signed(vec!["gated.local".to_string(), "localhost".to_string()])?;
-
-        let certificate_path = params
-            .paths_relative_to()
-            .join(&config.store.admin.certificate);
-        let key_path = params.paths_relative_to().join(&config.store.admin.key);
-        std::fs::write(&certificate_path, cert.cert.pem())?;
-        std::fs::write(&key_path, cert.key_pair.serialize_pem())?;
-        if params.should_secure_files() {
-            secure_file(&certificate_path)?;
-            secure_file(&key_path)?;
-        }
-    }
+    load_config(params, true)?;
 
     Ok(())
 }

@@ -208,3 +208,7 @@ First-run setup only registers the first admin account. SSH keys are managed sep
 ## 2026-11-02 22:30 [BUG-P1]
 
 First start with `GATED_ENCRYPTION=true` failed with `invalid type: string "true", expected struct EncryptionConfig`: the `GATED_` environment overlay in `load_config` mapped the variable onto the `encryption` config section. The first-start/`unattended-setup --encryption` variable is renamed to `GATED_ENCRYPTION_ENABLE`, which matches no config key. Regression test: `tests/misc/data-dir.test.ts` (first run with `GATED_ENCRYPTION_ENABLE`).
+
+## 2026-11-02 23:00 [BUG-P1]
+
+Setup wrote `config.yaml` before the TLS certificate and validated the config in between, so a failure there (such as the `GATED_ENCRYPTION` overlay bug above) left a config without its certificate; later starts skipped first-start setup and exited with `reading TLS certificate ... No such file or directory`. Setup now writes the certificate and key before the config file, which is the "already set up" marker. Regression test: `tests/misc/data-dir.test.ts` (first start that fails after writing the config).

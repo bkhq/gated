@@ -162,4 +162,23 @@ describe("--data-dir", () => {
     proc.kill("SIGINT");
     await proc.exited;
   });
+
+  test("a first start that fails after writing the config leaves a startable data directory", async () => {
+    const dataDir = join(processes.ctx.tmpdir, "fresh-interrupted");
+    const httpPort = allocPort();
+    const args = ["--data-dir", dataDir, "run", "--admin-port", String(httpPort)];
+    const env = { GATED_SSH_PORT: String(allocPort()), GATED_HTTP_PORT: String(allocPort()) };
+    // An invalid GATED_ overlay makes loading the freshly written config fail.
+    const failed = await run(args, { ...env, GATED_ENCRYPTION: "true" });
+    await failed.exited;
+    expect(failed.exitCode).not.toBe(0);
+    expect(existsSync(join(dataDir, "config.yaml"))).toBe(true);
+
+    const proc = await run(args, env);
+    await waitPort(httpPort, { recv: false, process: proc });
+    const status = await api(httpPort, "/api/admin/setup/status");
+    expect(await status.json()).toEqual({ needs_setup: true });
+    proc.kill("SIGINT");
+    await proc.exited;
+  });
 });
