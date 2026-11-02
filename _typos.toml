@@ -1,0 +1,17 @@
+[files]
+extend-exclude = [
+    "*.lock",
+    "*.snapshot.json",
+    "web/src/shared/lib/api/",
+    "tests/certs/",
+    "tests/ssh-keys/",
+]
+
+[default]
+# Base64 SSH host-key fingerprints.
+extend-ignore-re = ["SHA256:[A-Za-z0-9+/]{43}"]
+
+[default.extend-words]
+# CVE Numbering Authority
+CNA = "CNA"
+unparseable = "unparseable"

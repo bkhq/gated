@@ -1,0 +1,11 @@
+services:
+  k8s-upstream:
+    build: ./scenarios/k8s-token/upstream
+    container_name: gated-e2e-k8s-upstream
+    networks:
+      - e2e
+
+  gated:
+    depends_on:
+      k8s-upstream:
+        condition: service_started

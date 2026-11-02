@@ -1,0 +1,4 @@
+# Tasks
+- [x] [**20261102-1900-ssh-keys-in-database Store SSH keys in the database and register the first admin in the web UI**](20261102-1900-ssh-keys-in-database.md) `P1`
+- [x] [**20261102-1710-auto-first-start-setup Initialize a missing config on first `run`**](20261102-1710-auto-first-start-setup.md) `P2`
+- [x] [**20261013-2332-sqlcipher-exit-abort Investigate abort at process exit after SQLCipher use**](20261013-2332-sqlcipher-exit-abort.md) `P2`

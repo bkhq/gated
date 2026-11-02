@@ -1,0 +1,50 @@
+# Demo lode.toml for running gated under lode (https://lode.bk.io).
+#
+# Layout (LODE_DIR = /srv/gated-lode):
+#   /srv/gated-lode/lode.toml      this file
+#   /srv/gated-lode/data/          gated --data-dir: config.yaml, database,
+#                                  keys, recordings, encryption state
+#   /srv/gated-lode/versions/ …    installed releases, managed by lode
+#
+# Run the service:
+#   LODE_DIR=/srv/gated-lode lode
+# On first start gated writes a default config into data/ (admin 8888, SSH
+# 2222, HTTP proxy 8443; GATED_EXTERNAL_HOST sets the external host,
+# GATED_ENCRYPTION=true turns on at-rest encryption) and prints a one-time
+# bootstrap token. Open the admin UI and create the first admin account with
+# it. For other settings, run `unattended-setup` first:
+#   LODE_DIR=/srv/gated-lode lode unattended-setup --admin-port 8888 ...
+#
+# Releases come from GitHub: every bkhq/gated release carries the signed
+# `gated-linux-x64.tar.gz` / `gated-linux-arm64.tar.gz` archives (pick the
+# one for this host in `[update].asset`) with `.sig` sidecars.
+
+[global]
+app = "gated"                     # bound into the release signatures
+dir = "/srv/gated-lode"
+
+[update]
+github   = "bkhq/gated"
+asset    = "gated-linux-x64.tar.gz"
+channel  = "stable"
+# Database migrations run on startup and a binary downgrade is not a safe
+# migration rollback, so review updates and apply them with
+# `lode-cli update` after a backup instead of `policy = "auto"`.
+policy   = "check"
+
+[trust]
+require_signature = "enforce"
+# bkhq/gated release signing key
+trusted_keys = ["7b62fbe83268bc31:ghCrNW3v-BL5bkbdhXCNx3QhLkCdrB7_dWpp6uavFDc"]
+
+[command]
+run  = "./gated --data-dir /srv/gated-lode/data run"
+exec = "./gated --data-dir /srv/gated-lode/data"
+
+[supervise]
+restart       = "on-failure"
+# gated reports ready once its listeners are up (or, with encryption
+# enabled, once the pre-unlock UI is serving).
+readiness     = "state"
+ready_timeout = 120               # first start after an upgrade runs migrations
+stop_timeout  = 30                # gated exits on SIGTERM

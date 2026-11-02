@@ -1,0 +1,24 @@
+[package]
+edition.workspace = true
+rust-version.workspace = true
+license = "Apache-2.0"
+name = "gated-ca"
+version = "0.0.1"
+
+[dependencies]
+thiserror.workspace = true
+data-encoding.workspace = true
+rcgen.workspace = true
+x509-parser.workspace = true
+x509-cert = { version = "0.2", features = ["builder", "signature"] }
+aws-lc-rs = "1"
+der = "0.7"
+pem = "3.0"
+spki = "0.7"
+const-oid = "0.9"
+uuid.workspace = true
+
+hex = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true

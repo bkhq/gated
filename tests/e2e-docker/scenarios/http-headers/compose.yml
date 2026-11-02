@@ -1,0 +1,9 @@
+services:
+  http-upstream:
+    build: ./scenarios/http-headers/upstream
+    container_name: gated-e2e-http-upstream
+    networks:
+      - e2e
+
+networks:
+  e2e: {}

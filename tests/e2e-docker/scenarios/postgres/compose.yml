@@ -1,0 +1,16 @@
+services:
+  postgres-upstream:
+    build: ./scenarios/postgres/upstream
+    container_name: gated-e2e-postgres
+    networks:
+      - e2e
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  gated:
+    depends_on:
+      postgres-upstream:
+        condition: service_healthy

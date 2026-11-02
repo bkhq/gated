@@ -1,0 +1,13 @@
+FROM gated:e2e-build
+USER root
+RUN gated unattended-setup \
+    --admin-port 8888 \
+    --ssh-port 2222 \
+    --mysql-port 33306 \
+    --postgres-port 35432 \
+    --http-port 36443 \
+    --external-host gated.e2e.local \
+    --record-sessions \
+    && sed -i 's/host_key_verification: prompt/host_key_verification: auto_accept/' /data/config.yaml \
+    && chown -R gated:gated /data
+USER gated

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <style>
+    .shield { fill: #18181b; }
+    .bars { stroke: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .shield { fill: #fafafa; }
+      .bars { stroke: #18181b; }
+    }
+  </style>
+  <path class="shield" d="M16 2 4 6v9c0 7.2 5.1 13 12 15 6.9-2 12-7.8 12-15V6L16 2Z"/>
+  <path class="bars" d="M11 12v8M16 11v10M21 12v8M9 14h14" fill="none" stroke-width="1.7" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,6 @@
+services:
+  ssh-key-upstream:
+    build: ./scenarios/ssh-key/upstream
+    container_name: gated-e2e-ssh-key
+    networks:
+      - e2e

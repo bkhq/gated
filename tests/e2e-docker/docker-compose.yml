@@ -1,0 +1,49 @@
+services:
+  gated:
+    build:
+      context: .
+      dockerfile: Dockerfile.bootstrapped
+    image: gated:e2e-bootstrapped
+    container_name: gated-e2e
+    ports:
+      - "18888:8888"
+      - "12222:2222"
+      - "13306:33306"
+      - "15432:35432"
+      - "16443:36443"
+    environment:
+      GATED_ADMIN_TOKEN: token-value
+    command: ["run", "--enable-admin-token"]
+    depends_on:
+      ssh-upstream:
+        condition: service_started
+      mysql-upstream:
+        condition: service_healthy
+    networks:
+      - e2e
+    healthcheck:
+      test: ["CMD", "gated", "healthcheck"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  ssh-upstream:
+    build: ./ssh-upstream
+    container_name: gated-e2e-ssh
+    networks:
+      - e2e
+
+  mysql-upstream:
+    build: ./mysql-upstream
+    container_name: gated-e2e-mysql
+    networks:
+      - e2e
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpass"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+networks:
+  e2e: {}
