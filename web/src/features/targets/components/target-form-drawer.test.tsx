@@ -1,8 +1,10 @@
 import type { TargetWithAccounts } from '@/features/targets/hooks/use-targets-queries'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { createQueryClient } from '@/app/query-client'
 import { ApiError } from '@/shared/lib/api/http'
+import { Toaster } from '@/shared/ui/sonner'
 import { TargetFormDrawer } from './target-form-drawer'
 
 const api = vi.hoisted(() => ({
@@ -39,10 +41,17 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+function retryless() {
+  const client = createQueryClient()
+  client.setDefaultOptions({ queries: { retry: false } })
+  return client
+}
+
 function renderDrawer(props: Partial<React.ComponentProps<typeof TargetFormDrawer>> = {}) {
   return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={retryless()}>
       <TargetFormDrawer open mode="create" target={null} onClose={vi.fn()} {...props} />
+      <Toaster />
     </QueryClientProvider>,
   )
 }

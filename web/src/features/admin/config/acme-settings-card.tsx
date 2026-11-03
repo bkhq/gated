@@ -1,9 +1,8 @@
 import type { AcmeSettings, UpdateAcmeSettingsRequest } from '@/shared/lib/api/tls-certificates'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2 } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { ApiError } from '@/shared/lib/api/http'
 import { getAcmeSettings, updateAcmeSettings } from '@/shared/lib/api/tls-certificates'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -88,10 +87,6 @@ function AcmeSettingsForm({ settings }: { settings: AcmeSettings }) {
     })
   }
 
-  const error = mutation.error instanceof ApiError && typeof mutation.error.body === 'string'
-    ? mutation.error.body
-    : mutation.isError ? t('settings.acme.saveError') : null
-
   return (
     <form className="grid max-w-2xl gap-3 sm:grid-cols-2" onSubmit={submit}>
       <div>
@@ -175,14 +170,6 @@ function AcmeSettingsForm({ settings }: { settings: AcmeSettings }) {
               <span className="inline-flex items-center gap-1 text-[12.5px] text-muted-foreground">
                 <CheckCircle2 size={13} />
                 {t('settings.acme.saved')}
-              </span>
-            )
-          : null}
-        {error
-          ? (
-              <span role="alert" className="inline-flex items-center gap-1.5 text-[12.5px] text-destructive">
-                <AlertCircle size={14} aria-hidden="true" />
-                {error}
               </span>
             )
           : null}

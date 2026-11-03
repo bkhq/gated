@@ -50,6 +50,8 @@ export function BootstrapPage() {
   }, [])
 
   const mutation = useMutation<InitResponse, unknown, InitRequest>({
+    // The page shows this failure itself.
+    meta: { inlineError: true },
     mutationFn: async req => initEncryption(req),
   })
 

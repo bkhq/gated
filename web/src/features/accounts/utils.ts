@@ -61,6 +61,12 @@ export function missingCredentialFields(creds: AccountCredentials, allowBlankSec
   return missing
 }
 
+// Failures the step-up prompt handles itself: a missing confirmation opens
+// it, a wrong factor or throttling keeps it open.
+export function isStepUpPromptError(error: unknown): boolean {
+  return stepUpErrorKey(error) !== null || isStepUpRequired(error)
+}
+
 // Failures that belong to the step-up prompt (wrong factor, throttled).
 export function stepUpErrorKey(error: unknown): string | null {
   if (!(error instanceof ApiError))

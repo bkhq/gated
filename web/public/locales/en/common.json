@@ -2382,5 +2382,20 @@
     "errorConfirmMismatch": "The two passwords do not match.",
     "errorTokenInvalid": "Bootstrap token is invalid or already used.",
     "errorGeneric": "Setup failed. Check the server log and try again."
+  },
+  "errors": {
+    "status": {
+      "400": "The request was rejected (HTTP {{status}}).",
+      "401": "Not signed in or the confirmation failed (HTTP {{status}}).",
+      "403": "You do not have permission to do this (HTTP {{status}}).",
+      "404": "Not found; it may have been deleted (HTTP {{status}}).",
+      "409": "This conflicts with the current state; refresh and try again (HTTP {{status}}).",
+      "413": "The upload is too large (HTTP {{status}}).",
+      "422": "The input is invalid (HTTP {{status}}).",
+      "429": "Too many attempts; wait a moment and try again (HTTP {{status}}).",
+      "server": "Server error (HTTP {{status}}); check the gateway log.",
+      "other": "The request failed (HTTP {{status}})."
+    },
+    "unknown": "Something went wrong."
   }
 }

@@ -19,7 +19,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<Vec<SessionSnapshot>>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
     }
 }
 
@@ -34,7 +34,9 @@ async fn api_get_my_sessions(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(GetMySessionsResponse::Unauthorized);
+        return Ok(GetMySessionsResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let sessions = Session::Entity::find()

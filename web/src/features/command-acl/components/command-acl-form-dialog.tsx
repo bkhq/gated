@@ -16,7 +16,6 @@ import { useRoles } from '@/features/roles/hooks/use-roles-queries'
 import { useTargets } from '@/features/targets/hooks/use-targets-queries'
 import { DrawerFooter } from '@/shared/components/drawer-footer'
 import { FormDialog, FormDialogDescription, FormDialogTitle } from '@/shared/components/form-dialog'
-import { ApiError } from '@/shared/lib/api/http'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Select } from '@/shared/ui/select'
@@ -97,11 +96,6 @@ function draftToRequest(draft: DraftState): CommandAclRuleRequest {
   }
 }
 
-/** Server returns a bare JSON string reason on 400 (in ApiError.body). */
-function serverReason(err: ApiError): string {
-  return typeof err.body === 'string' ? err.body : err.message
-}
-
 export function CommandAclFormDialog(props: CommandAclFormDialogProps) {
   return (
     <CommandAclFormDialogBody
@@ -126,7 +120,6 @@ function CommandAclFormDialogBody({ open, mode, rule, onClose }: CommandAclFormD
   const [draft, setDraft] = React.useState<DraftState>(() => initialDraft)
   const [original] = React.useState<DraftState>(() => initialDraft)
   const [touched, setTouched] = React.useState(false)
-  const [serverError, setServerError] = React.useState<string | null>(null)
   const nameRef = React.useRef<HTMLInputElement | null>(null)
 
   React.useLayoutEffect(() => {
@@ -136,7 +129,6 @@ function CommandAclFormDialogBody({ open, mode, rule, onClose }: CommandAclFormD
   }, [open])
 
   function patch<K extends keyof DraftState>(key: K, value: DraftState[K]) {
-    setServerError(null)
     setDraft(prev => ({ ...prev, [key]: value }))
   }
 
@@ -161,7 +153,6 @@ function CommandAclFormDialogBody({ open, mode, rule, onClose }: CommandAclFormD
 
   const save = React.useCallback(async () => {
     setTouched(true)
-    setServerError(null)
     if (draft.name.trim() === '' || draft.pattern.trim() === '') {
       queueMicrotask(() => nameRef.current?.focus())
       return
@@ -174,12 +165,8 @@ function CommandAclFormDialogBody({ open, mode, rule, onClose }: CommandAclFormD
         await createMutation.mutateAsync(body)
       onClose()
     }
-    catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        setServerError(serverReason(err))
-        return
-      }
-      throw err
+    catch {
+      // Shown by the global error toast.
     }
   }, [draft, mode, rule, createMutation, updateMutation, onClose])
 
@@ -236,14 +223,6 @@ function CommandAclFormDialogBody({ open, mode, rule, onClose }: CommandAclFormD
           void save()
         }}
       >
-        {serverError
-          ? (
-              <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive">
-                {serverError}
-              </div>
-            )
-          : null}
-
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           <div className="sm:col-span-1">
             <Label htmlFor="acl-name">{t('fields.name')}</Label>

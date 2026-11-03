@@ -17,7 +17,6 @@ export function OtpEnrollmentDrawer({ onClose }: { onClose: () => void }) {
   const uri = begin.data?.provisioning_uri
   const secret = uri ? new URL(uri).searchParams.get('secret') ?? '' : ''
   const busy = begin.isPending || confirm.isPending
-  const error = begin.error ?? confirm.error
 
   return (
     <Drawer open onClose={onClose}>
@@ -54,7 +53,6 @@ export function OtpEnrollmentDrawer({ onClose }: { onClose: () => void }) {
             <Input id="otp-proof" value={otp} onChange={event => setOtp(otpCode(event.target.value))} inputMode="numeric" autoComplete="one-time-code" />
           </>
         )}
-        {error && <p role="alert">{error.message}</p>}
         <div className="mt-auto flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>{t('actions.cancel')}</Button>
           <Button type="submit" disabled={busy || (!!uri && !/^\d{6}$/.test(otp))}>{t(uri ? 'otpEnrollment.confirm' : 'otpEnrollment.begin')}</Button>

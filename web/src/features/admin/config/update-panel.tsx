@@ -8,6 +8,7 @@ import { StepUpDialog } from '@/features/accounts/components/step-up-dialog'
 import { isStepUpRequired, stepUpErrorKey, stepUpWindowOpen } from '@/features/accounts/utils'
 import { getLockStatus } from '@/shared/lib/api/encryption'
 import { applyUpdate, checkForUpdate, getUpdateStatus, restartGateway } from '@/shared/lib/api/system'
+import { toastError } from '@/shared/lib/toast-error'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -60,7 +61,6 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
   const [checkMessage, setCheckMessage] = React.useState<{ ok: boolean, text: string } | null>(null)
   const [confirming, setConfirming] = React.useState<Action | null>(null)
   const [stepUp, setStepUp] = React.useState<Action | null>(null)
-  const [error, setError] = React.useState<string | null>(null)
   const [running, setRunning] = React.useState<Action | null>(null)
   const [encrypted, setEncrypted] = React.useState(false)
 
@@ -90,7 +90,7 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
       setCheckMessage({ ok: false, text: t('settings.update.checkTimeout') })
     }
     catch (failure) {
-      setCheckMessage({ ok: false, text: failure instanceof Error ? failure.message : String(failure) })
+      toastError(failure)
     }
     finally {
       setChecking(false)
@@ -98,7 +98,6 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
   }
 
   const start = async (action: Action) => {
-    setError(null)
     if (await stepUpWindowOpen())
       setConfirming(action)
     else
@@ -106,7 +105,7 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
   }
 
   // Throws on a wrong or throttled confirmation so the step-up dialog can
-  // show it; any other failure closes the dialogs and shows it on the card.
+  // show it; any other failure closes the dialogs and shows it in a toast.
   const run = async (action: Action, confirmation: RevealConfirmation) => {
     try {
       if (action.kind === 'update')
@@ -124,7 +123,7 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
         throw failure
       setConfirming(null)
       setStepUp(null)
-      setError(failure instanceof Error ? failure.message : String(failure))
+      toastError(failure)
       return
     }
     setConfirming(null)
@@ -168,7 +167,6 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
             </div>
           )
         : null}
-      {error ? <div className="text-[12.5px] text-destructive">{error}</div> : null}
       {running ? <Reconnect action={running} instance={status.instance ?? null} /> : null}
 
       <div className="flex flex-wrap items-center justify-end gap-2">

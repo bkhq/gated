@@ -217,6 +217,7 @@ describe("AUTHN contract (at the API level)", () => {
       });
 
       expect(resp.status).toBe(403);
+      expect(await resp.json()).toContain("no MFA setup is in progress");
       expect((await api.getOtpCredentials(userId)).length).toBe(0);
     });
 
@@ -230,6 +231,7 @@ describe("AUTHN contract (at the API level)", () => {
         otp: "000000",
       });
       expect(resp.status).toBe(403);
+      expect(await resp.json()).toContain("the code is wrong");
       expect((await api.getOtpCredentials(userId)).length).toBe(0);
     });
 

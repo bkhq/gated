@@ -722,7 +722,15 @@
               }
             }
           },
-          "401": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
@@ -747,7 +755,15 @@
               }
             }
           },
-          "401": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -767,7 +783,15 @@
         ],
         "responses": {
           "204": {},
-          "401": {},
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "404": {}
         }
       }
@@ -785,7 +809,15 @@
               }
             }
           },
-          "401": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         },
         "security": [
           {
@@ -820,8 +852,24 @@
               }
             }
           },
-          "400": {},
-          "401": {}
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -841,7 +889,15 @@
         ],
         "responses": {
           "200": {},
-          "401": {},
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "404": {}
         }
       }
@@ -870,8 +926,24 @@
               }
             }
           },
-          "401": {},
-          "403": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         },
         "security": [
           {
@@ -897,8 +969,24 @@
               }
             }
           },
-          "401": {},
-          "403": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         },
         "security": [
           {
@@ -926,7 +1014,15 @@
         ],
         "responses": {
           "204": {},
-          "401": {},
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "404": {}
         },
         "security": [
@@ -962,8 +1058,24 @@
               }
             }
           },
-          "401": {},
-          "403": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         },
         "security": [
           {
@@ -998,8 +1110,24 @@
               }
             }
           },
-          "401": {},
-          "403": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         },
         "security": [
           {
@@ -1027,7 +1155,15 @@
         ],
         "responses": {
           "204": {},
-          "401": {},
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "404": {}
         },
         "security": [
@@ -1057,7 +1193,15 @@
               }
             }
           },
-          "401": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         },
         "security": [
           {
@@ -1085,7 +1229,15 @@
               }
             }
           },
-          "401": {}
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
@@ -1119,7 +1271,15 @@
               }
             }
           },
-          "401": {},
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "403": {
             "content": {
               "application/json; charset=utf-8": {
@@ -1148,7 +1308,15 @@
         ],
         "responses": {
           "204": {},
-          "401": {},
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "404": {}
         }
       }

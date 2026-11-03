@@ -36,6 +36,8 @@ export function useLockStatus() {
     retry: 3,
     retryDelay: 1000,
     staleTime: 0,
+    // The boot gate shows its own error screen.
+    meta: { inlineError: true },
   })
 }
 

@@ -114,7 +114,7 @@ api_response! {
         #[oai(status = 400)]
         BadRequest(Json<String>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 429)]
         RateLimited,
         #[oai(status = 409)]
@@ -143,7 +143,7 @@ api_response! {
         #[oai(status = 400)]
         BadRequest(Json<String>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 429)]
         RateLimited,
         #[oai(status = 404)]
@@ -169,9 +169,9 @@ api_response! {
 api_response! {
     enum RevealAccountResponse {
         #[oai(status = 400)]
-        BadRequest,
+        BadRequest(Json<String>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 429)]
         RateLimited,
 
@@ -306,7 +306,11 @@ async fn api_create_account(
                 "confirmation is required".into(),
             )));
         }
-        Err(StepUpFailure::Unauthorized) => return Ok(CreateAccountResponse::Unauthorized),
+        Err(StepUpFailure::Unauthorized) => {
+            return Ok(CreateAccountResponse::Unauthorized(Json(
+                "wrong password or OTP code".into(),
+            )));
+        }
         Err(StepUpFailure::RateLimited) => return Ok(CreateAccountResponse::RateLimited),
     };
 
@@ -439,7 +443,11 @@ async fn api_update_account(
                 "confirmation is required".into(),
             )));
         }
-        Err(StepUpFailure::Unauthorized) => return Ok(UpdateAccountResponse::Unauthorized),
+        Err(StepUpFailure::Unauthorized) => {
+            return Ok(UpdateAccountResponse::Unauthorized(Json(
+                "wrong password or OTP code".into(),
+            )));
+        }
         Err(StepUpFailure::RateLimited) => return Ok(UpdateAccountResponse::RateLimited),
     };
 
@@ -544,7 +552,9 @@ async fn api_reveal_account(
     body: Json<RevealConfirmation>,
 ) -> Result<RevealAccountResponse, GatedError> {
     let Some(username) = auth.username() else {
-        return Ok(RevealAccountResponse::Unauthorized);
+        return Ok(RevealAccountResponse::Unauthorized(Json(
+            "an identified administrator is required".into(),
+        )));
     };
     let db = gated_core::db_required(&db).await?;
     let step_up = match &*auth {
@@ -555,8 +565,16 @@ async fn api_reveal_account(
     };
     let step_up = match step_up {
         Ok(step_up) => step_up,
-        Err(StepUpFailure::BadRequest) => return Ok(RevealAccountResponse::BadRequest),
-        Err(StepUpFailure::Unauthorized) => return Ok(RevealAccountResponse::Unauthorized),
+        Err(StepUpFailure::BadRequest) => {
+            return Ok(RevealAccountResponse::BadRequest(Json(
+                "confirmation is required".into(),
+            )));
+        }
+        Err(StepUpFailure::Unauthorized) => {
+            return Ok(RevealAccountResponse::Unauthorized(Json(
+                "wrong password or OTP code".into(),
+            )));
+        }
         Err(StepUpFailure::RateLimited) => return Ok(RevealAccountResponse::RateLimited),
     };
     let Some(account) = Account::Entity::find_by_id(id.0).one(&db).await? else {

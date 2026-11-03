@@ -21,7 +21,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<Vec<ExistingApiToken>>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
     }
 }
 
@@ -61,7 +61,7 @@ api_response! {
         #[oai(status = 201)]
         Created(Json<TokenAndSecret>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
     }
 }
 
@@ -70,7 +70,7 @@ api_response! {
         #[oai(status = 204)]
         Deleted,
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -84,7 +84,9 @@ async fn api_get_api_tokens(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(GetApiTokensResponse::Unauthorized);
+        return Ok(GetApiTokensResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let api_tokens = user_model.find_related(ApiToken::Entity).all(&db).await?;
@@ -103,7 +105,9 @@ async fn api_create_api_token(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(CreateApiTokenResponse::Unauthorized);
+        return Ok(CreateApiTokenResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let secret = generate_ticket_secret();
@@ -138,7 +142,9 @@ async fn api_delete_api_token(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(DeleteApiTokenResponse::Unauthorized);
+        return Ok(DeleteApiTokenResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let Some(model) = user_model

@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Trash2,
   Upload,
-  X,
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,6 +25,7 @@ import {
   sftpErrorMessage,
   uploadFile,
 } from '@/shared/lib/api/sftp'
+import { toastError } from '@/shared/lib/toast-error'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Dialog } from '@/shared/ui/dialog'
@@ -78,7 +78,6 @@ export function FileManager({ targetName, className }: { targetName: string, cla
   const [path, setPath] = React.useState<string | undefined>(undefined)
   // null = show the current directory; a string while the user edits the path.
   const [pathDraft, setPathDraft] = React.useState<string | null>(null)
-  const [actionError, setActionError] = React.useState<string | null>(null)
   const [dialog, setDialog] = React.useState<PendingDialog | null>(null)
   const [uploads, setUploads] = React.useState<UploadItem[]>([])
   const [dragging, setDragging] = React.useState(false)
@@ -88,6 +87,8 @@ export function FileManager({ targetName, className }: { targetName: string, cla
     queryKey: ['sftp', targetName, path ?? null],
     queryFn: async ({ signal }) => listDirectory(targetName, path, signal),
     retry: false,
+    // The pane shows why the directory could not be listed.
+    meta: { inlineError: true },
   })
   const cwd = listing.data?.path ?? path ?? ''
 
@@ -96,18 +97,16 @@ export function FileManager({ targetName, className }: { targetName: string, cla
   }, [queryClient, targetName])
 
   const navigate = (next: string) => {
-    setActionError(null)
     setPathDraft(null)
     setPath(next)
   }
 
   const run = async (action: () => Promise<void>) => {
-    setActionError(null)
     try {
       await action()
     }
     catch (err) {
-      setActionError(sftpErrorMessage(err))
+      toastError(err)
     }
     refresh()
   }
@@ -134,6 +133,7 @@ export function FileManager({ targetName, className }: { targetName: string, cla
         return
       }
       patchUpload(id, { status: 'error', error: sftpErrorMessage(err) })
+      toastError(err)
     }
     refresh()
   }
@@ -258,17 +258,10 @@ export function FileManager({ targetName, className }: { targetName: string, cla
         />
       </div>
 
-      {listError || actionError
+      {listError
         ? (
             <div role="alert" className="flex flex-none items-start gap-2 border-b border-border bg-[hsl(var(--destructive)/0.08)] px-3 py-2 text-[12.5px] text-destructive">
-              <span className="min-w-0 flex-1 break-words">{actionError ?? listError}</span>
-              {actionError
-                ? (
-                    <button type="button" aria-label={t('actions.close')} onClick={() => setActionError(null)}>
-                      <X size={13} />
-                    </button>
-                  )
-                : null}
+              <span className="min-w-0 flex-1 break-words">{listError}</span>
             </div>
           )
         : null}

@@ -27,6 +27,8 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
     queryKey: SETUP_STATUS_QUERY_KEY,
     queryFn: async ({ signal }) => getSetupStatus(signal),
     staleTime: Infinity,
+    // The gate shows its own error screen with a retry.
+    meta: { inlineError: true },
   })
 
   if (isLoading)
@@ -55,6 +57,8 @@ function SetupPage() {
   const countdown = useRateLimitCountdown()
   const mutation = useMutation({
     mutationFn: async (req: SetupInitRequest) => initSetup(req),
+    // The setup form shows this failure itself.
+    meta: { inlineError: true },
   })
 
   const validate = (): string | null => {

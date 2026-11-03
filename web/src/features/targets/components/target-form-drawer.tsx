@@ -191,7 +191,6 @@ function TargetFormDrawerBody({ mode, target, onClose, onDeleted, onSaved }: Tar
   const [primaryAccountId, setPrimaryAccountId] = React.useState<number | null>(() => primaryAccountIdFromTarget(target))
   const [grantedRoles, setGrantedRoles] = React.useState<Set<string>>(() => new Set())
   const [showErrors, setShowErrors] = React.useState(false)
-  const [formError, setFormError] = React.useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   // Read endpoints never return secrets; an inline target edited with the
   // same method keeps its stored secret when the field is left blank.
@@ -250,7 +249,6 @@ function TargetFormDrawerBody({ mode, target, onClose, onDeleted, onSaved }: Tar
         authSectionRef.current?.scrollIntoView?.({ block: 'start' })
       return
     }
-    setFormError(null)
     const manual = draft.authSource === 'manual'
     // An empty list switches the target to inline credentials.
     const accounts = !manual && primaryAccountId != null
@@ -282,8 +280,8 @@ function TargetFormDrawerBody({ mode, target, onClose, onDeleted, onSaved }: Tar
         onSaved?.(created)
       }
     }
-    catch (failure) {
-      setFormError(failure instanceof Error ? failure.message : String(failure))
+    catch {
+      // Shown by the global error toast.
       return
     }
     onClose()
@@ -310,13 +308,6 @@ function TargetFormDrawerBody({ mode, target, onClose, onDeleted, onSaved }: Tar
           ? (
               <div role="alert" className="rounded-md border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] p-3 text-[12.5px] text-[hsl(var(--destructive))]">
                 {t('targets.form.missing', { fields: missing.map(field => t(field.label)).join(', ') })}
-              </div>
-            )
-          : null}
-        {formError
-          ? (
-              <div role="alert" className="rounded-md border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] p-3 text-[12.5px] text-[hsl(var(--destructive))]">
-                {formError}
               </div>
             )
           : null}

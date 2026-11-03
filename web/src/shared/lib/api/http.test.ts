@@ -85,3 +85,25 @@ describe('step-up 401 handling', () => {
     expect(cb).toHaveBeenCalledOnce()
   })
 })
+
+describe('error messages', () => {
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it.each([
+    ['a JSON string', JSON.stringify('name already exists'), 'name already exists'],
+    ['plain text', 'Credential management is disabled', 'Credential management is disabled'],
+    ['a message field', JSON.stringify({ message: 'bad input' }), 'bad input'],
+    ['an error field', JSON.stringify({ error: 'invalid_request' }), 'invalid_request'],
+    ['no body', '', 'HTTP 403'],
+  ])('reads the reason from %s', async (_, body, message) => {
+    globalThis.fetch = vi.fn(async () => new Response(body, { status: 403 }))
+    await expect(adminApi.post('/x')).rejects.toThrow(message)
+  })
+
+  it('marks a 401 that ended the session', async () => {
+    mockFetch(401, '')
+    await expect(adminApi.get('/x')).rejects.toMatchObject({ sessionExpired: true })
+  })
+})

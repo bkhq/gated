@@ -36,8 +36,6 @@ export interface DeleteWithReferencesDialogProps {
   blockedByPolicy?: boolean
   // Optional dialog width in pixels (defaults to 440).
   width?: number
-  // Failure message from the last confirm attempt.
-  error?: string | null
 }
 
 // Confirm dialog for destructive actions that may have reverse references
@@ -59,7 +57,6 @@ export function DeleteWithReferencesDialog({
   isPending = false,
   blockedByPolicy = false,
   width = 440,
-  error,
 }: DeleteWithReferencesDialogProps) {
   const { t } = useTranslation()
   const shouldShowOpenInstead = hasReferences && showOpenInstead && onOpenInstead
@@ -79,13 +76,6 @@ export function DeleteWithReferencesDialog({
                 <div className="mt-3 rounded-md border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.08)] p-3 text-[13px] text-[hsl(var(--warning))]">
                   <div className="font-semibold">{warning.title}</div>
                   <div className="text-muted-foreground">{warning.body}</div>
-                </div>
-              )
-            : null}
-          {error
-            ? (
-                <div role="alert" className="mt-3 rounded-md border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] p-3 text-[12.5px] text-[hsl(var(--destructive))]">
-                  {error}
                 </div>
               )
             : null}

@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, KeyRound, Upload } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { ApiError } from '@/shared/lib/api/http'
 import { generateSshKeys, importSshKey, listSshKeys } from '@/shared/lib/api/ssh-keys'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -14,14 +13,6 @@ import { Skeleton } from '@/shared/ui/skeleton'
 import { Textarea } from '@/shared/ui/textarea'
 
 const SSH_KEYS_QUERY_KEY = ['ssh-keys'] as const
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError && typeof err.body === 'string' && err.body)
-    return err.body
-  if (err instanceof Error && err.message)
-    return err.message
-  return fallback
-}
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -86,7 +77,6 @@ export function SshKeysCard() {
               : (
                   hasKeys ? <KeyList keys={keys} /> : <ErrorBanner message={t('settings.sshKeys.noHostKeys')} />
                 )}
-          {generate.isError ? <ErrorBanner message={errorMessage(generate.error, t('settings.sshKeys.generateError'))} /> : null}
         </CardContent>
       </Card>
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} width={520}>
@@ -121,7 +111,6 @@ function ImportDialogBody({ onClose }: { onClose: () => void }) {
       await qc.invalidateQueries({ queryKey: SSH_KEYS_QUERY_KEY })
       onClose()
     },
-    onError: err => setError(errorMessage(err, t('settings.sshKeys.importDialog.error'))),
   })
 
   const submit = () => {

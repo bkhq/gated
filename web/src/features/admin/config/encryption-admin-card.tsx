@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useIsAdmin } from '@/shared/hooks/use-info'
 import { invalidateLockStatus, useLockStatus } from '@/shared/hooks/use-lock-status'
 import { lockEncryption, rekeyMasterPassword } from '@/shared/lib/api/encryption'
-import { ApiError } from '@/shared/lib/api/http'
+import { describeError } from '@/shared/lib/error-message'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -23,14 +23,6 @@ const STATUS_TONE: Record<LockStatusValue, 'success' | 'info' | 'warning' | 'dan
   uninitialized: 'info',
   error: 'danger',
   disabled: 'mono',
-}
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError)
-    return err.message || fallback
-  if (err instanceof Error)
-    return err.message || fallback
-  return fallback
 }
 
 export function EncryptionAdminCard() {
@@ -152,15 +144,11 @@ function LockNowDialog({ open, onClose }: { open: boolean, onClose: () => void }
 function LockNowDialogBody({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const [error, setError] = React.useState<string | null>(null)
   const mutation = useMutation({
     mutationFn: async () => lockEncryption(),
     onSuccess: async () => {
       await invalidateLockStatus(qc)
       onClose()
-    },
-    onError: (err) => {
-      setError(errorMessage(err, t('settings.encryptionAdmin.lockDialog.error')))
     },
   })
 
@@ -168,7 +156,6 @@ function LockNowDialogBody({ onClose }: { onClose: () => void }) {
   const close = () => {
     if (pending)
       return
-    setError(null)
     onClose()
   }
 
@@ -183,17 +170,6 @@ function LockNowDialogBody({ onClose }: { onClose: () => void }) {
         <p className="text-[12.5px] text-muted-foreground">
           {t('settings.encryptionAdmin.lockDialog.warning')}
         </p>
-        {error
-          ? (
-              <div
-                role="alert"
-                className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1.5 text-[12.5px] text-destructive"
-              >
-                <AlertCircle size={14} aria-hidden="true" />
-                <span>{error}</span>
-              </div>
-            )
-          : null}
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={close} disabled={pending}>
@@ -202,10 +178,7 @@ function LockNowDialogBody({ onClose }: { onClose: () => void }) {
         <Button
           variant="destructive"
           size="sm"
-          onClick={() => {
-            setError(null)
-            mutation.mutate()
-          }}
+          onClick={() => mutation.mutate()}
           disabled={pending}
         >
           {pending
@@ -253,8 +226,10 @@ function RekeyMasterDialogBody({ onClose }: { onClose: () => void }) {
       setDone(true)
       await invalidateLockStatus(qc)
     },
+    // A wrong current password is answered in the dialog, which stays open.
+    meta: { inlineError: true },
     onError: (err) => {
-      setSubmitError(errorMessage(err, t('settings.encryptionAdmin.rekeyDialog.error')))
+      setSubmitError(describeError(err, t))
     },
   })
 

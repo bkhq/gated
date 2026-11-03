@@ -210,7 +210,7 @@ pub async fn require_admin(request: Request, next: Next) -> Response {
     };
     match is_user_admin(&services, &auth).await {
         Ok(true) => next.run(request).await,
-        Ok(false) => StatusCode::FORBIDDEN.into_response(),
+        Ok(false) => (StatusCode::FORBIDDEN, "administrator role is required").into_response(),
         Err(error) => error.into_response(),
     }
 }

@@ -31,6 +31,8 @@ export function UnlockPage() {
   }, [])
 
   const mutation = useMutation<UnlockedResponse, unknown, UnlockRequest>({
+    // The page shows this failure itself.
+    meta: { inlineError: true },
     mutationFn: async req => unlockEncryption(req),
   })
 

@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Globe, RefreshCw, Upload } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { ApiError } from '@/shared/lib/api/http'
 import { disableAcme, enableAcme, generateTlsCertificate, importTlsCertificate, listTlsCertificates } from '@/shared/lib/api/tls-certificates'
 import { formatFullDateTime } from '@/shared/lib/format-time'
 import { Button } from '@/shared/ui/button'
@@ -16,14 +15,6 @@ import { Textarea } from '@/shared/ui/textarea'
 const TLS_CERTIFICATES_QUERY_KEY = ['tls-certificates'] as const
 
 interface Action { kind: 'import' | 'generate' | 'acme', listener: TlsListener }
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError && typeof err.body === 'string' && err.body)
-    return err.body
-  if (err instanceof Error && err.message)
-    return err.message
-  return fallback
-}
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -142,9 +133,6 @@ function GenerateDialogBody({ listener, onClose }: { listener: TlsListener, onCl
         description={t('settings.tlsCertificates.generateDialog.description')}
         onClose={mutation.isPending ? undefined : onClose}
       />
-      {mutation.isError
-        ? <DialogBody><ErrorBanner message={errorMessage(mutation.error, t('settings.tlsCertificates.generateDialog.error'))} /></DialogBody>
-        : null}
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onClose} disabled={mutation.isPending}>
           {t('settings.tlsCertificates.cancel')}
@@ -169,7 +157,6 @@ function ImportDialogBody({ listener, onClose }: { listener: TlsListener, onClos
       await qc.invalidateQueries({ queryKey: TLS_CERTIFICATES_QUERY_KEY })
       onClose()
     },
-    onError: err => setError(errorMessage(err, t('settings.tlsCertificates.importDialog.error'))),
   })
 
   const submit = () => {
@@ -237,11 +224,8 @@ function AcmeDialogBody({ cert, onClose }: { cert: ListenerCertificate, onClose:
     await qc.invalidateQueries({ queryKey: TLS_CERTIFICATES_QUERY_KEY })
     onClose()
   }
-  const onError = async (err: unknown) => {
-    setError(errorMessage(err, t('settings.tlsCertificates.acmeDialog.error')))
-    // A failed attempt is still recorded on the listener.
-    await qc.invalidateQueries({ queryKey: TLS_CERTIFICATES_QUERY_KEY })
-  }
+  // A failed attempt is still recorded on the listener.
+  const onError = async () => qc.invalidateQueries({ queryKey: TLS_CERTIFICATES_QUERY_KEY })
   const request = useMutation({
     mutationFn: async (names: string[]) => enableAcme(cert.listener, names),
     onSuccess: done,

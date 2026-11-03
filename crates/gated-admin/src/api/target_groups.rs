@@ -104,7 +104,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<TargetGroup::Model>),
         #[oai(status = 400)]
-        BadRequest,
+        BadRequest(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -147,7 +147,9 @@ async fn api_update_target_group(
     body: Json<TargetGroupDataRequest>,
 ) -> Result<UpdateTargetGroupResponse, GatedError> {
     if body.name.is_empty() {
-        return Ok(UpdateTargetGroupResponse::BadRequest);
+        return Ok(UpdateTargetGroupResponse::BadRequest(Json(
+            "name is required".into(),
+        )));
     }
 
     let db = gated_core::db_required(&db).await?;
@@ -164,7 +166,9 @@ async fn api_update_target_group(
         .one(&db)
         .await?;
     if existing.is_some() {
-        return Ok(UpdateTargetGroupResponse::BadRequest);
+        return Ok(UpdateTargetGroupResponse::BadRequest(Json(
+            "name already exists".into(),
+        )));
     }
 
     let mut group: TargetGroup::ActiveModel = group.into();

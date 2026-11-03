@@ -1739,7 +1739,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -1768,7 +1770,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -1793,7 +1797,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             404: {
                 headers: {
@@ -1824,7 +1830,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -1853,13 +1861,17 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -1884,7 +1896,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             404: {
                 headers: {
@@ -1919,13 +1933,17 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -1950,13 +1968,17 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -1981,7 +2003,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             404: {
                 headers: {
@@ -2016,13 +2040,17 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -2051,13 +2079,17 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -2082,7 +2114,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             404: {
                 headers: {
@@ -2113,7 +2147,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -2138,7 +2174,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };
@@ -2175,7 +2213,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             403: {
                 headers: {
@@ -2208,7 +2248,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             404: {
                 headers: {

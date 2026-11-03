@@ -58,7 +58,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<Vec<ExistingProfileTicket>>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
     }
 }
 
@@ -69,7 +69,7 @@ api_response! {
         #[oai(status = 400)]
         BadRequest(Json<String>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 403)]
         Forbidden(Json<String>),
     }
@@ -80,7 +80,7 @@ api_response! {
         #[oai(status = 204)]
         Deleted,
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -94,7 +94,9 @@ async fn api_get_tickets(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(GetTicketsResponse::Unauthorized);
+        return Ok(GetTicketsResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let tickets = Ticket::Entity::find()
@@ -143,7 +145,9 @@ async fn api_create_ticket(
     let username = {
         let db = services.db_required().await?;
         let Some(user_model) = get_user(&auth, &db).await? else {
-            return Ok(CreateTicketResponse::Unauthorized);
+            return Ok(CreateTicketResponse::Unauthorized(Json(
+                "not signed in".into(),
+            )));
         };
         user_model.username
     };
@@ -197,7 +201,9 @@ async fn api_delete_ticket(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(DeleteTicketResponse::Unauthorized);
+        return Ok(DeleteTicketResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let Some(model) = Ticket::Entity::find_by_id(id.0)

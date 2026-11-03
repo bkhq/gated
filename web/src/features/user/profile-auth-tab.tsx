@@ -20,6 +20,7 @@ import { OtpEnrollmentDrawer } from '@/features/otp/otp-enrollment-drawer'
 import { usePublicKeys, useRegisterPublicKey, useRemovePublicKey } from '@/features/public-keys/hooks/use-public-keys-queries'
 import { EmptyState } from '@/shared/components/empty-state'
 import { profileApi } from '@/shared/lib/api/profile'
+import { describeError } from '@/shared/lib/error-message'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/shared/ui/dialog'
@@ -248,7 +249,8 @@ export function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
   useReturnFocusOnClose()
   const { t } = useTranslation()
   const titleId = React.useId()
-  const mutation = useMutation({ mutationFn: async (body: Parameters<typeof profileApi.changePassword>[0]) => profileApi.changePassword(body), onSuccess: onClose })
+  // A wrong current password is answered in the drawer, which stays open.
+  const mutation = useMutation({ mutationFn: async (body: Parameters<typeof profileApi.changePassword>[0]) => profileApi.changePassword(body), onSuccess: onClose, meta: { inlineError: true } })
   const [draft, setDraft] = React.useState<PasswordDraft>(() => ({ current: '', next: '', confirm: '' }))
   const [touched, setTouched] = React.useState<Partial<Record<keyof PasswordDraft, boolean>>>(() => ({}))
   const [reveal, setReveal] = React.useState(false)
@@ -363,7 +365,7 @@ export function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
               {...fieldAria('pw-confirm', true, !!showError('confirm'))}
             />
           </FieldGroup>
-          {mutation.error && <p role="alert">{mutation.error.message}</p>}
+          {mutation.error && <p role="alert">{describeError(mutation.error, t)}</p>}
           <button type="submit" hidden />
         </form>
 

@@ -90,7 +90,7 @@ api_response! {
         #[oai(status = 400)]
         BadRequest(Json<String>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 409)]
         NotSupervised,
         #[oai(status = 429)]
@@ -208,7 +208,9 @@ async fn confirm(
             Err(StepUpFailure::BadRequest) => Err(LifecycleResponse::BadRequest(Json(
                 "confirmation is required".into(),
             ))),
-            Err(StepUpFailure::Unauthorized) => Err(LifecycleResponse::Unauthorized),
+            Err(StepUpFailure::Unauthorized) => Err(LifecycleResponse::Unauthorized(Json(
+                "wrong password or OTP code".into(),
+            ))),
             Err(StepUpFailure::RateLimited) => Err(LifecycleResponse::RateLimited),
         },
     )

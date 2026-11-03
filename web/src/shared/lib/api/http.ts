@@ -1,6 +1,8 @@
 export class ApiError extends Error {
   status: number
   body: unknown
+  // The request answered 401 and the global re-login handler took over.
+  sessionExpired = false
 
   constructor(status: number, message: string, body: unknown) {
     super(message)
@@ -51,7 +53,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     signal,
   })
 
-  if (response.status === 401 && path !== '/api/profile/credentials/password' && !isStepUpRequest(path, method) && !SKIP_GLOBAL_UNAUTHORIZED_PREFIXES.some(p => path.startsWith(p)))
+  const sessionExpired = response.status === 401 && path !== '/api/profile/credentials/password' && !isStepUpRequest(path, method) && !SKIP_GLOBAL_UNAUTHORIZED_PREFIXES.some(p => path.startsWith(p))
+  if (sessionExpired)
     onUnauthorized?.()
 
   if (response.status === 204)
@@ -62,7 +65,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   if (!response.ok) {
     const message = extractMessage(parsed) ?? `HTTP ${response.status}`
-    throw new ApiError(response.status, message, parsed)
+    const error = new ApiError(response.status, message, parsed)
+    error.sessionExpired = sessionExpired
+    throw error
   }
 
   return parsed as T
@@ -77,11 +82,17 @@ function safeJsonParse(text: string): unknown {
   }
 }
 
-function extractMessage(body: unknown): string | undefined {
-  if (body && typeof body === 'object' && 'message' in body) {
-    const m = (body).message
-    if (typeof m === 'string')
-      return m
+// The API answers errors with a JSON string, plain text, or an object with
+// `message` or `error`.
+export function extractMessage(body: unknown): string | undefined {
+  if (typeof body === 'string')
+    return body.trim() || undefined
+  if (body && typeof body === 'object') {
+    for (const key of ['message', 'error'] as const) {
+      const value = (body as Record<string, unknown>)[key]
+      if (typeof value === 'string' && value.trim())
+        return value.trim()
+    }
   }
   return undefined
 }

@@ -1,9 +1,11 @@
 import type { LockStatus } from '@/shared/lib/api/encryption'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import i18n from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createQueryClient } from '@/app/query-client'
+import { Toaster } from '@/shared/ui/sonner'
 import enCommon from '../../../../public/locales/en/common.json'
 
 vi.mock('@/shared/hooks/use-info', () => ({
@@ -58,9 +60,10 @@ function setStatus(status: LockStatus['status'] | 'loading' | 'error'): void {
 }
 
 function renderCard() {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  })
+  const qc = createQueryClient()
+  qc.setDefaultOptions({ queries: { retry: false }, mutations: { retry: false } })
+  // A separate root, so the card's own container stays empty when hidden.
+  render(<Toaster />)
   return render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={qc}>
@@ -138,7 +141,7 @@ describe('encryptionAdminCard', () => {
       fireEvent.click(confirmButtons[confirmButtons.length - 1]!)
     })
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('lock service unavailable'))
+    expect(await screen.findByText('lock service unavailable')).toBeInTheDocument()
     expect(invalidateLockStatus).not.toHaveBeenCalled()
   })
 

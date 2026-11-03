@@ -17,6 +17,8 @@
 - `crates/gated-admin/src/http_service/api/**` — 用户面 OpenAPI + 原始端点
 - `crates/gated-admin/src/http_service/mod.rs`、`crates/gated-admin/src/lib.rs`、`crates/gated/src/commands/run.rs` — 显式 `at(..)` / `nest(..)` 挂载
 
+错误响应以 JSON 字符串（`Json<String>`）、纯文本（内部错误和中间件拒绝，如 `403 "administrator role is required"`），或在 SFTP 等少数结构化错误中以带 `error` / `message` 的对象给出原因。`404` 以及部分 `409` / `429` 没有响应体。Web 端用全局提示显示该原因；没有原因时显示对应状态码的通用说明。
+
 ---
 
 ## 1. 用户面 API（前缀 `/api`）
@@ -179,7 +181,7 @@
 #### `POST /api/profile/credentials/otp` — `add_my_otp` [OAS]
 
 - 确认 OTP 绑定：Body `{ otp: string }`，必须是 `begin` 生成的密钥对应的当前验证码。成功后才保存凭据，并在 `http`/`ssh` 链上 push `Totp`。
-- Responses：`201 Created` `Json<ExistingOtpCredential> { id: uuid }` / `401` / `403`。
+- Responses：`201 Created` `Json<ExistingOtpCredential> { id: uuid }` / `401` / `403` `Json<string>`：没有进行中的绑定或已过期（10 分钟，或网关重启）、验证码错误、验证码已被使用，或 ticket 会话。
 
 #### `DELETE /api/profile/credentials/otp/:id` — `delete_my_otp` [OAS]
 

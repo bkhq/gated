@@ -13,7 +13,9 @@ use utoipa_axum::router::OpenApiRouter;
 
 use chrono::{DateTime, Utc};
 use gated_common::auth::AuthCredential;
-use gated_common::helpers::otp::{OtpSecretKey, generate_key, generate_setup_url, verify_totp};
+use gated_common::helpers::otp::{
+    OtpSecretKey, TotpCheck, check_totp, generate_key, generate_setup_url,
+};
 use gated_common::{GatedError, Secret, User, UserPasswordCredential};
 use gated_core::{ConfigProvider, Services};
 use gated_db_entities::{
@@ -85,9 +87,9 @@ api_response! {
         #[oai(status = 201)]
         Done(Json<PasswordState>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 403)]
-        Forbidden,
+        Forbidden(Json<String>),
     }
 }
 
@@ -107,7 +109,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<CredentialsState>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
     }
 }
 
@@ -147,9 +149,9 @@ api_response! {
         #[oai(status = 201)]
         Created(Json<ExistingPublicKeyCredential>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 403)]
-        Forbidden,
+        Forbidden(Json<String>),
     }
 }
 
@@ -158,7 +160,7 @@ api_response! {
         #[oai(status = 204)]
         Deleted,
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -183,9 +185,9 @@ api_response! {
         #[oai(status = 201)]
         Created(Json<BeginOtpEnrollment>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 403)]
-        Forbidden,
+        Forbidden(Json<String>),
     }
 }
 
@@ -205,9 +207,9 @@ api_response! {
         #[oai(status = 201)]
         Created(Json<ExistingOtpCredential>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 403)]
-        Forbidden,
+        Forbidden(Json<String>),
     }
 }
 
@@ -260,9 +262,9 @@ api_response! {
         #[oai(status = 201)]
         Issued(Json<IssuedCertificateCredential>),
         #[oai(status = 400)]
-        BadRequest,
+        BadRequest(Json<String>),
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
     }
 }
 
@@ -271,7 +273,7 @@ api_response! {
         #[oai(status = 200)]
         Ok,
         #[oai(status = 401)]
-        Unauthorized,
+        Unauthorized(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -337,7 +339,9 @@ async fn api_get_credentials_state(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(CredentialsStateResponse::Unauthorized);
+        return Ok(CredentialsStateResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let user = User::try_from(user_model.clone())?;
@@ -393,13 +397,17 @@ async fn api_change_password(
     body: Json<ChangePasswordRequest>,
 ) -> Result<ChangePasswordResponse, GatedError> {
     if is_ticket_auth(&auth) {
-        return Ok(ChangePasswordResponse::Forbidden);
+        return Ok(ChangePasswordResponse::Forbidden(Json(
+            "not available when signed in with a ticket".into(),
+        )));
     }
 
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(ChangePasswordResponse::Unauthorized);
+        return Ok(ChangePasswordResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     // Re-authenticate with the current password. A valid
@@ -416,7 +424,9 @@ async fn api_change_password(
             username = %user_model.username,
             "credential_password_change_reauth_failed"
         );
-        return Ok(ChangePasswordResponse::Unauthorized);
+        return Ok(ChangePasswordResponse::Unauthorized(Json(
+            "the current password is wrong".into(),
+        )));
     }
 
     entities::PasswordCredential::Entity::delete_many()
@@ -483,13 +493,17 @@ async fn api_create_pk(
     body: Json<NewPublicKeyCredential>,
 ) -> Result<CreatePublicKeyCredentialResponse, GatedError> {
     if is_ticket_auth(&auth) {
-        return Ok(CreatePublicKeyCredentialResponse::Forbidden);
+        return Ok(CreatePublicKeyCredentialResponse::Forbidden(Json(
+            "not available when signed in with a ticket".into(),
+        )));
     }
 
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(CreatePublicKeyCredentialResponse::Unauthorized);
+        return Ok(CreatePublicKeyCredentialResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let object = PublicKeyCredential::ActiveModel {
@@ -529,7 +543,9 @@ async fn api_delete_pk(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(DeleteCredentialResponse::Unauthorized);
+        return Ok(DeleteCredentialResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let Some(model) = user_model
@@ -564,13 +580,17 @@ async fn api_begin_otp(
     _sec_scheme: AnySecurityScheme,
 ) -> Result<BeginOtpEnrollmentResponse, GatedError> {
     if is_ticket_auth(&auth) {
-        return Ok(BeginOtpEnrollmentResponse::Forbidden);
+        return Ok(BeginOtpEnrollmentResponse::Forbidden(Json(
+            "not available when signed in with a ticket".into(),
+        )));
     }
 
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(BeginOtpEnrollmentResponse::Unauthorized);
+        return Ok(BeginOtpEnrollmentResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let key = generate_key();
@@ -602,13 +622,17 @@ async fn api_create_otp(
     body: Json<ConfirmOtpCredential>,
 ) -> Result<CreateOtpCredentialResponse, GatedError> {
     if is_ticket_auth(&auth) {
-        return Ok(CreateOtpCredentialResponse::Forbidden);
+        return Ok(CreateOtpCredentialResponse::Forbidden(Json(
+            "not available when signed in with a ticket".into(),
+        )));
     }
 
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(CreateOtpCredentialResponse::Unauthorized);
+        return Ok(CreateOtpCredentialResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let mut user: User = user_model.clone().try_into()?;
@@ -623,13 +647,25 @@ async fn api_create_otp(
     };
     let Some(secret) = pending_secret else {
         // No enrollment in progress (or it expired) — refuse.
-        return Ok(CreateOtpCredentialResponse::Forbidden);
+        return Ok(CreateOtpCredentialResponse::Forbidden(Json(
+            "no MFA setup is in progress or it expired; start the setup again".into(),
+        )));
     };
 
     // Proof-of-possession: a valid live code must be presented before
     // the credential is stored and the policy upgraded.
-    if !verify_totp(&body.otp, &secret) {
-        return Ok(CreateOtpCredentialResponse::Forbidden);
+    match check_totp(&body.otp, &secret) {
+        TotpCheck::Valid => {}
+        TotpCheck::Invalid => {
+            return Ok(CreateOtpCredentialResponse::Forbidden(Json(
+                "the code is wrong; check that the authenticator app was set up with this key and that the device time is correct".into(),
+            )));
+        }
+        TotpCheck::Reused => {
+            return Ok(CreateOtpCredentialResponse::Forbidden(Json(
+                "this code was already used; wait for the next one".into(),
+            )));
+        }
     }
 
     // Consume the pending enrollment so the secret cannot be reused.
@@ -681,7 +717,9 @@ async fn api_delete_otp(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(DeleteCredentialResponse::Unauthorized);
+        return Ok(DeleteCredentialResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let Some(model) = user_model
@@ -738,7 +776,9 @@ async fn api_issue_certificate(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(IssueCertificateCredentialResponse::Unauthorized);
+        return Ok(IssueCertificateCredentialResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     // Fetch CA params
@@ -753,7 +793,9 @@ async fn api_issue_certificate(
         Ok(cert) => cert,
         // Malformed / unsigned / unsupported CSR is client error.
         Err(gated_ca::CaError::InvalidKeyFormat) => {
-            return Ok(IssueCertificateCredentialResponse::BadRequest);
+            return Ok(IssueCertificateCredentialResponse::BadRequest(Json(
+                "the CSR is malformed, unsigned or uses an unsupported key type".into(),
+            )));
         }
         Err(err) => return Err(err.into()),
     };
@@ -798,7 +840,9 @@ async fn api_revoke_certificate(
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
-        return Ok(DeleteCertificateCredentialResponse::Unauthorized);
+        return Ok(DeleteCertificateCredentialResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
     };
 
     let Some(model) = user_model

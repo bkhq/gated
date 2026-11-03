@@ -11,6 +11,7 @@ import type { Account, AccountCredentials, AccountKind } from '@/shared/types/do
 import type { AccountDraft, AccountReferences, AccountSecret } from '@/shared/types/drafts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as React from 'react'
+import { isStepUpPromptError } from '@/features/accounts/utils'
 import {
   createAdminAccount,
   deleteAdminAccount,
@@ -185,6 +186,7 @@ export function useCreateAccount() {
       const created = await createAdminAccount(draftToCreate(draft, confirmation))
       return summaryToAccount(created)
     },
+    meta: { inlineError: isStepUpPromptError },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['accounts'] }) },
   })
 }
@@ -199,6 +201,7 @@ export function useUpdateAccount() {
       const updated = await updateAdminAccount(n, patchToUpdate(patch, confirmation))
       return summaryToAccount(updated)
     },
+    meta: { inlineError: isStepUpPromptError },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['accounts'] }) },
   })
 }

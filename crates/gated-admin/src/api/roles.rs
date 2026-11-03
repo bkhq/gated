@@ -132,7 +132,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<RoleResponse>),
         #[oai(status = 403)]
-        Forbidden,
+        Forbidden(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -143,7 +143,7 @@ api_response! {
         #[oai(status = 204)]
         Deleted,
         #[oai(status = 403)]
-        Forbidden,
+        Forbidden(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -197,7 +197,9 @@ async fn api_update_role(
     };
 
     if role.name == BUILTIN_ADMIN_ROLE_NAME {
-        return Ok(UpdateRoleResponse::Forbidden);
+        return Ok(UpdateRoleResponse::Forbidden(Json(
+            "the built-in admin role cannot be changed".into(),
+        )));
     }
 
     let mut model: Role::ActiveModel = role.into();
@@ -225,7 +227,9 @@ async fn api_delete_role(
     };
 
     if role.name == BUILTIN_ADMIN_ROLE_NAME {
-        return Ok(DeleteRoleResponse::Forbidden);
+        return Ok(DeleteRoleResponse::Forbidden(Json(
+            "the built-in admin role cannot be deleted".into(),
+        )));
     }
 
     role.delete(&db).await?;

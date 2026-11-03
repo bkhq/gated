@@ -194,7 +194,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<api_types::User>),
         #[oai(status = 400)]
-        BadRequest,
+        BadRequest(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -255,10 +255,14 @@ async fn api_update_user(
     };
 
     if body.username.is_empty() {
-        return Ok(UpdateUserResponse::BadRequest);
+        return Ok(UpdateUserResponse::BadRequest(Json(
+            "username is required".into(),
+        )));
     }
     if username_taken(&db, &body.username, Some(id.0)).await? {
-        return Ok(UpdateUserResponse::BadRequest);
+        return Ok(UpdateUserResponse::BadRequest(Json(
+            "username already exists".into(),
+        )));
     }
 
     let mut model: User::ActiveModel = user.into();
@@ -279,7 +283,9 @@ async fn api_update_user(
                 Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
             ) =>
         {
-            return Ok(UpdateUserResponse::BadRequest);
+            return Ok(UpdateUserResponse::BadRequest(Json(
+                "username already exists".into(),
+            )));
         }
         Err(error) => return Err(error.into()),
     };

@@ -210,7 +210,7 @@ api_response! {
         #[oai(status = 200)]
         Ok(Json<api_types::Target>),
         #[oai(status = 400)]
-        BadRequest,
+        BadRequest(Json<String>),
         #[oai(status = 422)]
         UnprocessableEntity(Json<String>),
         #[oai(status = 404)]
@@ -272,10 +272,14 @@ async fn api_update_target(
     };
 
     if target.kind != (&TargetOptions::from(body.options.clone())).into() {
-        return Ok(UpdateTargetResponse::BadRequest);
+        return Ok(UpdateTargetResponse::BadRequest(Json(
+            "the target kind cannot be changed".into(),
+        )));
     }
     if body.name.is_empty() {
-        return Ok(UpdateTargetResponse::BadRequest);
+        return Ok(UpdateTargetResponse::BadRequest(Json(
+            "name is required".into(),
+        )));
     }
     // Targets are resolved by name everywhere (authorization, tickets,
     // terminals); a rename onto an existing name must be refused.
@@ -344,7 +348,9 @@ async fn api_update_target(
                 Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
             ) =>
         {
-            return Ok(UpdateTargetResponse::BadRequest);
+            return Ok(UpdateTargetResponse::BadRequest(Json(
+                "name already exists".into(),
+            )));
         }
         Err(error) => return Err(error.into()),
     };

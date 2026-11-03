@@ -13,6 +13,8 @@ export function useLogin() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (req: LoginRequest) => login(req),
+    // The sign-in page shows this failure itself.
+    meta: { inlineError: true },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['info'] })
       void qc.invalidateQueries({ queryKey: ['auth-state'] })
@@ -24,6 +26,8 @@ export function useSubmitOtp() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (req: OtpLoginRequest) => submitOtp(req),
+    // The sign-in page shows this failure itself.
+    meta: { inlineError: true },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['info'] })
       void qc.invalidateQueries({ queryKey: ['auth-state'] })
@@ -35,6 +39,8 @@ export function useContinueAuth() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async () => continueAuth(),
+    // The sign-in page shows this failure itself.
+    meta: { inlineError: true },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['info'] })
       void qc.invalidateQueries({ queryKey: ['auth-state'] })
@@ -75,5 +81,7 @@ export function useSsoProviders(enabled = true) {
 export function useStartSso() {
   return useMutation({
     mutationFn: async (name: string) => startSso(name),
+    // The sign-in page shows this failure itself.
+    meta: { inlineError: true },
   })
 }

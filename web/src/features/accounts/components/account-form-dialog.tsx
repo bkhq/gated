@@ -185,7 +185,6 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
   const [credentialsDirty, setCredentialsDirty] = React.useState(mode === 'create')
   const [rotationDirty, setRotationDirty] = React.useState(false)
   const [showErrors, setShowErrors] = React.useState(false)
-  const [formError, setFormError] = React.useState<string | null>(null)
   const [stepUp, setStepUp] = React.useState<'save' | 'reveal' | null>(null)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [discardToView, setDiscardToView] = React.useState(false)
@@ -233,7 +232,6 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
     setCredentialsDirty(false)
     setRotationDirty(false)
     setShowErrors(false)
-    setFormError(null)
     setMode('edit')
   }
 
@@ -242,7 +240,6 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
     setDraft(null)
     setBaseline(null)
     setShowErrors(false)
-    setFormError(null)
     setMode('view')
   }
 
@@ -254,7 +251,6 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
       setTab('details')
       return
     }
-    setFormError(null)
     void withStepUp('save')
   }
 
@@ -317,12 +313,11 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
         setStepUp('save')
         return
       }
-      // Wrong confirmation / throttling stays in the prompt; validation and
-      // conflicts belong to the form.
+      // Wrong confirmation / throttling stays in the prompt; other failures
+      // are shown by the global error toast.
       if (stepUpErrorKey(failure))
         throw failure
       setStepUp(null)
-      setFormError(failure instanceof Error ? failure.message : String(failure))
     }
   }
 
@@ -435,14 +430,6 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
         scrollResetKey={tab}
         footer={footer}
       >
-        {formError
-          ? (
-              <div role="alert" className="rounded-md border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] p-3 text-[12.5px] text-[hsl(var(--destructive))]">
-                {formError}
-              </div>
-            )
-          : null}
-
         {!isView && draft === null
           ? (
               <div className="flex flex-col gap-3">

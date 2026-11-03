@@ -2382,5 +2382,20 @@
     "errorConfirmMismatch": "两次输入的密码不一致。",
     "errorTokenInvalid": "初始化令牌无效或已被使用。",
     "errorGeneric": "初始化失败，请查看服务器日志后重试。"
+  },
+  "errors": {
+    "status": {
+      "400": "请求被拒绝（HTTP {{status}}）。",
+      "401": "未登录或验证失败（HTTP {{status}}）。",
+      "403": "没有权限执行此操作（HTTP {{status}}）。",
+      "404": "不存在，可能已被删除（HTTP {{status}}）。",
+      "409": "与当前状态冲突，请刷新后重试（HTTP {{status}}）。",
+      "413": "上传内容过大（HTTP {{status}}）。",
+      "422": "输入无效（HTTP {{status}}）。",
+      "429": "尝试次数过多，请稍后再试（HTTP {{status}}）。",
+      "server": "服务器错误（HTTP {{status}}），请查看网关日志。",
+      "other": "请求失败（HTTP {{status}}）。"
+    },
+    "unknown": "操作失败。"
   }
 }

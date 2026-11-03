@@ -1,5 +1,4 @@
 import type { Target } from '@/shared/types/domain'
-import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDeleteTarget } from '@/features/targets/hooks/use-targets-queries'
 import { DeleteWithReferencesDialog } from '@/shared/components/delete-with-references-dialog'
@@ -11,27 +10,20 @@ export function DeleteTargetDialog({ target, onClose, onDeleted }: {
 }) {
   const { t } = useTranslation()
   const deleteMutation = useDeleteTarget()
-  const [error, setError] = React.useState<string | null>(null)
 
   if (!target) {
     return null
   }
 
-  const close = () => {
-    setError(null)
-    onClose()
-  }
-
   const confirm = async () => {
-    setError(null)
     try {
       await deleteMutation.mutateAsync(target.id)
     }
-    catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure))
+    catch {
+      // Shown by the global error toast.
       return
     }
-    close()
+    onClose()
     onDeleted?.()
   }
 
@@ -40,10 +32,9 @@ export function DeleteTargetDialog({ target, onClose, onDeleted }: {
       open
       title={t('targets.delete.title')}
       body={t('targets.delete.body', { name: target.name })}
-      onClose={close}
+      onClose={onClose}
       onConfirm={() => { void confirm() }}
       isPending={deleteMutation.isPending}
-      error={error}
     />
   )
 }

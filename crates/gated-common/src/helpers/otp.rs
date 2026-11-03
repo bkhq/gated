@@ -87,12 +87,22 @@ fn prune_consumed(map: &mut HashMap<(u64, u64), u64>, now: u64) {
     map.retain(|_, ts| now.saturating_sub(*ts) < CONSUMED_TTL_SECS);
 }
 
-pub fn verify_totp(code: &str, key: &OtpSecretKey) -> bool {
+/// Outcome of checking a TOTP code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TotpCheck {
+    Valid,
+    /// Not a code for this secret within the skew window.
+    Invalid,
+    /// Valid, but already accepted once within its validity window.
+    Reused,
+}
+
+pub fn check_totp(code: &str, key: &OtpSecretKey) -> TotpCheck {
     let now = unix_now_secs();
     let totp = get_totp(key, None);
 
     if !totp.check(code, now) {
-        return false;
+        return TotpCheck::Invalid;
     }
 
     // The code is valid, but `check` accepts it anywhere in the
@@ -100,7 +110,7 @@ pub fn verify_totp(code: &str, key: &OtpSecretKey) -> bool {
     // (credential, time-step) and reject any reuse within that window.
     let Some(counter) = matched_counter(&totp, code, now) else {
         // `check` passed but no step matched — fail closed.
-        return false;
+        return TotpCheck::Invalid;
     };
 
     let key_id = secret_fingerprint(key);
@@ -109,9 +119,13 @@ pub fn verify_totp(code: &str, key: &OtpSecretKey) -> bool {
     prune_consumed(&mut consumed, now);
     if consumed.insert((key_id, counter), now).is_some() {
         // This code was already consumed for this credential — replay.
-        return false;
+        return TotpCheck::Reused;
     }
-    true
+    TotpCheck::Valid
+}
+
+pub fn verify_totp(code: &str, key: &OtpSecretKey) -> bool {
+    check_totp(code, key) == TotpCheck::Valid
 }
 
 #[cfg(test)]
@@ -129,6 +143,15 @@ mod tests {
         // The same code must not be accepted again within the
         // validity window.
         assert!(!verify_totp(&code, &key));
+    }
+
+    #[test]
+    fn check_tells_an_invalid_code_from_a_reused_one() {
+        let key = generate_key();
+        let code = get_totp(&key, None).generate(unix_now_secs());
+        assert_eq!(check_totp(&code, &key), TotpCheck::Valid);
+        assert_eq!(check_totp(&code, &key), TotpCheck::Reused);
+        assert_eq!(check_totp("abcdef", &key), TotpCheck::Invalid);
     }
 
     #[test]
