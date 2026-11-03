@@ -270,7 +270,7 @@ exit 1
 
     const url = `https://localhost:${wg.httpPort}`;
     const api = adminClient(url);
-    const { user, target } = await setupUserAndSshTarget(api, sshPort, { addPubkey: true });
+    const { user, target } = await setupUserAndSshTarget(api, sshPort, { addPubkey: true, targetKey: "client-rsa" });
 
     // Should fail without allow_insecure_algos
     let proc = processes.startSshClient(

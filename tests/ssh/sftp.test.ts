@@ -5,7 +5,7 @@ import { join, resolve } from "path";
 import { ProcessManager, type GatedProcess } from "../helpers/process-manager";
 import { adminClient, type AdminClient } from "../helpers/api-client";
 import { waitPort } from "../helpers/util";
-import { readPubkey, wgClientEd25519PubkeyPath } from "../helpers/gated-helpers";
+import { readPubkey, wgClientEd25519PubkeyPath, sshPublicKeyAuth } from "../helpers/gated-helpers";
 
 // File transfer: the web file manager REST API, native SFTP through the SSH
 // listener, the per-role `allow_file_transfer` switch and the file audit.
@@ -47,7 +47,7 @@ describe("SFTP and the web file manager", () => {
     await api.addUserRole(user.id, role.id);
     const target = await api.createTarget({
       name: `files-${randomUUID()}`,
-      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: sshPublicKeyAuth() },
     });
     await api.addTargetRole(target.id, role.id);
     const login = await fetch(`${base}/api/auth/login`, {

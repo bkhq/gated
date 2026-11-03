@@ -7,6 +7,7 @@ import {
   readPubkey,
   OTP_KEY_BASE32,
   OTP_KEY_BASE64,
+  sshPublicKeyAuth,
 } from "../helpers/gated-helpers";
 import { resolve } from "path";
 import { readFileSync } from "fs";
@@ -55,7 +56,7 @@ describe("SSH User Auth OTP", () => {
     await api.addUserRole(user.id, role.id);
     const target = await api.createTarget({
       name: `ssh-${randomUUID()}`,
-      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: sshPublicKeyAuth() },
     });
     await api.addTargetRole(target.id, role.id);
 

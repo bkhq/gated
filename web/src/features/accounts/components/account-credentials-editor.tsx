@@ -1,4 +1,4 @@
-import type { AccountCredentials, DbEngine, HttpHeaderCredential } from '@/shared/types/domain'
+import type { AccountCredentials, DbEngine, HttpHeaderCredential, SshKeyAlgorithm } from '@/shared/types/domain'
 import { Eye, EyeOff, Minus, Plus } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -44,18 +44,37 @@ export function CredentialsEditor({ credentials, onChange }: CredentialsEditorPr
             onChange={username => onChange({ ...credentials, username })}
             autoComplete="username"
           />
-          <FieldTextarea
-            label={t('accounts.form.cred.privateKeyPem')}
-            value={credentials.private_key_pem}
-            onChange={private_key_pem => onChange({ ...credentials, private_key_pem })}
-            placeholder={'-----BEGIN OPENSSH PRIVATE KEY-----\n…'}
-            rows={6}
-          />
-          <FieldPassword
-            label={t('accounts.form.cred.passphrase')}
-            value={credentials.passphrase ?? ''}
-            onChange={passphrase => onChange({ ...credentials, passphrase })}
-          />
+          <div>
+            <Label htmlFor="account-cred-key-source">{t('accounts.form.cred.keySource')}</Label>
+            <Select
+              id="account-cred-key-source"
+              value={credentials.generate ?? 'upload'}
+              onValueChange={value => onChange({ ...credentials, generate: value === 'upload' ? null : value as SshKeyAlgorithm })}
+              options={[
+                { value: 'upload', label: t('accounts.form.cred.keySourceUpload') },
+                { value: 'ed25519', label: t('accounts.form.cred.keySourceEd25519') },
+                { value: 'rsa', label: t('accounts.form.cred.keySourceRsa') },
+              ]}
+            />
+          </div>
+          {credentials.generate
+            ? <p className="m-0 text-[12.5px] text-muted-foreground">{t('accounts.form.cred.generateHint')}</p>
+            : (
+                <>
+                  <FieldTextarea
+                    label={t('accounts.form.cred.privateKeyPem')}
+                    value={credentials.private_key_pem}
+                    onChange={private_key_pem => onChange({ ...credentials, private_key_pem })}
+                    placeholder={'-----BEGIN OPENSSH PRIVATE KEY-----\n…'}
+                    rows={6}
+                  />
+                  <FieldPassword
+                    label={t('accounts.form.cred.passphrase')}
+                    value={credentials.passphrase ?? ''}
+                    onChange={passphrase => onChange({ ...credentials, passphrase })}
+                  />
+                </>
+              )}
         </div>
       )
     case 'db-password':

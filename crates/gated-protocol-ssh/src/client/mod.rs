@@ -29,27 +29,24 @@ use uuid::Uuid;
 use self::handler::ClientHandlerEvent;
 use super::{ChannelOperation, DirectTCPIPParams};
 use crate::client::handler::ClientHandlerError;
-use crate::{ForwardedStreamlocalParams, ForwardedTcpIpParams, KeyKind, load_keys};
+use crate::{ForwardedStreamlocalParams, ForwardedTcpIpParams};
 
-async fn ssh_auth_keys(
-    auth: &SshTargetPublicKeyAuth,
-    services: &Services,
-) -> Result<Vec<PrivateKey>, ConnectionError> {
-    if let Some(private_key_pem) = &auth.private_key_pem {
-        let passphrase = auth.passphrase.as_ref().map(Secret::expose_secret);
-        return Ok(vec![decode_secret_key(
-            private_key_pem.expose_secret(),
-            passphrase.map(String::as_str),
-        )?]);
-    }
-    let db = services
-        .db_required()
-        .await
-        .map_err(|_| ConnectionError::Internal)?;
-    load_keys(&db, KeyKind::Client).await.map_err(|error| {
-        error!(?error, "Failed to load SSH client keys");
-        ConnectionError::Internal
-    })
+/// The key for public-key auth: the bound `ssh-key` account's or the
+/// target's own. There is no gateway-wide fallback key.
+fn ssh_auth_keys(auth: &SshTargetPublicKeyAuth) -> Result<Vec<PrivateKey>, ConnectionError> {
+    let Some(private_key_pem) = auth
+        .private_key_pem
+        .as_ref()
+        .filter(|pem| !pem.expose_secret().trim().is_empty())
+    else {
+        error!("The target uses public-key auth but has no private key or ssh-key account");
+        return Err(ConnectionError::Authentication);
+    };
+    let passphrase = auth.passphrase.as_ref().map(Secret::expose_secret);
+    Ok(vec![decode_secret_key(
+        private_key_pem.expose_secret(),
+        passphrase.map(String::as_str),
+    )?])
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -579,7 +576,7 @@ impl RemoteClient {
                         }
                         SSHTargetAuth::PublicKey(auth) => {
                             let best_hash = session.best_supported_rsa_hash().await?.flatten();
-                            let keys = ssh_auth_keys(&auth, &self.services).await?;
+                            let keys = ssh_auth_keys(&auth)?;
                             let allow_insecure_algos = ssh_options.allow_insecure_algos.unwrap_or(false);
                             for key in keys.into_iter() {
                                 let key = Arc::new(key);
@@ -882,5 +879,33 @@ impl Drop for RemoteClient {
         }
         info!("Closed connection");
         debug!("Dropped");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_key_auth_without_a_key_fails_instead_of_using_a_gateway_key() {
+        assert!(matches!(
+            ssh_auth_keys(&SshTargetPublicKeyAuth::default()),
+            Err(ConnectionError::Authentication)
+        ));
+        let key = PrivateKey::random(
+            &mut russh::keys::key::safe_rng(),
+            russh::keys::Algorithm::Ed25519,
+        )
+        .expect("key");
+        let pem = key
+            .to_openssh(russh::keys::ssh_key::LineEnding::LF)
+            .expect("pem")
+            .to_string();
+        let keys = ssh_auth_keys(&SshTargetPublicKeyAuth {
+            private_key_pem: Some(Secret::new(pem)),
+            passphrase: None,
+        })
+        .expect("keys");
+        assert_eq!(keys[0].public_key(), key.public_key());
     }
 }

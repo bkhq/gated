@@ -123,20 +123,9 @@ struct ExistingPublicKeyCredential {
     label: String,
     date_added: Option<DateTime<Utc>>,
     last_used: Option<DateTime<Utc>>,
-    abbreviated: String,
-}
-
-fn abbreviate_public_key(k: &str) -> String {
-    let l = 10;
-    if k.len() <= l {
-        return k.to_string(); // Return the full key if it's shorter than or equal to `l`.
-    }
-
-    format!(
-        "{}...{}",
-        &k[..l.min(k.len())],            // Take the first `l` characters.
-        &k[k.len().saturating_sub(l)..]  // Take the last `l` characters safely.
-    )
+    openssh_public_key: String,
+    /// SHA256 fingerprint; empty when the stored key does not parse.
+    fingerprint: String,
 }
 
 impl From<entities::PublicKeyCredential::Model> for ExistingPublicKeyCredential {
@@ -146,7 +135,10 @@ impl From<entities::PublicKeyCredential::Model> for ExistingPublicKeyCredential 
             label: credential.label,
             date_added: credential.date_added,
             last_used: credential.last_used,
-            abbreviated: abbreviate_public_key(&credential.openssh_public_key),
+            fingerprint: russh::keys::PublicKey::from_openssh(&credential.openssh_public_key)
+                .map(|key| key.fingerprint(russh::keys::HashAlg::Sha256).to_string())
+                .unwrap_or_default(),
+            openssh_public_key: credential.openssh_public_key,
         }
     }
 }
@@ -851,4 +843,31 @@ pub fn router() -> OpenApiRouter {
     )
     .route_layer(from_fn(require_auth))
     .route_layer(from_fn(parameters_based_auth))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_key_credentials_expose_the_full_key_and_its_fingerprint() {
+        let key =
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDP/CQS05AYYvEeZ3X6EPSE4liuLuP7w6p7HgIydOvbq";
+        let credential = ExistingPublicKeyCredential::from(PublicKeyCredential::Model {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            label: "laptop".into(),
+            date_added: None,
+            last_used: None,
+            openssh_public_key: key.into(),
+        });
+        assert_eq!(credential.openssh_public_key, key);
+        assert_eq!(
+            credential.fingerprint,
+            russh::keys::PublicKey::from_openssh(key)
+                .expect("key")
+                .fingerprint(russh::keys::HashAlg::Sha256)
+                .to_string()
+        );
+    }
 }

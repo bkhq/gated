@@ -137,6 +137,10 @@ async fn api_create_target(
     }
     if accounts_mode {
         clear_inline_credentials(&mut options);
+    } else if missing_ssh_private_key(&options) {
+        return Ok(CreateTargetResponse::UnprocessableEntity(Json(
+            "SSH public-key auth needs a private key or a bound account".into(),
+        )));
     }
 
     let db = gated_core::db_required(&db).await?;
@@ -304,6 +308,20 @@ async fn api_update_target(
         clear_inline_credentials(&mut options);
     } else if let Ok(stored) = serde_json::from_value::<TargetOptions>(target.options.clone()) {
         keep_stored_secrets(&mut options, &stored);
+    }
+    if !accounts_mode && missing_ssh_private_key(&options) {
+        // Omitting `accounts` keeps the existing bindings.
+        let keeps_bindings = body.accounts.is_none()
+            && TargetAccount::Entity::find()
+                .filter(TargetAccount::Column::TargetId.eq(target.id))
+                .one(&db)
+                .await?
+                .is_some();
+        if !keeps_bindings {
+            return Ok(UpdateTargetResponse::UnprocessableEntity(Json(
+                "SSH public-key auth needs a private key or a bound account".into(),
+            )));
+        }
     }
     if let Some(accounts) = bound_accounts
         && let Err(error) = validate_target_accounts(&db, &options, accounts).await
@@ -612,6 +630,21 @@ fn has_inline_credentials(options: &TargetOptions) -> bool {
             }
         },
     }
+}
+
+/// SSH public-key auth with no key: the gateway has no key of its own to
+/// fall back to, so such a target needs a bound account.
+fn missing_ssh_private_key(options: &TargetOptions) -> bool {
+    matches!(
+        options,
+        TargetOptions::Ssh(TargetSSHOptions {
+            auth: SSHTargetAuth::PublicKey(auth),
+            ..
+        }) if auth
+            .private_key_pem
+            .as_ref()
+            .is_none_or(|key| key.expose_secret().trim().is_empty())
+    )
 }
 
 fn clear_inline_credentials(options: &mut TargetOptions) {
@@ -924,6 +957,25 @@ mod tests {
         assert_eq!(options.default_database_name.as_deref(), Some("prod"));
         assert!(options.username.is_empty());
         assert!(options.password.is_none());
+    }
+
+    #[test]
+    fn ssh_public_key_auth_without_a_key_is_detected() {
+        let ssh = |private_key_pem: Option<&str>| {
+            TargetOptions::Ssh(TargetSSHOptions {
+                host: "h".into(),
+                port: 22,
+                username: "root".into(),
+                allow_insecure_algos: None,
+                auth: SSHTargetAuth::PublicKey(SshTargetPublicKeyAuth {
+                    private_key_pem: private_key_pem.map(|key| Secret::new(key.into())),
+                    passphrase: None,
+                }),
+            })
+        };
+        assert!(missing_ssh_private_key(&ssh(None)));
+        assert!(missing_ssh_private_key(&ssh(Some(" "))));
+        assert!(!missing_ssh_private_key(&ssh(Some("KEY"))));
     }
 
     #[test]

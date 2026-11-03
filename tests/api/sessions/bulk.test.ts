@@ -6,6 +6,7 @@ import {
   readPubkey,
   wgClientEd25519PubkeyPath,
   wgClientRsaPubkeyPath,
+  sshPublicKeyAuth,
 } from "../../helpers/gated-helpers";
 import { randomUUID } from "crypto";
 import {
@@ -178,7 +179,7 @@ async function provisionSshUser(
       host: upstreamHost,
       port: 22,
       username: "root",
-      auth: { kind: "PublicKey" },
+      auth: sshPublicKeyAuth(),
     },
   });
   await api.addTargetRole(target.id, role.id);

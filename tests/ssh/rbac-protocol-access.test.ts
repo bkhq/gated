@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { ProcessManager, type GatedProcess } from "../helpers/process-manager";
 import { adminClient } from "../helpers/api-client";
 import { waitPort } from "../helpers/util";
-import { wgClientEd25519PubkeyPath, readPubkey } from "../helpers/gated-helpers";
+import { wgClientEd25519PubkeyPath, readPubkey, sshPublicKeyAuth } from "../helpers/gated-helpers";
 import { createConnection } from "net";
 import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync, readFileSync } from "fs";
 import { join, resolve } from "path";
@@ -177,7 +177,7 @@ describe("RBAC SSH protocol access (allow/deny, revocation)", () => {
         host: sshHost,
         port: 22,
         username: "root",
-        auth: { kind: "PublicKey" },
+        auth: sshPublicKeyAuth(),
       },
     });
     targetId = target.id;

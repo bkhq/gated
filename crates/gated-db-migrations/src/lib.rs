@@ -18,6 +18,7 @@ mod m00012_role_file_transfer;
 mod m00013_ssh_keys;
 mod m00014_tls_certificates;
 mod m00015_acme;
+mod m00016_drop_ssh_client_keys;
 
 pub struct Migrator;
 
@@ -44,6 +45,7 @@ impl MigratorTrait for Migrator {
             Box::new(m00013_ssh_keys::Migration),
             Box::new(m00014_tls_certificates::Migration),
             Box::new(m00015_acme::Migration),
+            Box::new(m00016_drop_ssh_client_keys::Migration),
         ]
     }
 }

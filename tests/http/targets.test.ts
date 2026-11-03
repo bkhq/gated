@@ -4,6 +4,7 @@ import { adminClient } from "../helpers/api-client";
 import { waitPort } from "../helpers/util";
 import { HttpSession } from "../helpers/session";
 import { randomUUID } from "crypto";
+import { sshPublicKeyAuth } from "../helpers/gated-helpers";
 
 describe("Gateway HTTP - /api/targets (RBAC filter)", () => {
   let processes: ProcessManager;
@@ -43,7 +44,7 @@ describe("Gateway HTTP - /api/targets (RBAC filter)", () => {
         host: "example.invalid",
         port: 22,
         username: "root",
-        auth: { kind: "PublicKey" },
+        auth: sshPublicKeyAuth(),
       },
     });
     const forbidden = await api.createTarget({
@@ -53,7 +54,7 @@ describe("Gateway HTTP - /api/targets (RBAC filter)", () => {
         host: "example.invalid",
         port: 22,
         username: "root",
-        auth: { kind: "PublicKey" },
+        auth: sshPublicKeyAuth(),
       },
     });
     await api.addTargetRole(allowed.id, roleA.id);
@@ -88,11 +89,11 @@ describe("Gateway HTTP - /api/targets (RBAC filter)", () => {
 
     const hit = await api.createTarget({
       name: hitName,
-      options: { kind: "Ssh", host: "example.invalid", port: 22, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "example.invalid", port: 22, username: "root", auth: sshPublicKeyAuth() },
     });
     const miss = await api.createTarget({
       name: missName,
-      options: { kind: "Ssh", host: "example.invalid", port: 22, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "example.invalid", port: 22, username: "root", auth: sshPublicKeyAuth() },
     });
     await api.addTargetRole(hit.id, role.id);
     await api.addTargetRole(miss.id, role.id);

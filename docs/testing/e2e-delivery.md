@@ -25,7 +25,7 @@ Each subdirectory is a suite; `tests/package.json` defines per-suite scripts.
   `X-Gated-Token` header; see `tests/helpers/api-client.ts`). Subdirectories:
   `accounts/`, `auth/` (cookie auth, unauthorized), `credentials/` (password,
   OTP, public-key, certificate, SSO), `parameters/`, `roles/`, `sessions/`,
-  `ssh/` (known-hosts, own-keys), `system/`, `target-groups/`, `targets/`,
+  `ssh/` (known-hosts), `system/`, `target-groups/`, `targets/`,
   `tickets/`, `users/`; top-level files cover the RBAC matrix, the
   authentication contract, command records and recordings.
 - `tests/http/` — gateway HTTP API: `/api/info`, `/api/auth/login` and its
@@ -50,13 +50,14 @@ Each subdirectory is a suite; `tests/package.json` defines per-suite scripts.
   `process-manager.ts` runs `gated unattended-setup`, then
   `gated run --enable-admin-token` on random ports per test, completes
   first-run setup through `/api/admin/setup/init` (admin `admin`/`123`),
-  imports the `ssh-keys/wg/` client keys and generates the host keys through
-  `/admin/api/ssh/keys/*`; it also starts
+  and generates the host keys through `/admin/api/ssh/keys/generate`; SSH
+  targets authenticate with the `ssh-keys/wg/client-ed25519` fixture key inline
+  (`sshPublicKeyAuth()` in `gated-helpers.ts`); it also starts
   docker containers for sshd, MySQL, PostgreSQL, k3s, and an OIDC mock
   (`ghcr.io/soluto/oidc-server-mock:0.10.1`); `setup.ts` is preloaded by
   `tests/bunfig.toml` (fixes SSH key permissions, disables TLS verification).
 - Fixtures: `tests/certs/` (TLS cert/key copied into each test data dir),
-  `tests/ssh-keys/` (client/host keys; `wg/` holds the gateway's client keys
+  `tests/ssh-keys/` (client/host keys; `wg/` holds the target keys
   that the test SSH servers trust), `tests/images/` (Dockerfiles for the local `gated-e2e-ssh-server`,
   `gated-e2e-mysql-server`, `gated-e2e-postgres-server` images, built by
   `tests/Makefile`), `tests/oidc-mock/` (a standalone docker-compose variant
@@ -276,7 +277,7 @@ The Playwright dependency also powers the screenshot scripts
 
 | Area | Layer(s) |
 |---|---|
-| Admin REST API (users, roles, targets, credentials, tickets, sessions, parameters, known-hosts, own-keys, auth) | `tests/api/` |
+| Admin REST API (users, roles, targets, credentials, tickets, sessions, parameters, known-hosts, auth) | `tests/api/` |
 | Gateway HTTP API (info, login, RBAC target listing, API tokens) | `tests/http/` |
 | SSH proxy — password / OTP / public-key / ticket / in-browser auth, protocol behavior, target selection, client auth config | `tests/ssh/`; bound-account precedence also in `tests/e2e-docker` (`probe-ssh.sh`, `scenarios/ssh-key`) |
 | PostgreSQL proxy — password and in-browser auth via native `psql` | `tests/db/`, `tests/e2e-docker/scenarios/postgres` |

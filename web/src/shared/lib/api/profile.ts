@@ -78,7 +78,8 @@ function publicKeyFromApi(api: ExistingPublicKeyCredential): PublicKey {
   return {
     id: api.id,
     name: api.label,
-    fingerprint: api.abbreviated,
+    fingerprint: api.fingerprint,
+    publicKey: api.openssh_public_key,
     added: dateOnly(isoOrUndefined(api.date_added)),
     lastUsed: api.last_used ? dateOnly(api.last_used) : 'never',
   }

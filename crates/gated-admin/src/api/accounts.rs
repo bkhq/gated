@@ -5,9 +5,11 @@ use crate::http_service::session::Session;
 use axum::extract::{Path, Query};
 use chrono::{DateTime, Utc};
 use gated_common::web::{Data, Json};
-use gated_common::{AccountCredentials, GatedError};
+use gated_common::{AccountCredentials, GatedError, SshKeyAccountCredentials};
 use gated_common::{api_response, api_routes};
 use gated_core::{ConfigProvider, Services, SharedDatabaseConnection};
+use russh::keys::ssh_key::LineEnding;
+use russh::keys::{Algorithm, HashAlg, PrivateKey, decode_secret_key};
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 use std::time::Instant;
@@ -264,7 +266,11 @@ async fn api_create_account(
         )));
     }
 
-    let credentials = match parse_credentials_for_kind(&body.kind, body.credentials.clone()) {
+    let mut requested = body.credentials.clone();
+    if let Err(message) = generate_requested_key(&body.kind, &mut requested) {
+        return Ok(CreateAccountResponse::UnprocessableEntity(Json(message)));
+    }
+    let credentials = match parse_credentials_for_kind(&body.kind, requested) {
         Ok(credentials) => credentials,
         Err(message) => return Ok(CreateAccountResponse::UnprocessableEntity(Json(message))),
     };
@@ -389,7 +395,13 @@ async fn api_update_account(
         }
     }
 
-    let credentials = match &body.credentials {
+    let mut requested = body.credentials.clone();
+    if let Some(value) = &mut requested
+        && let Err(message) = generate_requested_key(&account.kind, value)
+    {
+        return Ok(UpdateAccountResponse::UnprocessableEntity(Json(message)));
+    }
+    let credentials = match &requested {
         Some(value) => match parse_credentials_for_kind(&account.kind, value.clone()) {
             Ok(incoming) => {
                 // Blank secrets mean "keep the stored value", so a
@@ -664,6 +676,43 @@ async fn account_references(
     Ok(references)
 }
 
+/// Replaces `"generate": "ed25519" | "rsa"` in `ssh-key` credentials with a
+/// newly generated private key, so the key never leaves the server.
+fn generate_requested_key(kind: &str, credentials: &mut Value) -> Result<(), String> {
+    let Some(object) = credentials.as_object_mut() else {
+        return Ok(());
+    };
+    let Some(generate) = object.remove("generate") else {
+        return Ok(());
+    };
+    if kind != "ssh-key" {
+        return Err("generate is only supported for ssh-key accounts".into());
+    }
+    let algorithm = match generate.as_str() {
+        Some("ed25519") => Algorithm::Ed25519,
+        Some("rsa") => Algorithm::Rsa {
+            hash: Some(HashAlg::Sha512),
+        },
+        _ => return Err("generate must be \"ed25519\" or \"rsa\"".into()),
+    };
+    let key = PrivateKey::random(&mut russh::keys::key::safe_rng(), algorithm)
+        .map_err(|error| format!("generating the key failed: {error}"))?;
+    let pem = key
+        .to_openssh(LineEnding::LF)
+        .map_err(|error| format!("encoding the key failed: {error}"))?;
+    object.insert("private_key_pem".into(), Value::String(pem.to_string()));
+    object.insert("passphrase".into(), Value::Null);
+    Ok(())
+}
+
+fn ssh_private_key(credentials: &SshKeyAccountCredentials) -> Option<PrivateKey> {
+    decode_secret_key(
+        credentials.private_key_pem.trim(),
+        credentials.passphrase.as_deref().filter(|p| !p.is_empty()),
+    )
+    .ok()
+}
+
 fn parse_credentials_for_kind(
     kind: &str,
     credentials: Value,
@@ -923,7 +972,14 @@ fn validate_required_credentials(credentials: &AccountCredentials) -> Result<(),
         }
         AccountCredentials::SshKey(c) => {
             require(&c.username, "username")?;
-            require(&c.private_key_pem, "private_key_pem")
+            require(&c.private_key_pem, "private_key_pem")?;
+            if ssh_private_key(c).is_none() {
+                return Err(
+                    "private_key_pem is not a valid SSH private key (or the passphrase is wrong)"
+                        .into(),
+                );
+            }
+            Ok(())
         }
         AccountCredentials::DbPassword(c) => {
             require(&c.username, "username")?;
@@ -968,6 +1024,18 @@ fn credentials_public(credentials: &AccountCredentials) -> Value {
         return json!({ "kind": credentials.kind() });
     };
     object.retain(|key, _| key == "kind" || !is_sensitive_field(key));
+    // The public half of an SSH key is what gets installed on the target.
+    if let AccountCredentials::SshKey(c) = credentials
+        && let Some(key) = ssh_private_key(c)
+    {
+        if let Ok(public) = key.public_key().to_openssh() {
+            object.insert("public_key_openssh".into(), Value::String(public));
+        }
+        object.insert(
+            "fingerprint".into(),
+            Value::String(key.public_key().fingerprint(HashAlg::Sha256).to_string()),
+        );
+    }
     Value::Object(object)
 }
 
@@ -1226,6 +1294,55 @@ mod tests {
         let public = credentials_public(&headers);
         assert!(!public.to_string().contains("very-secret"));
         assert_eq!(public["headers"][1]["value"], "prod");
+    }
+
+    #[test]
+    fn ssh_key_accounts_generate_keys_and_expose_only_the_public_key() {
+        for (algorithm, prefix) in [("ed25519", "ssh-ed25519 "), ("rsa", "ssh-rsa ")] {
+            let mut value = json!({"username": "root", "generate": algorithm});
+            generate_requested_key("ssh-key", &mut value).expect("generate");
+            assert!(value.get("generate").is_none());
+            let credentials = parse_credentials_for_kind("ssh-key", value).expect("parse");
+            validate_required_credentials(&credentials).expect("valid");
+            let AccountCredentials::SshKey(key) = &credentials else {
+                panic!("kind changed");
+            };
+            let public = credentials_public(&credentials);
+            assert!(
+                public["public_key_openssh"]
+                    .as_str()
+                    .expect("public key")
+                    .starts_with(prefix)
+            );
+            assert!(
+                public["fingerprint"]
+                    .as_str()
+                    .expect("fingerprint")
+                    .starts_with("SHA256:")
+            );
+            assert!(!public.to_string().contains(&key.private_key_pem));
+        }
+
+        let mut unknown = json!({"username": "root", "generate": "dsa"});
+        assert!(generate_requested_key("ssh-key", &mut unknown).is_err());
+        let mut other_kind = json!({"username": "root", "password": "x", "generate": "ed25519"});
+        assert!(generate_requested_key("ssh-password", &mut other_kind).is_err());
+    }
+
+    #[test]
+    fn ssh_key_accounts_reject_an_unreadable_private_key() {
+        let credentials = parse_credentials_for_kind(
+            "ssh-key",
+            json!({"username": "root", "private_key_pem": "not a key"}),
+        )
+        .expect("parse");
+        assert_eq!(
+            validate_required_credentials(&credentials),
+            Err(
+                "private_key_pem is not a valid SSH private key (or the passphrase is wrong)"
+                    .into()
+            )
+        );
     }
 
     #[tokio::test]

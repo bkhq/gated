@@ -5,17 +5,13 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/shared/lib/api/http'
 import { generateSshKeys, importSshKey, listSshKeys } from '@/shared/lib/api/ssh-keys'
-import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/shared/ui/dialog'
 import { Label } from '@/shared/ui/label'
 import { PasswordInput } from '@/shared/ui/password-input'
-import { Select } from '@/shared/ui/select'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { Textarea } from '@/shared/ui/textarea'
-
-type KeyKind = ImportSSHKeyRequest['kind']
 
 const SSH_KEYS_QUERY_KEY = ['ssh-keys'] as const
 
@@ -39,7 +35,7 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
-/** The gateway's SSH host and client keys, stored in the database. */
+/** The gateway's SSH host keys, stored in the database. */
 export function SshKeysCard() {
   const { t } = useTranslation()
   const qc = useQueryClient()
@@ -54,8 +50,7 @@ export function SshKeysCard() {
   })
 
   const keys = query.data ?? []
-  const hasKind = (kind: KeyKind) => keys.some(key => key.kind === kind)
-  const complete = hasKind('host') && hasKind('client')
+  const hasKeys = keys.length > 0
 
   return (
     <div className="px-6 pt-4">
@@ -71,7 +66,7 @@ export function SshKeysCard() {
                 variant="outline"
                 size="sm"
                 onClick={() => generate.mutate()}
-                disabled={query.isLoading || complete || generate.isPending}
+                disabled={query.isLoading || hasKeys || generate.isPending}
               >
                 <KeyRound size={13} />
                 <span>{t('settings.sshKeys.generate')}</span>
@@ -89,12 +84,7 @@ export function SshKeysCard() {
             : query.isError
               ? <ErrorBanner message={t('settings.sshKeys.loadError')} />
               : (
-                  <>
-                    {!hasKind('host') ? <ErrorBanner message={t('settings.sshKeys.noHostKeys')} /> : null}
-                    {keys.length === 0
-                      ? <p className="m-0 text-[12.5px] text-muted-foreground">{t('settings.sshKeys.empty')}</p>
-                      : <KeyList keys={keys} />}
-                  </>
+                  hasKeys ? <KeyList keys={keys} /> : <ErrorBanner message={t('settings.sshKeys.noHostKeys')} />
                 )}
           {generate.isError ? <ErrorBanner message={errorMessage(generate.error, t('settings.sshKeys.generateError'))} /> : null}
         </CardContent>
@@ -107,12 +97,10 @@ export function SshKeysCard() {
 }
 
 function KeyList({ keys }: { keys: StoredSSHKey[] }) {
-  const { t } = useTranslation()
   return (
     <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
       {keys.map(key => (
         <li key={key.id} className="flex flex-wrap items-center gap-2 text-[12.5px]">
-          <Badge tone={key.kind === 'host' ? 'info' : 'mono'}>{t(`settings.sshKeys.kind.${key.kind as KeyKind}`)}</Badge>
           <span className="font-mono">{key.algorithm}</span>
           <span className="font-mono text-muted-foreground" title={key.public_key_openssh}>{key.fingerprint}</span>
         </li>
@@ -124,7 +112,6 @@ function KeyList({ keys }: { keys: StoredSSHKey[] }) {
 function ImportDialogBody({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const [kind, setKind] = React.useState<KeyKind>('host')
   const [pem, setPem] = React.useState('')
   const [passphrase, setPassphrase] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
@@ -143,7 +130,7 @@ function ImportDialogBody({ onClose }: { onClose: () => void }) {
       return
     }
     setError(null)
-    mutation.mutate({ kind, private_key_pem: pem, passphrase: passphrase || null })
+    mutation.mutate({ private_key_pem: pem, passphrase: passphrase || null })
   }
 
   return (
@@ -154,15 +141,6 @@ function ImportDialogBody({ onClose }: { onClose: () => void }) {
         onClose={mutation.isPending ? undefined : onClose}
       />
       <DialogBody className="flex flex-col gap-2.5">
-        <div>
-          <Label htmlFor="ssh-key-kind">{t('settings.sshKeys.importDialog.kind')}</Label>
-          <Select
-            id="ssh-key-kind"
-            value={kind}
-            onValueChange={value => setKind(value as KeyKind)}
-            options={(['host', 'client'] as const).map(value => ({ value, label: t(`settings.sshKeys.kind.${value}`) }))}
-          />
-        </div>
         <div>
           <Label htmlFor="ssh-key-pem">{t('settings.sshKeys.importDialog.privateKey')}</Label>
           <Textarea

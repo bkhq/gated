@@ -1825,7 +1825,7 @@
     },
     "/ssh/keys": {
       "get": {
-        "summary": "The gateway's stored SSH host and client keys (public parts only).",
+        "summary": "The gateway's stored SSH host keys (public parts only).",
         "operationId": "get_ssh_keys",
         "responses": {
           "200": {
@@ -1853,7 +1853,7 @@
     },
     "/ssh/keys/generate": {
       "post": {
-        "summary": "Generates Ed25519 and RSA keys for each kind (host, client) that has no\nkeys yet. Existing keys are kept.",
+        "summary": "Generates Ed25519 and RSA host keys unless host keys exist, and starts\nthe SSH listener.",
         "operationId": "generate_ssh_keys",
         "responses": {
           "200": {
@@ -1881,7 +1881,7 @@
     },
     "/ssh/keys/import": {
       "post": {
-        "summary": "Stores a private key of the given kind, replacing a stored key with the\nsame algorithm.",
+        "summary": "Stores a host key, replacing a stored host key with the same algorithm.",
         "operationId": "import_ssh_key",
         "requestBody": {
           "content": {
@@ -1999,33 +1999,6 @@
         "responses": {
           "204": {},
           "404": {}
-        },
-        "security": [
-          {
-            "TokenSecurityScheme": []
-          },
-          {
-            "CookieSecurityScheme": []
-          }
-        ]
-      }
-    },
-    "/ssh/own-keys": {
-      "get": {
-        "operationId": "get_ssh_own_keys",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json; charset=utf-8": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SSHKey"
-                  }
-                }
-              }
-            }
-          }
         },
         "security": [
           {
@@ -5724,13 +5697,9 @@
       "ImportSSHKeyRequest": {
         "type": "object",
         "required": [
-          "kind",
           "private_key_pem"
         ],
         "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/SSHKeyKind"
-          },
           "passphrase": {
             "type": [
               "string",
@@ -6414,28 +6383,6 @@
           }
         ]
       },
-      "SSHKey": {
-        "type": "object",
-        "required": [
-          "kind",
-          "public_key_base64"
-        ],
-        "properties": {
-          "kind": {
-            "type": "string"
-          },
-          "public_key_base64": {
-            "type": "string"
-          }
-        }
-      },
-      "SSHKeyKind": {
-        "type": "string",
-        "enum": [
-          "host",
-          "client"
-        ]
-      },
       "SSHKnownHost": {
         "type": "object",
         "required": [
@@ -6641,9 +6588,9 @@
       },
       "StoredSSHKey": {
         "type": "object",
+        "description": "A stored SSH host key (public part).",
         "required": [
           "id",
-          "kind",
           "algorithm",
           "public_key_openssh",
           "fingerprint",
@@ -6663,9 +6610,6 @@
           "id": {
             "type": "string",
             "format": "uuid"
-          },
-          "kind": {
-            "type": "string"
           },
           "public_key_openssh": {
             "type": "string"

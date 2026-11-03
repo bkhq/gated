@@ -41,7 +41,8 @@ export function missingCredentialFields(creds: AccountCredentials, allowBlankSec
       break
     case 'ssh-key':
       need(creds.username, 'accounts.form.cred.username')
-      need(creds.private_key_pem, 'accounts.form.cred.privateKeyPem', true)
+      if (!creds.generate)
+        need(creds.private_key_pem, 'accounts.form.cred.privateKeyPem', true)
       break
     case 'k8s-token':
       need(creds.token, 'accounts.form.cred.token', true)

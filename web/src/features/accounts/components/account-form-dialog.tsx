@@ -106,6 +106,8 @@ function sanitizeCredentials(creds: AccountCredentials): AccountCredentials {
     case 'ssh-password':
       return creds
     case 'ssh-key': {
+      if (creds.generate)
+        return { kind: 'ssh-key', username: creds.username, private_key_pem: '', generate: creds.generate }
       const out: AccountCredentials = { kind: 'ssh-key', username: creds.username, private_key_pem: creds.private_key_pem }
       if (creds.passphrase)
         out.passphrase = creds.passphrase

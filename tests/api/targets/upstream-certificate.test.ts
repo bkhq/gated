@@ -3,6 +3,7 @@ import { ProcessManager, type GatedProcess } from "../../helpers/process-manager
 import { adminClient } from "../../helpers/api-client";
 import { waitPort } from "../../helpers/util";
 import { randomUUID } from "crypto";
+import { sshPublicKeyAuth } from "../../helpers/gated-helpers";
 
 describe("API Targets - Upstream certificate", () => {
   let processes: ProcessManager;
@@ -66,7 +67,7 @@ describe("API Targets - Upstream certificate", () => {
   test("rejects non-HTTP targets", async () => {
     const target = await adminClient(url).createTarget({
       name: `target-${randomUUID()}`,
-      options: { kind: "Ssh", host: "localhost", port: 22, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "localhost", port: 22, username: "root", auth: sshPublicKeyAuth() },
     });
     expect((await certificate(target.id)).status).toBe(400);
   });

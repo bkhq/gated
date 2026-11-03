@@ -143,6 +143,7 @@ export interface PublicKey {
   id: string
   name: string
   fingerprint: string
+  publicKey: string
   added: string
   lastUsed: string
 }
@@ -163,6 +164,8 @@ export type AccountKind
 
 export type DbEngine = 'mysql' | 'postgres'
 
+export type SshKeyAlgorithm = 'ed25519' | 'rsa'
+
 export interface HttpHeaderCredential {
   name: string
   value: string
@@ -171,7 +174,9 @@ export interface HttpHeaderCredential {
 
 export type AccountCredentials
   = | { kind: 'ssh-password', username: string, password: string }
-    | { kind: 'ssh-key', username: string, private_key_pem: string, passphrase?: string | null }
+    // `generate` asks the server to create the key; `public_key_openssh` and
+    // `fingerprint` are read-only and derived from the stored key.
+    | { kind: 'ssh-key', username: string, private_key_pem: string, passphrase?: string | null, generate?: SshKeyAlgorithm | null, public_key_openssh?: string, fingerprint?: string }
     | { kind: 'db-password', engine: DbEngine, username: string, password: string }
     | { kind: 'k8s-token', token: string, ca_pem?: string | null, namespace?: string | null }
     | { kind: 'k8s-client-cert', client_certificate_pem: string, client_private_key_pem: string, passphrase?: string | null, ca_pem?: string | null, namespace?: string | null }

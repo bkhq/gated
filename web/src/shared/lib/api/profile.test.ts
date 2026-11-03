@@ -31,4 +31,10 @@ describe('self-service credentials', () => {
     expect(fetch).toHaveBeenNthCalledWith(1, '/api/profile/credentials/otp/begin', expect.objectContaining({ method: 'POST' }))
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/profile/credentials/otp', expect.objectContaining({ body: JSON.stringify({ otp: '123456' }) }))
   })
+  it('keeps the full public key and its fingerprint', async () => {
+    const created = { id: 'k1', label: 'laptop', openssh_public_key: 'ssh-ed25519 AAAAFULL', fingerprint: 'SHA256:abc', date_added: null, last_used: null }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(created), { status: 201 })))
+    const key = await profileApi.publicKeys.register({ name: 'laptop', material: 'ssh-ed25519 AAAAFULL' })
+    expect(key).toMatchObject({ publicKey: 'ssh-ed25519 AAAAFULL', fingerprint: 'SHA256:abc' })
+  })
 })

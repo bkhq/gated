@@ -165,7 +165,7 @@ Source locations:
 #### `POST /api/profile/credentials/public-keys` — `add_my_public_key` [OAS]
 
 - Body: `Json<NewPublicKeyCredential> { label: string, openssh_public_key: string }`.
-- Responses: `201 Created` `Json<ExistingPublicKeyCredential>` / `401` / `403`. Only `abbreviated` is returned, **not the full key**.
+- Responses: `201 Created` `Json<ExistingPublicKeyCredential>` / `401` / `403`. Returns the full `openssh_public_key` and its SHA256 `fingerprint`.
 
 #### `DELETE /api/profile/credentials/public-keys/:id` — `delete_my_public_key` [OAS]
 
@@ -497,7 +497,7 @@ Source locations:
   - `201 Created` `Target`.
   - `400` `"name"` (empty name).
   - `409` `"Name already exists"`.
-  - `422` `"accounts cannot be mixed with inline credentials"` / `"accounts must include a primary binding"` / `"account {id} not found"` / `"account {id} kind {kind} is not compatible with target kind"`.
+  - `422` `"accounts cannot be mixed with inline credentials"` / `"SSH public-key auth needs a private key or a bound account"` (no gateway-wide key exists) / `"accounts must include a primary binding"` / `"account {id} not found"` / `"account {id} kind {kind} is not compatible with target kind"`.
 
 #### `GET /admin/api/targets/:id` — `get_target` [OAS] — `200` / `404`.
 
@@ -621,10 +621,9 @@ Source locations:
 
 ### 2.10 SSH host keys and probing (`ssh_keys.rs`, `known_hosts_list.rs`, `known_hosts_detail.rs`, `ssh_connection_test.rs`)
 
-- `GET /admin/api/ssh/own-keys` — `200 OK` `Json<SSHKey[]>` (`{ kind, public_key_base64 }`). The public keys of the gateway's own SSH client; empty until client keys are generated or imported.
-- `GET /admin/api/ssh/keys` — `200 OK` `Json<StoredSSHKey[]>` (`{ id, kind: "host" | "client", algorithm, public_key_openssh, fingerprint, created }`). The stored host and client keys; private parts are never returned.
-- `POST /admin/api/ssh/keys/generate` — generates Ed25519 and RSA keys for each kind that has none, keeps existing keys, and starts the SSH listener once host keys exist; `200 OK` `Json<StoredSSHKey[]>`.
-- `POST /admin/api/ssh/keys/import` — Body `ImportSSHKeyRequest { kind: "host" | "client", private_key_pem, passphrase? }` (OpenSSH or PKCS#8 PEM); replaces the stored key of the same kind and algorithm and stores the key decrypted (protected by database encryption when enabled); `200 OK` `Json<StoredSSHKey>` / `400` `Json<string>` (key cannot be parsed or decrypted).
+- `GET /admin/api/ssh/keys` — `200 OK` `Json<StoredSSHKey[]>` (`{ id, algorithm, public_key_openssh, fingerprint, created }`). The stored host keys; private parts are never returned. Keys for authenticating to SSH targets belong to `ssh-key` accounts (§6.7) or a target's inline `private_key_pem`.
+- `POST /admin/api/ssh/keys/generate` — generates Ed25519 and RSA host keys unless host keys exist and starts the SSH listener; `200 OK` `Json<StoredSSHKey[]>`.
+- `POST /admin/api/ssh/keys/import` — Body `ImportSSHKeyRequest { private_key_pem, passphrase? }` (OpenSSH or PKCS#8 PEM); replaces the stored host key with the same algorithm, starts the SSH listener and stores the key decrypted (protected by database encryption when enabled); `200 OK` `Json<StoredSSHKey>` / `400` `Json<string>` (key cannot be parsed or decrypted).
 - `GET /admin/api/tls/certificates` — `200 OK` `Json<ListenerCertificate[]>` (`{ listener: "admin" | "http" | "mysql" | "postgres", chain: CertificateInfo[], created, acme: { domains, last_attempt, last_success, last_error } | null }`), one entry per listener; `admin` is omitted when the admin listener serves plain HTTP, and `chain` is empty until a listener has a certificate. The admin certificate is read from its files, the others from the database. Private keys are never returned.
 - `POST /admin/api/tls/certificates/:listener/generate` — replaces the listener's certificate with a new self-signed one for `external_host` and `localhost` and stops ACME for it; `200 OK` `Json<ListenerCertificate>` / `400` (admin listener without TLS).
 - `PUT /admin/api/tls/certificates/:listener` — Body `ImportTLSCertificateRequest { certificate_pem, private_key_pem }` (PEM chain, leaf first, and its unencrypted key); stops ACME for the listener; `200 OK` `Json<ListenerCertificate>` / `400` `Json<string>` (unparsable PEM or a key that does not match the leaf). The admin pair is written to its files.
@@ -983,7 +982,7 @@ ExistingPasswordCredential       { id: uuid }
 NewPasswordCredential            { password: string }                               // secret — write-only
 
 ExistingPublicKeyCredential      { id, label, date_added?, last_used?,
-                                   openssh_public_key? OR abbreviated }
+                                   openssh_public_key, fingerprint? }
 NewPublicKeyCredential           { label: string, openssh_public_key: string }
 
 ExistingOtpCredential            { id: uuid }
@@ -1000,7 +999,7 @@ IssuedCertificateCredential      { credential: ExistingCertificateCredential,
 UpdateCertificateCredential      { label: string }
 ```
 
-Note: the `ExistingPublicKeyCredential` returned by the user-side `add_my_public_key` carries `abbreviated` (first 10 + `...` + last 10 characters) and not the full key; the admin API returns the version with the full `openssh_public_key`.
+Note: the user-side `ExistingPublicKeyCredential` also carries the SHA256 `fingerprint` (empty when the stored key does not parse); the admin API returns the version without it.
 
 #### API tokens
 
@@ -1088,7 +1087,7 @@ AccountReveal           { credentials: AccountCredentials }
 `AccountCredentials` (discriminator `kind`, kebab-case):
 
 - `ssh-password { username, password: secret }`
-- `ssh-key { username, private_key_pem: secret, passphrase?: secret }`
+- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — on create/update, `generate: "ed25519" | "rsa"` instead of a key makes the server generate the private key (it never leaves the server); `private_key_pem` must decode with the passphrase (`422` otherwise). `credentials_public` adds the derived `public_key_openssh` and SHA256 `fingerprint`.
 - `db-password { engine: "mysql"|"postgres", username, password: secret }`
 - `k8s-token { token: secret, ca_pem?: secret, namespace? }`
 - `k8s-client-cert { client_certificate_pem, client_private_key_pem: secret, passphrase?: secret, ca_pem?: secret, namespace? }`
@@ -1262,9 +1261,8 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | GET | `/admin/api/sessions/:id/recordings` | `get_session_recordings` |  |
 | GET | `/admin/api/sessions/:id` | `get_session` |  |
 | GET | `/admin/api/sessions` | `get_sessions` |  |
-| GET | `/admin/api/ssh/keys` | `get_ssh_keys` | The gateway's stored SSH host and client keys (public parts only). |
+| GET | `/admin/api/ssh/keys` | `get_ssh_keys` | The gateway's stored SSH host keys (public parts only). |
 | GET | `/admin/api/ssh/known-hosts` | `get_ssh_known_hosts` |  |
-| GET | `/admin/api/ssh/own-keys` | `get_ssh_own_keys` |  |
 | GET | `/admin/api/system/update` | `get_update_status` |  |
 | GET | `/admin/api/target-groups/:id` | `get_target_group` |  |
 | GET | `/admin/api/target-groups` | `list_target_groups` |  |
@@ -1297,8 +1295,8 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | POST | `/admin/api/sessions/:id/close` | `close_session` | Gracefully close a live session: signal its handle so the owning |
 | POST | `/admin/api/sessions/:id/terminate` | `terminate_session` | Forcibly terminate a live session. Unlike graceful `close`, which only |
 | POST | `/admin/api/ssh/check-host-key` | `check_ssh_host_key` |  |
-| POST | `/admin/api/ssh/keys/generate` | `generate_ssh_keys` | Generates Ed25519 and RSA keys for each kind (host, client) that has no |
-| POST | `/admin/api/ssh/keys/import` | `import_ssh_key` | Stores a private key of the given kind, replacing a stored key with the |
+| POST | `/admin/api/ssh/keys/generate` | `generate_ssh_keys` | Generates Ed25519 and RSA host keys unless host keys exist, and starts |
+| POST | `/admin/api/ssh/keys/import` | `import_ssh_key` | Stores a host key, replacing a stored host key with the same algorithm. |
 | POST | `/admin/api/ssh/known-hosts` | `add_ssh_known_host` |  |
 | POST | `/admin/api/system/restart` | `restart_gateway` |  |
 | POST | `/admin/api/system/update/check` | `check_for_update` |  |

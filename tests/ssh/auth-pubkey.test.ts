@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { ProcessManager, type GatedProcess } from "../helpers/process-manager";
 import { adminClient } from "../helpers/api-client";
 import { waitPort } from "../helpers/util";
-import { wgClientEd25519PubkeyPath, readPubkey } from "../helpers/gated-helpers";
+import { wgClientEd25519PubkeyPath, readPubkey, sshPublicKeyAuth } from "../helpers/gated-helpers";
 import { resolve } from "path";
 import { readFileSync } from "fs";
 import { randomUUID } from "crypto";
@@ -42,7 +42,7 @@ describe("SSH User Auth PublicKey", () => {
     await api.addUserRole(user.id, role.id);
     const target = await api.createTarget({
       name: `ssh-${randomUUID()}`,
-      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: sshPublicKeyAuth() },
     });
     await api.addTargetRole(target.id, role.id);
 
@@ -90,7 +90,7 @@ describe("SSH User Auth PublicKey", () => {
     await api.addUserRole(user.id, role.id);
     const target = await api.createTarget({
       name: `ssh-${randomUUID()}`,
-      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: sshPublicKeyAuth() },
     });
     await api.addTargetRole(target.id, role.id);
 

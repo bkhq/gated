@@ -718,14 +718,16 @@ export interface components {
             uses_left?: number | null;
         };
         ExistingPublicKeyCredential: {
-            abbreviated: string;
             /** Format: date-time */
             date_added?: string | null;
+            /** @description SHA256 fingerprint; empty when the stored key does not parse. */
+            fingerprint: string;
             /** Format: uuid */
             id: string;
             label: string;
             /** Format: date-time */
             last_used?: string | null;
+            openssh_public_key: string;
         };
         ExistingSsoCredential: {
             email: string;

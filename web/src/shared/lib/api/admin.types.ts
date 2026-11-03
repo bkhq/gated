@@ -529,7 +529,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The gateway's stored SSH host and client keys (public parts only). */
+        /** The gateway's stored SSH host keys (public parts only). */
         get: operations["get_ssh_keys"];
         put?: never;
         post?: never;
@@ -549,8 +549,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Generates Ed25519 and RSA keys for each kind (host, client) that has no
-         *     keys yet. Existing keys are kept.
+         * Generates Ed25519 and RSA host keys unless host keys exist, and starts
+         *     the SSH listener.
          */
         post: operations["generate_ssh_keys"];
         delete?: never;
@@ -568,10 +568,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Stores a private key of the given kind, replacing a stored key with the
-         *     same algorithm.
-         */
+        /** Stores a host key, replacing a stored host key with the same algorithm. */
         post: operations["import_ssh_key"];
         delete?: never;
         options?: never;
@@ -606,22 +603,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_ssh_known_host"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/ssh/own-keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_ssh_own_keys"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1629,7 +1610,6 @@ export interface components {
             timestamp: string;
         };
         ImportSSHKeyRequest: {
-            kind: components["schemas"]["SSHKeyKind"];
             /**
              * @description Passphrase of an encrypted key; the key is stored decrypted, protected
              *     by the database encryption when it is enabled.
@@ -1843,12 +1823,6 @@ export interface components {
             /** @description True for the built-in admin role, which cannot be edited or deleted. */
             builtin: boolean;
         };
-        SSHKey: {
-            kind: string;
-            public_key_base64: string;
-        };
-        /** @enum {string} */
-        SSHKeyKind: "host" | "client";
         SSHKnownHost: {
             host: string;
             /** Format: uuid */
@@ -1902,6 +1876,7 @@ export interface components {
              */
             valid_until?: string | null;
         };
+        /** @description A stored SSH host key (public part). */
         StoredSSHKey: {
             algorithm: string;
             /** Format: date-time */
@@ -1909,7 +1884,6 @@ export interface components {
             fingerprint: string;
             /** Format: uuid */
             id: string;
-            kind: string;
             public_key_openssh: string;
         };
         /** @enum {string} */
@@ -3534,25 +3508,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    get_ssh_own_keys: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json; charset=utf-8": components["schemas"]["SSHKey"][];
-                };
             };
         };
     };

@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { ProcessManager, type GatedProcess } from "../helpers/process-manager";
 import { waitPort } from "../helpers/util";
 import { randomUUID } from "crypto";
+import { sshPublicKeyAuth } from "../helpers/gated-helpers";
 
 // We run inside a dev container on the `traefik` bridge network. Docker port
 // publishing from a child container doesn't reach us (different docker
@@ -567,7 +568,7 @@ describe("SQL Console (MySQL)", () => {
         host: "localhost",
         port: 22,
         username: "root",
-        auth: { kind: "PublicKey" },
+        auth: sshPublicKeyAuth(),
       },
     });
     await adminReq(url, "POST", `/targets/${target.id}/roles/${role.id}`);

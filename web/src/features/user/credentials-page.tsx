@@ -309,9 +309,9 @@ function SshKeysCard() {
   const [pendingRemove, setPendingRemove] = React.useState<PublicKey | null>(null)
   const [liveMsg, setLiveMsg] = React.useState('')
 
-  const copyFingerprint = (key: PublicKey) => {
-    void navigator.clipboard?.writeText(key.fingerprint)
-    setLiveMsg(t('user.credentials.copiedFingerprint'))
+  const copyPublicKey = (key: PublicKey) => {
+    void navigator.clipboard?.writeText(key.publicKey)
+    setLiveMsg(t('user.credentials.copiedPublicKey'))
     window.setTimeout(setLiveMsg, 1500, '')
   }
 
@@ -351,6 +351,7 @@ function SshKeysCard() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[13.5px] font-medium">{key.name}</span>
                         </div>
+                        <div className="mono text-[11px] break-all text-muted-foreground select-all">{key.publicKey}</div>
                         <div className="mono truncate text-[11px] text-muted-foreground">{key.fingerprint}</div>
                         <div className="mt-0.5 text-[11px] text-muted-foreground">
                           {t('profile.auth.added', { when: key.added })}
@@ -361,7 +362,7 @@ function SshKeysCard() {
                       <RowMenu
                         label={t('user.credentials.sshKeys.rowMenu', { name: key.name })}
                         items={[
-                          { label: t('profile.actions.copy'), icon: Copy, onClick: () => copyFingerprint(key) },
+                          { label: t('profile.actions.copy'), icon: Copy, onClick: () => copyPublicKey(key) },
                           'separator' as const,
                           { label: t('profile.actions.remove'), icon: Trash2, danger: true, onClick: () => setPendingRemove(key) },
                         ]}

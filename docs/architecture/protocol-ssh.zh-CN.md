@@ -12,8 +12,7 @@ SSH 代理基于 `russh` crate 构建，对客户端充当完整的 SSH 服务�
 
 - 通过 `load_keys()`（`crates/gated-protocol-ssh/src/keys.rs`）从 `ssh_keys` 表加载**主机密钥**（向入站
   客户端出示）；管理员生成（`POST /admin/api/ssh/keys/generate`，`generate_keys()`）或导入
-  （`POST /admin/api/ssh/keys/import`，`import_key()`）主机密钥之前不监听端口。**客户端密钥**（用于向目标认证）
-  以同样方式管理。生成时创建 Ed25519 和 RSA 两种密钥；密钥只保存在数据库中，开启静态加密时随数据库一起加密；
+  （`POST /admin/api/ssh/keys/import`，`import_key()`）主机密钥之前不监听端口。生成时创建 Ed25519 和 RSA 两种密钥；密钥只保存在数据库中，开启静态加密时随数据库一起加密；
 - 接受 TCP 连接，并为每个连接启动一个任务：先在核心注册表中登记会话（`State::register_session`），再运行
   russh 服务端状态机（`russh::server::run_stream`）；
 - 为 russh 配置首选主机密钥算法（Ed25519 优先，其次 RSA-SHA2）、认证失败后的 1 秒延迟、
@@ -58,8 +57,8 @@ SSH 用户名同时编码身份和目标，由 `AuthSelector`（`crates/gated-co
 通道对驱动。连接是**延迟的**：由第一个通道级请求（shell / exec / 转发）触发，而不是在认证时
 （`server/session.rs`，`maybe_connect_remote`）。
 
-- **连接目标的凭据**来自目标的 `TargetSSHOptions`：密码认证，或公钥认证（使用每目标私钥或 gated 自己的客户端
-  密钥，`client/mod.rs`，`ssh_auth_keys()`）；每目标绑定账户通过 `ssh_options_with_account`
+- **连接目标的凭据**来自目标的 `TargetSSHOptions`：密码认证，或公钥认证（使用目标的私钥，`client/mod.rs`，
+  `ssh_auth_keys()`；网关没有全局的备用密钥）；每目标绑定的账户（如可由服务器生成密钥的 `ssh-key` 账户）优先，通过 `ssh_options_with_account`
   （`crates/gated-core/src/account_credentials.rs`）解析。RSA 目标优先使用 SHA-2，并对旧服务器回退重试 SHA-1。
 - **主机密钥验证**使用 known-hosts 表，有三种模式（`SshHostKeyVerificationMode`）：自动接受、自动拒绝，或在用户
   的 PTY 中显示交互式提示（`server/session.rs`，`handle_unknown_host_key`）。不匹配时中止并给出详细信息。

@@ -2138,18 +2138,20 @@
         "required": [
           "id",
           "label",
-          "abbreviated"
+          "openssh_public_key",
+          "fingerprint"
         ],
         "properties": {
-          "abbreviated": {
-            "type": "string"
-          },
           "date_added": {
             "type": [
               "string",
               "null"
             ],
             "format": "date-time"
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "SHA256 fingerprint; empty when the stored key does not parse."
           },
           "id": {
             "type": "string",
@@ -2164,6 +2166,9 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "openssh_public_key": {
+            "type": "string"
           }
         }
       },

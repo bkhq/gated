@@ -595,11 +595,5 @@ async function completeSetup(
   };
 
   await post("/api/admin/setup/init", { username: "admin", password: "123" });
-  for (const file of ["client-ed25519", "client-rsa"]) {
-    await post("/admin/api/ssh/keys/import", {
-      kind: "client",
-      private_key_pem: readFileSync(join(TESTS_DIR, "ssh-keys/wg", file), "utf-8"),
-    });
-  }
   await post("/admin/api/ssh/keys/generate");
 }

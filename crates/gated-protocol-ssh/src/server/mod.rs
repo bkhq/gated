@@ -21,7 +21,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::unbounded_channel;
 use tracing::*;
 
-use crate::keys::{KeyKind, load_keys};
+use crate::keys::load_keys;
 use crate::server::session_handle::SSHSessionHandle;
 
 #[derive(Clone)]
@@ -58,7 +58,7 @@ async fn wait_for_host_keys(services: &Services) -> Result<Vec<PrivateKey>> {
     loop {
         // Register before checking so a notification in between is not lost.
         let ready = services.ssh_keys_ready.notified();
-        let keys = load_keys(&services.db_required().await?, KeyKind::Host).await?;
+        let keys = load_keys(&services.db_required().await?).await?;
         if !keys.is_empty() {
             return Ok(keys);
         }

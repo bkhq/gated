@@ -22,7 +22,7 @@
 
 - `tests/api/` —— 管理 REST API（`/admin/api`，使用 `X-Gated-Token` 头认证；见 `tests/helpers/api-client.ts`）。
   子目录：`accounts/`、`auth/`（cookie 认证、未授权）、`credentials/`（密码、OTP、公钥、证书、SSO）、
-  `parameters/`、`roles/`、`sessions/`、`ssh/`（known-hosts、own-keys）、`system/`、`target-groups/`、`targets/`、
+  `parameters/`、`roles/`、`sessions/`、`ssh/`（known-hosts）、`system/`、`target-groups/`、`targets/`、
   `tickets/`、`users/`；顶层文件覆盖 RBAC 矩阵、认证契约、命令记录和录制。
 - `tests/http/` —— 网关 HTTP API：`/api/info`、`/api/auth/login` 及其限速、OIDC 安全、`/api/targets` 的 RBAC 过滤、
   API 令牌、票据范围、WebSocket origin 检查。
@@ -36,11 +36,11 @@
 - `tests/misc/` —— `/healthz` + `/readyz`、JSON 日志输出、日志注入、Prometheus `/metrics`、`--data-dir` 和加密生命周期。
 - `tests/helpers/` —— 共享基础设施，不是测试：`process-manager.ts` 在每个测试中用随机端口先运行
   `gated unattended-setup` 再运行 `gated run --enable-admin-token`，通过 `/api/admin/setup/init` 完成首次初始化
-  （管理员 `admin`/`123`），并通过 `/admin/api/ssh/keys/*` 导入 `ssh-keys/wg/` 客户端密钥、生成主机密钥；同时启动 sshd、MySQL、PostgreSQL、k3s 和 OIDC mock
+  （管理员 `admin`/`123`），并通过 `/admin/api/ssh/keys/generate` 生成主机密钥；SSH 目标内联使用 `ssh-keys/wg/client-ed25519` 夹具私钥认证（`gated-helpers.ts` 中的 `sshPublicKeyAuth()`）；同时启动 sshd、MySQL、PostgreSQL、k3s 和 OIDC mock
   （`ghcr.io/soluto/oidc-server-mock:0.10.1`）的 docker 容器；`setup.ts` 由 `tests/bunfig.toml` 预加载（修正 SSH
   密钥权限、关闭 TLS 验证）。
 - 测试夹具：`tests/certs/`（复制到每个测试数据目录的 TLS 证书 / 密钥）、`tests/ssh-keys/`（客户端 / 主机密钥；`wg/`
-  子目录存放测试 SSH 服务器信任的网关客户端密钥）、`tests/images/`（本地 `gated-e2e-ssh-server`、`gated-e2e-mysql-server`、
+  子目录存放测试 SSH 服务器信任的目标认证密钥）、`tests/images/`（本地 `gated-e2e-ssh-server`、`gated-e2e-mysql-server`、
   `gated-e2e-postgres-server` 镜像的 Dockerfile，由 `tests/Makefile` 构建）、`tests/oidc-mock/`（端口 4011 上 OIDC
   mock 的独立 docker-compose 版本；测试辅助代码会自己启动容器，因此这个 compose 文件供手动使用）。
 
@@ -221,7 +221,7 @@ Playwright 依赖也用于截图脚本（`web/scripts/screenshots.ts`，默认�
 
 | 领域 | 测试层 |
 |---|---|
-| 管理 REST API（用户、角色、目标、凭据、票据、会话、参数、known-hosts、own-keys、认证） | `tests/api/` |
+| 管理 REST API（用户、角色、目标、凭据、票据、会话、参数、known-hosts、认证） | `tests/api/` |
 | 网关 HTTP API（info、登录、按 RBAC 列出目标、API 令牌） | `tests/http/` |
 | SSH 代理 —— 密码 / OTP / 公钥 / 票据 / 浏览器内认证、协议行为、目标选择、客户端认证配置 | `tests/ssh/`；绑定账户优先级也在 `tests/e2e-docker` 中（`probe-ssh.sh`、`scenarios/ssh-key`） |
 | PostgreSQL 代理 —— 通过原生 `psql` 的密码和浏览器内认证 | `tests/db/`、`tests/e2e-docker/scenarios/postgres` |

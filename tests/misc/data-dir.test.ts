@@ -142,8 +142,8 @@ describe("--data-dir", () => {
       tls: { rejectUnauthorized: false },
     } as any);
     expect(generated.status).toBe(200);
-    const keys = (await generated.json()) as { kind: string }[];
-    expect(keys.map((k) => k.kind).sort()).toEqual(["client", "client", "host", "host"]);
+    const keys = (await generated.json()) as { algorithm: string }[];
+    expect(keys.map((k) => k.algorithm).sort()).toEqual(["ssh-ed25519", "ssh-rsa"]);
     await waitPort(sshPort, { recv: false, process: proc });
     expect(existsSync(join(dataDir, "ssh-keys"))).toBe(false);
 

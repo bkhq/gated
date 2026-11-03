@@ -318,10 +318,6 @@ export class AdminClient {
     return this.request("POST", `/users/${userId}/api-tokens`, data);
   }
 
-  async getSshOwnKeys(): Promise<any[]> {
-    return this.request("GET", "/ssh/own-keys");
-  }
-
   async getSshKnownHosts(): Promise<any[]> {
     return this.request("GET", "/ssh/known-hosts");
   }

@@ -1203,7 +1203,7 @@
     "credentials": {
       "title": "My credentials",
       "description": "Manage the factors you use to authenticate with Gated.",
-      "copiedFingerprint": "Fingerprint copied",
+      "copiedPublicKey": "Public key copied",
       "identity": {
         "active": "Active",
         "local": "Local"
@@ -1392,7 +1392,14 @@
         "headerSensitive": "Sensitive",
         "addHeader": "Add header",
         "removeHeader": "Remove header",
-        "emptyOnEditHint": "Secret fields are blank on purpose — leave them blank to keep the stored value, or type a new value to replace it."
+        "emptyOnEditHint": "Secret fields are blank on purpose — leave them blank to keep the stored value, or type a new value to replace it.",
+        "keySource": "Private key",
+        "keySourceUpload": "Paste an existing key",
+        "keySourceEd25519": "Generate Ed25519 key",
+        "keySourceRsa": "Generate RSA key",
+        "generateHint": "The server generates the key when you save; the private key never leaves it. Add the public key shown afterwards to the target's authorized_keys.",
+        "publicKey": "Public key",
+        "fingerprint": "Fingerprint"
       },
       "rotation": {
         "label": "Rotation due",
@@ -1438,7 +1445,8 @@
       "credentialTitle": "Stored credential",
       "revealHint": "Secret values are hidden. Revealing requires identity confirmation and is audited.",
       "rotationDue": "Rotation due",
-      "editing": "Editing"
+      "editing": "Editing",
+      "copy": "Copy {{field}}"
     },
     "stepUp": {
       "createTitle": "Confirm account creation",
@@ -1638,22 +1646,16 @@
       }
     },
     "sshKeys": {
-      "title": "SSH keys",
-      "hint": "Host keys identify this gateway to SSH clients; client keys authenticate the gateway to SSH targets. They are stored in the database.",
-      "generate": "Generate missing keys",
-      "import": "Import key",
-      "empty": "No SSH keys yet. Generate them or import existing keys.",
+      "title": "SSH host keys",
+      "hint": "Host keys identify this gateway to SSH clients and are stored in the database. Keys for signing in to SSH targets belong to SSH-key accounts.",
+      "generate": "Generate host keys",
+      "import": "Import host key",
       "noHostKeys": "SSH does not listen until host keys exist. Generate or import them.",
       "loadError": "Could not load the SSH keys.",
       "generateError": "Generating SSH keys failed.",
-      "kind": {
-        "host": "Host",
-        "client": "Client"
-      },
       "importDialog": {
-        "title": "Import SSH key",
-        "description": "Replaces the stored key of the same type and algorithm.",
-        "kind": "Key type",
+        "title": "Import SSH host key",
+        "description": "Replaces the stored host key with the same algorithm.",
         "privateKey": "Private key",
         "passphrase": "Passphrase (if encrypted)",
         "required": "Paste a private key.",

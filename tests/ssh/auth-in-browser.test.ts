@@ -5,6 +5,7 @@ import { waitPort } from "../helpers/util";
 import {
   wgClientEd25519PubkeyPath,
   readPubkey,
+  sshPublicKeyAuth,
 } from "../helpers/gated-helpers";
 import { resolve } from "path";
 import { readFileSync } from "fs";
@@ -58,7 +59,7 @@ describe("SSH User Auth In Browser", () => {
 
     const target = await api.createTarget({
       name: `ssh-${randomUUID()}`,
-      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: { kind: "PublicKey" } },
+      options: { kind: "Ssh", host: "localhost", port: sshPort, username: "root", auth: sshPublicKeyAuth() },
     });
     await api.addTargetRole(target.id, role.id);
 

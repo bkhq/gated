@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { ProcessManager, type GatedProcess } from "../helpers/process-manager";
 import { adminClient, type AdminClient } from "../helpers/api-client";
 import { waitPort, allocPort } from "../helpers/util";
-import { wgClientEd25519PubkeyPath, readPubkey } from "../helpers/gated-helpers";
+import { wgClientEd25519PubkeyPath, readPubkey, sshPublicKeyAuth } from "../helpers/gated-helpers";
 import { randomUUID } from "crypto";
 import { mkdirSync, writeFileSync, chmodSync, rmSync } from "fs";
 import { join, resolve } from "path";
@@ -64,7 +64,7 @@ function sshTargetOpts(host: string, port: number): any {
     host,
     port,
     username: "root",
-    auth: { kind: "PublicKey" },
+    auth: sshPublicKeyAuth(),
   };
 }
 

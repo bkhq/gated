@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { ProcessManager, type GatedProcess } from "../../helpers/process-manager";
 import { waitPort } from "../../helpers/util";
 import { randomUUID } from "crypto";
+import { sshPublicKeyAuth } from "../../helpers/gated-helpers";
 
 // Target-group endpoints have no helper in the shared AdminClient, so we
 // talk to /admin/api directly with the admin token, mirroring sql-console.test.ts.
@@ -34,7 +35,7 @@ function sshOptions(): any {
     host: "localhost",
     port: 22,
     username: "root",
-    auth: { kind: "PublicKey" },
+    auth: sshPublicKeyAuth(),
   };
 }
 

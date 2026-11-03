@@ -95,4 +95,46 @@ describe("SSH bound account", () => {
       expect(items.some(item => item.protocol === "ManagementHTTP")).toBe(false);
     } finally { socket.close(); }
   }, 120000);
+
+  test("connects with a key the server generated for the account", async () => {
+    const base = `https://localhost:${gateway.httpPort}`;
+    const request = async (path: string, body: unknown) => {
+      const response = await fetch(`${base}/admin/api${path}`, {
+        method: "POST", headers: { "X-Gated-Token": "token-value", "Content-Type": "application/json" },
+        body: JSON.stringify(body), tls: { rejectUnauthorized: false },
+      } as any);
+      expect(response.ok).toBe(true);
+      return response.json() as Promise<any>;
+    };
+    const account = await request("/accounts", {
+      name: `generated-${randomUUID()}`, kind: "ssh-key",
+      credentials: { kind: "ssh-key", username: "root", generate: "ed25519" },
+    });
+    const detail = await (await fetch(`${base}/admin/api/accounts/${account.id}`, {
+      headers: { "X-Gated-Token": "token-value" }, tls: { rejectUnauthorized: false },
+    } as any)).json() as any;
+    const publicKey = detail.credentials_public.public_key_openssh as string;
+    expect(publicKey).toStartWith("ssh-ed25519 ");
+    expect(detail.credentials_public.private_key_pem).toBeUndefined();
+
+    const port = processes.startSshServer({ trustedKeys: [publicKey] });
+    await waitPort(port);
+    const api = adminClient(base);
+    const role = await api.createRole({ name: `generated-${randomUUID()}` });
+    const user = await api.createUser({ username: `generated-${randomUUID()}` });
+    await api.createPasswordCredential(user.id, { password: "123" });
+    await api.addUserRole(user.id, role.id);
+    const target = await request("/targets", {
+      name: `generated-${randomUUID()}`,
+      options: { kind: "Ssh", host: "localhost", port, username: "", auth: { kind: "PublicKey" } },
+      accounts: [{ account_id: account.id, role: "primary" }],
+    });
+    await api.addTargetRole(target.id, role.id);
+    const client = processes.startSshClient(`${user.username}:${target.name}@localhost`,
+      "-p", String(gateway.sshPort), "-i", "/dev/null", "-o", "PreferredAuthentications=password",
+      "whoami", { password: "123" });
+    const output = await new Response(client.stdout).text();
+    expect(await client.exited).toBe(0);
+    expect(output.trim()).toBe("root");
+  }, 120000);
 });

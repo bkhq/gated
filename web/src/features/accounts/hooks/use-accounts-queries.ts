@@ -60,7 +60,7 @@ export function defaultCredentialsFor(kind: AccountKind): AccountCredentials {
     case 'ssh-password':
       return { kind, username: '', password: '' }
     case 'ssh-key':
-      return { kind, username: '', private_key_pem: '', passphrase: '' }
+      return { kind, username: '', private_key_pem: '', passphrase: '', public_key_openssh: '', fingerprint: '' }
     case 'db-password':
       return { kind, engine: 'mysql', username: '', password: '' }
     case 'k8s-token':

@@ -64,8 +64,8 @@ or, without one, written to `<dir>/db/bootstrap-token.txt`. Open the admin UI:
 with encryption on, first initialize it with the token and a master password;
 then create the first admin account with the same token. After the first
 account exists, setup is refused. SSH keys are a separate step: under
-Settings → SSH, generate the host and client keys or import existing private
-keys. They are stored only in the database (encrypted with it when encryption
+Settings → SSH, generate the host keys or import existing private keys. They
+are stored only in the database (encrypted with it when encryption
 is on), and the SSH listener starts once host keys exist. Inspect the generated configuration
 before starting `gated --data-dir /var/lib/gated run`. Without `--data-dir`,
 `--config` (default `/etc/gated.yaml`) selects the config file and relative

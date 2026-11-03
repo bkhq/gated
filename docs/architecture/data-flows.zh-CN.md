@@ -73,7 +73,7 @@ ssh alice:prod-box@gated -p 2222
 2. `AuthSelector` 把用户名解析为用户 `alice`、目标 `prod-box`（`crates/gated-common/src/auth/selector.rs`）。
 3. 收集凭据（publickey / password / keyboard-interactive OTP 或网页批准），直到满足用户的策略；然后执行
    `authorize_target` RBAC 检查。
-4. 第一个 shell / exec / 转发请求触发延迟建立的出站连接；gated 用目标配置的凭据或自己的客户端密钥认证，并
+4. 第一个 shell / exec / 转发请求触发延迟建立的出站连接；gated 用绑定账户或目标配置的凭据认证，并
    对照 known hosts 验证目标主机密钥。
 5. 通道一一桥接；终端录制器记录 shell I/O，流量录制器把转发的 TCP 记录为 PCAP；断开时关闭会话行。
 

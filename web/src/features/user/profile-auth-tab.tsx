@@ -117,6 +117,7 @@ export function AuthTab() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-[13.5px] font-medium">{key.name}</span>
                           </div>
+                          <div className="mono text-[11px] break-all text-muted-foreground select-all">{key.publicKey}</div>
                           <div className="mono truncate text-[11px] text-muted-foreground">{key.fingerprint}</div>
                           <div className="mt-0.5 text-[11px] text-muted-foreground">
                             {t('profile.auth.added', { when: key.added })}
@@ -126,7 +127,7 @@ export function AuthTab() {
                         </div>
                         <RowMenu
                           items={[
-                            { label: t('profile.actions.copy'), icon: Copy, onClick: () => void navigator.clipboard.writeText(key.fingerprint) },
+                            { label: t('profile.actions.copy'), icon: Copy, onClick: () => void navigator.clipboard.writeText(key.publicKey) },
                             'separator' as const,
                             { label: t('profile.actions.remove'), icon: Trash2, danger: true, onClick: () => setPendingKey(key) },
                           ]}

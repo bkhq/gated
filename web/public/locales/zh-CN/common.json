@@ -1203,7 +1203,7 @@
     "credentials": {
       "title": "我的凭证",
       "description": "管理用于登录 Gated 的认证因子。",
-      "copiedFingerprint": "已复制指纹",
+      "copiedPublicKey": "已复制公钥",
       "identity": {
         "active": "活跃",
         "local": "本地"
@@ -1392,7 +1392,14 @@
         "headerSensitive": "敏感",
         "addHeader": "添加 Header",
         "removeHeader": "移除 Header",
-        "emptyOnEditHint": "密钥字段默认为空：留空表示保留原值，填写新值则替换。"
+        "emptyOnEditHint": "密钥字段默认为空：留空表示保留原值，填写新值则替换。",
+        "keySource": "私钥",
+        "keySourceUpload": "粘贴已有私钥",
+        "keySourceEd25519": "生成 Ed25519 密钥",
+        "keySourceRsa": "生成 RSA 密钥",
+        "generateHint": "保存时由服务器生成密钥，私钥不会离开服务器。保存后把显示的公钥加入目标的 authorized_keys。",
+        "publicKey": "公钥",
+        "fingerprint": "指纹"
       },
       "rotation": {
         "label": "轮换期限",
@@ -1438,7 +1445,8 @@
       "credentialTitle": "已存凭据",
       "revealHint": "密钥已隐藏，查看需要二次认证并会记录审计。",
       "rotationDue": "待轮换",
-      "editing": "编辑中"
+      "editing": "编辑中",
+      "copy": "复制{{field}}"
     },
     "stepUp": {
       "createTitle": "确认创建账号",
@@ -1638,22 +1646,16 @@
       }
     },
     "sshKeys": {
-      "title": "SSH 密钥",
-      "hint": "主机密钥用于向 SSH 客户端证明网关身份；客户端密钥用于网关登录 SSH 目标。密钥保存在数据库中。",
-      "generate": "生成缺失的密钥",
-      "import": "导入密钥",
-      "empty": "还没有 SSH 密钥。请生成，或导入已有密钥。",
+      "title": "SSH 主机密钥",
+      "hint": "主机密钥用于向 SSH 客户端证明网关身份，保存在数据库中。登录 SSH 目标所用的密钥属于 SSH 密钥类型的账号。",
+      "generate": "生成主机密钥",
+      "import": "导入主机密钥",
       "noHostKeys": "主机密钥存在之前 SSH 不会监听。请生成或导入主机密钥。",
       "loadError": "无法加载 SSH 密钥。",
       "generateError": "生成 SSH 密钥失败。",
-      "kind": {
-        "host": "主机",
-        "client": "客户端"
-      },
       "importDialog": {
-        "title": "导入 SSH 密钥",
-        "description": "将替换数据库中类型和算法相同的密钥。",
-        "kind": "密钥类型",
+        "title": "导入 SSH 主机密钥",
+        "description": "将替换数据库中算法相同的主机密钥。",
         "privateKey": "私钥",
         "passphrase": "密码短语（私钥已加密时填写）",
         "required": "请粘贴私钥。",

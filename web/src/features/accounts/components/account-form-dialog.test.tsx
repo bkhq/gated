@@ -158,3 +158,44 @@ it('falls back to the prompt when the window lapsed before the save landed', asy
   await waitFor(() => expect(api.updateAdminAccount).toHaveBeenLastCalledWith(7, expect.objectContaining({ confirmation: { password: 'pw' } })))
   expect(screen.queryByRole('alert')).toBeNull()
 })
+
+it('create can ask the server to generate the SSH key', async () => {
+  api.createAdminAccount.mockResolvedValue({ ...summary, kind: 'ssh-key' })
+  renderDialog({ mode: 'create', account: null, allowedKinds: ['ssh-key'] })
+  fireEvent.change(screen.getByLabelText('fields.name'), { target: { value: 'deploy' } })
+  fireEvent.change(screen.getByLabelText('accounts.form.cred.username'), { target: { value: 'root' } })
+  fireEvent.change(screen.getByLabelText('accounts.form.cred.keySource'), { target: { value: 'ed25519' } })
+  expect(screen.queryByLabelText('accounts.form.cred.privateKeyPem')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'accounts.form.saveVerified' }))
+  await confirmStepUp()
+  await waitFor(() => expect(api.createAdminAccount).toHaveBeenCalledWith(expect.objectContaining({
+    credentials: { kind: 'ssh-key', username: 'root', private_key_pem: '', generate: 'ed25519' },
+  })))
+})
+
+it('view shows the SSH public key with a copy button and keeps it after reveal', async () => {
+  const writeText = vi.fn()
+  Object.assign(navigator, { clipboard: { writeText } })
+  api.getAdminAccount.mockResolvedValue({
+    ...summary,
+    kind: 'ssh-key',
+    credentials_schema: {},
+    credentials_public: { kind: 'ssh-key', username: 'root', public_key_openssh: 'ssh-ed25519 AAAAPUB', fingerprint: 'SHA256:fp' },
+  })
+  api.revealAdminAccount.mockResolvedValue({ credentials: { kind: 'ssh-key', username: 'root', private_key_pem: 'PRIVATE' } })
+  renderDialog({ account: { ...account, kind: 'ssh-key' } })
+  expect(await screen.findByText('ssh-ed25519 AAAAPUB')).toBeInTheDocument()
+  expect(screen.getByText('SHA256:fp')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'accounts.view.copy' }))
+  expect(writeText).toHaveBeenCalledWith('ssh-ed25519 AAAAPUB')
+
+  fireEvent.click(screen.getByRole('button', { name: 'accounts.form.reveal.show' }))
+  await confirmStepUpReveal()
+  expect(await screen.findByText('PRIVATE')).toBeInTheDocument()
+  expect(screen.getByText('ssh-ed25519 AAAAPUB')).toBeInTheDocument()
+})
+
+async function confirmStepUpReveal() {
+  fireEvent.change(await screen.findByLabelText('accounts.form.reveal.password'), { target: { value: 'pw' } })
+  fireEvent.click(screen.getAllByRole('button', { name: 'accounts.form.reveal.show' }).at(-1)!)
+}

@@ -85,8 +85,8 @@ ssh alice:prod-box@gated -p 2222
    approval) until the user's policy is satisfied; then
    `authorize_target` RBAC check.
 4. First shell/exec/forward request triggers the lazy outbound connection;
-   gated authenticates with target-configured credentials or its client
-   keys, verifying the target host key against known hosts.
+   gated authenticates with the bound account or target-configured
+   credentials, verifying the target host key against known hosts.
 5. Channels bridge one-to-one; terminal recorders capture shell I/O, traffic
    recorders capture forwarded TCP as PCAP; on disconnect the session row is
    closed.

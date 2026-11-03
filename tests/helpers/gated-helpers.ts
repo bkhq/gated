@@ -19,6 +19,11 @@ export function wgClientRsaPubkeyPath(): string {
   return resolve(TESTS_DIR, "ssh-keys/wg/client-rsa.pub");
 }
 
+/** Inline target auth with the fixture key the test SSH servers authorize. */
+export function sshPublicKeyAuth(key: "client-ed25519" | "client-rsa" = "client-ed25519"): any {
+  return { kind: "PublicKey", private_key_pem: readFileSync(resolve(TESTS_DIR, "ssh-keys/wg", key), "utf-8") };
+}
+
 export function readPubkey(path: string): string {
   return readFileSync(path, "utf-8").trim();
 }
@@ -29,7 +34,7 @@ export function sshTargetOptions(sshPort: number): any {
     host: "localhost",
     port: sshPort,
     username: "root",
-    auth: { kind: "PublicKey" },
+    auth: sshPublicKeyAuth(),
   };
 }
 
@@ -69,6 +74,7 @@ export async function setupUserAndSshTarget(
     addPassword?: boolean;
     addPubkey?: boolean;
     pubkeyFile?: string;
+    targetKey?: "client-ed25519" | "client-rsa";
   } = {}
 ) {
   const role = await api.createRole({ name: `role-${randomUUID()}` });
@@ -90,7 +96,7 @@ export async function setupUserAndSshTarget(
 
   const target = await api.createTarget({
     name: `ssh-${randomUUID()}`,
-    options: sshTargetOptions(sshPort),
+    options: { ...sshTargetOptions(sshPort), auth: sshPublicKeyAuth(opts.targetKey) },
   });
   await api.addTargetRole(target.id, role.id);
 

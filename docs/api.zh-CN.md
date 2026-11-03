@@ -164,7 +164,7 @@
 #### `POST /api/profile/credentials/public-keys` — `add_my_public_key` [OAS]
 
 - Body：`Json<NewPublicKeyCredential> { label: string, openssh_public_key: string }`。
-- Responses：`201 Created` `Json<ExistingPublicKeyCredential>` / `401` / `403`。注意只返回 `abbreviated`，**不再返回完整 key**。
+- Responses：`201 Created` `Json<ExistingPublicKeyCredential>` / `401` / `403`。返回完整的 `openssh_public_key` 及其 SHA256 `fingerprint`。
 
 #### `DELETE /api/profile/credentials/public-keys/:id` — `delete_my_public_key` [OAS]
 
@@ -496,7 +496,7 @@
   - `201 Created` `Target`。
   - `400` `"name"`（空名）。
   - `409` `"Name already exists"`。
-  - `422` `"accounts cannot be mixed with inline credentials"` / `"accounts must include a primary binding"` / `"account {id} not found"` / `"account {id} kind {kind} is not compatible with target kind"`。
+  - `422` `"accounts cannot be mixed with inline credentials"` / `"SSH public-key auth needs a private key or a bound account"`（网关不再有全局密钥）/ `"accounts must include a primary binding"` / `"account {id} not found"` / `"account {id} kind {kind} is not compatible with target kind"`。
 
 #### `GET /admin/api/targets/:id` — `get_target` [OAS] — `200` / `404`。
 
@@ -620,10 +620,9 @@
 
 ### 2.10 SSH 主机密钥与探测 (`ssh_keys.rs`, `known_hosts_list.rs`, `known_hosts_detail.rs`, `ssh_connection_test.rs`)
 
-- `GET /admin/api/ssh/own-keys` — `200 OK` `Json<SSHKey[]>`（`{ kind, public_key_base64 }`）。网关自身的 SSH 客户端公钥列表；生成或导入客户端密钥之前为空。
-- `GET /admin/api/ssh/keys` — `200 OK` `Json<StoredSSHKey[]>`（`{ id, kind: "host" | "client", algorithm, public_key_openssh, fingerprint, created }`）。数据库中的主机密钥和客户端密钥；永不返回私钥。
-- `POST /admin/api/ssh/keys/generate` — 为还没有密钥的类型生成 Ed25519 和 RSA 密钥，保留已有密钥；主机密钥存在后启动 SSH 监听；`200 OK` `Json<StoredSSHKey[]>`。
-- `POST /admin/api/ssh/keys/import` — Body `ImportSSHKeyRequest { kind: "host" | "client", private_key_pem, passphrase? }`（OpenSSH 或 PKCS#8 PEM）；替换同类型、同算法的已存密钥，以解密后的形式保存（开启数据库加密时受其保护）；`200 OK` `Json<StoredSSHKey>` / `400` `Json<string>`（无法解析或解密私钥）。
+- `GET /admin/api/ssh/keys` — `200 OK` `Json<StoredSSHKey[]>`（`{ id, algorithm, public_key_openssh, fingerprint, created }`）。数据库中的主机密钥；永不返回私钥。登录 SSH 目标所用的密钥属于 `ssh-key` 账号（§6.7）或目标内联的 `private_key_pem`。
+- `POST /admin/api/ssh/keys/generate` — 没有主机密钥时生成 Ed25519 和 RSA 主机密钥，并启动 SSH 监听；`200 OK` `Json<StoredSSHKey[]>`。
+- `POST /admin/api/ssh/keys/import` — Body `ImportSSHKeyRequest { private_key_pem, passphrase? }`（OpenSSH 或 PKCS#8 PEM）；替换同算法的已存主机密钥并启动 SSH 监听，以解密后的形式保存（开启数据库加密时受其保护）；`200 OK` `Json<StoredSSHKey>` / `400` `Json<string>`（无法解析或解密私钥）。
 - `GET /admin/api/tls/certificates` — `200 OK` `Json<ListenerCertificate[]>`（`{ listener: "admin" | "http" | "mysql" | "postgres", chain: CertificateInfo[], created, acme: { domains, last_attempt, last_success, last_error } | null }`），每个监听一项；管理后台使用明文 HTTP 时不返回 `admin`，监听还没有证书时 `chain` 为空。管理后台证书从文件读取，其他从数据库读取。从不返回私钥。
 - `POST /admin/api/tls/certificates/:listener/generate` — 用新的自签证书（`external_host` 和 `localhost`）替换该监听的证书，并停用其 ACME；`200 OK` `Json<ListenerCertificate>` / `400`（管理后台未启用 TLS）。
 - `PUT /admin/api/tls/certificates/:listener` — Body `ImportTLSCertificateRequest { certificate_pem, private_key_pem }`（PEM 证书链，叶证书在前，及其未加密私钥）；停用该监听的 ACME；`200 OK` `Json<ListenerCertificate>` / `400` `Json<string>`（PEM 无法解析或私钥与叶证书不匹配）。管理后台证书写入其文件。
@@ -982,7 +981,7 @@ ExistingPasswordCredential       { id: uuid }
 NewPasswordCredential            { password: string }                               // secret — write-only
 
 ExistingPublicKeyCredential      { id, label, date_added?, last_used?,
-                                   openssh_public_key? OR abbreviated }
+                                   openssh_public_key, fingerprint? }
 NewPublicKeyCredential           { label: string, openssh_public_key: string }
 
 ExistingOtpCredential            { id: uuid }
@@ -999,7 +998,7 @@ IssuedCertificateCredential      { credential: ExistingCertificateCredential,
 UpdateCertificateCredential      { label: string }
 ```
 
-注：用户面 `add_my_public_key` 返回的 `ExistingPublicKeyCredential` 含 `abbreviated`（首 10 + `...` + 末 10）且不返回完整 key；admin 面返回的是包含完整 `openssh_public_key` 的版本。
+注：用户面的 `ExistingPublicKeyCredential` 额外包含 SHA256 `fingerprint`（存储的公钥无法解析时为空）；admin 面返回的版本不含该字段。
 
 #### API Token
 
@@ -1087,7 +1086,7 @@ AccountReveal           { credentials: AccountCredentials }
 `AccountCredentials`（discriminator `kind` kebab-case）：
 
 - `ssh-password { username, password: secret }`
-- `ssh-key { username, private_key_pem: secret, passphrase?: secret }`
+- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — 创建/更新时可用 `generate: "ed25519" | "rsa"` 代替私钥，由服务器生成私钥（私钥不离开服务器）；`private_key_pem` 必须能用 passphrase 解析，否则 `422`。`credentials_public` 额外包含派生的 `public_key_openssh` 和 SHA256 `fingerprint`。
 - `db-password { engine: "mysql"|"postgres", username, password: secret }`
 - `k8s-token { token: secret, ca_pem?: secret, namespace? }`
 - `k8s-client-cert { client_certificate_pem, client_private_key_pem: secret, passphrase?: secret, ca_pem?: secret, namespace? }`
@@ -1261,9 +1260,8 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/admin/api/sessions/:id/recordings` | `get_session_recordings` |  |
 | GET | `/admin/api/sessions/:id` | `get_session` |  |
 | GET | `/admin/api/sessions` | `get_sessions` |  |
-| GET | `/admin/api/ssh/keys` | `get_ssh_keys` | The gateway's stored SSH host and client keys (public parts only). |
+| GET | `/admin/api/ssh/keys` | `get_ssh_keys` | The gateway's stored SSH host keys (public parts only). |
 | GET | `/admin/api/ssh/known-hosts` | `get_ssh_known_hosts` |  |
-| GET | `/admin/api/ssh/own-keys` | `get_ssh_own_keys` |  |
 | GET | `/admin/api/system/update` | `get_update_status` |  |
 | GET | `/admin/api/target-groups/:id` | `get_target_group` |  |
 | GET | `/admin/api/target-groups` | `list_target_groups` |  |
@@ -1296,8 +1294,8 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/admin/api/sessions/:id/close` | `close_session` | Gracefully close a live session: signal its handle so the owning |
 | POST | `/admin/api/sessions/:id/terminate` | `terminate_session` | Forcibly terminate a live session. Unlike graceful `close`, which only |
 | POST | `/admin/api/ssh/check-host-key` | `check_ssh_host_key` |  |
-| POST | `/admin/api/ssh/keys/generate` | `generate_ssh_keys` | Generates Ed25519 and RSA keys for each kind (host, client) that has no |
-| POST | `/admin/api/ssh/keys/import` | `import_ssh_key` | Stores a private key of the given kind, replacing a stored key with the |
+| POST | `/admin/api/ssh/keys/generate` | `generate_ssh_keys` | Generates Ed25519 and RSA host keys unless host keys exist, and starts |
+| POST | `/admin/api/ssh/keys/import` | `import_ssh_key` | Stores a host key, replacing a stored host key with the same algorithm. |
 | POST | `/admin/api/ssh/known-hosts` | `add_ssh_known_host` |  |
 | POST | `/admin/api/system/restart` | `restart_gateway` |  |
 | POST | `/admin/api/system/update/check` | `check_for_update` |  |

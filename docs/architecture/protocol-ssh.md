@@ -16,8 +16,7 @@ bridged one-to-one between the two connections.
   table via `load_keys()` (`crates/gated-protocol-ssh/src/keys.rs`) and waits,
   without listening, until an admin generates (`POST /admin/api/ssh/keys/generate`,
   `generate_keys()`) or imports (`POST /admin/api/ssh/keys/import`,
-  `import_key()`) them. The **client keys** (used to authenticate to targets)
-  are managed the same way. Generation creates Ed25519 and RSA keys; keys are
+  `import_key()`) them. Generation creates Ed25519 and RSA keys; keys are
   stored only in the database, encrypted with it when at-rest encryption is
   on;
 - accepts TCP connections and spawns a per-connection task that registers the
@@ -82,9 +81,10 @@ the first channel-level request (shell/exec/forward), not at auth time
 (`server/session.rs`, `maybe_connect_remote`).
 
 - **Credentials to the target** come from the target's `TargetSSHOptions`:
-  password auth, or public-key auth using either a per-target private key or
-  gated's own client keys (`client/mod.rs`, `ssh_auth_keys()`); per-target
-  bound accounts are resolved through
+  password auth, or public-key auth with the target's private key
+  (`client/mod.rs`, `ssh_auth_keys()`; there is no gateway-wide fallback
+  key); per-target bound accounts, such as `ssh-key` accounts whose key the
+  server can generate, override them and are resolved through
   `ssh_options_with_account` (`crates/gated-core/src/account_credentials.rs`).
   RSA targets get SHA-2 first with a SHA-1 retry for legacy servers.
 - **Host key verification** uses the known-hosts table with three modes

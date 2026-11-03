@@ -4,6 +4,7 @@ import { adminClient, type AdminClient } from "../helpers/api-client";
 import { waitPort } from "../helpers/util";
 import { HttpSession } from "../helpers/session";
 import { randomUUID } from "crypto";
+import { sshPublicKeyAuth } from "../helpers/gated-helpers";
 
 const ADMIN_TOKEN = "token-value";
 
@@ -13,7 +14,7 @@ function sshOpts() {
     host: "example.invalid",
     port: 22,
     username: "root",
-    auth: { kind: "PublicKey" },
+    auth: sshPublicKeyAuth(),
   };
 }
 
