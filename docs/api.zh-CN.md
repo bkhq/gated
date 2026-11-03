@@ -624,9 +624,13 @@
 - `GET /admin/api/ssh/keys` — `200 OK` `Json<StoredSSHKey[]>`（`{ id, kind: "host" | "client", algorithm, public_key_openssh, fingerprint, created }`）。数据库中的主机密钥和客户端密钥；永不返回私钥。
 - `POST /admin/api/ssh/keys/generate` — 为还没有密钥的类型生成 Ed25519 和 RSA 密钥，保留已有密钥；主机密钥存在后启动 SSH 监听；`200 OK` `Json<StoredSSHKey[]>`。
 - `POST /admin/api/ssh/keys/import` — Body `ImportSSHKeyRequest { kind: "host" | "client", private_key_pem, passphrase? }`（OpenSSH 或 PKCS#8 PEM）；替换同类型、同算法的已存密钥，以解密后的形式保存（开启数据库加密时受其保护）；`200 OK` `Json<StoredSSHKey>` / `400` `Json<string>`（无法解析或解密私钥）。
-- `GET /admin/api/tls/certificates` — `200 OK` `Json<ListenerCertificate[]>`（`{ listener: "http" | "mysql" | "postgres", chain: CertificateInfo[], created }`），每个监听一项；监听首次启动前 `chain` 为空。从不返回私钥。
-- `POST /admin/api/tls/certificates/:listener/generate` — 用新的自签证书（`external_host` 和 `localhost`）替换该监听的证书；`200 OK` `Json<ListenerCertificate>`。
-- `PUT /admin/api/tls/certificates/:listener` — Body `ImportTLSCertificateRequest { certificate_pem, private_key_pem }`（PEM 证书链，叶证书在前，及其未加密私钥）；`200 OK` `Json<ListenerCertificate>` / `400` `Json<string>`（PEM 无法解析或私钥与叶证书不匹配）。生成和导入的证书无需重启即对新连接生效。
+- `GET /admin/api/tls/certificates` — `200 OK` `Json<ListenerCertificate[]>`（`{ listener: "admin" | "http" | "mysql" | "postgres", chain: CertificateInfo[], created, acme: { domains, last_attempt, last_success, last_error } | null }`），每个监听一项；管理后台使用明文 HTTP 时不返回 `admin`，监听还没有证书时 `chain` 为空。管理后台证书从文件读取，其他从数据库读取。从不返回私钥。
+- `POST /admin/api/tls/certificates/:listener/generate` — 用新的自签证书（`external_host` 和 `localhost`）替换该监听的证书，并停用其 ACME；`200 OK` `Json<ListenerCertificate>` / `400`（管理后台未启用 TLS）。
+- `PUT /admin/api/tls/certificates/:listener` — Body `ImportTLSCertificateRequest { certificate_pem, private_key_pem }`（PEM 证书链，叶证书在前，及其未加密私钥）；停用该监听的 ACME；`200 OK` `Json<ListenerCertificate>` / `400` `Json<string>`（PEM 无法解析或私钥与叶证书不匹配）。管理后台证书写入其文件。
+- `PUT /admin/api/tls/certificates/:listener/acme` — Body `EnableAcmeRequest { domains: string[] }`（`*.example.com` 表示通配符）；保存域名并立即通过 DNS-01 申请证书；`200 OK` `Json<ListenerCertificate>` / `400` `Json<string>`（未配置 ACME、没有域名，或签发错误，错误同时记录在 `acme.last_error`）。后台任务每 12 小时检查一次，证书剩余不足 30 天或域名不一致时续期；失败后一小时内不自动重试。
+- `DELETE /admin/api/tls/certificates/:listener/acme` — 停用该监听的 ACME，保留当前证书；`204`。
+- `GET /admin/api/tls/acme` — `200 OK` `Json<AcmeSettingsResponse>`（`{ configured, directory_url, contact_email, ca_certificate_pem, dns_provider: "httpreq" | "acme-dns", dns_endpoint, dns_username, dns_password_set, dns_subdomain, propagation_delay_secs }`）；保存前返回默认值（Let's Encrypt、httpreq），`configured: false`。从不返回 DNS 密码。
+- `PUT /admin/api/tls/acme` — Body `UpdateAcmeSettingsRequest`（字段相同，用 `dns_password` 代替 `dns_password_set`；省略则保留原密码）；`200 OK` / `400` `Json<string>`（directory 不是 https、地址无效、缺少密码或 acme-dns 子域名、等待时间不在 0–600 秒、CA PEM 无效）。修改 directory 或联系邮箱后，下次签发时会注册新的 ACME 账号。httpreq：`POST <endpoint>/present` 和 `/cleanup`，Body `{ fqdn: "_acme-challenge.<域名>.", value }`，HTTP Basic 认证；acme-dns：`POST <endpoint>/update`，请求头 `X-Api-User`/`X-Api-Key`，Body `{ subdomain, txt }`。
 - `POST /admin/api/ssh/known-hosts` — Body `AddSshKnownHostRequest { host, port: i32, key_type, key_base64 }`；`200 OK` `Json<SSHKnownHost>`。
 - `GET /admin/api/ssh/known-hosts` — `200 OK` `Json<SSHKnownHost[]>`。
 - `DELETE /admin/api/ssh/known-hosts/:id` — `204` / `404`。
@@ -1228,6 +1232,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | DELETE | `/admin/api/targets/:id/roles/:role_id` | `delete_target_role` |  |
 | DELETE | `/admin/api/targets/:id` | `delete_target` |  |
 | DELETE | `/admin/api/tickets/:id` | `delete_ticket` |  |
+| DELETE | `/admin/api/tls/certificates/:listener/acme` | `disable_tls_acme` | Stops ACME issuance and renewal for the listener; its current certificate |
 | DELETE | `/admin/api/users/:id/roles/:role_id` | `delete_user_role` |  |
 | DELETE | `/admin/api/users/:id` | `delete_user` |  |
 | DELETE | `/admin/api/users/:user_id/api-tokens/:id` | `delete_user_api_token` |  |
@@ -1268,7 +1273,8 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/admin/api/targets/:id` | `get_target` |  |
 | GET | `/admin/api/targets` | `get_targets` |  |
 | GET | `/admin/api/tickets` | `get_tickets` |  |
-| GET | `/admin/api/tls/certificates` | `get_tls_certificates` | The certificate of each TLS listener (public parts only). |
+| GET | `/admin/api/tls/acme` | `get_acme_settings` | The ACME account and DNS provider used for every listener. |
+| GET | `/admin/api/tls/certificates` | `get_tls_certificates` | The certificate of each TLS listener (public parts only). The admin |
 | GET | `/admin/api/users/:id/roles` | `get_user_roles` |  |
 | GET | `/admin/api/users/:id` | `get_user` |  |
 | GET | `/admin/api/users/:user_id/api-tokens` | `get_user_api_tokens` |  |
@@ -1300,7 +1306,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/admin/api/targets/:id/roles/:role_id` | `add_target_role` |  |
 | POST | `/admin/api/targets` | `create_target` |  |
 | POST | `/admin/api/tickets` | `create_ticket` |  |
-| POST | `/admin/api/tls/certificates/:listener/generate` | `generate_tls_certificate` | Replaces the listener's certificate with a new self-signed one. Running |
+| POST | `/admin/api/tls/certificates/:listener/generate` | `generate_tls_certificate` | Replaces the listener's certificate with a new self-signed one and stops |
 | POST | `/admin/api/users/:id/roles/:role_id` | `add_user_role` |  |
 | POST | `/admin/api/users/:user_id/api-tokens` | `create_user_api_token` |  |
 | POST | `/admin/api/users/:user_id/credentials/certificates` | `issue_certificate_credential` |  |
@@ -1315,6 +1321,8 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | PUT | `/admin/api/role/:id` | `update_role` |  |
 | PUT | `/admin/api/target-groups/:id` | `update_target_group` |  |
 | PUT | `/admin/api/targets/:id` | `update_target` |  |
+| PUT | `/admin/api/tls/acme` | `update_acme_settings` | Saves the ACME account and DNS provider. Changing the directory or contact |
+| PUT | `/admin/api/tls/certificates/:listener/acme` | `enable_tls_acme` | Issues the listener's certificate through ACME now and renews it |
 | PUT | `/admin/api/tls/certificates/:listener` | `import_tls_certificate` | Stores a certificate and private key for the listener, replacing the |
 | PUT | `/admin/api/users/:id` | `update_user` |  |
 | PUT | `/admin/api/users/:user_id/credentials/public-keys/:id` | `update_public_key_credential` |  |

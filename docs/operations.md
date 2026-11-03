@@ -50,7 +50,14 @@ Setup writes only the configuration and the admin listener's TLS certificate
 (`run` regenerates it when both files are missing). The HTTP proxy, MySQL and
 PostgreSQL listeners each keep their own certificate in the database: a
 self-signed one is generated on first start, and Settings → TLS certificates
-regenerates it or imports your own (applied without a restart). No admin account
+regenerates it or imports your own (applied without a restart); the same page
+manages the admin certificate files. For publicly trusted certificates, save
+an ACME account and DNS provider there and request a certificate per listener
+with DNS-01: with dnsall.com, add the domain, point `_acme-challenge.<domain>`
+at the CNAME target it returns, and use provider `httpreq` with endpoint
+`https://api.dnsall.com`, your username and an API key. Wildcards
+(`*.<http.base_domain>`) work. Certificates renew automatically when less than
+30 days remain. No admin account
 or password is created, and no SSH key is written to disk. While the database
 has no users, `run` issues a one-time bootstrap token, printed on the console
 or, without one, written to `<dir>/db/bootstrap-token.txt`. Open the admin UI:

@@ -31,6 +31,7 @@ use gated_common::{GatedConfig, GlobalParams, ListenEndpoint};
 use gated_core::logging::http::{
     get_client_ip, log_request_error, log_request_result, span_for_request,
 };
+use gated_core::tls_certificates::TlsListener;
 use gated_core::{ProtocolServer, Services};
 use gated_tls::{
     IntoTlsCertificateRelativePaths, RustlsSetupError, SniCertResolver,
@@ -74,7 +75,11 @@ async fn load_certificate_and_key<R: IntoTlsCertificateRelativePaths>(
     })
 }
 
-async fn make_rustls_config(config: &GatedConfig, params: &GlobalParams) -> Result<ServerConfig> {
+async fn make_rustls_config(
+    config: &GatedConfig,
+    params: &GlobalParams,
+    services: &Services,
+) -> Result<ServerConfig> {
     let certificate_and_key = load_certificate_and_key(&config.store.admin, params)
         .await
         .with_context(|| {
@@ -84,7 +89,10 @@ async fn make_rustls_config(config: &GatedConfig, params: &GlobalParams) -> Resu
             )
         })?;
 
-    let mut resolver = SniCertResolver::new(certificate_and_key);
+    // The default certificate can be replaced at runtime (import, ACME).
+    let fallback = services.tls_resolvers.get(TlsListener::Admin);
+    fallback.set(certificate_and_key);
+    let mut resolver = SniCertResolver::new(fallback.clone());
     for sni in &config.store.admin.sni_certificates {
         let certificate_and_key = load_certificate_and_key(sni, params)
             .await
@@ -314,7 +322,7 @@ impl ProtocolServer for HTTPProtocolServer {
         let tls_config = if tls_enabled {
             let config = self.services.config.read().await;
             Some(Arc::new(
-                make_rustls_config(&config, &self.services.global_params)
+                make_rustls_config(&config, &self.services.global_params, &self.services)
                     .await
                     .context("rustls setup")?,
             ))

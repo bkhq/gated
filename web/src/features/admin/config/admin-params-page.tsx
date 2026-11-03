@@ -5,6 +5,7 @@ import { CheckCircle2 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { AboutPanel } from '@/features/about/about-panel'
+import { AcmeSettingsCard } from '@/features/admin/config/acme-settings-card'
 import { EncryptionAdminCard } from '@/features/admin/config/encryption-admin-card'
 import { SETTINGS_TABS } from '@/features/admin/config/settings-tabs'
 import { SshKeysCard } from '@/features/admin/config/ssh-keys-card'
@@ -60,6 +61,7 @@ export function AdminParamsPage() {
       <GatewayParametersCard section={isParameterSection(tab) ? tab : null} />
       {tab === 'ssh' ? <SshKeysCard /> : null}
       {tab === 'tls' ? <TlsCertificatesCard /> : null}
+      {tab === 'tls' ? <AcmeSettingsCard /> : null}
       {tab === 'update' ? <UpdatePanel /> : null}
       {tab === 'security' ? <EncryptionAdminCard /> : null}
       {tab === 'about' ? <AboutPanel /> : null}

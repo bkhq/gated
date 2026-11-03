@@ -1,12 +1,16 @@
-//! TLS certificates of the HTTP proxy, MySQL and PostgreSQL listeners. Each
-//! listener has its own certificate, stored in the database; a self-signed
-//! one is generated when a listener starts without one. The admin listener
-//! keeps its certificate files because it serves before the database opens.
+//! TLS certificates served by gated's listeners. The HTTP proxy, MySQL and
+//! PostgreSQL listeners each have their own certificate stored in the
+//! database; a self-signed one is generated when a listener starts without
+//! one. The admin listener keeps its certificate files because it serves
+//! before the database opens. Every listener serves through a
+//! [`ReloadableCertResolver`], so replaced certificates apply without a restart.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use gated_common::helpers::fs::secure_file;
 use gated_db_entities::TlsCertificate;
 use gated_tls::{ReloadableCertResolver, RustlsSetupError, TlsCertificateAndPrivateKey};
 use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityTrait, Set, TransactionTrait};
@@ -16,27 +20,39 @@ use crate::Services;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TlsListener {
+    Admin,
     Http,
     Mysql,
     Postgres,
 }
 
 impl TlsListener {
-    pub const ALL: [Self; 3] = [Self::Http, Self::Mysql, Self::Postgres];
+    pub const ALL: [Self; 4] = [Self::Admin, Self::Http, Self::Mysql, Self::Postgres];
+    /// Listeners whose certificate lives in the database.
+    pub const DATABASE: [Self; 3] = [Self::Http, Self::Mysql, Self::Postgres];
 
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Admin => "admin",
             Self::Http => "http",
             Self::Mysql => "mysql",
             Self::Postgres => "postgres",
         }
     }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|listener| listener.as_str() == value)
+    }
 }
 
-/// The certificate each listener serves; replaced in place on import or
-/// regeneration so running listeners pick it up for new handshakes.
+/// The certificate each listener serves; replaced in place on import,
+/// regeneration or ACME issuance so running listeners pick it up for new
+/// handshakes.
 #[derive(Default)]
 pub struct TlsResolvers {
+    admin: Arc<ReloadableCertResolver>,
     http: Arc<ReloadableCertResolver>,
     mysql: Arc<ReloadableCertResolver>,
     postgres: Arc<ReloadableCertResolver>,
@@ -45,11 +61,27 @@ pub struct TlsResolvers {
 impl TlsResolvers {
     pub fn get(&self, listener: TlsListener) -> &Arc<ReloadableCertResolver> {
         match listener {
+            TlsListener::Admin => &self.admin,
             TlsListener::Http => &self.http,
             TlsListener::Mysql => &self.mysql,
             TlsListener::Postgres => &self.postgres,
         }
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum InstallError {
+    #[error("invalid certificate or key: {0}")]
+    Invalid(#[from] RustlsSetupError),
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+/// A listener's current certificate chain and key, PEM encoded.
+pub struct StoredCertificate {
+    pub certificate_pem: String,
+    pub private_key_pem: String,
+    pub created: Option<DateTime<Utc>>,
 }
 
 pub fn parse(row: &TlsCertificate::Model) -> Result<TlsCertificateAndPrivateKey, RustlsSetupError> {
@@ -70,15 +102,13 @@ pub async fn load(
 
 pub async fn list(db: &impl ConnectionTrait) -> Result<Vec<TlsCertificate::Model>> {
     let mut rows = Vec::new();
-    for listener in TlsListener::ALL {
+    for listener in TlsListener::DATABASE {
         rows.extend(load(db, listener).await?);
     }
     Ok(rows)
 }
 
-/// Stores a certificate for the listener, replacing the current one. The
-/// pair must have been validated with [`TlsCertificateAndPrivateKey::from_pem`].
-pub async fn save(
+async fn save(
     db: &(impl ConnectionTrait + TransactionTrait),
     listener: TlsListener,
     certificate_pem: String,
@@ -100,14 +130,91 @@ pub async fn save(
     Ok(row)
 }
 
+/// Certificate and key files of the admin listener; `None` when it serves
+/// plain HTTP.
+pub async fn admin_paths(services: &Services) -> Option<(PathBuf, PathBuf)> {
+    let config = services.config.read().await;
+    let admin = &config.store.admin;
+    if !admin.tls || admin.certificate.is_empty() || admin.key.is_empty() {
+        return None;
+    }
+    let base = services.global_params.paths_relative_to();
+    Some((base.join(&admin.certificate), base.join(&admin.key)))
+}
+
+/// The listener's current certificate, if it has one.
+pub async fn current(
+    services: &Services,
+    listener: TlsListener,
+) -> Result<Option<StoredCertificate>> {
+    if listener == TlsListener::Admin {
+        let Some((certificate_path, key_path)) = admin_paths(services).await else {
+            return Ok(None);
+        };
+        let Ok(certificate_pem) = tokio::fs::read_to_string(&certificate_path).await else {
+            return Ok(None);
+        };
+        let private_key_pem = tokio::fs::read_to_string(&key_path)
+            .await
+            .with_context(|| format!("reading {}", key_path.display()))?;
+        let created = tokio::fs::metadata(&certificate_path)
+            .await
+            .and_then(|meta| meta.modified())
+            .ok()
+            .map(DateTime::<Utc>::from);
+        return Ok(Some(StoredCertificate {
+            certificate_pem,
+            private_key_pem,
+            created,
+        }));
+    }
+    let db = services.db_required().await?;
+    Ok(load(&db, listener).await?.map(|row| StoredCertificate {
+        certificate_pem: row.certificate_pem,
+        private_key_pem: row.private_key_pem,
+        created: Some(row.created),
+    }))
+}
+
+/// Validates and stores a certificate for the listener (the admin listener's
+/// files, or the database), then serves it to new connections.
+pub async fn install(
+    services: &Services,
+    listener: TlsListener,
+    certificate_pem: String,
+    private_key_pem: String,
+) -> Result<(), InstallError> {
+    let pair = TlsCertificateAndPrivateKey::from_pem(
+        certificate_pem.as_bytes(),
+        private_key_pem.as_bytes(),
+    )?;
+    if listener == TlsListener::Admin {
+        let (certificate_path, key_path) = admin_paths(services)
+            .await
+            .context("the admin listener has TLS disabled")?;
+        tokio::fs::write(&key_path, &private_key_pem)
+            .await
+            .with_context(|| format!("writing {}", key_path.display()))?;
+        tokio::fs::write(&certificate_path, &certificate_pem)
+            .await
+            .with_context(|| format!("writing {}", certificate_path.display()))?;
+        if services.global_params.should_secure_files() {
+            secure_file(&certificate_path).context("securing the certificate file")?;
+            secure_file(&key_path).context("securing the key file")?;
+        }
+    } else {
+        let db = services.db_required().await.map_err(anyhow::Error::from)?;
+        save(&db, listener, certificate_pem, private_key_pem).await?;
+    }
+    services.tls_resolvers.get(listener).set(pair);
+    Ok(())
+}
+
 /// Replaces the listener's certificate with a new self-signed one for
 /// `external_host` (when set) and `localhost`.
-pub async fn generate(
-    db: &(impl ConnectionTrait + TransactionTrait),
-    listener: TlsListener,
-    external_host: Option<&str>,
-) -> Result<TlsCertificate::Model> {
-    let mut names: Vec<String> = external_host.map(str::to_owned).into_iter().collect();
+pub async fn generate(services: &Services, listener: TlsListener) -> Result<()> {
+    let external_host = services.config.read().await.store.external_host.clone();
+    let mut names: Vec<String> = external_host.into_iter().collect();
     if !names.iter().any(|name| name == "localhost") {
         names.push("localhost".to_owned());
     }
@@ -117,28 +224,32 @@ pub async fn generate(
         listener = listener.as_str(),
         "Generated a self-signed TLS certificate"
     );
-    save(db, listener, cert.cert.pem(), cert.key_pair.serialize_pem()).await
+    install(
+        services,
+        listener,
+        cert.cert.pem(),
+        cert.key_pair.serialize_pem(),
+    )
+    .await
+    .map_err(|error| anyhow::anyhow!(error))
 }
 
-/// Loads the listener's certificate, generating one first if there is none,
-/// and installs it in the listener's resolver.
+/// Loads a database-backed listener's certificate, generating one first if
+/// there is none, and installs it in the listener's resolver.
 pub async fn activate(
     services: &Services,
     listener: TlsListener,
 ) -> Result<Arc<ReloadableCertResolver>> {
     let db = services.db_required().await?;
-    let row = match load(&db, listener).await? {
-        Some(row) => row,
-        None => {
-            let external_host = services.config.read().await.store.external_host.clone();
-            generate(&db, listener, external_host.as_deref()).await?
+    match load(&db, listener).await? {
+        Some(row) => {
+            let pair = parse(&row)
+                .with_context(|| format!("stored {} TLS certificate", listener.as_str()))?;
+            services.tls_resolvers.get(listener).set(pair);
         }
-    };
-    let pair =
-        parse(&row).with_context(|| format!("stored {} TLS certificate", listener.as_str()))?;
-    let resolver = services.tls_resolvers.get(listener);
-    resolver.set(pair);
-    Ok(resolver.clone())
+        None => generate(services, listener).await?,
+    }
+    Ok(services.tls_resolvers.get(listener).clone())
 }
 
 #[cfg(test)]
@@ -170,7 +281,7 @@ mod tests {
         let services = test_services().await;
         let db = services.db_required().await.expect("db");
 
-        for listener in TlsListener::ALL {
+        for listener in TlsListener::DATABASE {
             activate(&services, listener).await.expect("activate");
         }
         let rows = list(&db).await.expect("list");

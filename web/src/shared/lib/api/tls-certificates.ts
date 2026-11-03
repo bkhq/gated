@@ -20,3 +20,22 @@ export async function importTlsCertificate(
 ): Promise<ListenerCertificate> {
   return adminApi.put<ListenerCertificate>(`/tls/certificates/${listener}`, req, signal)
 }
+
+export type AcmeSettings = components['schemas']['AcmeSettingsResponse']
+export type UpdateAcmeSettingsRequest = components['schemas']['UpdateAcmeSettingsRequest']
+
+export async function getAcmeSettings(signal?: AbortSignal): Promise<AcmeSettings> {
+  return adminApi.get<AcmeSettings>('/tls/acme', signal)
+}
+
+export async function updateAcmeSettings(req: UpdateAcmeSettingsRequest, signal?: AbortSignal): Promise<AcmeSettings> {
+  return adminApi.put<AcmeSettings>('/tls/acme', req, signal)
+}
+
+export async function enableAcme(listener: TlsListener, domains: string[], signal?: AbortSignal): Promise<ListenerCertificate> {
+  return adminApi.put<ListenerCertificate>(`/tls/certificates/${listener}/acme`, { domains }, signal)
+}
+
+export async function disableAcme(listener: TlsListener, signal?: AbortSignal): Promise<void> {
+  return adminApi.delete<void>(`/tls/certificates/${listener}/acme`, signal)
+}

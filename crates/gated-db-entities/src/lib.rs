@@ -2,6 +2,8 @@
 #![allow(non_snake_case)]
 
 pub mod Account;
+pub mod AcmeCertificate;
+pub mod AcmeSettings;
 pub mod ApiToken;
 pub mod CertificateCredential;
 pub mod CertificateRevocation;

@@ -1,0 +1,111 @@
+use sea_orm_migration::prelude::*;
+
+// ACME (DNS-01) issuance of listener certificates: one global account and
+// DNS provider configuration, plus the domains and last result per listener.
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Alias::new("acme_settings"))
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .integer()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("directory_url"))
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("contact_email"))
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("ca_certificate_pem"))
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("dns_provider"))
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("dns_endpoint"))
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("dns_username"))
+                            .string()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Alias::new("dns_password")).text().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("dns_subdomain"))
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("propagation_delay_secs"))
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("account_credentials"))
+                            .text()
+                            .null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_table(
+                Table::create()
+                    .table(Alias::new("acme_certificates"))
+                    .col(
+                        ColumnDef::new(Alias::new("listener"))
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Alias::new("domains")).text().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("last_attempt"))
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("last_success"))
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(Alias::new("last_error")).text().null())
+                    .to_owned(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(
+                Table::drop()
+                    .table(Alias::new("acme_certificates"))
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Alias::new("acme_settings")).to_owned())
+            .await?;
+        Ok(())
+    }
+}

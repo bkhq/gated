@@ -1,10 +1,10 @@
 import type { ListenerCertificate, TlsListener } from '@/shared/lib/api/tls-certificates'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, RefreshCw, Upload } from 'lucide-react'
+import { AlertCircle, Globe, RefreshCw, Upload } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/shared/lib/api/http'
-import { generateTlsCertificate, importTlsCertificate, listTlsCertificates } from '@/shared/lib/api/tls-certificates'
+import { disableAcme, enableAcme, generateTlsCertificate, importTlsCertificate, listTlsCertificates } from '@/shared/lib/api/tls-certificates'
 import { formatFullDateTime } from '@/shared/lib/format-time'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -15,7 +15,7 @@ import { Textarea } from '@/shared/ui/textarea'
 
 const TLS_CERTIFICATES_QUERY_KEY = ['tls-certificates'] as const
 
-interface Action { kind: 'import' | 'generate', listener: TlsListener }
+interface Action { kind: 'import' | 'generate' | 'acme', listener: TlsListener }
 
 function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof ApiError && typeof err.body === 'string' && err.body)
@@ -37,7 +37,7 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
-/** Certificates of the HTTP proxy, MySQL and PostgreSQL listeners, stored in the database. */
+/** Certificates of the admin, HTTP proxy, MySQL and PostgreSQL listeners. */
 export function TlsCertificatesCard() {
   const { t } = useTranslation()
   const query = useQuery({
@@ -46,6 +46,7 @@ export function TlsCertificatesCard() {
   })
   const [action, setAction] = React.useState<Action | null>(null)
   const close = () => setAction(null)
+  const actionCert = query.data?.find(cert => cert.listener === action?.listener)
 
   return (
     <div className="px-6 pt-4">
@@ -68,9 +69,10 @@ export function TlsCertificatesCard() {
                 )}
         </CardContent>
       </Card>
-      <Dialog open={action !== null} onClose={close} width={action?.kind === 'import' ? 560 : 440}>
+      <Dialog open={action !== null} onClose={close} width={action?.kind === 'generate' ? 440 : 560}>
         {action?.kind === 'import' ? <ImportDialogBody listener={action.listener} onClose={close} /> : null}
         {action?.kind === 'generate' ? <GenerateDialogBody listener={action.listener} onClose={close} /> : null}
+        {action?.kind === 'acme' && actionCert ? <AcmeDialogBody cert={actionCert} onClose={close} /> : null}
       </Dialog>
     </div>
   )
@@ -95,8 +97,20 @@ function CertificateRow({ cert, onAction }: { cert: ListenerCertificate, onActio
               </>
             )
           : <span className="text-muted-foreground">{t('settings.tlsCertificates.none')}</span>}
+        {cert.acme
+          ? (
+              <span className="text-muted-foreground">
+                {t('settings.tlsCertificates.acmeStatus', { domains: cert.acme.domains.join(', ') })}
+              </span>
+            )
+          : null}
+        {cert.acme?.last_error ? <ErrorBanner message={cert.acme.last_error} /> : null}
       </div>
       <div className="flex shrink-0 gap-2">
+        <Button variant="outline" size="sm" onClick={() => onAction('acme')}>
+          <Globe size={13} />
+          <span>{t('settings.tlsCertificates.acme')}</span>
+        </Button>
         <Button variant="outline" size="sm" onClick={() => onAction('generate')}>
           <RefreshCw size={13} />
           <span>{t('settings.tlsCertificates.generate')}</span>
@@ -208,6 +222,84 @@ function ImportDialogBody({ listener, onClose }: { listener: TlsListener, onClos
         </Button>
         <Button size="sm" onClick={submit} disabled={mutation.isPending}>
           {t('settings.tlsCertificates.importDialog.submit')}
+        </Button>
+      </DialogFooter>
+    </>
+  )
+}
+
+function AcmeDialogBody({ cert, onClose }: { cert: ListenerCertificate, onClose: () => void }) {
+  const { t } = useTranslation()
+  const qc = useQueryClient()
+  const [domains, setDomains] = React.useState((cert.acme?.domains ?? []).join('\n'))
+  const [error, setError] = React.useState<string | null>(null)
+  const done = async () => {
+    await qc.invalidateQueries({ queryKey: TLS_CERTIFICATES_QUERY_KEY })
+    onClose()
+  }
+  const onError = async (err: unknown) => {
+    setError(errorMessage(err, t('settings.tlsCertificates.acmeDialog.error')))
+    // A failed attempt is still recorded on the listener.
+    await qc.invalidateQueries({ queryKey: TLS_CERTIFICATES_QUERY_KEY })
+  }
+  const request = useMutation({
+    mutationFn: async (names: string[]) => enableAcme(cert.listener, names),
+    onSuccess: done,
+    onError,
+  })
+  const stop = useMutation({
+    mutationFn: async () => disableAcme(cert.listener),
+    onSuccess: done,
+    onError,
+  })
+  const pending = request.isPending || stop.isPending
+
+  const submit = () => {
+    const names = domains.split(/[\s,]+/).map(name => name.trim()).filter(Boolean)
+    if (names.length === 0) {
+      setError(t('settings.tlsCertificates.acmeDialog.required'))
+      return
+    }
+    setError(null)
+    request.mutate(names)
+  }
+
+  const name = t(`settings.tlsCertificates.listener.${cert.listener}`)
+  return (
+    <>
+      <DialogHeader
+        title={t('settings.tlsCertificates.acmeDialog.title', { name })}
+        description={t('settings.tlsCertificates.acmeDialog.description')}
+        onClose={pending ? undefined : onClose}
+      />
+      <DialogBody className="flex flex-col gap-2.5">
+        <div>
+          <Label htmlFor="acme-domains">{t('settings.tlsCertificates.acmeDialog.domains')}</Label>
+          <Textarea
+            id="acme-domains"
+            rows={4}
+            spellCheck={false}
+            className="font-mono text-[12px]"
+            placeholder={'example.com\n*.example.com'}
+            value={domains}
+            onChange={event => setDomains(event.target.value)}
+          />
+        </div>
+        {error ? <ErrorBanner message={error} /> : null}
+      </DialogBody>
+      <DialogFooter>
+        {cert.acme
+          ? (
+              <Button variant="outline" size="sm" className="mr-auto" onClick={() => stop.mutate()} disabled={pending}>
+                {t('settings.tlsCertificates.acmeDialog.stop')}
+              </Button>
+            )
+          : null}
+        <Button variant="outline" size="sm" onClick={onClose} disabled={pending}>
+          {t('settings.tlsCertificates.cancel')}
+        </Button>
+        <Button size="sm" onClick={submit} disabled={pending}>
+          {pending && request.isPending ? t('settings.tlsCertificates.acmeDialog.requesting') : t('settings.tlsCertificates.acmeDialog.submit')}
         </Button>
       </DialogFooter>
     </>

@@ -38,7 +38,7 @@ Gated 以单个进程部署，常见方式：
 - **裸机 / 虚拟机**：`gated setup`（交互式）或 `gated unattended-setup` 写出配置和数据目录
   （`crates/gated/src/commands/setup.rs`）：SQLite 数据库（`db/`）、录制（`recordings/`），
   以及管理后台监听器的自签名 TLS 证书和密钥（两个文件都缺失时 `run` 会重新生成）。HTTP 代理、MySQL 和 PostgreSQL
-  监听器各有一份证书保存在数据库（`tls_certificates`）中，监听首次启动时自动生成自签证书，可在“设置 → TLS 证书”中替换。第一个管理员账号由管理界面中的首次初始化创建；
+  监听器各有一份证书保存在数据库（`tls_certificates`）中，监听首次启动时自动生成自签证书，可在“设置 → TLS 证书”中替换；所有监听（包括管理后台）也可在该页面通过 ACME DNS-01 申请证书，由 `gated-core::acme` 自动续期。第一个管理员账号由管理界面中的首次初始化创建；
   SSH 密钥也在管理界面中生成或导入。两者都保存在数据库中。使用全局参数 `--data-dir <dir>`
   （`GATED_DATA_DIR`）时，配置为 `<dir>/config.yaml`，所有相对路径（包括加密状态和引导令牌）都在
   `<dir>` 内解析；否则由 `--config`（`GATED_CONFIG`，默认 `/etc/gated.yaml`）选择配置文件，相对路径

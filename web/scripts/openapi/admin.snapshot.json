@@ -2849,9 +2849,76 @@
         ]
       }
     },
+    "/tls/acme": {
+      "get": {
+        "summary": "The ACME account and DNS provider used for every listener.",
+        "operationId": "get_acme_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcmeSettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      },
+      "put": {
+        "summary": "Saves the ACME account and DNS provider. Changing the directory or contact\nregisters a new ACME account on the next issuance.",
+        "operationId": "update_acme_settings",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAcmeSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcmeSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
     "/tls/certificates": {
       "get": {
-        "summary": "The certificate of each TLS listener (public parts only).",
+        "summary": "The certificate of each TLS listener (public parts only). The admin\nlistener is omitted when it serves plain HTTP.",
         "operationId": "get_tls_certificates",
         "responses": {
           "200": {
@@ -2879,7 +2946,7 @@
     },
     "/tls/certificates/{listener}": {
       "put": {
-        "summary": "Stores a certificate and private key for the listener, replacing the\ncurrent one. Running listeners serve it to new connections.",
+        "summary": "Stores a certificate and private key for the listener, replacing the\ncurrent one and stopping ACME for it. Running listeners serve it to new\nconnections.",
         "operationId": "import_tls_certificate",
         "requestBody": {
           "content": {
@@ -2921,9 +2988,68 @@
         ]
       }
     },
+    "/tls/certificates/{listener}/acme": {
+      "put": {
+        "summary": "Issues the listener's certificate through ACME now and renews it\nautomatically. The domains are kept even if this attempt fails; the error\nis returned and recorded on the listener.",
+        "operationId": "enable_tls_acme",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/EnableAcmeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListenerCertificate"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Stops ACME issuance and renewal for the listener; its current certificate\nstays in place.",
+        "operationId": "disable_tls_acme",
+        "responses": {
+          "204": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
     "/tls/certificates/{listener}/generate": {
       "post": {
-        "summary": "Replaces the listener's certificate with a new self-signed one. Running\nlisteners serve it to new connections.",
+        "summary": "Replaces the listener's certificate with a new self-signed one and stops\nACME for it. Running listeners serve it to new connections.",
         "operationId": "generate_tls_certificate",
         "responses": {
           "200": {
@@ -4512,6 +4638,99 @@
           }
         }
       },
+      "AcmeDnsProvider": {
+        "type": "string",
+        "enum": [
+          "httpreq",
+          "acme-dns"
+        ]
+      },
+      "AcmeSettingsResponse": {
+        "type": "object",
+        "required": [
+          "configured",
+          "directory_url",
+          "contact_email",
+          "dns_provider",
+          "dns_endpoint",
+          "dns_username",
+          "dns_password_set",
+          "dns_subdomain",
+          "propagation_delay_secs"
+        ],
+        "properties": {
+          "ca_certificate_pem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "False until the settings are saved for the first time."
+          },
+          "contact_email": {
+            "type": "string"
+          },
+          "directory_url": {
+            "type": "string"
+          },
+          "dns_endpoint": {
+            "type": "string"
+          },
+          "dns_password_set": {
+            "type": "boolean",
+            "description": "The password itself is never returned."
+          },
+          "dns_provider": {
+            "$ref": "#/components/schemas/AcmeDnsProvider"
+          },
+          "dns_subdomain": {
+            "type": "string"
+          },
+          "dns_username": {
+            "type": "string"
+          },
+          "propagation_delay_secs": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "AcmeStatus": {
+        "type": "object",
+        "required": [
+          "domains"
+        ],
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "last_attempt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_success": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "AddSshKnownHostRequest": {
         "type": "object",
         "required": [
@@ -5086,6 +5305,21 @@
           "postgres"
         ]
       },
+      "EnableAcmeRequest": {
+        "type": "object",
+        "required": [
+          "domains"
+        ],
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "DNS names for the certificate; `*.example.com` requests a wildcard."
+          }
+        }
+      },
       "ExistingApiToken": {
         "type": "object",
         "required": [
@@ -5651,6 +5885,17 @@
           "chain"
         ],
         "properties": {
+          "acme": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AcmeStatus",
+                "description": "Set when the certificate is issued and renewed through ACME."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "chain": {
             "type": "array",
             "items": {
@@ -6430,6 +6675,7 @@
       "TLSListener": {
         "type": "string",
         "enum": [
+          "admin",
           "http",
           "mysql",
           "postgres"
@@ -6975,6 +7221,56 @@
           },
           "token": {
             "$ref": "#/components/schemas/ExistingApiToken"
+          }
+        }
+      },
+      "UpdateAcmeSettingsRequest": {
+        "type": "object",
+        "required": [
+          "directory_url",
+          "contact_email",
+          "dns_provider",
+          "dns_endpoint",
+          "dns_username",
+          "propagation_delay_secs"
+        ],
+        "properties": {
+          "ca_certificate_pem": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Extra trusted root (PEM) for a private ACME server or DNS endpoint."
+          },
+          "contact_email": {
+            "type": "string"
+          },
+          "directory_url": {
+            "type": "string"
+          },
+          "dns_endpoint": {
+            "type": "string"
+          },
+          "dns_password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Omit to keep the stored password."
+          },
+          "dns_provider": {
+            "$ref": "#/components/schemas/AcmeDnsProvider"
+          },
+          "dns_subdomain": {
+            "type": "string",
+            "description": "acme-dns only."
+          },
+          "dns_username": {
+            "type": "string"
+          },
+          "propagation_delay_secs": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

@@ -835,6 +835,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tls/acme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The ACME account and DNS provider used for every listener. */
+        get: operations["get_acme_settings"];
+        /**
+         * Saves the ACME account and DNS provider. Changing the directory or contact
+         *     registers a new ACME account on the next issuance.
+         */
+        put: operations["update_acme_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tls/certificates": {
         parameters: {
             query?: never;
@@ -842,7 +863,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The certificate of each TLS listener (public parts only). */
+        /**
+         * The certificate of each TLS listener (public parts only). The admin
+         *     listener is omitted when it serves plain HTTP.
+         */
         get: operations["get_tls_certificates"];
         put?: never;
         post?: never;
@@ -862,11 +886,37 @@ export interface paths {
         get?: never;
         /**
          * Stores a certificate and private key for the listener, replacing the
-         *     current one. Running listeners serve it to new connections.
+         *     current one and stopping ACME for it. Running listeners serve it to new
+         *     connections.
          */
         put: operations["import_tls_certificate"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tls/certificates/{listener}/acme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Issues the listener's certificate through ACME now and renews it
+         *     automatically. The domains are kept even if this attempt fails; the error
+         *     is returned and recorded on the listener.
+         */
+        put: operations["enable_tls_acme"];
+        post?: never;
+        /**
+         * Stops ACME issuance and renewal for the listener; its current certificate
+         *     stays in place.
+         */
+        delete: operations["disable_tls_acme"];
         options?: never;
         head?: never;
         patch?: never;
@@ -882,8 +932,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Replaces the listener's certificate with a new self-signed one. Running
-         *     listeners serve it to new connections.
+         * Replaces the listener's certificate with a new self-signed one and stops
+         *     ACME for it. Running listeners serve it to new connections.
          */
         post: operations["generate_tls_certificate"];
         delete?: never;
@@ -1235,6 +1285,31 @@ export interface components {
             rotation_due_at?: string | null;
             tags?: string[] | null;
         };
+        /** @enum {string} */
+        AcmeDnsProvider: "httpreq" | "acme-dns";
+        AcmeSettingsResponse: {
+            ca_certificate_pem?: string | null;
+            /** @description False until the settings are saved for the first time. */
+            configured: boolean;
+            contact_email: string;
+            directory_url: string;
+            dns_endpoint: string;
+            /** @description The password itself is never returned. */
+            dns_password_set: boolean;
+            dns_provider: components["schemas"]["AcmeDnsProvider"];
+            dns_subdomain: string;
+            dns_username: string;
+            /** Format: int32 */
+            propagation_delay_secs: number;
+        };
+        AcmeStatus: {
+            domains: string[];
+            /** Format: date-time */
+            last_attempt?: string | null;
+            last_error?: string | null;
+            /** Format: date-time */
+            last_success?: string | null;
+        };
         AddSshKnownHostRequest: {
             host: string;
             key_base64: string;
@@ -1427,6 +1502,10 @@ export interface components {
         };
         /** @enum {string} */
         DbPasswordEngine: "mysql" | "postgres";
+        EnableAcmeRequest: {
+            /** @description DNS names for the certificate; `*.example.com` requests a wildcard. */
+            domains: string[];
+        };
         ExistingApiToken: {
             /** Format: date-time */
             created: string;
@@ -1597,6 +1676,7 @@ export interface components {
             version?: string | null;
         };
         ListenerCertificate: {
+            acme?: components["schemas"]["AcmeStatus"] | null;
             /** @description Leaf first; empty until the listener has a certificate. */
             chain: components["schemas"]["CertificateInfo"][];
             /** Format: date-time */
@@ -1833,7 +1913,7 @@ export interface components {
             public_key_openssh: string;
         };
         /** @enum {string} */
-        TLSListener: "http" | "mysql" | "postgres";
+        TLSListener: "admin" | "http" | "mysql" | "postgres";
         Target: {
             accounts: components["schemas"]["TargetAccountMetadata"][];
             allow_roles: string[];
@@ -1984,6 +2064,21 @@ export interface components {
         TokenAndSecret: {
             secret: string;
             token: components["schemas"]["ExistingApiToken"];
+        };
+        UpdateAcmeSettingsRequest: {
+            /** @description Extra trusted root (PEM) for a private ACME server or DNS endpoint. */
+            ca_certificate_pem?: string | null;
+            contact_email: string;
+            directory_url: string;
+            dns_endpoint: string;
+            /** @description Omit to keep the stored password. */
+            dns_password?: string | null;
+            dns_provider: components["schemas"]["AcmeDnsProvider"];
+            /** @description acme-dns only. */
+            dns_subdomain?: string;
+            dns_username: string;
+            /** Format: int32 */
+            propagation_delay_secs: number;
         };
         UpdateCertificateCredential: {
             label: string;
@@ -4132,6 +4227,56 @@ export interface operations {
             };
         };
     };
+    get_acme_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["AcmeSettingsResponse"];
+                };
+            };
+        };
+    };
+    update_acme_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["UpdateAcmeSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["AcmeSettingsResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
+        };
+    };
     get_tls_certificates: {
         parameters: {
             query?: never;
@@ -4179,6 +4324,54 @@ export interface operations {
                 content: {
                     "application/json; charset=utf-8": string;
                 };
+            };
+        };
+    };
+    enable_tls_acme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["EnableAcmeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ListenerCertificate"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
+        };
+    };
+    disable_tls_acme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

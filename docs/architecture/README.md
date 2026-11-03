@@ -50,7 +50,8 @@ Gated is deployed as one process, typically:
   both files are missing). The HTTP proxy, MySQL and PostgreSQL listeners each
   have their own certificate in the database (`tls_certificates`), generated
   self-signed on first listener start and replaceable under Settings → TLS
-  certificates. The first admin account is
+  certificates, where every listener (admin included) can also get an ACME
+  DNS-01 certificate that `gated-core::acme` renews. The first admin account is
   created by first-run setup in the admin UI; SSH keys are generated or
   imported there too. Both live in the database. With the global `--data-dir <dir>` (`GATED_DATA_DIR`) the config is
   `<dir>/config.yaml` and every relative path, including the encryption state

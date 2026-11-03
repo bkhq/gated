@@ -235,14 +235,14 @@ impl ResolvesServerCert for ReloadableCertResolver {
 /// back to the default one.
 #[derive(Debug, Clone)]
 pub struct SniCertResolver {
-    fallback: Arc<CertifiedKey>,
+    fallback: Arc<ReloadableCertResolver>,
     by_name: HashMap<String, Arc<CertifiedKey>>,
 }
 
 impl SniCertResolver {
-    pub fn new(fallback: TlsCertificateAndPrivateKey) -> Self {
+    pub fn new(fallback: Arc<ReloadableCertResolver>) -> Self {
         Self {
-            fallback: Arc::new(fallback.into()),
+            fallback,
             by_name: HashMap::new(),
         }
     }
@@ -260,7 +260,7 @@ impl ResolvesServerCert for SniCertResolver {
         client_hello
             .server_name()
             .and_then(|name| self.by_name.get(name).cloned())
-            .or_else(|| Some(self.fallback.clone()))
+            .or_else(|| self.fallback.current())
     }
 }
 

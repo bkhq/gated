@@ -371,6 +371,8 @@ pub(crate) async fn command(
         );
     }
 
+    tokio::spawn(gated_core::acme::run_renewals(services.clone()));
+
     tokio::spawn({
         let services = services.clone();
         async move {

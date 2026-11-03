@@ -1664,8 +1664,9 @@
     },
     "tlsCertificates": {
       "title": "TLS certificates",
-      "hint": "Each listener serves its own certificate, stored in the database. A self-signed one is generated when a listener starts without one. Changes apply to new connections without a restart. The admin UI certificate stays in the data directory.",
+      "hint": "The HTTP proxy, MySQL and PostgreSQL certificates are stored in the database, and a self-signed one is generated when a listener starts without one. The admin UI certificate is kept in its files in the data directory. Changes apply to new connections without a restart.",
       "listener": {
+        "admin": "Admin UI",
         "http": "HTTP proxy",
         "mysql": "MySQL",
         "postgres": "PostgreSQL"
@@ -1690,7 +1691,46 @@
         "required": "Paste both the certificate and the private key.",
         "error": "Importing the certificate failed.",
         "submit": "Import certificate"
+      },
+      "acme": "ACME",
+      "acmeStatus": "ACME: {{domains}}",
+      "acmeDialog": {
+        "title": "ACME certificate for {{name}}",
+        "description": "Requests a certificate through the ACME account and DNS provider below and renews it automatically. One domain per line; *.example.com requests a wildcard. Point _acme-challenge.<domain> at your DNS provider first.",
+        "domains": "Domains",
+        "required": "Enter at least one domain.",
+        "error": "Requesting the certificate failed.",
+        "submit": "Request certificate",
+        "requesting": "Requesting…",
+        "stop": "Stop ACME"
       }
+    },
+    "acme": {
+      "title": "ACME",
+      "hint": "Account and DNS provider used to request certificates through the DNS-01 challenge. httpreq and acme-dns are supported (both offered by dnsall.com). Certificates are renewed when less than 30 days remain.",
+      "directory": "Certificate authority",
+      "directoryUrl": "Directory URL",
+      "directories": {
+        "letsencrypt": "Let's Encrypt",
+        "staging": "Let's Encrypt (staging)",
+        "custom": "Custom"
+      },
+      "email": "Contact email",
+      "provider": "DNS provider",
+      "providers": {
+        "httpreq": "httpreq",
+        "acme-dns": "acme-dns"
+      },
+      "endpoint": "Provider endpoint",
+      "username": "Username",
+      "password": "Password / API key",
+      "passwordUnchanged": "Unchanged",
+      "subdomain": "acme-dns subdomain",
+      "delay": "Wait after publishing records (seconds)",
+      "ca": "Extra trusted CA (PEM, optional)",
+      "save": "Save",
+      "saved": "Saved",
+      "saveError": "Saving the ACME settings failed."
     }
   },
   "authRequests": {
