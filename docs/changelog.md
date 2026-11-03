@@ -228,3 +228,7 @@ Gateway-wide SSH client keys are removed (task `20261103-1000`). `ssh_keys` hold
 ## 2026-11-03 11:20 [BUG-P1]
 
 Pasted SSH private keys whose line breaks were lost (joined with spaces, on one line, indented, CR-only or with literal `\n`) failed to decode, so v0.0.3 rejected such `ssh-key` accounts with `422` and gated could not authenticate with them. `gated_common::helpers::pem::normalize_pem` re-wraps the base64 body between the BEGIN/END lines; it runs before decoding account keys (and the stored account key is saved normalized), imported host keys, and target keys at connect time, so already-stored keys work too. Tests: `helpers::pem` unit tests, `gated-admin` `ssh_key_accounts_repair_a_key_whose_line_breaks_were_lost`, `gated-protocol-ssh` client test.
+
+## 2026-11-03 12:10 [BUG-P2]
+
+MFA codes could not be pasted: the login page's six one-digit boxes truncated a paste to its first digit, and the MFA enrollment and step-up inputs cut a code pasted with a space (`123 456`) at six characters. The boxes now spread a pasted or autofilled code, and every OTP input keeps only the digits (`web/src/shared/lib/otp.ts`). MFA enrollment showed only the setup key; it now renders the provisioning URI as a QR code (`qrcode.react`). Tests: `login-page`, `otp-enrollment-drawer`, `step-up-dialog`, `otp` web tests.

@@ -27,3 +27,15 @@ it('waits for server enrollment and valid proof before closing', async () => {
   await waitFor(() => expect(close).toHaveBeenCalledOnce())
   expect(confirm).toHaveBeenLastCalledWith({ otp: '123456' })
 })
+
+it('shows a QR code for the provisioning URI and accepts a pasted code with spaces', async () => {
+  vi.spyOn(profileApi.otpDevices, 'begin').mockResolvedValue({ provisioning_uri: 'otpauth://totp/Gated:alice?secret=SERVERSECRET&issuer=Gated' })
+  const confirm = vi.spyOn(profileApi.otpDevices, 'add').mockResolvedValue({ id: 'id', name: 'TOTP', added: '' })
+  render(<QueryClientProvider client={new QueryClient()}><OtpEnrollmentDrawer onClose={vi.fn()} /></QueryClientProvider>)
+  fireEvent.click(screen.getByText('otpEnrollment.begin'))
+  expect(await screen.findByRole('img', { name: 'otpEnrollment.qr' })).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('otpEnrollment.code'), { target: { value: ' 123 456 ' } })
+  expect(screen.getByLabelText('otpEnrollment.code')).toHaveValue('123456')
+  fireEvent.click(screen.getByText('otpEnrollment.confirm'))
+  await waitFor(() => expect(confirm).toHaveBeenCalledWith({ otp: '123456' }))
+})

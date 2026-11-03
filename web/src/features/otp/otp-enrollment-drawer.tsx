@@ -1,7 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
+import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { profileApi } from '@/shared/lib/api/profile'
+import { otpCode } from '@/shared/lib/otp'
 import { Button } from '@/shared/ui/button'
 import { Drawer } from '@/shared/ui/drawer'
 import { Input } from '@/shared/ui/input'
@@ -35,11 +37,21 @@ export function OtpEnrollmentDrawer({ onClose }: { onClose: () => void }) {
         <p>{t('otpEnrollment.instructions')}</p>
         {uri && (
           <>
+            <QRCodeSVG
+              value={uri}
+              size={176}
+              marginSize={2}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              role="img"
+              aria-label={t('otpEnrollment.qr')}
+              className="self-center rounded-md"
+            />
             <label htmlFor="otp-secret">{t('otpEnrollment.secret')}</label>
             <Input id="otp-secret" value={secret} readOnly />
             <a href={uri} className="underline">{t('otpEnrollment.openApp')}</a>
             <label htmlFor="otp-proof">{t('otpEnrollment.code')}</label>
-            <Input id="otp-proof" value={otp} onChange={event => setOtp(event.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
+            <Input id="otp-proof" value={otp} onChange={event => setOtp(otpCode(event.target.value))} inputMode="numeric" autoComplete="one-time-code" />
           </>
         )}
         {error && <p role="alert">{error.message}</p>}

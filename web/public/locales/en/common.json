@@ -2214,12 +2214,13 @@
     }
   },
   "otpEnrollment": {
-    "instructions": "Add the setup key to your authenticator, then enter its current code. Setup expires after a few minutes.",
+    "instructions": "Scan the QR code with your authenticator app (or add the setup key manually), then enter its current code. Setup expires after a few minutes.",
     "secret": "Setup key",
     "openApp": "Open authenticator app",
     "code": "Verification code",
     "confirm": "Verify and enable",
-    "begin": "Begin setup"
+    "begin": "Begin setup",
+    "qr": "QR code for your authenticator app"
   },
   "files": {
     "breadcrumbs": "Path",

@@ -3,6 +3,7 @@ import { ShieldCheck } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { stepUpErrorKey } from '@/features/accounts/utils'
+import { otpCode } from '@/shared/lib/otp'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
@@ -90,10 +91,10 @@ function StepUpDialogBody({ open, title, description, confirmLabel, onCancel, on
               id="step-up-secret"
               type="password"
               inputMode={factor === 'otp' ? 'numeric' : undefined}
-              maxLength={factor === 'otp' ? 6 : 1024}
+              maxLength={factor === 'otp' ? undefined : 1024}
               autoComplete={factor === 'otp' ? 'one-time-code' : 'current-password'}
               value={secret}
-              onChange={event => setSecret(event.target.value)}
+              onChange={event => setSecret(factor === 'otp' ? otpCode(event.target.value) : event.target.value)}
               autoFocus
             />
           </div>

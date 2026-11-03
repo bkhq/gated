@@ -14,6 +14,7 @@ import {
 } from '@/shared/hooks/use-auth'
 import { useSiteTitle } from '@/shared/hooks/use-site-title'
 import { ApiError } from '@/shared/lib/api/http'
+import { otpCode } from '@/shared/lib/otp'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
@@ -188,7 +189,25 @@ export function LoginPage() {
     }
   }
 
+  // Spreads a pasted or autofilled code over the boxes from `index` on.
+  const fillOtp = (index: number, digits: string) => {
+    setOtp((current) => {
+      const next = [...current]
+      for (const [offset, digit] of [...digits].entries()) {
+        if (index + offset < next.length)
+          next[index + offset] = digit
+      }
+      return next
+    })
+    otpInputsRef.current[Math.min(index + digits.length, 5)]?.focus()
+  }
+
   const onOtpDigit = (index: number, value: string) => {
+    const digits = otpCode(value)
+    if (digits.length > 1) {
+      fillOtp(index, digits)
+      return
+    }
     const digit = value.slice(-1).replace(/\D/g, '')
     setOtp((current) => {
       const next = [...current]
@@ -315,6 +334,10 @@ export function LoginPage() {
                   aria-invalid={error ? true : undefined}
                   aria-describedby={error ? errorId : undefined}
                   onChange={event => onOtpDigit(index, event.target.value)}
+                  onPaste={(event) => {
+                    event.preventDefault()
+                    fillOtp(index, otpCode(event.clipboardData.getData('text')))
+                  }}
                   onKeyDown={event => onOtpKeyDown(index, event)}
                   className="focus-ring mono h-[50px] w-[42px] rounded-md border border-input bg-background text-center text-[20px] font-semibold text-foreground outline-none focus:border-ring"
                 />

@@ -2214,12 +2214,13 @@
     }
   },
   "otpEnrollment": {
-    "instructions": "将设置密钥添加到验证器，然后输入当前验证码。设置将在几分钟后过期。",
+    "instructions": "用验证器应用扫描二维码（或手动添加设置密钥），然后输入当前验证码。设置将在几分钟后过期。",
     "secret": "设置密钥",
     "openApp": "打开验证器应用",
     "code": "验证码",
     "confirm": "验证并启用",
-    "begin": "开始设置"
+    "begin": "开始设置",
+    "qr": "用于身份验证器 App 的二维码"
   },
   "files": {
     "breadcrumbs": "路径",
