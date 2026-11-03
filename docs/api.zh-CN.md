@@ -1086,7 +1086,7 @@ AccountReveal           { credentials: AccountCredentials }
 `AccountCredentials`（discriminator `kind` kebab-case）：
 
 - `ssh-password { username, password: secret }`
-- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — 创建/更新时可用 `generate: "ed25519" | "rsa"` 代替私钥，由服务器生成私钥（私钥不离开服务器）；`private_key_pem` 必须能用 passphrase 解析，否则 `422`。`credentials_public` 额外包含派生的 `public_key_openssh` 和 SHA256 `fingerprint`。
+- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — 创建/更新时可用 `generate: "ed25519" | "rsa"` 代替私钥，由服务器生成私钥（私钥不离开服务器）；`private_key_pem` 必须能用 passphrase 解析，否则 `422`；粘贴时丢失或被替换的换行（变成空格、整段一行、带缩进、只有 CR 或字面 `\n`）会在解析和保存前修复。`credentials_public` 额外包含派生的 `public_key_openssh` 和 SHA256 `fingerprint`。
 - `db-password { engine: "mysql"|"postgres", username, password: secret }`
 - `k8s-token { token: secret, ca_pem?: secret, namespace? }`
 - `k8s-client-cert { client_certificate_pem, client_private_key_pem: secret, passphrase?: secret, ca_pem?: secret, namespace? }`

@@ -14,6 +14,7 @@ use channel_direct_tcpip::DirectTCPIPChannel;
 use channel_session::SessionChannel;
 pub use error::SshClientError;
 use futures::pin_mut;
+use gated_common::helpers::pem::normalize_pem;
 use gated_common::{SSHTargetAuth, Secret, SessionId, SshTargetPublicKeyAuth, TargetSSHOptions};
 use gated_core::Services;
 use handler::ClientHandler;
@@ -44,7 +45,7 @@ fn ssh_auth_keys(auth: &SshTargetPublicKeyAuth) -> Result<Vec<PrivateKey>, Conne
     };
     let passphrase = auth.passphrase.as_ref().map(Secret::expose_secret);
     Ok(vec![decode_secret_key(
-        private_key_pem.expose_secret(),
+        &normalize_pem(private_key_pem.expose_secret()),
         passphrase.map(String::as_str),
     )?])
 }
@@ -902,7 +903,16 @@ mod tests {
             .expect("pem")
             .to_string();
         let keys = ssh_auth_keys(&SshTargetPublicKeyAuth {
-            private_key_pem: Some(Secret::new(pem)),
+            private_key_pem: Some(Secret::new(pem.clone())),
+            passphrase: None,
+        })
+        .expect("keys");
+        assert_eq!(keys[0].public_key(), key.public_key());
+
+        // A stored key whose line breaks became spaces still loads.
+        let mangled = pem.lines().collect::<Vec<_>>().join(" ");
+        let keys = ssh_auth_keys(&SshTargetPublicKeyAuth {
+            private_key_pem: Some(Secret::new(mangled)),
             passphrase: None,
         })
         .expect("keys");

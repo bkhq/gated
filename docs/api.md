@@ -1087,7 +1087,7 @@ AccountReveal           { credentials: AccountCredentials }
 `AccountCredentials` (discriminator `kind`, kebab-case):
 
 - `ssh-password { username, password: secret }`
-- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — on create/update, `generate: "ed25519" | "rsa"` instead of a key makes the server generate the private key (it never leaves the server); `private_key_pem` must decode with the passphrase (`422` otherwise). `credentials_public` adds the derived `public_key_openssh` and SHA256 `fingerprint`.
+- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — on create/update, `generate: "ed25519" | "rsa"` instead of a key makes the server generate the private key (it never leaves the server); `private_key_pem` must decode with the passphrase (`422` otherwise); line breaks lost when pasting (joined with spaces, one line, indented, CR-only or literal `\n`) are repaired before decoding and storing. `credentials_public` adds the derived `public_key_openssh` and SHA256 `fingerprint`.
 - `db-password { engine: "mysql"|"postgres", username, password: secret }`
 - `k8s-token { token: secret, ca_pem?: secret, namespace? }`
 - `k8s-client-cert { client_certificate_pem, client_private_key_pem: secret, passphrase?: secret, ca_pem?: secret, namespace? }`

@@ -4,6 +4,7 @@ use crate::http_service::common::RequestAuthorization;
 use crate::http_service::session::Session;
 use axum::extract::{Path, Query};
 use chrono::{DateTime, Utc};
+use gated_common::helpers::pem::normalize_pem;
 use gated_common::web::{Data, Json};
 use gated_common::{AccountCredentials, GatedError, SshKeyAccountCredentials};
 use gated_common::{api_response, api_routes};
@@ -707,7 +708,7 @@ fn generate_requested_key(kind: &str, credentials: &mut Value) -> Result<(), Str
 
 fn ssh_private_key(credentials: &SshKeyAccountCredentials) -> Option<PrivateKey> {
     decode_secret_key(
-        credentials.private_key_pem.trim(),
+        &normalize_pem(&credentials.private_key_pem),
         credentials.passphrase.as_deref().filter(|p| !p.is_empty()),
     )
     .ok()
@@ -735,8 +736,15 @@ fn parse_credentials_for_kind(
     }
 
     let value = Value::Object(credentials);
-    let parsed = serde_json::from_value::<AccountCredentials>(value)
+    let mut parsed = serde_json::from_value::<AccountCredentials>(value)
         .map_err(|err| format!("invalid credentials for kind {kind:?}: {err}"))?;
+    // Pasted keys often lose their line breaks; a blank key stays blank
+    // ("keep the stored value").
+    if let AccountCredentials::SshKey(credentials) = &mut parsed
+        && !credentials.private_key_pem.trim().is_empty()
+    {
+        credentials.private_key_pem = normalize_pem(&credentials.private_key_pem);
+    }
 
     if parsed.kind() == kind {
         Ok(parsed)
@@ -1343,6 +1351,24 @@ mod tests {
                     .into()
             )
         );
+    }
+
+    #[test]
+    fn ssh_key_accounts_repair_a_key_whose_line_breaks_were_lost() {
+        let key =
+            PrivateKey::random(&mut russh::keys::key::safe_rng(), Algorithm::Ed25519).expect("key");
+        let pem = key.to_openssh(LineEnding::LF).expect("pem").to_string();
+        let mangled = pem.lines().collect::<Vec<_>>().join(" ");
+        let credentials = parse_credentials_for_kind(
+            "ssh-key",
+            json!({"username": "root", "private_key_pem": mangled}),
+        )
+        .expect("parse");
+        assert_eq!(validate_required_credentials(&credentials), Ok(()));
+        let AccountCredentials::SshKey(credentials) = credentials else {
+            panic!("expected ssh-key credentials");
+        };
+        assert_eq!(credentials.private_key_pem, pem);
     }
 
     #[tokio::test]

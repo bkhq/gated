@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use gated_common::GatedError;
+use gated_common::helpers::pem::normalize_pem;
 use gated_common::web::{Data, Json};
 use gated_common::{api_response, api_routes};
 use gated_core::Services;
@@ -96,7 +97,8 @@ async fn api_ssh_import_key(
     _sec_scheme: AnySecurityScheme,
     body: Json<ImportSSHKeyRequest>,
 ) -> Result<ImportSSHKeyResponse, GatedError> {
-    let key = match decode_secret_key(body.private_key_pem.trim(), body.passphrase.as_deref()) {
+    let pem = normalize_pem(&body.private_key_pem);
+    let key = match decode_secret_key(&pem, body.passphrase.as_deref()) {
         Ok(key) => key,
         Err(error) => {
             return Ok(ImportSSHKeyResponse::BadRequest(Json(format!(
