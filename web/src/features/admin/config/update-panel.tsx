@@ -139,6 +139,8 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
       <dl className="m-0 grid grid-cols-[140px_1fr] gap-x-4 gap-y-2.5 text-[13px]">
         <dt className="text-muted-foreground">{t('settings.update.current')}</dt>
         <dd className="m-0 font-mono">{status.current ?? '—'}</dd>
+        <dt className="text-muted-foreground">{t('settings.update.lastGood')}</dt>
+        <dd className="m-0 font-mono">{status.last_good ?? '—'}</dd>
         <dt className="text-muted-foreground">{t('settings.update.available')}</dt>
         <dd className="m-0 font-mono">
           {status.available
@@ -149,6 +151,10 @@ function SupervisedUpdate({ status }: { status: UpdateStatus }) {
         <dd className="m-0">{lodeStatus ? t(`settings.update.statusValues.${lodeStatus}`, { defaultValue: lodeStatus }) : '—'}</dd>
         <dt className="text-muted-foreground">{t('settings.update.lastCheck')}</dt>
         <dd className="m-0">{status.last_check ? new Date(status.last_check).toLocaleString() : '—'}</dd>
+        <dt className="text-muted-foreground">{t('settings.update.lodeVersion')}</dt>
+        <dd className="m-0 font-mono">{status.lode ? (status.lode.commit ? `${status.lode.version} (${status.lode.commit})` : status.lode.version) : '—'}</dd>
+        <dt className="text-muted-foreground">{t('settings.update.lodeFeatures')}</dt>
+        <dd className="m-0 break-words font-mono">{status.lode?.features?.length ? status.lode.features.join(', ') : '—'}</dd>
         {status.last_error
           ? (
               <>

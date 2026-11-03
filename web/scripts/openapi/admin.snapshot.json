@@ -5972,6 +5972,31 @@
           }
         }
       },
+      "LodeInfo": {
+        "type": "object",
+        "description": "The lode build supervising this process.",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Parts of the `state.json` contract this lode supports."
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
       "LogEntry": {
         "type": "object",
         "required": [
@@ -7386,6 +7411,17 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "lode": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LodeInfo",
+                "description": "The supervising lode; null when lode is older than 0.3.0."
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "status": {

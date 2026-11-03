@@ -38,6 +38,8 @@ struct UpdateStatus {
     checked_nonce: u64,
     /// Why the last update check failed.
     check_error: Option<String>,
+    /// The supervising lode; null when lode is older than 0.3.0.
+    lode: Option<lode::LodeInfo>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -114,6 +116,7 @@ async fn api_get_update_status(
             last_error: None,
             checked_nonce: 0,
             check_error: None,
+            lode: None,
         })));
     };
     let state = lode.state().map_err(GatedError::other)?;
@@ -128,6 +131,7 @@ async fn api_get_update_status(
         last_error: state.last_error,
         checked_nonce: state.checked_nonce,
         check_error: state.check_error,
+        lode: state.lode,
     })))
 }
 

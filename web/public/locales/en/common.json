@@ -1612,6 +1612,9 @@
       "none": "Up to date",
       "status": "Status",
       "lastCheck": "Last check",
+      "lastGood": "Last good version",
+      "lodeVersion": "lode version",
+      "lodeFeatures": "lode features",
       "lastError": "Last error",
       "statusValues": {
         "starting": "Starting",

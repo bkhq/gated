@@ -709,7 +709,7 @@
 
 #### `GET /admin/api/system/update` — `get_update_status` [OAS]
 
-- Response 200：`UpdateStatus { supervised, instance?, current?, last_good?, available?, status?, last_check?, last_error?, checked_nonce, check_error? }`。`supervised = false` 时其余字段为空。`instance` 每次启动都会变化，前端据此判断重启完成。
+- Response 200：`UpdateStatus { supervised, instance?, current?, last_good?, available?, status?, last_check?, last_error?, checked_nonce, check_error?, lode? }`。`last_good` 为最近一次正常运行的版本；`lode` 为托管它的 lode 的 `{ version, commit?, features[] }`（lode 0.3.0 及以上）。`supervised = false` 时其余字段为空。`instance` 每次启动都会变化，前端据此判断重启完成。
 
 #### `POST /admin/api/system/update/check` — `check_for_update` [OAS]
 

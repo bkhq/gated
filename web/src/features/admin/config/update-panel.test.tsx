@@ -48,6 +48,7 @@ function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
     last_error: null,
     checked_nonce: 0,
     check_error: null,
+    lode: null,
     ...patch,
   }
 }
@@ -75,6 +76,19 @@ describe('updatePanel', () => {
     renderPanel()
     expect(await screen.findByText(/not running under lode/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Restart gateway' })).toBeNull()
+  })
+
+  it('shows the last good version and the supervising lode', async () => {
+    vi.mocked(system.getUpdateStatus).mockResolvedValue(status({
+      last_good: '0.22.0',
+      lode: { version: '0.4.0', commit: 'e0bc71e', features: ['target', 'check'] },
+    }))
+    renderPanel()
+    expect(await screen.findByText('0.22.0')).toBeTruthy()
+    expect(screen.getByText('Last good version')).toBeTruthy()
+    expect(screen.getByText('lode version')).toBeTruthy()
+    expect(screen.getByText('0.4.0 (e0bc71e)')).toBeTruthy()
+    expect(screen.getByText('target, check')).toBeTruthy()
   })
 
   it('reports a found version after lode answers the check', async () => {

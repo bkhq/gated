@@ -1612,6 +1612,9 @@
       "none": "已是最新",
       "status": "状态",
       "lastCheck": "上次检查",
+      "lastGood": "最近正常运行版本",
+      "lodeVersion": "lode 版本",
+      "lodeFeatures": "lode 功能",
       "lastError": "上次错误",
       "statusValues": {
         "starting": "启动中",

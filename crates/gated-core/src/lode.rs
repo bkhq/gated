@@ -11,7 +11,7 @@ use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::*;
 
@@ -53,6 +53,18 @@ pub struct LodeState {
     pub checked_nonce: u64,
     /// Why the last requested check failed.
     pub check_error: Option<String>,
+    /// The supervising lode; written by lode 0.3.0 and later.
+    pub lode: Option<LodeInfo>,
+}
+
+/// The lode build supervising this process.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct LodeInfo {
+    pub version: String,
+    pub commit: Option<String>,
+    /// Parts of the `state.json` contract this lode supports.
+    #[serde(default)]
+    pub features: Vec<String>,
 }
 
 /// The lode instance supervising this process.
@@ -198,6 +210,24 @@ mod tests {
         assert_eq!(state.available.as_deref(), Some("0.24.0"));
         assert_eq!(state.status.as_deref(), Some("running"));
         assert_eq!(state.checked_nonce, 3);
+        assert_eq!(state.lode, None);
+
+        fs::write(
+            dir.join("state.json"),
+            r#"{"last_good":"0.22.0","lode":{"version":"0.4.0","commit":"e0bc71e",
+                "features":["target","check"]}}"#,
+        )
+        .expect("seed state");
+        let state = lode.state().expect("state");
+        assert_eq!(state.last_good.as_deref(), Some("0.22.0"));
+        assert_eq!(
+            state.lode,
+            Some(LodeInfo {
+                version: "0.4.0".into(),
+                commit: Some("e0bc71e".into()),
+                features: vec!["target".into(), "check".into()],
+            })
+        );
     }
 
     #[test]

@@ -710,7 +710,7 @@ Talks to the supervisor through lode's `$LODE_DIR/state.json` (`crates/gated-cor
 
 #### `GET /admin/api/system/update` — `get_update_status` [OAS]
 
-- Response 200: `UpdateStatus { supervised, instance?, current?, last_good?, available?, status?, last_check?, last_error?, checked_nonce, check_error? }`. With `supervised = false` the other fields are empty. `instance` changes on every start, which the UI uses to detect a finished restart.
+- Response 200: `UpdateStatus { supervised, instance?, current?, last_good?, available?, status?, last_check?, last_error?, checked_nonce, check_error?, lode? }`. `last_good` is the last version that started successfully; `lode` is `{ version, commit?, features[] }` of the supervising lode (lode 0.3.0+). With `supervised = false` the other fields are empty. `instance` changes on every start, which the UI uses to detect a finished restart.
 
 #### `POST /admin/api/system/update/check` — `check_for_update` [OAS]
 

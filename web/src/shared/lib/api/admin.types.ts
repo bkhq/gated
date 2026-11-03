@@ -1663,6 +1663,13 @@ export interface components {
             created?: string | null;
             listener: components["schemas"]["TLSListener"];
         };
+        /** @description The lode build supervising this process. */
+        LodeInfo: {
+            commit?: string | null;
+            /** @description Parts of the `state.json` contract this lode supports. */
+            features?: string[];
+            version: string;
+        };
         LogEntry: {
             /** Format: uuid */
             id: string;
@@ -2079,6 +2086,7 @@ export interface components {
             last_check?: string | null;
             last_error?: string | null;
             last_good?: string | null;
+            lode?: components["schemas"]["LodeInfo"] | null;
             /** @description lode status: `starting|running|held|updating|rolling-back|stopping|stopped|error`. */
             status?: string | null;
             /** @description True when gated runs under lode; every other field is null otherwise. */
