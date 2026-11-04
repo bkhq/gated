@@ -38,3 +38,4 @@ Open question: background polling (`refetchInterval`) keeps a session alive whil
 Decisions during implementation (approved: options 30 min / 1 h / 4 h / 8 h / 24 h, polling counts as activity):
 - One endpoint, `PUT /api/auth/session-lifetime`, serves both the login page (called before password or SSO sign-in; the value is kept in the pre-login session and carries over) and the profile page; the login request itself is unchanged.
 - The idle lifetime is stored as a session entry and synced to `SessionStore` on every request (`touch`); the cookie session layer slides by `cookie_max_age` on every load.
+- Revised after review: polling must not extend a session. Only navigation and mutations count, reported through `POST /api/auth/activity` at most once a minute; every other request leaves the idle timestamp alone.

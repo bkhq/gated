@@ -20,6 +20,11 @@ export async function setSessionLifetime(seconds: number, signal?: AbortSignal):
   await userApi.put<void>('/auth/session-lifetime', { seconds }, signal)
 }
 
+/** Mark the browser session as used now, extending it by its lifetime. */
+export async function reportActivity(signal?: AbortSignal): Promise<void> {
+  await userApi.post<void>('/auth/activity', undefined, signal)
+}
+
 export async function logout(signal?: AbortSignal): Promise<void> {
   await userApi.post<void>('/auth/logout', undefined, signal)
 }

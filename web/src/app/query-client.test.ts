@@ -5,8 +5,13 @@ import { createQueryClient } from './query-client'
 const toast = vi.hoisted(() => ({ error: vi.fn() }))
 vi.mock('sonner', () => ({ toast }))
 vi.mock('i18next', () => ({ default: { t: (key: string) => key } }))
+const noteActivity = vi.hoisted(() => vi.fn())
+vi.mock('@/shared/lib/session-activity', () => ({ noteActivity }))
 
-beforeEach(() => toast.error.mockReset())
+beforeEach(() => {
+  toast.error.mockReset()
+  noteActivity.mockReset()
+})
 
 function ignore() {}
 
@@ -48,4 +53,12 @@ it('shows a query failure only while the query has no data', async () => {
   client.setQueryData(['b'], 1)
   await client.fetchQuery({ queryKey: ['b'], queryFn: failWith('refetch failed'), staleTime: 0 }).catch(ignore)
   expect(toast.error).not.toHaveBeenCalled()
+})
+
+it('counts a mutation as user activity but not a query', async () => {
+  const client = createQueryClient()
+  await client.fetchQuery({ queryKey: ['poll'], queryFn: async () => 1 })
+  expect(noteActivity).not.toHaveBeenCalled()
+  await client.getMutationCache().build(client, { mutationFn: async () => 1 }).execute(undefined)
+  expect(noteActivity).toHaveBeenCalledTimes(1)
 })

@@ -162,7 +162,7 @@ async fn log_requests(State(services): State<Services>, request: Request, next: 
     response
 }
 
-/// Refreshes the management session of the request and runs it inside its
+/// Checks the management session of the request and runs it inside its
 /// log span.
 async fn track_session(request: Request, next: Next) -> Response {
     if let (Some(store), Some(session)) = (

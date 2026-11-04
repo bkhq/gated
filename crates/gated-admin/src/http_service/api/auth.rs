@@ -618,8 +618,28 @@ async fn api_set_session_lifetime(
         ));
     }
     session.set(SESSION_LIFETIME_KEY, body.seconds);
-    store.lock().await.touch(&session);
+    let mut store = store.lock().await;
+    store.touch(&session);
+    store.mark_active(&session);
     SessionLifetimeResponse::Updated
+}
+
+api_response! {
+    enum ActivityResponse {
+        #[oai(status = 204)]
+        Recorded,
+    }
+}
+
+/// Report user activity (navigation or an action) so the browser session
+/// stays signed in for its lifetime from now. Other requests do not extend it.
+#[utoipa::path(post, path = "/auth/activity", operation_id = "report_activity")]
+async fn api_report_activity(
+    session: Session,
+    store: Data<Arc<Mutex<SessionStore>>>,
+) -> ActivityResponse {
+    store.lock().await.mark_active(&session);
+    ActivityResponse::Recorded
 }
 
 pub async fn api_get_web_auth_requests_stream(
@@ -681,6 +701,7 @@ pub fn router() -> OpenApiRouter {
             api_auth_state,
             api_approve_auth,
             api_reject_auth,
+            api_report_activity,
         )
         .route_layer(from_fn(require_auth)),
     )

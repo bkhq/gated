@@ -333,12 +333,12 @@ impl SessionStore {
         }))
     }
 
-    /// Records activity on the session, or drops its cookie when the
-    /// server-side handle no longer exists.
+    /// Syncs the session's chosen lifetime, or drops its cookie when the
+    /// server-side handle no longer exists. Does not count as activity:
+    /// background requests such as page polling must not extend a session.
     pub fn touch(&mut self, session: &Session) {
         if let Some(session_id) = session.get::<SessionId>(SESSION_ID_SESSION_KEY) {
             if self.session_handles.contains_key(&session_id) {
-                self.session_timestamps.insert(session_id, Instant::now());
                 if let Some(seconds) = session.get::<u64>(SESSION_LIFETIME_KEY) {
                     self.session_lifetimes
                         .insert(session_id, Duration::from_secs(seconds));
@@ -351,6 +351,16 @@ impl SessionStore {
                 session.purge();
             }
         };
+    }
+
+    /// Records user activity (navigation or an action), which extends the
+    /// session by its lifetime.
+    pub fn mark_active(&mut self, session: &Session) {
+        if let Some(session_id) = session.get::<SessionId>(SESSION_ID_SESSION_KEY)
+            && self.session_handles.contains_key(&session_id)
+        {
+            self.session_timestamps.insert(session_id, Instant::now());
+        }
     }
 
     pub fn create_handle_for(&mut self, session: &Session) -> ManagementSessionFromRequest {
@@ -586,5 +596,26 @@ mod tests {
             .get("id")
             .map(|s| s.expires_at);
         assert!(expires_at.is_some_and(|at| at > soon + Duration::from_secs(500)));
+    }
+
+    #[tokio::test]
+    async fn only_reported_activity_extends_a_session() {
+        let store = SessionStore::new();
+        let mut store = store.lock().await;
+        let earlier = Instant::now() - Duration::from_secs(600);
+        let id = add(&mut store, "alice", earlier).await;
+        let session = Session::new(BTreeMap::new());
+        session.set(SESSION_ID_SESSION_KEY, id);
+
+        store.touch(&session);
+        assert_eq!(store.session_timestamps.get(&id), Some(&earlier));
+
+        store.mark_active(&session);
+        assert!(
+            store
+                .session_timestamps
+                .get(&id)
+                .is_some_and(|at| *at > earlier)
+        );
     }
 }

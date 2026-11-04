@@ -10,6 +10,15 @@
     }
   ],
   "paths": {
+    "/auth/activity": {
+      "post": {
+        "summary": "Report user activity (navigation or an action) so the browser session\nstays signed in for its lifetime from now. Other requests do not extend it.",
+        "operationId": "report_activity",
+        "responses": {
+          "204": {}
+        }
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "login",

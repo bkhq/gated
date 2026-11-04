@@ -5,6 +5,7 @@ import { Providers } from './app/providers'
 
 import { routeTree } from './app/routeTree.gen'
 import { RouteError } from './app/shell/route-error'
+import { noteActivity } from './shared/lib/session-activity'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/jetbrains-mono'
 import './styles/app.css'
@@ -17,6 +18,9 @@ const router = createRouter({
   // Child-route errors render inside the shell's <Outlet />.
   defaultErrorComponent: RouteError,
 })
+
+// Navigating counts as activity and keeps the browser session signed in.
+router.subscribe('onResolved', () => noteActivity())
 
 declare module '@tanstack/react-router' {
   interface Register {

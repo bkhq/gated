@@ -54,4 +54,28 @@ describe("API Auth - Session lifetime", () => {
     const expires = Date.parse(current.expires) - Date.parse(current.last_active);
     expect(expires).toBe(14400 * 1000);
   });
+
+  test("only reported activity moves the session's last activity", async () => {
+    const url = `https://localhost:${wg.httpPort}`;
+    const api = adminClient(url);
+    const user = await api.createUser({ username: `user-${randomUUID()}` });
+    await api.createPasswordCredential(user.id, { password: "123" });
+    const roles = await api.getRoles("admin");
+    await api.addUserRole(user.id, roles[0].id);
+    const session = new HttpSession();
+    expect((await session.post(`${url}/api/auth/login`, { username: user.username, password: "123" })).status).toBe(201);
+
+    const lastActive = async () => {
+      const list = await (await session.get(`${url}/admin/api/management-sessions`)).json();
+      return list.find((s: { current: boolean }) => s.current).last_active as string;
+    };
+    const atLogin = await lastActive();
+    await Bun.sleep(1100);
+    await session.get(`${url}/api/info`);
+    // last_active is derived from a monotonic clock, so allow a little drift.
+    expect(Math.abs(Date.parse(await lastActive()) - Date.parse(atLogin))).toBeLessThan(200);
+
+    expect((await session.post(`${url}/api/auth/activity`)).status).toBe(204);
+    expect(Date.parse(await lastActive()) - Date.parse(atLogin)).toBeGreaterThan(1000);
+  });
 });
