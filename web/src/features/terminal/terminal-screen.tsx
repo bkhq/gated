@@ -294,6 +294,22 @@ export function TerminalScreen({
       writeLine(progressLine(t('terminal.progress.signingIn'), 'progress'))
   }, [socket.readyState, targetName, t, writeLine])
 
+  // The gateway opens the PTY at 80x24 and ignores resizes sent before the
+  // session is connected, while xterm only reports size changes; send the
+  // current size once each connection is up.
+  const connectedAt = connection?.connectedAt
+  const { sendResize } = socket
+  React.useEffect(() => {
+    const term = terminalRef.current
+    if (connectedAt === undefined || term === null)
+      return
+    try {
+      fitAddonRef.current?.fit()
+    }
+    catch {}
+    sendResize(term.cols, term.rows)
+  }, [connectedAt, sendResize])
+
   // ResizeObserver → debounced fit. fit() triggers term.onResize → sendResize.
   React.useEffect(() => {
     const container = containerRef.current

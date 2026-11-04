@@ -18,6 +18,8 @@ vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     modes = { applicationCursorKeysMode: false }
     options = term.options
+    cols = 132
+    rows = 41
     loadAddon() {}
     write(data: string) {
       term.written.push(data)
@@ -117,6 +119,25 @@ function renderScreen() {
   const rerender = () => view.rerender(<TerminalScreen kind="ssh" targetName="box" />)
   return { rerender }
 }
+
+describe('terminalScreen size', () => {
+  beforeEach(() => {
+    resetTerm()
+    stableSocket.sendResize.mockClear()
+    socketState.readyState = 'connecting'
+    socketState.options = null
+  })
+
+  // The first fit happens before the socket opens and the gateway opens the
+  // PTY at 80x24, so the size has to be sent once the session is connected.
+  it('sends the terminal size when the session connects', () => {
+    renderScreen()
+    expect(stableSocket.sendResize).not.toHaveBeenCalled()
+    socketState.readyState = 'open'
+    act(() => socketState.options?.onStatus?.(connected))
+    expect(stableSocket.sendResize).toHaveBeenCalledWith(132, 41)
+  })
+})
 
 describe('terminalScreen auto-focus', () => {
   beforeEach(() => {

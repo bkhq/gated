@@ -296,3 +296,7 @@ A target can sign in with a different bound account per role. An admin picks the
 ## 2026-11-04 23:30 [pitfall]
 
 The MySQL integration tests failed with `Plugin mysql_clear_password could not be loaded` because the local MariaDB client shim looked for plugins in a system path that no longer exists; the shim in `.tmp/bin/mysql` now passes `--plugin-dir`. On the gateway side this surfaced only as `expected NUL in byte sequence`.
+
+## 2026-11-04 23:50 [BUG-P2]
+
+Web terminals stayed at 80x24 on the remote side (`ps -ef` and other output cut at column 80) until the browser window was resized: the first fit ran before the socket opened, the gateway ignores resizes before the session is connected, and xterm only reports size changes. The terminal now sends its size when each connection is established.
