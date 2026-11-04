@@ -8,6 +8,10 @@ pub struct SshPasswordAccountCredentials {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 pub struct SshKeyAccountCredentials {
+    /// Login user on the target; empty uses the target's username. Always
+    /// present in responses; may be omitted in requests.
+    #[serde(default)]
+    #[schema(required = true)]
     pub username: String,
     pub private_key_pem: String,
     pub passphrase: Option<String>,

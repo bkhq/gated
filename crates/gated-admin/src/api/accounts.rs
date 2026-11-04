@@ -997,7 +997,6 @@ fn validate_required_credentials(credentials: &AccountCredentials) -> Result<(),
             require(&c.password, "password")
         }
         AccountCredentials::SshKey(c) => {
-            require(&c.username, "username")?;
             require(&c.private_key_pem, "private_key_pem")?;
             if ssh_private_key(c).is_none() {
                 return Err(
@@ -1353,6 +1352,20 @@ mod tests {
         assert!(generate_requested_key("ssh-key", &mut unknown).is_err());
         let mut other_kind = json!({"username": "root", "password": "x", "generate": "ed25519"});
         assert!(generate_requested_key("ssh-password", &mut other_kind).is_err());
+    }
+
+    #[test]
+    fn ssh_key_accounts_may_leave_the_username_to_the_target() {
+        let key =
+            PrivateKey::random(&mut russh::keys::key::safe_rng(), Algorithm::Ed25519).expect("key");
+        let pem = key.to_openssh(LineEnding::LF).expect("pem").to_string();
+        for value in [
+            json!({"private_key_pem": pem}),
+            json!({"username": "", "private_key_pem": pem}),
+        ] {
+            let credentials = parse_credentials_for_kind("ssh-key", value).expect("parse");
+            assert_eq!(validate_required_credentials(&credentials), Ok(()));
+        }
     }
 
     #[test]

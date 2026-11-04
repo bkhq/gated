@@ -1404,7 +1404,9 @@
         "keySourceRsa": "Generate RSA key",
         "generateHint": "The server generates the key when you save; the private key never leaves it. Add the public key shown afterwards to the target's authorized_keys.",
         "publicKey": "Public key",
-        "fingerprint": "Fingerprint"
+        "fingerprint": "Fingerprint",
+        "usernameFromTarget": "Target's username",
+        "usernameFromTargetHint": "Leave empty to use the target's username"
       },
       "rotation": {
         "label": "Rotation due",
@@ -2409,5 +2411,21 @@
   "sessionLifetime": {
     "minutes": "{{count}} min",
     "hours": "{{count}} h"
+  },
+  "knownHosts": {
+    "trust": {
+      "open": "Add host key",
+      "title": "Trust an SSH host key",
+      "description": "Connections to this host are accepted only with a trusted host key.",
+      "host": "Host",
+      "port": "Port",
+      "key": "Host key",
+      "fetch": "Fetch from host",
+      "keyHint": "Fetch it through the gateway, or paste an OpenSSH public key, a known_hosts entry or ssh-keyscan output.",
+      "fingerprint": "SHA256 fingerprint",
+      "compareHint": "Compare it with the fingerprint on the host (ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub) before trusting it.",
+      "invalidKey": "No host key found. Paste a line such as \"ssh-ed25519 AAAA…\".",
+      "submit": "Trust"
+    }
   }
 }

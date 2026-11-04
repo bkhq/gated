@@ -645,10 +645,10 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 - `DELETE /admin/api/tls/certificates/:listener/acme` — stops ACME for the listener and keeps its current certificate; `204`.
 - `GET /admin/api/tls/acme` — `200 OK` `Json<AcmeSettingsResponse>` (`{ configured, directory_url, contact_email, ca_certificate_pem, dns_provider: "httpreq" | "acme-dns", dns_endpoint, dns_username, dns_password_set, dns_subdomain, propagation_delay_secs }`); defaults (Let's Encrypt, httpreq) with `configured: false` until saved. The DNS password is never returned.
 - `PUT /admin/api/tls/acme` — Body `UpdateAcmeSettingsRequest` (same fields, `dns_password` instead of `dns_password_set`; omit it to keep the stored one); `200 OK` / `400` `Json<string>` (non-https directory, invalid endpoint, missing password or acme-dns subdomain, delay outside 0–600 s, invalid CA PEM). Changing the directory or contact registers a new ACME account on the next issuance. httpreq: `POST <endpoint>/present` and `/cleanup` with `{ fqdn: "_acme-challenge.<domain>.", value }` and HTTP Basic auth; acme-dns: `POST <endpoint>/update` with `X-Api-User`/`X-Api-Key` and `{ subdomain, txt }`.
-- `POST /admin/api/ssh/known-hosts` — Body `AddSshKnownHostRequest { host, port: i32, key_type, key_base64 }`; `200 OK` `Json<SSHKnownHost>`.
+- `POST /admin/api/ssh/known-hosts` — Body `AddSshKnownHostRequest { host, port: i32, key_type, key_base64 }`; `200 OK` `Json<SSHKnownHost>` (trusting the same host, port and key again returns the existing entry); `400` `Json<String>` when the key is not a valid OpenSSH public key. The Known hosts page and an SSH target's Security tab add keys through it ("Add host key").
 - `GET /admin/api/ssh/known-hosts` — `200 OK` `Json<SSHKnownHost[]>`.
 - `DELETE /admin/api/ssh/known-hosts/:id` — `204` / `404`.
-- `POST /admin/api/ssh/check-host-key` — Body `{ host: string, port: u16 }`; `200 OK` `{ remote_key_type, remote_key_base64 }` / `500 PlainText<string>` (human-readable error chain).
+- `POST /admin/api/ssh/check-host-key` — Body `{ host: string, port: u16 }`; `200 OK` `{ remote_key_type, remote_key_base64, fingerprint }` (`fingerprint` is `SHA256:…` as `ssh-keygen -lf` prints it) / `500 PlainText<string>` (human-readable error chain). Reads the host key without signing in; the "Fetch from host" button of the Add host key dialog.
 
 ### 2.11 Logs and parameters (`logs.rs`, `parameters.rs`)
 
@@ -1101,7 +1101,7 @@ AccountReveal           { credentials: AccountCredentials }
 `AccountCredentials` (discriminator `kind`, kebab-case):
 
 - `ssh-password { username, password: secret }`
-- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — on create/update, `generate: "ed25519" | "rsa"` instead of a key makes the server generate the private key (it never leaves the server); `private_key_pem` must decode with the passphrase (`422` otherwise); line breaks lost when pasting (joined with spaces, one line, indented, CR-only or literal `\n`) are repaired before decoding and storing. `credentials_public` adds the derived `public_key_openssh` and SHA256 `fingerprint`.
+- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — `username` may be empty (or omitted on write): the target's username is used then, falling back to the gated user's. On create/update, `generate: "ed25519" | "rsa"` instead of a key makes the server generate the private key (it never leaves the server); `private_key_pem` must decode with the passphrase (`422` otherwise); line breaks lost when pasting (joined with spaces, one line, indented, CR-only or literal `\n`) are repaired before decoding and storing. `credentials_public` adds the derived `public_key_openssh` and SHA256 `fingerprint`.
 - `db-password { engine: "mysql"|"postgres", username, password: secret }`
 - `k8s-token { token: secret, ca_pem?: secret, namespace? }`
 - `k8s-client-cert { client_certificate_pem, client_private_key_pem: secret, passphrase?: secret, ca_pem?: secret, namespace? }`

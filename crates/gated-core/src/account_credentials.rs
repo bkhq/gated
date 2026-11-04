@@ -97,33 +97,48 @@ pub async fn ssh_options_with_account(
     let TargetOptions::Ssh(mut options) = target.options.clone() else {
         return Err("target is not SSH".into());
     };
-    if let Some((account_id, credentials)) = primary_account_credentials(db, target.id).await? {
-        match credentials {
-            AccountCredentials::SshPassword(credentials) => {
-                options.username = credentials.username;
-                options.auth = SSHTargetAuth::Password(SshTargetPasswordAuth {
-                    password: Secret::new(credentials.password),
-                });
-                return Ok((options, Some(account_id)));
-            }
-            AccountCredentials::SshKey(credentials) => {
-                options.username = credentials.username;
-                options.auth = SSHTargetAuth::PublicKey(SshTargetPublicKeyAuth {
-                    private_key_pem: Some(Secret::new(credentials.private_key_pem)),
-                    passphrase: credentials.passphrase.map(Secret::new),
-                });
-                return Ok((options, Some(account_id)));
-            }
-            _ => return Err(format!("account {account_id} is not an SSH credential")),
+    let account_id = match primary_account_credentials(db, target.id).await? {
+        Some((account_id, credentials)) => {
+            apply_ssh_account(&mut options, credentials)
+                .map_err(|()| format!("account {account_id} is not an SSH credential"))?;
+            Some(account_id)
         }
-    }
+        None => None,
+    };
 
     if options.username.is_empty()
         && let Some(username) = fallback_username
     {
         options.username = username.to_string();
     }
-    Ok((options, None))
+    Ok((options, account_id))
+}
+
+/// Override the target's SSH login with a bound account. A key account
+/// without a username keeps the target's username.
+fn apply_ssh_account(
+    options: &mut TargetSSHOptions,
+    credentials: AccountCredentials,
+) -> Result<(), ()> {
+    match credentials {
+        AccountCredentials::SshPassword(credentials) => {
+            options.username = credentials.username;
+            options.auth = SSHTargetAuth::Password(SshTargetPasswordAuth {
+                password: Secret::new(credentials.password),
+            });
+        }
+        AccountCredentials::SshKey(credentials) => {
+            if !credentials.username.is_empty() {
+                options.username = credentials.username;
+            }
+            options.auth = SSHTargetAuth::PublicKey(SshTargetPublicKeyAuth {
+                private_key_pem: Some(Secret::new(credentials.private_key_pem)),
+                passphrase: credentials.passphrase.map(Secret::new),
+            });
+        }
+        _ => return Err(()),
+    }
+    Ok(())
 }
 
 /// Resolve `TargetHttpOptions` for an HTTP-flavor target, optionally
@@ -173,5 +188,40 @@ pub async fn http_options_with_account(
         }
     } else {
         Ok((options, None))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn target_options() -> TargetSSHOptions {
+        TargetSSHOptions {
+            host: "10.0.0.1".into(),
+            port: 22,
+            username: "deploy".into(),
+            allow_insecure_algos: None,
+            auth: SSHTargetAuth::default(),
+        }
+    }
+
+    fn key_account(username: &str) -> AccountCredentials {
+        AccountCredentials::SshKey(gated_common::SshKeyAccountCredentials {
+            username: username.into(),
+            private_key_pem: "PEM".into(),
+            passphrase: None,
+        })
+    }
+
+    #[test]
+    fn a_key_account_without_username_keeps_the_target_username() {
+        let mut options = target_options();
+        apply_ssh_account(&mut options, key_account("")).expect("ssh account");
+        assert_eq!(options.username, "deploy");
+        assert!(matches!(options.auth, SSHTargetAuth::PublicKey(_)));
+
+        let mut options = target_options();
+        apply_ssh_account(&mut options, key_account("root")).expect("ssh account");
+        assert_eq!(options.username, "root");
     }
 }

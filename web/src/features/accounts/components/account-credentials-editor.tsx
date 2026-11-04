@@ -42,6 +42,7 @@ export function CredentialsEditor({ credentials, onChange }: CredentialsEditorPr
             label={t('accounts.form.cred.username')}
             value={credentials.username}
             onChange={username => onChange({ ...credentials, username })}
+            placeholder={t('accounts.form.cred.usernameFromTargetHint')}
             autoComplete="username"
           />
           <div>

@@ -1,4 +1,6 @@
 # Tasks
+- [x] [**20261104-1430-trust-ssh-host-keys-from-ui Let administrators trust SSH host keys from the web UI**](20261104-1430-trust-ssh-host-keys-from-ui.md) `P1`
+- [x] [**20261104-1400-ssh-key-account-without-username Let SSH key accounts take the username from the target**](20261104-1400-ssh-key-account-without-username.md) `P2`
 - [x] [**20261104-0900-session-keepalive Let users pick a sliding admin session lifetime**](20261104-0900-session-keepalive.md) `P1`
 - [x] [**20261103-1500-lode-settings-panel Show the supervising lode in System Settings**](20261103-1500-lode-settings-panel.md) `P2`
 - [x] [**20261103-1215-specific-error-messages Show specific error reasons in a global toast**](20261103-1215-specific-error-messages.md) `P1`

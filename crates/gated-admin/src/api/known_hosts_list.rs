@@ -5,12 +5,11 @@ use std::str::FromStr;
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 
-use anyhow::Context;
 use gated_common::GatedError;
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::KnownHost;
 use russh::keys::{Algorithm, PublicKey};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
@@ -26,6 +25,8 @@ api_response! {
     enum AddSshKnownHostResponse {
         #[oai(status = 200)]
         Ok(Json<KnownHost::Model>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
     }
 }
 
@@ -45,12 +46,27 @@ async fn add_ssh_known_host(
 ) -> Result<AddSshKnownHostResponse, GatedError> {
     use gated_db_entities::KnownHost;
 
-    // Validate
-    Algorithm::from_str(&body.key_type).context("parsing key type")?;
-    PublicKey::from_openssh(&format!("{} {}", body.key_type, body.key_base64))
-        .context("parsing key")?;
+    if Algorithm::from_str(&body.key_type).is_err()
+        || PublicKey::from_openssh(&format!("{} {}", body.key_type, body.key_base64)).is_err()
+    {
+        return Ok(AddSshKnownHostResponse::BadRequest(Json(format!(
+            "invalid host key: expected an OpenSSH public key such as \"ssh-ed25519 AAAA...\", got key type {:?}",
+            body.key_type
+        ))));
+    }
 
     let db = gated_core::db_required(&db).await?;
+    // Trusting a key twice keeps the existing entry.
+    if let Some(existing) = KnownHost::Entity::find()
+        .filter(KnownHost::Column::Host.eq(&body.host))
+        .filter(KnownHost::Column::Port.eq(body.port))
+        .filter(KnownHost::Column::KeyType.eq(&body.key_type))
+        .filter(KnownHost::Column::KeyBase64.eq(&body.key_base64))
+        .one(&db)
+        .await?
+    {
+        return Ok(AddSshKnownHostResponse::Ok(Json(existing)));
+    }
     let model = KnownHost::ActiveModel {
         id: Set(Uuid::new_v4()),
         host: Set(body.host.clone()),

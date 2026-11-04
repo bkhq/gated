@@ -256,3 +256,11 @@ Activity is decided per request again, with an exclusion list (task `20261104-09
 ## 2026-11-04 14:00 [BUG-P1]
 
 The web terminal showed "Connected" as soon as its WebSocket opened, before the gateway had signed in to the target, so a session whose key or password the target rejected looked connected until the error arrived. `deriveBannerStatus` now stays "connecting" until the server sends the `connected` status frame (after the shell is open); the WebSocket ready state no longer decides it.
+
+## 2026-11-04 16:00 [progress]
+
+SSH key accounts may leave the username to the target (task `20261104-1400`): `SshKeyAccountCredentials.username` defaults to empty, `validate_required_credentials` no longer requires it, and `account_credentials::apply_ssh_account` keeps the target's username (then the gated user's) when it is empty. The account form makes the field optional and the account view shows "Target's username". `ssh-password` accounts still require a username.
+
+## 2026-11-04 16:00 [progress]
+
+Administrators can trust SSH host keys from the web UI (task `20261104-1430`); with the default `ssh.host_key_verification = auto_reject` there was no way to add one. An "Add host key" dialog on the Known hosts page and on an SSH target's Security tab fetches the key through the gateway (`POST /admin/api/ssh/check-host-key`, which now also returns the SHA256 `fingerprint`) or takes a pasted OpenSSH / known_hosts / ssh-keyscan line, and saves it with `POST /admin/api/ssh/known-hosts`. That endpoint now answers `400` with a reason for an invalid key (was `500`) and returns the existing entry when the same key is trusted again. The terminal's unknown-key error points to both places.

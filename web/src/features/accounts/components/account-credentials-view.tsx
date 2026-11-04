@@ -50,6 +50,8 @@ export function AccountCredentialsView({ credentials, revealed, onReveal, onHide
           let value = typeof raw === 'string' && raw.length > 0 ? raw : '—'
           if (field.secret && !revealed)
             value = MASK
+          else if (key === 'username' && credentials.kind === 'ssh-key' && value === '—')
+            value = t('accounts.form.cred.usernameFromTarget')
           else if (key === 'engine')
             value = t(raw === 'postgres' ? 'accounts.form.cred.enginePostgres' : 'accounts.form.cred.engineMysql')
           const shown = value !== MASK && value !== '—'

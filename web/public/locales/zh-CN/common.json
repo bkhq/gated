@@ -1404,7 +1404,9 @@
         "keySourceRsa": "生成 RSA 密钥",
         "generateHint": "保存时由服务器生成密钥，私钥不会离开服务器。保存后把显示的公钥加入目标的 authorized_keys。",
         "publicKey": "公钥",
-        "fingerprint": "指纹"
+        "fingerprint": "指纹",
+        "usernameFromTarget": "使用资产的用户名",
+        "usernameFromTargetHint": "留空则使用资产上的用户名"
       },
       "rotation": {
         "label": "轮换期限",
@@ -2409,5 +2411,21 @@
   "sessionLifetime": {
     "minutes": "{{count}} 分钟",
     "hours": "{{count}} 小时"
+  },
+  "knownHosts": {
+    "trust": {
+      "open": "添加主机密钥",
+      "title": "信任 SSH 主机密钥",
+      "description": "只有主机密钥受信任时，才允许连接到该主机。",
+      "host": "主机",
+      "port": "端口",
+      "key": "主机密钥",
+      "fetch": "从主机获取",
+      "keyHint": "可以通过网关获取，也可以粘贴 OpenSSH 公钥、known_hosts 条目或 ssh-keyscan 输出。",
+      "fingerprint": "SHA256 指纹",
+      "compareHint": "信任前请与主机上的指纹核对（ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub）。",
+      "invalidKey": "没有找到主机密钥，请粘贴类似 \"ssh-ed25519 AAAA…\" 的一行。",
+      "submit": "信任"
+    }
   }
 }

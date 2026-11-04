@@ -141,6 +141,7 @@ describe("API SSH - Connection Test (check-host-key)", () => {
     expect(res.body.remote_key_type).toContain("ssh-");
     expect(typeof res.body.remote_key_base64).toBe("string");
     expect(res.body.remote_key_base64.length).toBeGreaterThan(0);
+    expect(res.body.fingerprint).toStartWith("SHA256:");
   }, 90_000);
 
   test("reports a sensible failure for an unreachable port", async () => {

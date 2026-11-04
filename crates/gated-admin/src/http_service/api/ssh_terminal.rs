@@ -53,7 +53,7 @@ const MSG_STATUS: u8 = 0x02;
 const MSG_HOST_KEY_VERIFY: u8 = 0x03;
 
 const UNKNOWN_HOST_KEY_REJECTED_MESSAGE: &str = "Host key verification failed: the host key is unknown \
-     and unknown keys are rejected. An administrator must add it under Known hosts.";
+     and unknown keys are rejected. An administrator must trust it under Known hosts or on the target's Security tab.";
 
 /// Global tracker for per-user session counts. A `std` mutex so the slot can
 /// be released synchronously from `Drop`.

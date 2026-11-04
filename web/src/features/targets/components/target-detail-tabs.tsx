@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Eye, Inbox, Key, KeyRo
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCreateApiToken } from '@/features/api-tokens/hooks/use-api-tokens-queries'
+import { TrustHostKeyDialog } from '@/features/known-hosts/components/trust-host-key-dialog'
 import { useTargetRoles } from '@/features/targets/hooks/use-targets-queries'
 import { buildBrowserUrl, buildConnectCommand } from '@/features/targets/lib/connect-command'
 import { targetGroupLabel } from '@/features/targets/lib/target-group'
@@ -248,6 +249,7 @@ export function TargetDetailTabsBody({ target, mode, mySessions, tabsValue, onTa
   // HTTP test token: pasted once, inlined into the curl command and used by the
   // "Open in browser" button.
   const [httpToken, setHttpToken] = React.useState('')
+  const [trustingHostKey, setTrustingHostKey] = React.useState(false)
   const connectCmd = buildConnectCommand(target, info, httpToken)
 
   // Real data is admin-only: host keys and role bindings come from
@@ -465,6 +467,13 @@ export function TargetDetailTabsBody({ target, mode, mySessions, tabsValue, onTa
                     <CardTitle>{t('targets.detail.security.title')}</CardTitle>
                     <CardDescription>{t('targets.detail.security.description')}</CardDescription>
                   </div>
+                  {isAdminView
+                    ? (
+                        <Button variant="outline" size="sm" onClick={() => setTrustingHostKey(true)}>
+                          {t('knownHosts.trust.open')}
+                        </Button>
+                      )
+                    : null}
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col gap-2">
@@ -478,6 +487,9 @@ export function TargetDetailTabsBody({ target, mode, mySessions, tabsValue, onTa
                                 <HostKeyRow key={key.id} algo={key.key_type} keyBase64={key.key_base64} />
                               ))}
                   </div>
+                  {trustingHostKey
+                    ? <TrustHostKeyDialog open host={target.host} port={target.port} onClose={() => setTrustingHostKey(false)} />
+                    : null}
                 </CardContent>
               </Card>
             )

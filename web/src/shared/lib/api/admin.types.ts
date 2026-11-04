@@ -1322,6 +1322,8 @@ export interface components {
             port: number;
         };
         CheckSshHostKeyResponseBody: {
+            /** @description SHA256 fingerprint, as `ssh-keygen -lf` prints it. */
+            fingerprint: string;
             remote_key_base64: string;
             remote_key_type: string;
         };
@@ -1867,6 +1869,10 @@ export interface components {
         SshKeyAccountCredentials: {
             passphrase?: string | null;
             private_key_pem: string;
+            /**
+             * @description Login user on the target; empty uses the target's username. Always
+             *     present in responses; may be omitted in requests.
+             */
             username: string;
         };
         SshPasswordAccountCredentials: {
@@ -3507,6 +3513,14 @@ export interface operations {
                 };
                 content: {
                     "application/json; charset=utf-8": components["schemas"]["SSHKnownHost"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
                 };
             };
         };

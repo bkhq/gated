@@ -644,10 +644,10 @@
 - `DELETE /admin/api/tls/certificates/:listener/acme` — 停用该监听的 ACME，保留当前证书；`204`。
 - `GET /admin/api/tls/acme` — `200 OK` `Json<AcmeSettingsResponse>`（`{ configured, directory_url, contact_email, ca_certificate_pem, dns_provider: "httpreq" | "acme-dns", dns_endpoint, dns_username, dns_password_set, dns_subdomain, propagation_delay_secs }`）；保存前返回默认值（Let's Encrypt、httpreq），`configured: false`。从不返回 DNS 密码。
 - `PUT /admin/api/tls/acme` — Body `UpdateAcmeSettingsRequest`（字段相同，用 `dns_password` 代替 `dns_password_set`；省略则保留原密码）；`200 OK` / `400` `Json<string>`（directory 不是 https、地址无效、缺少密码或 acme-dns 子域名、等待时间不在 0–600 秒、CA PEM 无效）。修改 directory 或联系邮箱后，下次签发时会注册新的 ACME 账号。httpreq：`POST <endpoint>/present` 和 `/cleanup`，Body `{ fqdn: "_acme-challenge.<域名>.", value }`，HTTP Basic 认证；acme-dns：`POST <endpoint>/update`，请求头 `X-Api-User`/`X-Api-Key`，Body `{ subdomain, txt }`。
-- `POST /admin/api/ssh/known-hosts` — Body `AddSshKnownHostRequest { host, port: i32, key_type, key_base64 }`；`200 OK` `Json<SSHKnownHost>`。
+- `POST /admin/api/ssh/known-hosts` — Body `AddSshKnownHostRequest { host, port: i32, key_type, key_base64 }`；`200 OK` `Json<SSHKnownHost>`（同一主机、端口和密钥再次信任时返回已有条目）；密钥不是有效的 OpenSSH 公钥时 `400` `Json<String>`。已知主机页和 SSH 资产的「安全」标签页通过它添加密钥（「添加主机密钥」）。
 - `GET /admin/api/ssh/known-hosts` — `200 OK` `Json<SSHKnownHost[]>`。
 - `DELETE /admin/api/ssh/known-hosts/:id` — `204` / `404`。
-- `POST /admin/api/ssh/check-host-key` — Body `{ host: string, port: u16 }`；`200 OK` `{ remote_key_type, remote_key_base64 }` / `500 PlainText<string>`（人类可读错误链）。
+- `POST /admin/api/ssh/check-host-key` — Body `{ host: string, port: u16 }`；`200 OK` `{ remote_key_type, remote_key_base64, fingerprint }`（`fingerprint` 为 `ssh-keygen -lf` 格式的 `SHA256:…`）/ `500 PlainText<string>`（人类可读错误链）。只读取主机密钥，不登录；即「添加主机密钥」对话框中的「从主机获取」。
 
 ### 2.11 日志、参数 (`logs.rs`, `parameters.rs`)
 
@@ -1100,7 +1100,7 @@ AccountReveal           { credentials: AccountCredentials }
 `AccountCredentials`（discriminator `kind` kebab-case）：
 
 - `ssh-password { username, password: secret }`
-- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — 创建/更新时可用 `generate: "ed25519" | "rsa"` 代替私钥，由服务器生成私钥（私钥不离开服务器）；`private_key_pem` 必须能用 passphrase 解析，否则 `422`；粘贴时丢失或被替换的换行（变成空格、整段一行、带缩进、只有 CR 或字面 `\n`）会在解析和保存前修复。`credentials_public` 额外包含派生的 `public_key_openssh` 和 SHA256 `fingerprint`。
+- `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — `username` 可以为空（写入时可省略），此时使用资产上的用户名，资产也为空时使用 gated 登录用户的用户名。创建/更新时可用 `generate: "ed25519" | "rsa"` 代替私钥，由服务器生成私钥（私钥不离开服务器）；`private_key_pem` 必须能用 passphrase 解析，否则 `422`；粘贴时丢失或被替换的换行（变成空格、整段一行、带缩进、只有 CR 或字面 `\n`）会在解析和保存前修复。`credentials_public` 额外包含派生的 `public_key_openssh` 和 SHA256 `fingerprint`。
 - `db-password { engine: "mysql"|"postgres", username, password: secret }`
 - `k8s-token { token: secret, ca_pem?: secret, namespace? }`
 - `k8s-client-cert { client_certificate_pem, client_private_key_pem: secret, passphrase?: secret, ca_pem?: secret, namespace? }`

@@ -3,7 +3,7 @@ use gated_common::{GatedError, SSHTargetAuth, SshTargetPasswordAuth, TargetSSHOp
 use gated_common::{api_response, api_routes};
 use gated_core::Services;
 use gated_protocol_ssh::{RCCommand, RCEvent, RemoteClient};
-use russh::keys::PublicKeyBase64;
+use russh::keys::{HashAlg, PublicKeyBase64};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
@@ -21,6 +21,8 @@ struct CheckSshHostKeyRequest {
 struct CheckSshHostKeyResponseBody {
     remote_key_type: String,
     remote_key_base64: String,
+    /// SHA256 fingerprint, as `ssh-keygen -lf` prints it.
+    fingerprint: String,
 }
 
 api_response! {
@@ -77,6 +79,7 @@ async fn api_ssh_check_host_key(
             CheckSshHostKeyResponseBody {
                 remote_key_type: key.algorithm().as_str().into(),
                 remote_key_base64: key.public_key_base64(),
+                fingerprint: key.fingerprint(HashAlg::Sha256).to_string(),
             },
         ))),
         Err(err) => Ok(CheckSshHostKeyResponse::Error(PlainText(format!(

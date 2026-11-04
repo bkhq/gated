@@ -2018,6 +2018,15 @@
                 }
               }
             }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4903,9 +4912,14 @@
         "type": "object",
         "required": [
           "remote_key_type",
-          "remote_key_base64"
+          "remote_key_base64",
+          "fingerprint"
         ],
         "properties": {
+          "fingerprint": {
+            "type": "string",
+            "description": "SHA256 fingerprint, as `ssh-keygen -lf` prints it."
+          },
           "remote_key_base64": {
             "type": "string"
           },
@@ -6645,7 +6659,8 @@
             "type": "string"
           },
           "username": {
-            "type": "string"
+            "type": "string",
+            "description": "Login user on the target; empty uses the target's username. Always\npresent in responses; may be omitted in requests."
           }
         }
       },

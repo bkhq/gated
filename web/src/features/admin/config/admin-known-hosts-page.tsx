@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Download,
   Fingerprint,
+  Plus,
   Search,
   ServerOff,
   ShieldCheck,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { TrustHostKeyDialog } from '@/features/known-hosts/components/trust-host-key-dialog'
 import {
   useDeleteKnownHost,
   useDeleteKnownHostsBatch,
@@ -123,6 +125,7 @@ export function AdminKnownHostsPage() {
   const [pendingDelete, setPendingDelete] = React.useState<KnownHost | null>(null)
   const [pendingBulkPurge, setPendingBulkPurge] = React.useState<KnownHost[] | null>(null)
   const [notice, setNotice] = React.useState<{ key: number, message: string } | null>(null)
+  const [adding, setAdding] = React.useState(false)
 
   React.useEffect(() => {
     if (notice === null) {
@@ -264,6 +267,10 @@ export function AdminKnownHostsPage() {
         ]}
         actions={(
           <>
+            <Button size="sm" onClick={() => setAdding(true)}>
+              <Plus size={13} />
+              <span>{t('knownHosts.trust.open')}</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -430,6 +437,8 @@ export function AdminKnownHostsPage() {
                     </Table>
                   )}
       </div>
+
+      {adding ? <TrustHostKeyDialog open onClose={() => setAdding(false)} /> : null}
 
       <Dialog open={pendingDelete !== null} onClose={() => setPendingDelete(null)} width={440}>
         {pendingDelete
