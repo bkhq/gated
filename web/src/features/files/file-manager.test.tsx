@@ -59,7 +59,7 @@ describe('fileManager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'logs' }))
     expect(await screen.findByText('files.empty')).toBeInTheDocument()
-    expect(api.listDirectory).toHaveBeenLastCalledWith('web-1', '/root/logs', expect.anything())
+    expect(api.listDirectory).toHaveBeenLastCalledWith({ name: 'web-1' }, '/root/logs', expect.anything())
   })
 
   it('asks before overwriting an existing file', async () => {
@@ -95,7 +95,7 @@ describe('fileManager', () => {
     const crumbs = screen.getByRole('navigation', { name: 'files.breadcrumbs' })
     fireEvent.click(within(crumbs).getByRole('button', { name: '/' }))
     expect(await screen.findByText('files.empty')).toBeInTheDocument()
-    expect(api.listDirectory).toHaveBeenLastCalledWith('web-1', '/', expect.anything())
+    expect(api.listDirectory).toHaveBeenLastCalledWith({ name: 'web-1' }, '/', expect.anything())
   })
 
   it('edits the path and navigates on Enter, cancels on Escape', async () => {
@@ -115,7 +115,7 @@ describe('fileManager', () => {
     fireEvent.change(editor, { target: { value: '/root/logs' } })
     fireEvent.submit(editor)
     expect(await screen.findByText('files.empty')).toBeInTheDocument()
-    expect(api.listDirectory).toHaveBeenLastCalledWith('web-1', '/root/logs', expect.anything())
+    expect(api.listDirectory).toHaveBeenLastCalledWith({ name: 'web-1' }, '/root/logs', expect.anything())
     expect(screen.getByRole('navigation', { name: 'files.breadcrumbs' })).toBeInTheDocument()
   })
 

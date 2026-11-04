@@ -14,14 +14,16 @@ export type TerminalFilesMode = 'upload' | 'download'
 export interface TerminalFilesDialogProps {
   mode: TerminalFilesMode | null
   targetName: string
+  account?: string
   /** Files dropped onto the terminal, preselected for upload. */
   initialFiles?: File[]
   onClose: () => void
 }
 
 /** Upload files to, or download a file from, the SSH target over SFTP. */
-export function TerminalFilesDialog({ mode, targetName, initialFiles = [], onClose }: TerminalFilesDialogProps) {
+export function TerminalFilesDialog({ mode, targetName, account, initialFiles = [], onClose }: TerminalFilesDialogProps) {
   const { t } = useTranslation()
+  const target = { name: targetName, account }
   const [directory, setDirectory] = React.useState('')
   const [files, setFiles] = React.useState<File[]>(initialFiles)
   const [path, setPath] = React.useState('')
@@ -38,19 +40,19 @@ export function TerminalFilesDialog({ mode, targetName, initialFiles = [], onClo
     setError(null)
     setConflict(null)
     try {
-      const dir = destination || (await listDirectory(targetName)).path
+      const dir = destination || (await listDirectory(target)).path
       for (const file of files) {
-        const target = joinPath(dir, file.name)
+        const destinationPath = joinPath(dir, file.name)
         setProgress(`${file.name} 0%`)
         try {
-          await uploadFile(targetName, target, file, {
+          await uploadFile(target, destinationPath, file, {
             overwrite,
             onProgress: loaded => setProgress(`${file.name} ${file.size ? Math.round(loaded / file.size * 100) : 100}%`),
           })
         }
         catch (err) {
           if (!overwrite && err instanceof ApiError && err.status === 409) {
-            setConflict(target)
+            setConflict(destinationPath)
             return
           }
           throw err
@@ -69,7 +71,7 @@ export function TerminalFilesDialog({ mode, targetName, initialFiles = [], onClo
 
   const download = () => {
     const anchor = document.createElement('a')
-    anchor.href = downloadUrl(targetName, path.trim())
+    anchor.href = downloadUrl(target, path.trim())
     anchor.download = ''
     document.body.appendChild(anchor)
     anchor.click()

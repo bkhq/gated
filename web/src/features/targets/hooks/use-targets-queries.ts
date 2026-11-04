@@ -19,8 +19,11 @@ import {
   deleteTargetRole,
   getAdminTarget,
   listAdminTargets,
+  listTargetAccountChoices,
+  listTargetRoleAccounts,
   listTargetRoles,
   listUserTargets,
+  setTargetRoleAccount,
   updateAdminTarget,
 } from '@/shared/lib/api/targets'
 
@@ -196,6 +199,34 @@ export function useTargetRoles(targetId: string | undefined) {
     queryKey: ['targets', targetId ?? null, 'roles'],
     queryFn: async ({ signal }) => listTargetRoles(targetId as string, signal),
     enabled: typeof targetId === 'string' && targetId.length > 0,
+  })
+}
+
+export function useTargetRoleAccounts(targetId: string | undefined) {
+  return useQuery({
+    queryKey: ['targets', targetId ?? null, 'role-accounts'],
+    queryFn: async ({ signal }) => listTargetRoleAccounts(targetId as string, signal),
+    enabled: typeof targetId === 'string' && targetId.length > 0,
+  })
+}
+
+export function useSetTargetRoleAccount(targetId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ roleId, accountId }: { roleId: string, accountId: number | null }) =>
+      setTargetRoleAccount(targetId, roleId, accountId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['targets', targetId, 'role-accounts'] })
+    },
+  })
+}
+
+/** Accounts the signed-in user must choose between to connect to a target. */
+export function useTargetAccountChoices(targetName: string) {
+  return useQuery({
+    queryKey: ['targets', 'account-choices', targetName],
+    queryFn: async ({ signal }) => listTargetAccountChoices(targetName, signal),
+    staleTime: 0,
   })
 }
 

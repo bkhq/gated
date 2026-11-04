@@ -251,6 +251,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             AuthSelector::User {
                 username,
                 target_name,
+                ..
             } => (username.clone(), target_name.clone()),
             AuthSelector::Ticket { .. } => ("ticket".to_owned(), String::new()),
         };
@@ -259,6 +260,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             AuthSelector::User {
                 username,
                 target_name,
+                account,
             } => {
                 let state_arc = self
                     .services
@@ -310,7 +312,8 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                             );
                             return fail(&mut self, &audit_username, &audit_target).await;
                         }
-                        self.run_authorized(handshake, user_info, target_name).await
+                        self.run_authorized(handshake, user_info, target_name, account)
+                            .await
                     }
                     AuthResult::Rejected | AuthResult::Need(_) => {
                         fail(&mut self, &audit_username, &audit_target).await
@@ -328,7 +331,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                             .await
                             .map_err(MySqlError::other)?;
 
-                        self.run_authorized(handshake, user_info, ticket.target)
+                        self.run_authorized(handshake, user_info, ticket.target, None)
                             .await
                     }
                     _ => fail(&mut self, &audit_username, &audit_target).await,
@@ -342,7 +345,9 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
         handshake: HandshakeResponse,
         user_info: AuthStateUserInfo,
         target_name: String,
+        requested_account: Option<String>,
     ) -> Result<(), MySqlError> {
+        let login_username = user_info.username.clone();
         self.stream.push(
             &OkPacket {
                 affected_rows: 0,
@@ -405,7 +410,27 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             let db = gated_core::db_required(&self.services.db)
                 .await
                 .map_err(MySqlError::other)?;
-            match gated_core::account_credentials::resolve_db_account(&db, &target).await {
+            let login = match gated_core::account_credentials::select_login(
+                &db,
+                target.id,
+                &login_username,
+                requested_account.as_deref(),
+            )
+            .await
+            {
+                Ok(login) => login,
+                Err(error) => {
+                    self.send_error(
+                        1045,
+                        &format!(
+                            "{error}. Add the account to the user name: <user>:<target>:<account>"
+                        ),
+                    )
+                    .await?;
+                    return Ok(());
+                }
+            };
+            match gated_core::account_credentials::resolve_db_account(&db, &target, login).await {
                 Ok(Some((_, creds))) => {
                     let mut o = mysql_options;
                     o.username = creds.username;

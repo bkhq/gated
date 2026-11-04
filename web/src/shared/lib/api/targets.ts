@@ -72,6 +72,22 @@ export async function deleteTargetRole(id: string, roleId: string, signal?: Abor
   return adminApi.delete<void>(`/targets/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}`, signal)
 }
 
+export type TargetRoleAccount = AdminComponents['schemas']['TargetRoleAccount']
+
+/** The account each granting role signs in with (`null`: the target's default login). */
+export async function listTargetRoleAccounts(id: string, signal?: AbortSignal): Promise<TargetRoleAccount[]> {
+  return adminApi.get<TargetRoleAccount[]>(`/targets/${encodeURIComponent(id)}/role-accounts`, signal)
+}
+
+export async function setTargetRoleAccount(id: string, roleId: string, accountId: number | null): Promise<void> {
+  return adminApi.put<void>(`/targets/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}/account`, { account_id: accountId })
+}
+
+/** Accounts the user must pick between for a target; empty when no choice is needed. */
+export async function listTargetAccountChoices(name: string, signal?: AbortSignal): Promise<string[]> {
+  return userApi.get<string[]>(`/targets/${encodeURIComponent(name)}/accounts`, signal)
+}
+
 export type TargetKnownSshHostKey = AdminComponents['schemas']['SSHKnownHost']
 
 export type UpstreamCertificate = AdminComponents['schemas']['UpstreamCertificate']

@@ -203,6 +203,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
             AuthSelector::User {
                 username,
                 target_name,
+                ..
             } => (username.clone(), target_name.clone()),
             AuthSelector::Ticket { .. } => ("ticket".to_owned(), String::new()),
         };
@@ -211,6 +212,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
             AuthSelector::User {
                 username,
                 target_name,
+                account,
             } => {
                 let state_arc = self
                     .services
@@ -257,7 +259,9 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                                 self.stream
                                     .push(pgwire::messages::startup::Authentication::Ok)?;
                             }
-                            return self.run_authorized(startup, user_info, target_name).await;
+                            return self
+                                .run_authorized(startup, user_info, target_name, account)
+                                .await;
                         }
                         AuthResult::Need(kinds) => {
                             if kinds.contains(&CredentialKind::Password) {
@@ -374,7 +378,8 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
 
                         self.stream
                             .push(pgwire::messages::startup::Authentication::Ok)?;
-                        self.run_authorized(startup, user_info, ticket.target).await
+                        self.run_authorized(startup, user_info, ticket.target, None)
+                            .await
                     }
                     _ => fail(&mut self, &audit_username, &audit_target).await,
                 }
@@ -387,8 +392,10 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
         startup: pgwire::messages::startup::Startup,
         user_info: AuthStateUserInfo,
         target_name: String,
+        requested_account: Option<String>,
     ) -> Result<(), PostgresError> {
         self.stream.flush().await?;
+        let login_username = user_info.username.clone();
 
         let target = {
             self.services
@@ -437,7 +444,27 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
             let db = gated_core::db_required(&self.services.db)
                 .await
                 .map_err(PostgresError::other)?;
-            match gated_core::account_credentials::resolve_db_account(&db, &target).await {
+            let login = match gated_core::account_credentials::select_login(
+                &db,
+                target.id,
+                &login_username,
+                requested_account.as_deref(),
+            )
+            .await
+            {
+                Ok(login) => login,
+                Err(error) => {
+                    self.send_error_response(
+                        "28000".into(),
+                        format!(
+                            "{error}. Add the account to the user name: <user>:<target>:<account>"
+                        ),
+                    )
+                    .await?;
+                    return Ok(());
+                }
+            };
+            match gated_core::account_credentials::resolve_db_account(&db, &target, login).await {
                 Ok(Some((_, creds))) => {
                     let mut o = postgres_options;
                     o.username = creds.username;

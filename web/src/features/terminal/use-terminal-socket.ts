@@ -26,6 +26,8 @@ export interface UseTerminalSocketOptions {
   enabled?: boolean
   /** Changing it opens a fresh session, e.g. to reconnect after the session ended. */
   connectionId?: number
+  /** Account picked for the target when the user's roles offer several. */
+  account?: string
   /** Called per 0x00 DATA frame. Payload is a view into the receive buffer. */
   onData?: (payload: Uint8Array) => void
   /** Called per 0x02 STATUS frame. */
@@ -57,11 +59,13 @@ export interface UseTerminalSocketResult {
   lastError: Event | null
 }
 
-function buildTerminalUrl(kind: TerminalKind, targetName: string): string {
+function buildTerminalUrl(kind: TerminalKind, targetName: string, account: string | undefined): string {
   const u = new URL(
     `/api/${kind}/terminal/${encodeURIComponent(targetName)}`,
     location.origin,
   )
+  if (account)
+    u.searchParams.set('account', account)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
   return u.toString()
 }
@@ -86,6 +90,7 @@ export function useTerminalSocket(
     targetName,
     enabled = true,
     connectionId = 0,
+    account,
     onData,
     onStatus,
     onHostKeyVerify,
@@ -134,7 +139,7 @@ export function useTerminalSocket(
     function connect(): void {
       if (ac.signal.aborted || stoppedRef.current)
         return
-      const finalUrl = buildTerminalUrl(kind, targetName)
+      const finalUrl = buildTerminalUrl(kind, targetName, account)
       // Surface the connecting phase synchronously so a banner can render it
       // before the handshake settles.
       // eslint-disable-next-line react/set-state-in-effect
@@ -222,7 +227,7 @@ export function useTerminalSocket(
       if (ws !== null && ws.readyState !== WebSocket.CLOSED)
         ws.close()
     }
-  }, [enabled, kind, targetName, connectionId, reconnectBaseMs, reconnectMaxMs])
+  }, [enabled, kind, targetName, account, connectionId, reconnectBaseMs, reconnectMaxMs])
 
   const sendInput = React.useCallback((bytes: Uint8Array) => {
     const ws = socketRef.current

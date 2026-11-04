@@ -736,6 +736,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/targets/{id}/role-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_target_role_accounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/targets/{id}/roles": {
         parameters: {
             query?: never;
@@ -763,6 +779,22 @@ export interface paths {
         put?: never;
         post: operations["add_target_role"];
         delete: operations["delete_target_role"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/targets/{id}/roles/{role_id}/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_target_role_account"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1882,6 +1914,13 @@ export interface components {
             ticket_id?: string | null;
             username?: string | null;
         };
+        SetTargetRoleAccountRequest: {
+            /**
+             * Format: int32
+             * @description An account bound to the target, or `null` for the target's default login.
+             */
+            account_id?: number | null;
+        };
         SshKeyAccountCredentials: {
             passphrase?: string | null;
             private_key_pem: string;
@@ -2037,6 +2076,16 @@ export interface components {
             readonly: boolean;
             tls: components["schemas"]["Tls"];
             username: string;
+        };
+        /** @description The account a role granted on a target signs in with. */
+        TargetRoleAccount: {
+            /**
+             * Format: int32
+             * @description `null`: the target's default login.
+             */
+            account_id?: number | null;
+            /** Format: uuid */
+            role_id: string;
         };
         TargetSSHOptions: {
             allow_insecure_algos?: boolean | null;
@@ -4057,6 +4106,27 @@ export interface operations {
             };
         };
     };
+    get_target_role_accounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["TargetRoleAccount"][];
+                };
+            };
+        };
+    };
     get_target_roles: {
         parameters: {
             query?: never;
@@ -4127,6 +4197,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_target_role_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["SetTargetRoleAccountRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
             404: {
                 headers: {

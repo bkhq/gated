@@ -1,12 +1,13 @@
 use super::terminal_details::{ConnectedDetails, TlsDetails};
 use crate::http_service::common::upgrade;
-use axum::extract::Path;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{Path, Query};
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 use gated_common::web::Data;
 use http::StatusCode;
+use std::borrow::Cow;
 use std::io::{Read, Write};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -23,6 +24,7 @@ use tracing::*;
 
 use super::super::common::{RequestAuthorization, SessionAuthorization};
 use super::common::{TERMINAL_CLOSED_MESSAGE, TerminalSessionHandle};
+use super::targets_list::LoginQuery;
 
 const MAX_TARGET_NAME_LEN: usize = 128;
 const WS_PING_INTERVAL: Duration = Duration::from_secs(30);
@@ -115,7 +117,8 @@ async fn resolve_and_authorize(
     username: &str,
     target_name: &str,
     expected_kind: DbKind,
-) -> Result<(uuid::Uuid, Target), &'static str> {
+    account: Option<&str>,
+) -> Result<(uuid::Uuid, Target), Cow<'static, str>> {
     let mut config_provider = services.config_provider.lock().await;
 
     let users = config_provider.list_users().await.map_err(|e| {
@@ -138,7 +141,7 @@ async fn resolve_and_authorize(
         })?;
 
     if !authorized {
-        return Err("Access denied to target");
+        return Err("Access denied to target".into());
     }
 
     let targets = config_provider.list_targets().await.map_err(|e| {
@@ -154,7 +157,7 @@ async fn resolve_and_authorize(
     match (&target.options, expected_kind) {
         (TargetOptions::MySql(_), DbKind::MySql)
         | (TargetOptions::Postgres(_), DbKind::Postgres) => {}
-        _ => return Err("Target kind does not match endpoint"),
+        _ => return Err("Target kind does not match endpoint".into()),
     }
 
     // Apply the bound db-password account onto the target's inline options
@@ -166,7 +169,10 @@ async fn resolve_and_authorize(
             error!(%e, "Database unavailable");
             "Internal server error"
         })?;
-        match gated_core::account_credentials::resolve_db_account(&db, &target).await {
+        let login = super::ssh_terminal::select_login(&db, &target, username, account)
+            .await
+            .map_err(|e| e.to_string())?;
+        match gated_core::account_credentials::resolve_db_account(&db, &target, login).await {
             Ok(Some((account_id, creds))) => {
                 match &mut target.options {
                     TargetOptions::MySql(o) => {
@@ -186,7 +192,7 @@ async fn resolve_and_authorize(
             Ok(None) => {} // no account bound — keep inline credentials
             Err(e) => {
                 error!(%e, "Failed to resolve db account credentials");
-                return Err("Internal server error");
+                return Err("Internal server error".into());
             }
         }
     }
@@ -649,6 +655,7 @@ async fn handle_db_terminal(
     ws: WebSocketUpgrade,
     target_name: String,
     kind: DbKind,
+    account: Option<String>,
     services: Services,
     auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
@@ -698,22 +705,29 @@ async fn handle_db_terminal(
     upgrade(ws, move |socket| async move {
         let (mut sink, source) = socket.split();
 
-        let (user_id, target) =
-            match resolve_and_authorize(&services, &username, &target_name, kind).await {
-                Ok(t) => t,
-                Err(msg) => {
-                    warn!(
-                        username = %username,
-                        target = %target_name,
-                        kind = ?kind,
-                        protocol = "db_terminal",
-                        reason = %msg,
-                        "db_terminal_authorize_failed"
-                    );
-                    send_status(&mut sink, "error", msg).await;
-                    return;
-                }
-            };
+        let (user_id, target) = match resolve_and_authorize(
+            &services,
+            &username,
+            &target_name,
+            kind,
+            account.as_deref(),
+        )
+        .await
+        {
+            Ok(t) => t,
+            Err(msg) => {
+                warn!(
+                    username = %username,
+                    target = %target_name,
+                    kind = ?kind,
+                    protocol = "db_terminal",
+                    reason = %msg,
+                    "db_terminal_authorize_failed"
+                );
+                send_status(&mut sink, "error", &msg).await;
+                return;
+            }
+        };
 
         if let Err(e) = services.sql_console_rate_limiter.check(user_id, target.id) {
             metrics::counter!(
@@ -846,20 +860,40 @@ pub async fn api_mysql_terminal(
     req: Parts,
     ws: WebSocketUpgrade,
     Path(target_name): Path<String>,
+    Query(login): Query<LoginQuery>,
     services: Data<Services>,
     auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
-    handle_db_terminal(&req, ws, target_name, DbKind::MySql, services.0, auth).await
+    handle_db_terminal(
+        &req,
+        ws,
+        target_name,
+        DbKind::MySql,
+        login.account,
+        services.0,
+        auth,
+    )
+    .await
 }
 
 pub async fn api_postgres_terminal(
     req: Parts,
     ws: WebSocketUpgrade,
     Path(target_name): Path<String>,
+    Query(login): Query<LoginQuery>,
     services: Data<Services>,
     auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
-    handle_db_terminal(&req, ws, target_name, DbKind::Postgres, services.0, auth).await
+    handle_db_terminal(
+        &req,
+        ws,
+        target_name,
+        DbKind::Postgres,
+        login.account,
+        services.0,
+        auth,
+    )
+    .await
 }
 
 #[cfg(test)]

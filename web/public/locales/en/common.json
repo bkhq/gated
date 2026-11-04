@@ -752,7 +752,9 @@
         "youAreMember": "You are a member",
         "adminGrantsAccess": "Members of this role can reach this target",
         "allowedActions": "Allowed actions",
-        "noRoles": "No roles grant access to this target yet. Assign roles in the target form."
+        "noRoles": "No roles grant access to this target yet. Assign roles in the target form.",
+        "signInAs": "Account {{role}} signs in with",
+        "defaultLogin": "Default login"
       }
     },
     "form": {
@@ -842,6 +844,10 @@
     "views": {
       "targets": "Targets",
       "groups": "Groups"
+    },
+    "accountGate": {
+      "title": "Sign in to {{target}} as",
+      "description": "Your roles give you several accounts on this target. Choose the one to use for this connection."
     }
   },
   "targetGroups": {

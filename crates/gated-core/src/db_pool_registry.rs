@@ -20,6 +20,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use gated_common::{DbPasswordAccountCredentials, Target, TargetOptions};
+
+use crate::account_credentials::TargetLogin;
 use sea_orm::DatabaseConnection;
 use sqlx::mysql::{MySqlConnectOptions, MySqlPool, MySqlPoolOptions};
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
@@ -66,10 +68,10 @@ struct CachedPool {
     pool: TargetPool,
 }
 
-/// Per-target sqlx pool cache. Registered on [`crate::Services`] and
+/// Per-target, per-login sqlx pool cache. Registered on [`crate::Services`] and
 /// shared by SQL Console handlers.
 pub struct DbPoolRegistry {
-    pools: Mutex<HashMap<Uuid, CachedPool>>,
+    pools: Mutex<HashMap<(Uuid, TargetLogin), CachedPool>>,
 }
 
 impl DbPoolRegistry {
@@ -86,14 +88,16 @@ impl DbPoolRegistry {
         &self,
         db: &DatabaseConnection,
         target: &Target,
+        login: TargetLogin,
     ) -> Result<TargetPool, String> {
+        let key = (target.id, login);
         let account_credentials =
-            crate::account_credentials::resolve_db_account(db, target).await?;
+            crate::account_credentials::resolve_db_account(db, target, login).await?;
         let fingerprint = compute_fingerprint(target, account_credentials.as_ref());
 
         let cached = {
             let pools = self.pools.lock().await;
-            if let Some(existing) = pools.get(&target.id) {
+            if let Some(existing) = pools.get(&key) {
                 if existing.fingerprint == fingerprint {
                     Some((existing.target_name.clone(), existing.pool.clone()))
                 } else {
@@ -118,7 +122,7 @@ impl DbPoolRegistry {
 
         let mut pools = self.pools.lock().await;
         if let Some(prev) = pools.insert(
-            target.id,
+            key,
             CachedPool {
                 fingerprint,
                 target_name: target.name.clone(),
@@ -133,14 +137,19 @@ impl DbPoolRegistry {
         Ok(pool)
     }
 
-    /// Close and drop the pool for `target_id` if one is cached. No-op
-    /// when the target has no cached pool.
+    /// Close and drop every pool cached for `target_id`. No-op when the
+    /// target has no cached pool.
     pub async fn invalidate(&self, target_id: Uuid) {
-        let removed = {
+        let removed: Vec<CachedPool> = {
             let mut pools = self.pools.lock().await;
-            pools.remove(&target_id)
+            let keys: Vec<_> = pools
+                .keys()
+                .filter(|(id, _)| *id == target_id)
+                .copied()
+                .collect();
+            keys.iter().filter_map(|key| pools.remove(key)).collect()
         };
-        if let Some(entry) = removed {
+        for entry in removed {
             entry.pool.close().await;
         }
     }
@@ -448,10 +457,11 @@ mod tests {
         .expect("insert target account");
 
         let target = mysql_target(target_id, "prod mysql", 3306);
-        let credentials = crate::account_credentials::resolve_db_account(&db, &target)
-            .await
-            .expect("resolve account")
-            .expect("account exists");
+        let credentials =
+            crate::account_credentials::resolve_db_account(&db, &target, TargetLogin::Default)
+                .await
+                .expect("resolve account")
+                .expect("account exists");
 
         assert_eq!(credentials.0, 1);
         assert_eq!(credentials.1.engine, DbPasswordEngine::Mysql);

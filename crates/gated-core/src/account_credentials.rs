@@ -4,30 +4,206 @@ use gated_common::{
     HeadersUpstreamAuth, SSHTargetAuth, Secret, SshTargetPasswordAuth, SshTargetPublicKeyAuth,
     Target, TargetHttpOptions, TargetOptions, TargetSSHOptions, UpstreamAuth,
 };
-use gated_db_entities::{Account, TargetAccount};
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use gated_db_entities::{Account, Role, TargetAccount, TargetRoleAssignment, User};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set,
+};
+use serde::Serialize;
 use uuid::Uuid;
 
-pub async fn primary_account_credentials(
+/// Which upstream login a connection to a target uses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TargetLogin {
+    /// The target's primary account, else its inline credentials.
+    Default,
+    Account(i32),
+}
+
+/// One login a user may pick for a target.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, utoipa::ToSchema)]
+pub struct LoginChoice {
+    /// `None` is the target's own inline credentials.
+    pub account_id: Option<i32>,
+    /// Account name; `None` for the inline credentials.
+    pub name: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum LoginSelectionError {
+    /// Several accounts apply and none was chosen; carries their names.
+    Ambiguous(Vec<String>),
+    /// The requested account is not one the user's roles may use.
+    NotAllowed(String),
+    Internal(String),
+}
+
+impl std::fmt::Display for LoginSelectionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ambiguous(names) => write!(
+                f,
+                "several accounts are available for this target, choose one of: {}",
+                names.join(", ")
+            ),
+            Self::NotAllowed(name) => {
+                write!(f, "account {name:?} is not available to you on this target")
+            }
+            Self::Internal(message) => f.write_str(message),
+        }
+    }
+}
+
+async fn primary_account_id(
     db: &DatabaseConnection,
     target_id: Uuid,
-) -> Result<Option<(i32, AccountCredentials)>, String> {
-    let Some(binding) = TargetAccount::Entity::find()
+) -> Result<Option<i32>, String> {
+    Ok(TargetAccount::Entity::find()
         .filter(TargetAccount::Column::TargetId.eq(target_id))
         .filter(TargetAccount::Column::Role.eq("primary"))
         .one(db)
         .await
         .map_err(|e| format!("query target account binding failed: {e}"))?
-    else {
-        return Ok(None);
-    };
+        .map(|binding| binding.account_id))
+}
 
-    let Some(account) = Account::Entity::find_by_id(binding.account_id)
+/// The logins `username` may use on a target: the account each of their
+/// granting roles maps to, or the target's default login for unmapped roles.
+/// Empty when no role grants the target.
+pub async fn login_choices(
+    db: &DatabaseConnection,
+    target_id: Uuid,
+    username: &str,
+) -> Result<Vec<LoginChoice>, String> {
+    let query_err = |e: sea_orm::DbErr| format!("query login choices failed: {e}");
+    let Some(user) = User::Entity::find()
+        .filter(User::Column::Username.eq(username))
+        .one(db)
+        .await
+        .map_err(query_err)?
+    else {
+        return Ok(vec![]);
+    };
+    let role_ids: Vec<Uuid> = user
+        .find_related(Role::Entity)
+        .all(db)
+        .await
+        .map_err(query_err)?
+        .into_iter()
+        .map(|role| role.id)
+        .collect();
+    let grants = TargetRoleAssignment::Entity::find()
+        .filter(TargetRoleAssignment::Column::TargetId.eq(target_id))
+        .filter(TargetRoleAssignment::Column::RoleId.is_in(role_ids))
+        .all(db)
+        .await
+        .map_err(query_err)?;
+    if grants.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let primary = primary_account_id(db, target_id).await?;
+    let mut accounts: Vec<Option<i32>> = grants
+        .into_iter()
+        .map(|grant| grant.account_id.or(primary))
+        .collect();
+    accounts.sort_unstable();
+    accounts.dedup();
+
+    let mut choices = Vec::with_capacity(accounts.len());
+    for account_id in accounts {
+        let name = match account_id {
+            Some(id) => Some(
+                Account::Entity::find_by_id(id)
+                    .one(db)
+                    .await
+                    .map_err(query_err)?
+                    .ok_or_else(|| format!("account {id} not found"))?
+                    .name,
+            ),
+            None => None,
+        };
+        choices.push(LoginChoice { account_id, name });
+    }
+    choices.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(choices)
+}
+
+/// Pick the login for a connection. `requested` is an account name the user
+/// chose (empty means none). With no choice, a single applicable login is
+/// used; several are an error listing them.
+pub async fn select_login(
+    db: &DatabaseConnection,
+    target_id: Uuid,
+    username: &str,
+    requested: Option<&str>,
+) -> Result<TargetLogin, LoginSelectionError> {
+    let choices = login_choices(db, target_id, username)
+        .await
+        .map_err(LoginSelectionError::Internal)?;
+    let login = |choice: &LoginChoice| {
+        if let Some(name) = &choice.name {
+            tracing::info!(target: "audit", account = %name, "Target account selected");
+        }
+        match choice.account_id {
+            Some(id) => TargetLogin::Account(id),
+            None => TargetLogin::Default,
+        }
+    };
+    let selected = match requested.filter(|name| !name.is_empty()) {
+        Some(name) => choices
+            .iter()
+            .find(|choice| choice.name.as_deref() == Some(name))
+            .map(login)
+            .ok_or_else(|| LoginSelectionError::NotAllowed(name.to_string())),
+        // No grant (e.g. a ticket) keeps the target's default login.
+        None if choices.len() <= 1 => Ok(choices.first().map_or(TargetLogin::Default, login)),
+        None => Err(LoginSelectionError::Ambiguous(
+            choices
+                .into_iter()
+                .map(|choice| choice.name.unwrap_or_else(|| "(target login)".into()))
+                .collect(),
+        )),
+    };
+    if let Err(error @ (LoginSelectionError::Ambiguous(_) | LoginSelectionError::NotAllowed(_))) =
+        &selected
+    {
+        tracing::warn!(target: "audit", %error, "Target account not selected");
+    }
+    selected
+}
+
+pub async fn primary_account_credentials(
+    db: &DatabaseConnection,
+    target_id: Uuid,
+) -> Result<Option<(i32, AccountCredentials)>, String> {
+    match primary_account_id(db, target_id).await? {
+        Some(account_id) => account_credentials(db, account_id).await.map(Some),
+        None => Ok(None),
+    }
+}
+
+/// Credentials of the account a login uses; `None` for inline credentials.
+pub async fn login_account_credentials(
+    db: &DatabaseConnection,
+    target_id: Uuid,
+    login: TargetLogin,
+) -> Result<Option<(i32, AccountCredentials)>, String> {
+    match login {
+        TargetLogin::Default => primary_account_credentials(db, target_id).await,
+        TargetLogin::Account(account_id) => account_credentials(db, account_id).await.map(Some),
+    }
+}
+
+async fn account_credentials(
+    db: &DatabaseConnection,
+    account_id: i32,
+) -> Result<(i32, AccountCredentials), String> {
+    let Some(account) = Account::Entity::find_by_id(account_id)
         .one(db)
         .await
         .map_err(|e| format!("query account failed: {e}"))?
     else {
-        return Err(format!("account {} not found", binding.account_id));
+        return Err(format!("account {account_id} not found"));
     };
 
     let credentials = serde_json::from_str::<AccountCredentials>(&account.credentials)
@@ -41,7 +217,7 @@ pub async fn primary_account_credentials(
         ));
     }
 
-    Ok(Some((account.id, credentials)))
+    Ok((account.id, credentials))
 }
 
 pub async fn update_account_last_used_at(
@@ -68,8 +244,10 @@ pub async fn update_account_last_used_at(
 pub async fn resolve_db_account(
     db: &DatabaseConnection,
     target: &Target,
+    login: TargetLogin,
 ) -> Result<Option<(i32, gated_common::DbPasswordAccountCredentials)>, String> {
-    let Some((account_id, credentials)) = primary_account_credentials(db, target.id).await? else {
+    let Some((account_id, credentials)) = login_account_credentials(db, target.id, login).await?
+    else {
         return Ok(None);
     };
     let expected = match target.options {
@@ -92,12 +270,13 @@ pub async fn resolve_db_account(
 pub async fn ssh_options_with_account(
     db: &DatabaseConnection,
     target: &Target,
+    login: TargetLogin,
     fallback_username: Option<&str>,
 ) -> Result<(TargetSSHOptions, Option<i32>), String> {
     let TargetOptions::Ssh(mut options) = target.options.clone() else {
         return Err("target is not SSH".into());
     };
-    let account_id = match primary_account_credentials(db, target.id).await? {
+    let account_id = match login_account_credentials(db, target.id, login).await? {
         Some((account_id, credentials)) => {
             apply_ssh_account(&mut options, credentials)
                 .map_err(|()| format!("account {account_id} is not an SSH credential"))?;
@@ -211,6 +390,200 @@ mod tests {
             private_key_pem: "PEM".into(),
             passphrase: None,
         })
+    }
+
+    mod login {
+        use gated_db_entities::{Role, Target as DbTarget, UserRoleAssignment};
+        use sea_orm::Database;
+
+        use super::super::*;
+
+        struct Fixture {
+            db: DatabaseConnection,
+            target_id: Uuid,
+        }
+
+        impl Fixture {
+            async fn new() -> Self {
+                let db = Database::connect("sqlite::memory:").await.expect("connect");
+                gated_db_migrations::migrate_database(&db)
+                    .await
+                    .expect("migrate");
+                let target_id = Uuid::new_v4();
+                DbTarget::ActiveModel {
+                    id: Set(target_id),
+                    name: Set("web".into()),
+                    description: Set(String::new()),
+                    kind: Set(gated_db_entities::Target::TargetKind::Ssh),
+                    options: Set(serde_json::json!({})),
+                    rate_limit_bytes_per_second: Set(None),
+                    group_id: Set(None),
+                }
+                .insert(&db)
+                .await
+                .expect("insert target");
+                User::ActiveModel {
+                    id: Set(Uuid::new_v4()),
+                    username: Set("alice".into()),
+                    description: Set(String::new()),
+                    credential_policy: Set(serde_json::json!({})),
+                    rate_limit_bytes_per_second: Set(None),
+                }
+                .insert(&db)
+                .await
+                .expect("insert user");
+                Self { db, target_id }
+            }
+
+            async fn account(&self, name: &str, binding: &str) -> i32 {
+                let account = Account::ActiveModel {
+                    kind: Set("ssh-password".into()),
+                    name: Set(name.into()),
+                    description: Set(None),
+                    credentials: Set(serde_json::json!({
+                        "kind": "ssh-password", "username": name, "password": "pw"
+                    })
+                    .to_string()),
+                    tags: Set(None),
+                    created_by: Set(None),
+                    created_at: Set(Utc::now()),
+                    updated_at: Set(Utc::now()),
+                    last_used_at: Set(None),
+                    rotation_due_at: Set(None),
+                    ..Default::default()
+                }
+                .insert(&self.db)
+                .await
+                .expect("insert account");
+                TargetAccount::ActiveModel {
+                    target_id: Set(self.target_id),
+                    account_id: Set(account.id),
+                    role: Set(binding.into()),
+                }
+                .insert(&self.db)
+                .await
+                .expect("bind account");
+                account.id
+            }
+
+            /// Grant the target to a role alice holds, mapped to `account_id`.
+            async fn grant(&self, role: &str, account_id: Option<i32>, alice_member: bool) {
+                let role = Role::ActiveModel {
+                    id: Set(Uuid::new_v4()),
+                    name: Set(role.into()),
+                    description: Set(String::new()),
+                    allow_file_transfer: Set(true),
+                }
+                .insert(&self.db)
+                .await
+                .expect("insert role");
+                TargetRoleAssignment::ActiveModel {
+                    target_id: Set(self.target_id),
+                    role_id: Set(role.id),
+                    account_id: Set(account_id),
+                    ..Default::default()
+                }
+                .insert(&self.db)
+                .await
+                .expect("grant target");
+                if alice_member {
+                    let alice = User::Entity::find()
+                        .filter(User::Column::Username.eq("alice"))
+                        .one(&self.db)
+                        .await
+                        .expect("query")
+                        .expect("alice");
+                    UserRoleAssignment::ActiveModel {
+                        user_id: Set(alice.id),
+                        role_id: Set(role.id),
+                        ..Default::default()
+                    }
+                    .insert(&self.db)
+                    .await
+                    .expect("assign role");
+                }
+            }
+
+            async fn select(
+                &self,
+                requested: Option<&str>,
+            ) -> Result<TargetLogin, LoginSelectionError> {
+                select_login(&self.db, self.target_id, "alice", requested).await
+            }
+        }
+
+        #[tokio::test]
+        async fn an_unmapped_grant_keeps_the_default_login() {
+            let f = Fixture::new().await;
+            f.grant("ops", None, true).await;
+            assert_eq!(f.select(None).await, Ok(TargetLogin::Default));
+        }
+
+        #[tokio::test]
+        async fn a_role_signs_in_with_its_mapped_account() {
+            let f = Fixture::new().await;
+            f.account("root", "primary").await;
+            let deploy = f.account("deploy", "fallback").await;
+            f.grant("dev", Some(deploy), true).await;
+            f.grant("dba", None, false).await;
+            assert_eq!(f.select(None).await, Ok(TargetLogin::Account(deploy)));
+            assert_eq!(
+                f.select(Some("root")).await,
+                Err(LoginSelectionError::NotAllowed("root".into()))
+            );
+        }
+
+        #[tokio::test]
+        async fn several_accounts_need_a_choice() {
+            let f = Fixture::new().await;
+            let root = f.account("root", "primary").await;
+            let deploy = f.account("deploy", "fallback").await;
+            f.grant("dev", Some(deploy), true).await;
+            f.grant("dba", None, true).await;
+            assert_eq!(
+                f.select(None).await,
+                Err(LoginSelectionError::Ambiguous(vec![
+                    "deploy".into(),
+                    "root".into()
+                ]))
+            );
+            assert_eq!(f.select(Some("root")).await, Ok(TargetLogin::Account(root)));
+            assert_eq!(
+                f.select(Some("deploy")).await,
+                Ok(TargetLogin::Account(deploy))
+            );
+        }
+
+        #[tokio::test]
+        async fn a_mapping_to_the_primary_account_is_one_choice() {
+            let f = Fixture::new().await;
+            let root = f.account("root", "primary").await;
+            f.grant("dev", Some(root), true).await;
+            f.grant("dba", None, true).await;
+            let choices = login_choices(&f.db, f.target_id, "alice")
+                .await
+                .expect("choices");
+            assert_eq!(
+                choices,
+                vec![LoginChoice {
+                    account_id: Some(root),
+                    name: Some("root".into())
+                }]
+            );
+        }
+
+        #[tokio::test]
+        async fn without_a_grant_there_is_no_choice() {
+            let f = Fixture::new().await;
+            f.grant("dba", None, false).await;
+            assert!(
+                login_choices(&f.db, f.target_id, "alice")
+                    .await
+                    .expect("choices")
+                    .is_empty()
+            );
+            assert_eq!(f.select(None).await, Ok(TargetLogin::Default));
+        }
     }
 
     #[test]

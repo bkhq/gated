@@ -43,7 +43,10 @@ use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::common::TerminalSessionHandle;
-use super::ssh_terminal::{connection_error_message, resolve_and_authorize, sha256_fingerprint};
+use super::ssh_terminal::{
+    ResolveError, connection_error_message, resolve_and_authorize, sha256_fingerprint,
+};
+use super::targets_list::LoginQuery;
 use crate::http_service::api::AnySecurityScheme;
 use crate::http_service::common::{RequestAuthorization, SessionAuthorization, require_auth};
 
@@ -180,7 +183,8 @@ impl SftpConnection {
     }
 }
 
-type ConnectionKey = (String, String);
+/// User, target and the account picked for it.
+type ConnectionKey = (String, String, Option<String>);
 
 static CONNECTIONS: LazyLock<Mutex<HashMap<ConnectionKey, Arc<SftpConnection>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -200,6 +204,7 @@ async fn connection(
     services: &Services,
     auth: &RequestAuthorization,
     target_name: &str,
+    account: Option<&str>,
 ) -> Result<Arc<SftpConnection>, SftpError> {
     if !validate_target_name(target_name) {
         return Err(SftpError::BadRequest(body("Invalid target name")));
@@ -211,16 +216,25 @@ async fn connection(
     }
     let username =
         extract_username(auth).ok_or_else(|| SftpError::Unauthorized(body("Not authenticated")))?;
-    let (target, ssh_options, user) = authorize(services, &username, target_name).await?;
+    let (target, ssh_options, user) = authorize(services, &username, target_name, account).await?;
 
-    let key = (username.clone(), target_name.to_owned());
+    let key = (
+        username.clone(),
+        target_name.to_owned(),
+        account.filter(|a| !a.is_empty()).map(str::to_owned),
+    );
     {
         let connections = CONNECTIONS.lock().await;
         if let Some(conn) = connections.get(&key) {
             conn.touch();
             return Ok(conn.clone());
         }
-        if connections.keys().filter(|(u, _)| *u == username).count() >= MAX_CONNECTIONS_PER_USER {
+        if connections
+            .keys()
+            .filter(|(u, _, _)| *u == username)
+            .count()
+            >= MAX_CONNECTIONS_PER_USER
+        {
             return Err(SftpError::TooManyConnections(body(
                 "Too many concurrent file manager connections",
             )));
@@ -242,15 +256,21 @@ async fn authorize(
     services: &Services,
     username: &str,
     target_name: &str,
+    account: Option<&str>,
 ) -> Result<(Target, TargetSSHOptions, AuthStateUserInfo), SftpError> {
-    let resolved = resolve_and_authorize(services, username, target_name)
+    let resolved = resolve_and_authorize(services, username, target_name, account)
         .await
-        .map_err(|msg| match msg {
-            "User not found" => SftpError::Unauthorized(body(msg)),
-            "Access denied to target" => SftpError::Forbidden(body(msg)),
-            "Target not found" => SftpError::NotFound(body(msg)),
-            "Target is not an SSH target" => SftpError::BadRequest(body(msg)),
-            _ => SftpError::internal(msg),
+        .map_err(|e| match e {
+            ResolveError::Denied(msg @ "User not found") => SftpError::Unauthorized(body(msg)),
+            ResolveError::Denied(msg @ "Access denied to target") => {
+                SftpError::Forbidden(body(msg))
+            }
+            ResolveError::Denied(msg @ "Target not found") => SftpError::NotFound(body(msg)),
+            ResolveError::Denied(msg @ "Target is not an SSH target") => {
+                SftpError::BadRequest(body(msg))
+            }
+            ResolveError::Denied(msg) => SftpError::internal(msg),
+            ResolveError::Login(msg) => SftpError::BadRequest(body(msg)),
         })?;
     let allowed = services
         .config_provider
@@ -605,6 +625,8 @@ pub struct SftpListing {
 pub struct PathQuery {
     /// Defaults to the login directory.
     path: Option<String>,
+    /// See [`LoginQuery`].
+    account: Option<String>,
 }
 
 api_response! {
@@ -627,7 +649,7 @@ async fn api_sftp_list(
     _sec_scheme: AnySecurityScheme,
     Query(query): Query<PathQuery>,
 ) -> Result<ListResponse, SftpError> {
-    let conn = connection(&services, &auth, &target_name).await?;
+    let conn = connection(&services, &auth, &target_name, query.account.as_deref()).await?;
     let requested = query.path.unwrap_or_else(|| ".".into());
     validate_path(&requested)?;
     let path = call(&conn, conn.sftp.canonicalize(requested).await).await?;
@@ -711,16 +733,22 @@ async fn audited(
     result.map(|()| OkResponse::Done)
 }
 
-#[utoipa::path(post, path = "/sftp/{target_name}/mkdir", operation_id = "sftp_mkdir")]
+#[utoipa::path(
+    post,
+    path = "/sftp/{target_name}/mkdir",
+    operation_id = "sftp_mkdir",
+    params(LoginQuery)
+)]
 async fn api_sftp_mkdir(
     target_name: Path<String>,
     services: Data<Services>,
     auth: Data<RequestAuthorization>,
     _sec_scheme: AnySecurityScheme,
+    Query(login): Query<LoginQuery>,
     body: Json<MkdirRequest>,
 ) -> Result<OkResponse, SftpError> {
     validate_path(&body.path)?;
-    let conn = connection(&services, &auth, &target_name).await?;
+    let conn = connection(&services, &auth, &target_name, login.account.as_deref()).await?;
     let result = conn.sftp.create_dir(body.path.clone()).await;
     audited(&services, &conn, "mkdir", &body.path, None, result).await
 }
@@ -728,18 +756,20 @@ async fn api_sftp_mkdir(
 #[utoipa::path(
     post,
     path = "/sftp/{target_name}/rename",
-    operation_id = "sftp_rename"
+    operation_id = "sftp_rename",
+    params(LoginQuery)
 )]
 async fn api_sftp_rename(
     target_name: Path<String>,
     services: Data<Services>,
     auth: Data<RequestAuthorization>,
     _sec_scheme: AnySecurityScheme,
+    Query(login): Query<LoginQuery>,
     body: Json<RenameRequest>,
 ) -> Result<OkResponse, SftpError> {
     validate_path(&body.from)?;
     validate_path(&body.to)?;
-    let conn = connection(&services, &auth, &target_name).await?;
+    let conn = connection(&services, &auth, &target_name, login.account.as_deref()).await?;
     let result = conn.sftp.rename(body.from.clone(), body.to.clone()).await;
     audited(
         &services,
@@ -755,17 +785,19 @@ async fn api_sftp_rename(
 #[utoipa::path(
     post,
     path = "/sftp/{target_name}/remove",
-    operation_id = "sftp_remove"
+    operation_id = "sftp_remove",
+    params(LoginQuery)
 )]
 async fn api_sftp_remove(
     target_name: Path<String>,
     services: Data<Services>,
     auth: Data<RequestAuthorization>,
     _sec_scheme: AnySecurityScheme,
+    Query(login): Query<LoginQuery>,
     body: Json<RemoveRequest>,
 ) -> Result<OkResponse, SftpError> {
     validate_path(&body.path)?;
-    let conn = connection(&services, &auth, &target_name).await?;
+    let conn = connection(&services, &auth, &target_name, login.account.as_deref()).await?;
     let (operation, result) = if body.directory {
         ("rmdir", conn.sftp.remove_dir(body.path.clone()).await)
     } else {
@@ -815,7 +847,7 @@ pub async fn api_sftp_download(
     auth: Data<RequestAuthorization>,
     Query(query): Query<PathQuery>,
 ) -> Response {
-    match download(&services, &auth, &target_name, query.path).await {
+    match download(&services, &auth, &target_name, query.path, query.account).await {
         Ok(response) => response,
         Err(err) => err.into_response(),
     }
@@ -826,10 +858,11 @@ async fn download(
     auth: &RequestAuthorization,
     target_name: &str,
     path: Option<String>,
+    account: Option<String>,
 ) -> Result<Response, SftpError> {
     let path = path.ok_or_else(|| SftpError::BadRequest(body("path is required")))?;
     validate_path(&path)?;
-    let conn = connection(services, auth, target_name).await?;
+    let conn = connection(services, auth, target_name, account.as_deref()).await?;
     let mut file = match call(&conn, conn.sftp.open(path.clone()).await).await {
         Ok(file) => file,
         Err(err) => {
@@ -915,6 +948,7 @@ pub struct UploadQuery {
     path: Option<String>,
     #[serde(default)]
     overwrite: bool,
+    account: Option<String>,
 }
 
 /// Streams the request body into a file on the target; audited as a write.
@@ -962,7 +996,7 @@ async fn upload(
             "Upload exceeds the size limit",
         )));
     }
-    let conn = connection(services, auth, target_name).await?;
+    let conn = connection(services, auth, target_name, query.account.as_deref()).await?;
     if !query.overwrite && call(&conn, conn.sftp.try_exists(path.clone()).await).await? {
         return Err(SftpError::Conflict(body(
             "A file with this name already exists",

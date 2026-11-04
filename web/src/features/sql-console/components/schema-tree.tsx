@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import type { DbKind, DbSchemaList } from '@/shared/lib/api/db-console'
+import type { TargetRef } from '@/shared/lib/api/target-ref'
 import { ChevronDown, ChevronRight, Database, Eye, KeyRound, Table as TableIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +12,7 @@ import { Button } from '@/shared/ui/button'
 import { Skeleton } from '@/shared/ui/skeleton'
 
 export interface SchemaTreeProps {
-  target: string
+  target: TargetRef
   readonly?: boolean
   selectedSchema?: string
   selectedTable?: string
@@ -80,7 +81,7 @@ function SchemaTreeBody({
   onSelectTable,
 }: {
   data: DbSchemaList
-  target: string
+  target: TargetRef
   readonly?: boolean
   selectedSchema?: string
   selectedTable?: string
@@ -159,7 +160,7 @@ function SchemaTables({
   selectedTable,
   onSelectTable,
 }: {
-  target: string
+  target: TargetRef
   schema: string
   selectedSchema?: string
   selectedTable?: string
@@ -244,7 +245,7 @@ function SchemaTables({
   )
 }
 
-function SchemaColumns({ target, schema, table }: { target: string, schema: string, table: string }) {
+function SchemaColumns({ target, schema, table }: { target: TargetRef, schema: string, table: string }) {
   const { t } = useTranslation()
   const columnsQuery = useDbColumns(target, schema, table)
 

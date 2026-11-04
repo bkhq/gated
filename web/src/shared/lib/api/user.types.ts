@@ -655,6 +655,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/targets/{name}/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Accounts the user must choose between to connect to a target: the
+         *     accounts their granting roles map to. Empty when no choice is needed (a
+         *     single login applies). Pass the chosen name as `?account=` to the
+         *     terminal, file manager and SQL console routes, or as
+         *     `<user>:<target>:<account>` to native clients.
+         */
+        get: operations["get_target_accounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1484,6 +1507,7 @@ export interface operations {
             query: {
                 schema: string;
                 table: string;
+                account?: string;
             };
             header?: never;
             path: {
@@ -1562,7 +1586,9 @@ export interface operations {
     };
     run_db_query: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: string;
+            };
             header?: never;
             path: {
                 target_name: string;
@@ -1644,7 +1670,9 @@ export interface operations {
     };
     get_db_schemas: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: string;
+            };
             header?: never;
             path: {
                 target_name: string;
@@ -1724,6 +1752,7 @@ export interface operations {
         parameters: {
             query?: {
                 schema?: string;
+                account?: string;
             };
             header?: never;
             path: {
@@ -2366,6 +2395,8 @@ export interface operations {
             query?: {
                 /** @description Defaults to the login directory. */
                 path?: string;
+                /** @description See [`LoginQuery`]. */
+                account?: string;
             };
             header?: never;
             path: {
@@ -2460,7 +2491,9 @@ export interface operations {
     };
     sftp_mkdir: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: string;
+            };
             header?: never;
             path: {
                 target_name: string;
@@ -2556,7 +2589,9 @@ export interface operations {
     };
     sftp_remove: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: string;
+            };
             header?: never;
             path: {
                 target_name: string;
@@ -2652,7 +2687,9 @@ export interface operations {
     };
     sftp_rename: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: string;
+            };
             header?: never;
             path: {
                 target_name: string;
@@ -2886,6 +2923,33 @@ export interface operations {
                 content: {
                     "application/json; charset=utf-8": components["schemas"]["TargetSnapshot"][];
                 };
+            };
+        };
+    };
+    get_target_accounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string[];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

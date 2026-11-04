@@ -290,6 +290,14 @@
             }
           },
           {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "target_name",
             "in": "path",
             "required": true,
@@ -395,6 +403,14 @@
       "post": {
         "operationId": "run_db_query",
         "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "target_name",
             "in": "path",
@@ -512,6 +528,14 @@
         "operationId": "get_db_schemas",
         "parameters": [
           {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "target_name",
             "in": "path",
             "required": true,
@@ -619,6 +643,14 @@
         "parameters": [
           {
             "name": "schema",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account",
             "in": "query",
             "required": false,
             "schema": {
@@ -1372,6 +1404,15 @@
             }
           },
           {
+            "name": "account",
+            "in": "query",
+            "description": "See [`LoginQuery`].",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "target_name",
             "in": "path",
             "required": true,
@@ -1487,6 +1528,14 @@
       "post": {
         "operationId": "sftp_mkdir",
         "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "target_name",
             "in": "path",
@@ -1606,6 +1655,14 @@
         "operationId": "sftp_remove",
         "parameters": [
           {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "target_name",
             "in": "path",
             "required": true,
@@ -1723,6 +1780,14 @@
       "post": {
         "operationId": "sftp_rename",
         "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "target_name",
             "in": "path",
@@ -1985,6 +2050,45 @@
               }
             }
           }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/targets/{name}/accounts": {
+      "get": {
+        "summary": "Accounts the user must choose between to connect to a target: the\naccounts their granting roles map to. Empty when no choice is needed (a\nsingle login applies). Pass the chosen name as `?account=` to the\nterminal, file manager and SQL console routes, or as\n`<user>:<target>:<account>` to native clients.",
+        "operationId": "get_target_accounts",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {}
         },
         "security": [
           {

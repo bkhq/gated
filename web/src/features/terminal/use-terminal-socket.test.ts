@@ -323,6 +323,12 @@ describe('useTerminalSocket', () => {
     },
   )
 
+  it('passes the picked account to the terminal endpoint', async () => {
+    renderHook(() => useTerminalSocket({ kind: 'ssh', targetName: 'web-01', account: 'deploy' }))
+    await flush()
+    expect(FakeWebSocket.instances[0]!.url.endsWith('/api/ssh/terminal/web-01?account=deploy')).toBe(true)
+  })
+
   it('opens a fresh session when connectionId changes after the session ended', async () => {
     const hook = renderHook(
       ({ connectionId }) => useTerminalSocket({ kind: 'ssh', targetName: 't', connectionId }),

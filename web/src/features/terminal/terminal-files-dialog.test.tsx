@@ -25,7 +25,7 @@ describe('terminalFilesDialog', () => {
     render(<TerminalFilesDialog mode="upload" targetName="box" initialFiles={[file]} onClose={onClose} />)
     fireEvent.click(screen.getByRole('button', { name: 'terminal.files.upload' }))
     await waitFor(() => expect(onClose).toHaveBeenCalled())
-    expect(vi.mocked(api.uploadFile).mock.calls[0]?.slice(0, 2)).toEqual(['box', '/root/notes.txt'])
+    expect(vi.mocked(api.uploadFile).mock.calls[0]?.slice(0, 2)).toEqual([{ name: 'box' }, '/root/notes.txt'])
   })
 
   it('asks before overwriting an existing file', async () => {

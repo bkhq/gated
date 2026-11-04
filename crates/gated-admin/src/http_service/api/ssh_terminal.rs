@@ -1,7 +1,8 @@
+use super::targets_list::LoginQuery;
 use super::terminal_details::{ConnectedDetails, HostKeyDetails};
 use crate::http_service::common::upgrade;
-use axum::extract::Path;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{Path, Query};
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use gated_common::web::Data;
@@ -232,23 +233,60 @@ fn extract_username(auth: Option<Data<RequestAuthorization>>) -> Option<String> 
     }
 }
 
+/// Why a terminal or file manager request could not be resolved.
+pub(super) enum ResolveError {
+    Denied(&'static str),
+    /// The account to sign in with could not be chosen (none picked or not allowed).
+    Login(String),
+}
+
+impl std::fmt::Display for ResolveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Denied(message) => f.write_str(message),
+            Self::Login(message) => f.write_str(message),
+        }
+    }
+}
+
+/// Pick the login for a web connection; internal failures are logged.
+pub(super) async fn select_login(
+    db: &sea_orm::DatabaseConnection,
+    target: &Target,
+    username: &str,
+    account: Option<&str>,
+) -> Result<gated_core::account_credentials::TargetLogin, ResolveError> {
+    use gated_core::account_credentials::LoginSelectionError;
+    gated_core::account_credentials::select_login(db, target.id, username, account)
+        .await
+        .map_err(|e| match e {
+            LoginSelectionError::Internal(e) => {
+                error!(%e, "Failed to select the target account");
+                ResolveError::Denied("Internal server error")
+            }
+            e => ResolveError::Login(e.to_string()),
+        })
+}
+
 /// Resolve target and authorize user access. Returns (Target, SshOptions, UserInfo).
 pub(super) async fn resolve_and_authorize(
     services: &Services,
     username: &str,
     target_name: &str,
-) -> Result<(Target, TargetSSHOptions, AuthStateUserInfo), &'static str> {
+    account: Option<&str>,
+) -> Result<(Target, TargetSSHOptions, AuthStateUserInfo), ResolveError> {
+    use ResolveError::Denied;
     let mut config_provider = services.config_provider.lock().await;
 
     let users = config_provider.list_users().await.map_err(|e| {
         error!(%e, "Failed to list users");
-        "Internal server error"
+        Denied("Internal server error")
     })?;
 
     let user = users
         .iter()
         .find(|u| u.username == username)
-        .ok_or("User not found")?;
+        .ok_or(Denied("User not found"))?;
 
     let user_info = AuthStateUserInfo {
         id: user.id,
@@ -260,25 +298,25 @@ pub(super) async fn resolve_and_authorize(
         .await
         .map_err(|e| {
             error!(%e, "Authorization check failed");
-            "Internal server error"
+            Denied("Internal server error")
         })?;
 
     if !authorized {
-        return Err("Access denied to target");
+        return Err(Denied("Access denied to target"));
     }
 
     let targets = config_provider.list_targets().await.map_err(|e| {
         error!(%e, "Failed to list targets");
-        "Internal server error"
+        Denied("Internal server error")
     })?;
 
     let target = targets
         .into_iter()
         .find(|t| t.name == target_name)
-        .ok_or("Target not found")?;
+        .ok_or(Denied("Target not found"))?;
 
     if !matches!(target.options, TargetOptions::Ssh(_)) {
-        return Err("Target is not an SSH target");
+        return Err(Denied("Target is not an SSH target"));
     }
 
     // Apply the bound account's credentials onto the target's inline SSH
@@ -290,14 +328,20 @@ pub(super) async fn resolve_and_authorize(
     let (ssh_options, account_id) = {
         let db = gated_core::db_required(&services.db).await.map_err(|e| {
             error!(%e, "Database unavailable");
-            "Internal server error"
+            Denied("Internal server error")
         })?;
-        gated_core::account_credentials::ssh_options_with_account(&db, &target, Some(username))
-            .await
-            .map_err(|e| {
-                error!(%e, "Failed to resolve SSH account credentials");
-                "Internal server error"
-            })?
+        let login = select_login(&db, &target, username, account).await?;
+        gated_core::account_credentials::ssh_options_with_account(
+            &db,
+            &target,
+            login,
+            Some(username),
+        )
+        .await
+        .map_err(|e| {
+            error!(%e, "Failed to resolve SSH account credentials");
+            Denied("Internal server error")
+        })?
     };
 
     if let Some(account_id) = account_id
@@ -739,6 +783,7 @@ pub async fn api_ssh_terminal(
     req: Parts,
     ws: WebSocketUpgrade,
     Path(target_name): Path<String>,
+    Query(login): Query<LoginQuery>,
     services: Data<Services>,
     auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
@@ -803,21 +848,27 @@ pub async fn api_ssh_terminal(
         let (mut sink, mut source) = socket.split();
 
         // Resolve target and authorize
-        let (target, ssh_options, user_info) =
-            match resolve_and_authorize(&services, &username, &target_name).await {
-                Ok(v) => v,
-                Err(msg) => {
-                    warn!(
-                        username = %username,
-                        target = %target_name,
-                        protocol = "ssh_terminal",
-                        reason = %msg,
-                        "ssh_terminal_authorize_failed"
-                    );
-                    send_status(&mut sink, "error", msg).await;
-                    return;
-                }
-            };
+        let (target, ssh_options, user_info) = match resolve_and_authorize(
+            &services,
+            &username,
+            &target_name,
+            login.account.as_deref(),
+        )
+        .await
+        {
+            Ok(v) => v,
+            Err(msg) => {
+                warn!(
+                    username = %username,
+                    target = %target_name,
+                    protocol = "ssh_terminal",
+                    reason = %msg,
+                    "ssh_terminal_authorize_failed"
+                );
+                send_status(&mut sink, "error", &msg.to_string()).await;
+                return;
+            }
+        };
 
         // Register session
         let close = Arc::new(tokio::sync::Notify::new());

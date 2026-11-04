@@ -7,6 +7,8 @@ pub enum AuthSelector {
     User {
         username: String,
         target_name: String,
+        /// Account to sign in with when the user may use several.
+        account: Option<String>,
     },
     Ticket {
         secret: Secret<String>,
@@ -26,12 +28,14 @@ impl<T: AsRef<str>> From<T> for AuthSelector {
             ':'
         };
 
-        let mut parts = selector.as_ref().splitn(2, separator);
+        let mut parts = selector.as_ref().splitn(3, separator);
         let username = parts.next().unwrap_or("").to_string();
         let target_name = parts.next().unwrap_or("").to_string();
+        let account = parts.next().filter(|a| !a.is_empty()).map(str::to_string);
         AuthSelector::User {
             username,
             target_name,
+            account,
         }
     }
 }
@@ -42,8 +46,44 @@ impl Debug for AuthSelector {
             AuthSelector::User {
                 username,
                 target_name,
+                account: None,
             } => write!(f, "<{username} for {target_name}>"),
+            AuthSelector::User {
+                username,
+                target_name,
+                account: Some(account),
+            } => write!(f, "<{username} for {target_name} as {account}>"),
             AuthSelector::Ticket { .. } => write!(f, "<ticket>"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn user(selector: &str) -> (String, String, Option<String>) {
+        match AuthSelector::from(selector) {
+            AuthSelector::User {
+                username,
+                target_name,
+                account,
+            } => (username, target_name, account),
+            AuthSelector::Ticket { .. } => panic!("not a user selector"),
+        }
+    }
+
+    #[test]
+    fn an_optional_third_part_names_the_account() {
+        assert_eq!(user("alice:web"), ("alice".into(), "web".into(), None));
+        assert_eq!(
+            user("alice:web:deploy"),
+            ("alice".into(), "web".into(), Some("deploy".into()))
+        );
+        assert_eq!(
+            user("alice#web#deploy"),
+            ("alice".into(), "web".into(), Some("deploy".into()))
+        );
+        assert_eq!(user("alice:web:"), ("alice".into(), "web".into(), None));
     }
 }

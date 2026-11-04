@@ -1,4 +1,5 @@
 import type { TargetTab } from './use-target-detail-tabs'
+import type { TargetWithAccounts } from '@/features/targets/hooks/use-targets-queries'
 import type { Info } from '@/shared/lib/api/info'
 import type { LiveSession, Target } from '@/shared/types/domain'
 import { useQuery } from '@tanstack/react-query'
@@ -7,7 +8,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCreateApiToken } from '@/features/api-tokens/hooks/use-api-tokens-queries'
 import { TrustHostKeyDialog } from '@/features/known-hosts/components/trust-host-key-dialog'
-import { useTargetRoles } from '@/features/targets/hooks/use-targets-queries'
+import { useSetTargetRoleAccount, useTargetRoleAccounts, useTargetRoles } from '@/features/targets/hooks/use-targets-queries'
 import { buildBrowserUrl, buildConnectCommand } from '@/features/targets/lib/connect-command'
 import { targetGroupLabel } from '@/features/targets/lib/target-group'
 import { EmptyState } from '@/shared/components/empty-state'
@@ -17,6 +18,7 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
+import { Select } from '@/shared/ui/select'
 import { Table, TBody, TD, TH, THead, TR } from '@/shared/ui/table'
 import { Tabs, TabsContent } from '@/shared/ui/tabs'
 
@@ -267,6 +269,11 @@ export function TargetDetailTabsBody({ target, mode, mySessions, tabsValue, onTa
     staleTime: 0,
   })
   const targetRolesQuery = useTargetRoles(isAdminView ? target.id : undefined)
+  // Each granting role may sign in with one of the target's bound accounts.
+  const accounts = (isAdminView ? (target as TargetWithAccounts).accounts : undefined) ?? []
+  const roleAccountsQuery = useTargetRoleAccounts(isAdminView && accounts.length > 0 ? target.id : undefined)
+  const roleAccounts = new Map((roleAccountsQuery.data ?? []).map(row => [row.role_id, row.account_id]))
+  const setRoleAccount = useSetTargetRoleAccount(target.id)
 
   const handleRowAction = (session: LiveSession) => {
     if (session.state === 'live') {
@@ -537,6 +544,20 @@ export function TargetDetailTabsBody({ target, mode, mySessions, tabsValue, onTa
                               {t('targets.detail.permissions.adminGrantsAccess')}
                             </div>
                           </div>
+                          {accounts.length > 0
+                            ? (
+                                <Select
+                                  className="w-[220px]"
+                                  aria-label={t('targets.detail.permissions.signInAs', { role: role.name })}
+                                  value={String(roleAccounts.get(role.id) ?? '')}
+                                  onValueChange={value => setRoleAccount.mutate({ roleId: role.id, accountId: value ? Number(value) : null })}
+                                  options={[
+                                    { value: '', label: t('targets.detail.permissions.defaultLogin') },
+                                    ...accounts.map(account => ({ value: String(account.account_id), label: account.account_name })),
+                                  ]}
+                                />
+                              )
+                            : null}
                         </div>
                       ))}
           </CardContent>

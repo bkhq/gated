@@ -2,6 +2,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SqlConsolePage } from '@/features/sql-console/sql-console-page'
+import { TargetAccountGate } from '@/features/targets/components/target-account-gate'
 import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
 import { EmptyState } from '@/shared/components/empty-state'
 
@@ -58,5 +59,9 @@ export function SqlConsoleRoute() {
     )
   }
 
-  return <SqlConsolePage targetName={target.name} />
+  return (
+    <TargetAccountGate targetName={target.name}>
+      {account => <SqlConsolePage targetName={target.name} account={account} />}
+    </TargetAccountGate>
+  )
 }

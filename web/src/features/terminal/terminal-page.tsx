@@ -3,6 +3,7 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { ArrowLeft, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { TargetAccountGate } from '@/features/targets/components/target-account-gate'
 import { EmptyState } from '@/shared/components/empty-state'
 import { Button } from '@/shared/ui/button'
 import { useAppStore } from '@/store/app-store'
@@ -156,17 +157,22 @@ export function TerminalPage() {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <TerminalScreen
-          kind={kind}
-          targetName={targetName}
-          bannerLabels={bannerLabels}
-          hostKeyLabels={hostKeyLabels}
-          keyBarLabels={keyBarLabels}
-          statusMenuLabels={statusMenuLabels}
-          onSessionEnd={handleSessionEnd}
-          onNewConnection={() => void navigate({ to: '/sessions' })}
-          className="flex-1"
-        />
+        <TargetAccountGate targetName={targetName}>
+          {account => (
+            <TerminalScreen
+              kind={kind}
+              targetName={targetName}
+              account={account}
+              bannerLabels={bannerLabels}
+              hostKeyLabels={hostKeyLabels}
+              keyBarLabels={keyBarLabels}
+              statusMenuLabels={statusMenuLabels}
+              onSessionEnd={handleSessionEnd}
+              onNewConnection={() => void navigate({ to: '/sessions' })}
+              className="flex-1"
+            />
+          )}
+        </TargetAccountGate>
       </div>
     </section>
   )

@@ -10,6 +10,8 @@ pub struct Model {
     pub id: i32,
     pub target_id: Uuid,
     pub role_id: Uuid,
+    /// Account this role signs in with; `None` uses the target's default login.
+    pub account_id: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

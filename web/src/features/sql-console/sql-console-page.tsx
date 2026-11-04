@@ -2,7 +2,7 @@ import type { SqlRowLimit } from '@/features/sql-console/components/sql-editor-c
 import type { DbKind } from '@/shared/lib/api/db-console'
 import type { ApiError } from '@/shared/lib/api/http'
 import { Terminal } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ConsoleErrorBanner } from '@/features/sql-console/components/console-error-banner'
 import { ResultsGrid } from '@/features/sql-console/components/results-grid'
@@ -15,10 +15,13 @@ import { Badge } from '@/shared/ui/badge'
 
 export interface SqlConsolePageProps {
   targetName: string
+  /** The account picked for the target, when the user's roles offer several. */
+  account?: string
 }
 
-export function SqlConsolePage({ targetName }: SqlConsolePageProps) {
+export function SqlConsolePage({ targetName, account }: SqlConsolePageProps) {
   const { t } = useTranslation()
+  const target = useMemo(() => ({ name: targetName, account }), [targetName, account])
 
   const [sql, setSql] = useState('')
   const [limit, setLimit] = useState<SqlRowLimit>(1000)
@@ -37,7 +40,7 @@ export function SqlConsolePage({ targetName }: SqlConsolePageProps) {
   // another table.
   const lastAutoInsertRef = useRef<string>('')
 
-  const runMutation = useRunDbQuery(targetName)
+  const runMutation = useRunDbQuery(target)
   const bannerError = runMutation.error && runMutation.error !== dismissedErrorRef
     ? runMutation.error
     : null
@@ -106,7 +109,7 @@ export function SqlConsolePage({ targetName }: SqlConsolePageProps) {
       <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
         <aside className="overflow-y-auto border-r border-border bg-card">
           <SchemaTree
-            target={targetName}
+            target={target}
             readonly={readonly}
             selectedSchema={currentSchema}
             selectedTable={currentTable}

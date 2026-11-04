@@ -69,6 +69,8 @@ export interface TerminalScreenProps {
   onStatusChange?: (status: BannerStatus) => void
   // Offered next to "Reconnect" once the session has ended.
   onNewConnection?: () => void
+  // Account picked for the target when the user's roles offer several.
+  account?: string
 }
 
 export function TerminalScreen({
@@ -83,6 +85,7 @@ export function TerminalScreen({
   onSessionEnd,
   onStatusChange,
   onNewConnection,
+  account,
 }: TerminalScreenProps) {
   const { t } = useTranslation()
   const settings = useTerminalSettings()
@@ -114,6 +117,7 @@ export function TerminalScreen({
     targetName,
     enabled,
     connectionId,
+    account,
     onData: (payload) => {
       // xterm v6 accepts Uint8Array directly; it handles its own UTF-8 decoding.
       terminalRef.current?.write(payload)
@@ -476,6 +480,7 @@ export function TerminalScreen({
             <TerminalFilesDialog
               mode={files.mode}
               targetName={targetName}
+              account={account}
               initialFiles={files.dropped}
               onClose={() => setFiles(null)}
             />

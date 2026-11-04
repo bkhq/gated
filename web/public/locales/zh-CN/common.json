@@ -752,7 +752,9 @@
         "youAreMember": "您是此角色成员",
         "adminGrantsAccess": "该角色成员可访问此目标",
         "allowedActions": "允许的操作",
-        "noRoles": "尚无角色授权访问此目标。请在目标表单中分配角色。"
+        "noRoles": "尚无角色授权访问此目标。请在目标表单中分配角色。",
+        "signInAs": "角色 {{role}} 登录使用的账号",
+        "defaultLogin": "默认登录"
       }
     },
     "form": {
@@ -842,6 +844,10 @@
     "views": {
       "targets": "资产",
       "groups": "分组"
+    },
+    "accountGate": {
+      "title": "以哪个账号登录 {{target}}",
+      "description": "你的角色在该资产上对应多个账号，请选择本次连接使用的账号。"
     }
   },
   "targetGroups": {

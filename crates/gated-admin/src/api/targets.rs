@@ -15,7 +15,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait, QueryFilter,
     QueryOrder, Set, TransactionTrait,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
@@ -549,6 +549,19 @@ where
         .insert(db)
         .await?;
     }
+
+    // A role may only sign in with an account bound to the target.
+    let kept: Vec<i32> = accounts.iter().map(|account| account.account_id).collect();
+    TargetRoleAssignment::Entity::update_many()
+        .col_expr(
+            TargetRoleAssignment::Column::AccountId,
+            sea_orm::sea_query::Expr::value(Option::<i32>::None),
+        )
+        .filter(TargetRoleAssignment::Column::TargetId.eq(target_id))
+        .filter(TargetRoleAssignment::Column::AccountId.is_not_null())
+        .filter(TargetRoleAssignment::Column::AccountId.is_not_in(kept))
+        .exec(db)
+        .await?;
     Ok(())
 }
 
@@ -908,8 +921,105 @@ async fn api_delete_target_role(
     Ok(DeleteTargetRoleResponse::Deleted)
 }
 
+/// The account a role granted on a target signs in with.
+#[derive(Serialize, ToSchema)]
+struct TargetRoleAccount {
+    role_id: Uuid,
+    /// `null`: the target's default login.
+    account_id: Option<i32>,
+}
+
+api_response! {
+    enum GetTargetRoleAccountsResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<TargetRoleAccount>>),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/targets/{id}/role-accounts",
+    operation_id = "get_target_role_accounts"
+)]
+async fn api_get_target_role_accounts(
+    id: Path<Uuid>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+) -> Result<GetTargetRoleAccountsResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    let rows = TargetRoleAssignment::Entity::find()
+        .filter(TargetRoleAssignment::Column::TargetId.eq(*id))
+        .all(&db)
+        .await?;
+    Ok(GetTargetRoleAccountsResponse::Ok(Json(
+        rows.into_iter()
+            .map(|row| TargetRoleAccount {
+                role_id: row.role_id,
+                account_id: row.account_id,
+            })
+            .collect(),
+    )))
+}
+
+#[derive(Deserialize, ToSchema)]
+struct SetTargetRoleAccountRequest {
+    /// An account bound to the target, or `null` for the target's default login.
+    account_id: Option<i32>,
+}
+
+api_response! {
+    enum SetTargetRoleAccountResponse {
+        #[oai(status = 204)]
+        Updated,
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
+
+#[utoipa::path(
+    put,
+    path = "/targets/{id}/roles/{role_id}/account",
+    operation_id = "set_target_role_account"
+)]
+async fn api_set_target_role_account(
+    Path((id, role_id)): Path<(Uuid, Uuid)>,
+    db: Data<SharedDatabaseConnection>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<SetTargetRoleAccountRequest>,
+) -> Result<SetTargetRoleAccountResponse, GatedError> {
+    let db = gated_core::db_required(&db).await?;
+    let Some(assignment) = TargetRoleAssignment::Entity::find()
+        .filter(TargetRoleAssignment::Column::TargetId.eq(id))
+        .filter(TargetRoleAssignment::Column::RoleId.eq(role_id))
+        .one(&db)
+        .await?
+    else {
+        return Ok(SetTargetRoleAccountResponse::NotFound);
+    };
+    if let Some(account_id) = body.account_id
+        && TargetAccount::Entity::find()
+            .filter(TargetAccount::Column::TargetId.eq(id))
+            .filter(TargetAccount::Column::AccountId.eq(account_id))
+            .one(&db)
+            .await?
+            .is_none()
+    {
+        return Ok(SetTargetRoleAccountResponse::BadRequest(Json(
+            "The account is not bound to this target".into(),
+        )));
+    }
+    let mut model: TargetRoleAssignment::ActiveModel = assignment.into();
+    model.account_id = Set(body.account_id);
+    model.update(&db).await?;
+    Ok(SetTargetRoleAccountResponse::Updated)
+}
+
 pub fn router() -> OpenApiRouter {
     api_routes!(
+        api_get_target_role_accounts,
+        api_set_target_role_account,
         api_get_all_targets,
         api_create_target,
         api_get_target,
@@ -1191,6 +1301,67 @@ mod tests {
         assert_eq!(blank_db.password.as_deref(), Some("old"));
     }
 
+    #[tokio::test]
+    async fn unbinding_an_account_clears_the_roles_that_signed_in_with_it() {
+        let db = setup_db().await;
+        let target_id = insert_ssh_target(&db, "web", "10.0.0.1", 22).await;
+        let role_account = |account_id: Option<i32>| TargetRoleAssignment::ActiveModel {
+            target_id: Set(target_id),
+            role_id: Set(Uuid::new_v4()),
+            account_id: Set(account_id),
+            ..Default::default()
+        };
+        for name in ["root", "deploy"] {
+            Account::ActiveModel {
+                kind: Set("ssh-password".into()),
+                name: Set(name.into()),
+                description: Set(None),
+                credentials: Set(
+                    json!({"kind": "ssh-password", "username": name, "password": "pw"}).to_string(),
+                ),
+                tags: Set(None),
+                created_by: Set(None),
+                created_at: Set(chrono::Utc::now()),
+                updated_at: Set(chrono::Utc::now()),
+                last_used_at: Set(None),
+                rotation_due_at: Set(None),
+                ..Default::default()
+            }
+            .insert(&db)
+            .await
+            .expect("insert account");
+        }
+        role_account(Some(1))
+            .insert(&db)
+            .await
+            .expect("map role to account 1");
+        role_account(Some(2))
+            .insert(&db)
+            .await
+            .expect("map role to account 2");
+
+        replace_target_accounts(
+            &db,
+            target_id,
+            &[TargetAccountBinding {
+                account_id: 2,
+                role: TargetAccountRole::Primary,
+            }],
+        )
+        .await
+        .expect("replace target accounts");
+
+        let mut accounts: Vec<Option<i32>> = TargetRoleAssignment::Entity::find()
+            .all(&db)
+            .await
+            .expect("query role accounts")
+            .into_iter()
+            .map(|row| row.account_id)
+            .collect();
+        accounts.sort_unstable();
+        assert_eq!(accounts, vec![None, Some(2)]);
+    }
+
     async fn insert_ssh_target(db: &DatabaseConnection, name: &str, host: &str, port: u16) -> Uuid {
         let id = Uuid::new_v4();
         Target::ActiveModel {
@@ -1267,6 +1438,12 @@ mod tests {
                 account_id INTEGER NOT NULL,
                 role TEXT NOT NULL,
                 PRIMARY KEY (target_id, account_id, role)
+            )"#,
+            r#"CREATE TABLE target_roles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                target_id TEXT NOT NULL,
+                role_id TEXT NOT NULL,
+                account_id INTEGER
             )"#,
         ] {
             db.execute(Statement::from_string(DbBackend::Sqlite, sql))

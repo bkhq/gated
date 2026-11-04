@@ -1,6 +1,8 @@
 import type { ApiError } from './http'
+import type { TargetRef } from './target-ref'
 import type { components as UserComponents } from './user.types'
 import { userApi } from './http'
+import { refName, withAccount } from './target-ref'
 
 export type DbSchemaList = UserComponents['schemas']['SchemaList']
 export type DbTableList = UserComponents['schemas']['TableList']
@@ -26,35 +28,35 @@ function buildQuery(params: Record<string, string | undefined>): string {
   return parts.length > 0 ? `?${parts.join('&')}` : ''
 }
 
-export async function getDbSchemas(target: string, signal?: AbortSignal): Promise<DbSchemaList> {
-  return userApi.get<DbSchemaList>(`/db/schemas/${encodeURIComponent(target)}`, signal)
+export async function getDbSchemas(target: TargetRef, signal?: AbortSignal): Promise<DbSchemaList> {
+  return userApi.get<DbSchemaList>(withAccount(`/db/schemas/${encodeURIComponent(refName(target))}`, target), signal)
 }
 
 export async function getDbTables(
-  target: string,
+  target: TargetRef,
   schema: string | undefined,
   signal?: AbortSignal,
 ): Promise<DbTableList> {
   const query = buildQuery({ schema })
-  return userApi.get<DbTableList>(`/db/tables/${encodeURIComponent(target)}${query}`, signal)
+  return userApi.get<DbTableList>(withAccount(`/db/tables/${encodeURIComponent(refName(target))}${query}`, target), signal)
 }
 
 export async function getDbColumns(
-  target: string,
+  target: TargetRef,
   schema: string | undefined,
   table: string,
   signal?: AbortSignal,
 ): Promise<DbColumnList> {
   const query = buildQuery({ schema, table })
-  return userApi.get<DbColumnList>(`/db/columns/${encodeURIComponent(target)}${query}`, signal)
+  return userApi.get<DbColumnList>(withAccount(`/db/columns/${encodeURIComponent(refName(target))}${query}`, target), signal)
 }
 
 export async function runDbQuery(
-  target: string,
+  target: TargetRef,
   body: DbQueryRequest,
   signal?: AbortSignal,
 ): Promise<DbQueryResponse> {
-  return userApi.post<DbQueryResponse>(`/db/query/${encodeURIComponent(target)}`, body, signal)
+  return userApi.post<DbQueryResponse>(withAccount(`/db/query/${encodeURIComponent(refName(target))}`, target), body, signal)
 }
 
 // Reads `retry_after` (seconds) out of a 429 DbError envelope. Returns null

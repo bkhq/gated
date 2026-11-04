@@ -71,7 +71,8 @@ function EntryIcon({ kind }: { kind: string }) {
   return <File size={15} className="text-muted-foreground" />
 }
 
-export function FileManager({ targetName, className }: { targetName: string, className?: string }) {
+export function FileManager({ targetName, account, className }: { targetName: string, account?: string, className?: string }) {
+  const target = React.useMemo(() => ({ name: targetName, account }), [targetName, account])
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   // undefined = the login directory; the server answers with its canonical path.
@@ -84,8 +85,8 @@ export function FileManager({ targetName, className }: { targetName: string, cla
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
   const listing = useQuery({
-    queryKey: ['sftp', targetName, path ?? null],
-    queryFn: async ({ signal }) => listDirectory(targetName, path, signal),
+    queryKey: ['sftp', targetName, account ?? null, path ?? null],
+    queryFn: async ({ signal }) => listDirectory(target, path, signal),
     retry: false,
     // The pane shows why the directory could not be listed.
     meta: { inlineError: true },
@@ -120,7 +121,7 @@ export function FileManager({ targetName, className }: { targetName: string, cla
     const id = uploadSeq
     setUploads(items => [...items, { id, name: file.name, size: file.size, loaded: 0, status: 'uploading' }])
     try {
-      await uploadFile(targetName, joinPath(cwd, file.name), file, {
+      await uploadFile(target, joinPath(cwd, file.name), file, {
         overwrite,
         onProgress: loaded => patchUpload(id, { loaded }),
       })
@@ -300,7 +301,7 @@ export function FileManager({ targetName, className }: { targetName: string, cla
                     <EntryRow
                       key={entry.name}
                       entry={entry}
-                      href={downloadUrl(targetName, joinPath(cwd, entry.name))}
+                      href={downloadUrl(target, joinPath(cwd, entry.name))}
                       onOpen={() => navigate(joinPath(cwd, entry.name))}
                       onRename={() => setDialog({ type: 'rename', entry })}
                       onRemove={() => setDialog({ type: 'remove', entry })}
@@ -359,9 +360,9 @@ export function FileManager({ targetName, className }: { targetName: string, cla
           const current = dialog
           setDialog(null)
           if (current?.type === 'rename')
-            void run(async () => renamePath(targetName, joinPath(cwd, current.entry.name), joinPath(cwd, name)))
+            void run(async () => renamePath(target, joinPath(cwd, current.entry.name), joinPath(cwd, name)))
           else
-            void run(async () => makeDirectory(targetName, joinPath(cwd, name)))
+            void run(async () => makeDirectory(target, joinPath(cwd, name)))
         }}
       />
       <ConfirmDialog
@@ -380,7 +381,7 @@ export function FileManager({ targetName, className }: { targetName: string, cla
           if (current?.type === 'overwrite')
             void startUpload(current.file, true)
           else if (current?.type === 'remove')
-            void run(async () => removePath(targetName, joinPath(cwd, current.entry.name), current.entry.kind === 'dir'))
+            void run(async () => removePath(target, joinPath(cwd, current.entry.name), current.entry.kind === 'dir'))
         }}
       />
     </div>

@@ -163,6 +163,17 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 - Query: `search?: string` — case-insensitive substring of the target name or group name.
 - Responses: `200 OK` `Json<TargetSnapshot[]>`. A ticket session sees only the ticket's target.
 
+#### `GET /api/targets/:name/accounts` — `get_target_accounts` [OAS]
+
+- Summary: the accounts the current user must choose between to connect to the target.
+- Responses: `200 OK` `Json<string[]>` — account names, sorted, only when the user's roles map the target to more than one account; otherwise `[]` (nothing to choose). `404` when the target is unknown or not authorized.
+
+> **Per-role accounts.** Each target↔role binding may name one of the target's bound accounts (`target_roles.account_id`, set with `PUT /admin/api/targets/:id/roles/:role_id/account`). A user signs in with the account of the role that granted access; a binding without an account uses the target's default login (the primary account, or the inline credentials). When the user's roles lead to several accounts, the user picks one:
+> - native SSH / MySQL / PostgreSQL clients: `<user>:<target>:<account>` (or `<user>#<target>#<account>`) as the login name; without it the connection is refused with the list of choices;
+> - web terminals, the file manager and the SQL console: the `account` query parameter (the UI asks before connecting).
+>
+> Naming an account the user's roles do not map to is refused. Each selection writes a `Target account selected` audit entry (`account`), a refusal a `Target account not selected` entry. Limitations: HTTP targets always use the default login; the inline-credential login cannot be named, so it is reachable only when it is the user's only choice.
+
 ### 1.4 Own credentials (`credentials.rs`)
 
 > All of these paths are wrapped in `parameters_based_auth`: when `parameters.allow_own_credential_management = false`, **every** endpoint returns `403 Forbidden` with the plain text `"Credential management is disabled"` instead of the OpenAPI `403` variant.
@@ -258,6 +269,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 ### 1.7 SQL console (`db_query.rs`)
 
 > Errors from all four endpoints use the `DbError` envelope `Json<ErrorBody> { error: string }`; `429` also carries `Retry-After: <seconds>`. Status codes: `400 / 401 / 403 / 404 / 429 / 500 / 502`.
+> All four accept `account?: string` in the query to choose the sign-in account (see §1.3); an unavailable or missing choice is `400`.
 
 #### `GET /api/db/schemas/:target_name` — `get_db_schemas` [OAS]
 
@@ -285,6 +297,8 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 
 ### 1.8 Terminal WebSockets (not OpenAPI)
 
+> All terminals accept `account?: string` in the query to choose the sign-in account (see §1.3). When the choice is missing or not available, the socket reports it in a `MSG_STATUS {status:"error"}` frame.
+
 #### `GET /api/ssh/terminal/:target_name` — `api_ssh_terminal` [raw]
 
 - Checks before the upgrade: `target_name` must match the pattern, otherwise `400 "Invalid target name"`; unauthenticated → `401 "Not authenticated"`; more than `MAX_SESSIONS_PER_USER = 10` concurrent sessions → `429 "Too many concurrent terminal sessions"`.
@@ -310,7 +324,8 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 
 > Opens an SFTP subsystem on SSH targets through the gateway's own SSH client. Besides target authorization, the user needs at least one role with `allow_file_transfer = true` on that target, otherwise `403 "File transfer is not allowed on this target"`. Errors are `Json<SftpErrorBody> { error: string }`; status codes `400 / 401 / 403 / 404 / 409 / 413 / 429 / 500 / 502`. SFTP `NoSuchFile` → `404`, `PermissionDenied` → `403`, other SFTP statuses → `400`, transport errors → `502`.
 
-- Connections: one SFTP connection is reused per (user, target) and closed after 5 idle minutes; at most 4 connections per user, beyond that `429`. Each connection is registered as a `WebSFTP` session and can be closed from session monitoring.
+- Account: every endpoint accepts `account?: string` in the query (see §1.3); a missing or unavailable choice is `400`.
+- Connections: one SFTP connection is reused per (user, target, account) and closed after 5 idle minutes; at most 4 connections per user, beyond that `429`. Each connection is registered as a `WebSFTP` session and can be closed from session monitoring.
 - Host keys: unknown keys are accepted only under `auto_accept`; otherwise `409` with the `SHA256:` fingerprint, asking the user to confirm through the web terminal first. A mismatching known key is also `409`.
 - Audit: every change and transfer (but not directory listings) is written to that session's `FileAudit` recording named `web-files` (`origin: "web"`), plus one `target: audit` log entry; see §2.14 for queries.
 
@@ -540,6 +555,16 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 #### `GET /admin/api/targets/:id/roles` — `get_target_roles` [OAS] — `200` `Role[]` / `404`.
 #### `POST /admin/api/targets/:id/roles/:role_id` — `add_target_role` [OAS] — `201` / `409`.
 #### `DELETE /admin/api/targets/:id/roles/:role_id` — `delete_target_role` [OAS] — `204` / `404`.
+
+#### `GET /admin/api/targets/:id/role-accounts` — `get_target_role_accounts` [OAS]
+
+- Responses: `200 OK` `{ role_id: uuid, account_id: i32 | null }[]` — the account each bound role signs in with (`null`: default login).
+
+#### `PUT /admin/api/targets/:id/roles/:role_id/account` — `set_target_role_account` [OAS]
+
+- Body: `{ account_id: i32 | null }` (`null` returns the role to the default login).
+- Responses: `204` / `400 "The account is not bound to this target"` / `404` (the role is not bound to the target).
+- Unbinding an account from the target (`PUT /admin/api/targets/:id` with a new `accounts` list) resets the roles that used it to the default login.
 
 ### 2.6 Target groups (`target_groups.rs`)
 
@@ -1211,6 +1236,7 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | GET | `/api/sso/providers/:name/start` | `start_sso` |  |
 | GET | `/api/sso/providers` | `get_sso_providers` |  |
 | GET | `/api/sso/return` | `return_to_sso` |  |
+| GET | `/api/targets/:name/accounts` | `get_target_accounts` | Accounts the user must choose between to connect to a target: the |
 | GET | `/api/targets` | `get_targets` |  |
 | POST | `/api/auth/activity` | `report_activity` | Report user activity so the browser session stays signed in for its |
 | POST | `/api/auth/login` | `login` |  |
@@ -1284,6 +1310,7 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | GET | `/admin/api/target-groups/:id` | `get_target_group` |  |
 | GET | `/admin/api/target-groups` | `list_target_groups` |  |
 | GET | `/admin/api/targets/:id/known-ssh-host-keys` | `get_ssh_target_known_ssh_host_keys` |  |
+| GET | `/admin/api/targets/:id/role-accounts` | `get_target_role_accounts` |  |
 | GET | `/admin/api/targets/:id/roles` | `get_target_roles` |  |
 | GET | `/admin/api/targets/:id/upstream-certificate` | `get_target_upstream_certificate` |  |
 | GET | `/admin/api/targets/:id` | `get_target` |  |
@@ -1336,6 +1363,7 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | PUT | `/admin/api/parameters` | `update_parameters` |  |
 | PUT | `/admin/api/role/:id` | `update_role` |  |
 | PUT | `/admin/api/target-groups/:id` | `update_target_group` |  |
+| PUT | `/admin/api/targets/:id/roles/:role_id/account` | `set_target_role_account` |  |
 | PUT | `/admin/api/targets/:id` | `update_target` |  |
 | PUT | `/admin/api/tls/acme` | `update_acme_settings` | Saves the ACME account and DNS provider. Changing the directory or contact |
 | PUT | `/admin/api/tls/certificates/:listener/acme` | `enable_tls_acme` | Issues the listener's certificate through ACME now and renews it |

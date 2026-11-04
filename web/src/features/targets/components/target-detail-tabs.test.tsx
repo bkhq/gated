@@ -7,7 +7,11 @@ import { useTargetDetailTabs } from './use-target-detail-tabs'
 
 vi.mock('@/shared/hooks/use-info', () => ({ useInfo: () => ({ data: undefined }) }))
 vi.mock('@/features/api-tokens/hooks/use-api-tokens-queries', () => ({ useCreateApiToken: () => ({ isPending: false, mutateAsync: vi.fn() }) }))
-vi.mock('@/features/targets/hooks/use-targets-queries', () => ({ useTargetRoles: () => ({ data: [] }) }))
+vi.mock('@/features/targets/hooks/use-targets-queries', () => ({
+  useTargetRoles: () => ({ data: [] }),
+  useTargetRoleAccounts: () => ({ data: [] }),
+  useSetTargetRoleAccount: () => ({ mutate: vi.fn() }),
+}))
 vi.mock('@/shared/lib/api/targets', () => ({
   getTargetKnownSshHostKeys: vi.fn(async () => []),
   getTargetUpstreamCertificate: vi.fn(async () => ({

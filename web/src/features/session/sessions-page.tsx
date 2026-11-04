@@ -17,6 +17,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileManager } from '@/features/files/file-manager'
 import { SqlConsolePage } from '@/features/sql-console/sql-console-page'
+import { TargetAccountGate } from '@/features/targets/components/target-account-gate'
 import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
 import { TerminalScreen } from '@/features/terminal/terminal-screen'
 import { statusDotClass } from '@/features/terminal/terminal-status'
@@ -205,23 +206,26 @@ export function SessionsPage({ visible }: { visible: boolean }) {
                   key={session.id}
                   className={cn('min-h-0 flex-1', session.type !== 'terminal' && 'p-2', session.id !== active?.id && 'hidden')}
                 >
-                  {session.type === 'sql'
-                    ? <SqlConsolePage targetName={session.targetName} />
-                    : session.type === 'files'
-                      ? <FileManager targetName={session.targetName} className="h-full" />
-                      : (
-                          <TerminalScreen
-                            kind={session.kind}
-                            targetName={session.targetName}
-                            bannerLabels={bannerLabels}
-                            hostKeyLabels={hostKeyLabels}
-                            keyBarLabels={keyBarLabels}
-                            statusMenuLabels={statusMenuLabels}
-                            onStatusChange={status => reportStatus(session.id, status)}
-                            onNewConnection={() => setQuickOpen(true)}
-                            className="h-full"
-                          />
-                        )}
+                  <TargetAccountGate targetName={session.targetName}>
+                    {account => session.type === 'sql'
+                      ? <SqlConsolePage targetName={session.targetName} account={account} />
+                      : session.type === 'files'
+                        ? <FileManager targetName={session.targetName} account={account} className="h-full" />
+                        : (
+                            <TerminalScreen
+                              kind={session.kind}
+                              targetName={session.targetName}
+                              account={account}
+                              bannerLabels={bannerLabels}
+                              hostKeyLabels={hostKeyLabels}
+                              keyBarLabels={keyBarLabels}
+                              statusMenuLabels={statusMenuLabels}
+                              onStatusChange={status => reportStatus(session.id, status)}
+                              onNewConnection={() => setQuickOpen(true)}
+                              className="h-full"
+                            />
+                          )}
+                  </TargetAccountGate>
                 </div>
               ))
             )}

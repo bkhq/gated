@@ -37,6 +37,7 @@ use tracing::*;
 use uuid::Uuid;
 
 use crate::http_service::api::AnySecurityScheme;
+use crate::http_service::api::targets_list::LoginQuery;
 use crate::http_service::common::{RequestAuthorization, SessionAuthorization, require_auth};
 
 const MAX_TARGET_NAME_LEN: usize = 128;
@@ -620,6 +621,7 @@ async fn common_auth_and_pool(
     services: &Services,
     auth: &RequestAuthorization,
     target_name: &str,
+    account: Option<&str>,
 ) -> Result<(String, Uuid, Target, TargetPool), DbError> {
     if !validate_target_name(target_name) {
         return Err(DbError::bad_request("Invalid target name"));
@@ -649,9 +651,18 @@ async fn common_auth_and_pool(
     let db = gated_core::db_required(&services.db)
         .await
         .map_err(|e| DbError::bad_gateway(e.to_string()))?;
+    let login = gated_core::account_credentials::select_login(&db, target.id, &username, account)
+        .await
+        .map_err(|e| match e {
+            gated_core::account_credentials::LoginSelectionError::Internal(e) => {
+                error!(%e, "Failed to select the target account");
+                DbError::internal("Internal server error")
+            }
+            e => DbError::bad_request(e.to_string()),
+        })?;
     let pool = services
         .db_pool_registry
-        .get_or_create(&db, &target)
+        .get_or_create(&db, &target, login)
         .await
         .map_err(DbError::bad_gateway)?;
     Ok((username, user_id, target, pool))
@@ -660,17 +671,19 @@ async fn common_auth_and_pool(
 #[utoipa::path(
     get,
     path = "/db/schemas/{target_name}",
-    operation_id = "get_db_schemas"
+    operation_id = "get_db_schemas",
+    params(LoginQuery)
 )]
 async fn api_db_schemas(
     target_name: Path<String>,
     services: Data<Services>,
     auth: Data<RequestAuthorization>,
     _sec_scheme: AnySecurityScheme,
+    Query(login): Query<LoginQuery>,
 ) -> Result<SchemasResponse, DbError> {
     let target_name = target_name.0;
     let (_username, _user_id, target, pool) =
-        common_auth_and_pool(&services, &auth, &target_name).await?;
+        common_auth_and_pool(&services, &auth, &target_name, login.account.as_deref()).await?;
 
     let (kind, default_schema) = match &target.options {
         TargetOptions::MySql(o) => ("MySql", o.default_database_name.clone()),
@@ -733,19 +746,20 @@ struct DbTablesQuery {
     get,
     path = "/db/tables/{target_name}",
     operation_id = "get_db_tables",
-    params(DbTablesQuery)
+    params(DbTablesQuery, LoginQuery)
 )]
 async fn api_db_tables(
     target_name: Path<String>,
     services: Data<Services>,
     auth: Data<RequestAuthorization>,
     _sec_scheme: AnySecurityScheme,
+    Query(login): Query<LoginQuery>,
     Query(query): Query<DbTablesQuery>,
 ) -> Result<TablesResponse, DbError> {
     let DbTablesQuery { schema } = query;
     let target_name = target_name.0;
     let (_username, _user_id, _target, pool) =
-        common_auth_and_pool(&services, &auth, &target_name).await?;
+        common_auth_and_pool(&services, &auth, &target_name, login.account.as_deref()).await?;
     let schema = match schema {
         Some(s) if !s.is_empty() => s,
         _ => return Err(DbError::bad_request("schema query param required")),
@@ -803,19 +817,20 @@ struct DbColumnsQuery {
     get,
     path = "/db/columns/{target_name}",
     operation_id = "get_db_columns",
-    params(DbColumnsQuery)
+    params(DbColumnsQuery, LoginQuery)
 )]
 async fn api_db_columns(
     target_name: Path<String>,
     services: Data<Services>,
     auth: Data<RequestAuthorization>,
     _sec_scheme: AnySecurityScheme,
+    Query(login): Query<LoginQuery>,
     Query(query): Query<DbColumnsQuery>,
 ) -> Result<ColumnsResponse, DbError> {
     let DbColumnsQuery { schema, table } = query;
     let target_name = target_name.0;
     let (_username, _user_id, _target, pool) =
-        common_auth_and_pool(&services, &auth, &target_name).await?;
+        common_auth_and_pool(&services, &auth, &target_name, login.account.as_deref()).await?;
     if schema.is_empty() || table.is_empty() {
         return Err(DbError::bad_request("schema and table required"));
     }
@@ -877,17 +892,23 @@ async fn api_db_columns(
     Ok(ColumnsResponse::Ok(Json(ColumnList { columns: cols })))
 }
 
-#[utoipa::path(post, path = "/db/query/{target_name}", operation_id = "run_db_query")]
+#[utoipa::path(
+    post,
+    path = "/db/query/{target_name}",
+    operation_id = "run_db_query",
+    params(LoginQuery)
+)]
 async fn api_db_query(
     target_name: Path<String>,
     services: Data<Services>,
     auth: Data<RequestAuthorization>,
     _sec_scheme: AnySecurityScheme,
+    Query(login): Query<LoginQuery>,
     body: Json<QueryRequest>,
 ) -> Result<DbQueryApiResponse, DbError> {
     let target_name = target_name.0;
     let (username, user_id, target, pool) =
-        common_auth_and_pool(&services, &auth, &target_name).await?;
+        common_auth_and_pool(&services, &auth, &target_name, login.account.as_deref()).await?;
 
     let sql = body.0.sql.trim().to_string();
     if sql.is_empty() {

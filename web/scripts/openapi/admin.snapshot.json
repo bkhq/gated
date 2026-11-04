@@ -2667,6 +2667,44 @@
         ]
       }
     },
+    "/targets/{id}/role-accounts": {
+      "get": {
+        "operationId": "get_target_role_accounts",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TargetRoleAccount"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
     "/targets/{id}/roles": {
       "get": {
         "operationId": "get_target_roles",
@@ -2766,6 +2804,62 @@
         ],
         "responses": {
           "204": {},
+          "404": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/targets/{id}/roles/{role_id}/account": {
+      "put": {
+        "operationId": "set_target_role_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTargetRoleAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {},
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "404": {}
         },
         "security": [
@@ -6696,6 +6790,19 @@
           }
         }
       },
+      "SetTargetRoleAccountRequest": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "An account bound to the target, or `null` for the target's default login."
+          }
+        }
+      },
       "SshKeyAccountCredentials": {
         "type": "object",
         "required": [
@@ -7226,6 +7333,27 @@
           },
           "username": {
             "type": "string"
+          }
+        }
+      },
+      "TargetRoleAccount": {
+        "type": "object",
+        "description": "The account a role granted on a target signs in with.",
+        "required": [
+          "role_id"
+        ],
+        "properties": {
+          "account_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "`null`: the target's default login."
+          },
+          "role_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

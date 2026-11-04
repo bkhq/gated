@@ -162,6 +162,17 @@
 - Query：`search?: string` — 不区分大小写子串，匹配 target.name 或 group.name。
 - Responses：`200 OK` `Json<TargetSnapshot[]>`。Ticket 会话只会看到 ticket 绑定的那一个目标。
 
+#### `GET /api/targets/:name/accounts` — `get_target_accounts` [OAS]
+
+- Summary：当前用户连接该目标时需要从中选择的账号。
+- Responses：`200 OK` `Json<string[]>` — 仅当用户的角色把该目标映射到多个账号时返回排序后的账号名，否则 `[]`（无需选择）。目标不存在或未授权 `404`。
+
+> **按角色分配账号。** 每条目标↔角色绑定可以指定目标已绑定账号中的一个（`target_roles.account_id`，用 `PUT /admin/api/targets/:id/roles/:role_id/account` 设置）。用户以授予访问权的角色所指定的账号登录；未指定账号的绑定使用目标默认登录（主账号或内联凭据）。当用户的角色对应多个账号时由用户选择：
+> - 原生 SSH / MySQL / PostgreSQL 客户端：登录名写成 `<user>:<target>:<account>`（或 `<user>#<target>#<account>`）；不写则连接被拒绝并列出可选账号；
+> - Web 终端、文件管理与 SQL 控制台：查询参数 `account`（界面会在连接前询问）。
+>
+> 指定用户角色未映射的账号会被拒绝。每次选择写一条 `Target account selected` 审计（`account`），被拒写 `Target account not selected`。限制：HTTP 目标始终使用默认登录；内联凭据登录无法按名指定，只有在它是用户唯一选择时才可用。
+
 ### 1.4 个人凭据 (`credentials.rs`)
 
 > 全部路径外层包了 `parameters_based_auth`：如果 `parameters.allow_own_credential_management = false`，**所有**这些端点直接返回 `403 Forbidden` plain text `"Credential management is disabled"`，而不是 OpenAPI 枚举的 `403` 变体。
@@ -257,6 +268,7 @@
 ### 1.7 SQL 控制台 (`db_query.rs`)
 
 > 所有 4 个端点的错误统一走 `DbError` 信封：`Json<ErrorBody> { error: string }`；`429` 还会带 `Retry-After: <seconds>`。状态码：`400 / 401 / 403 / 404 / 429 / 500 / 502`。
+> 4 个端点都接受查询参数 `account?: string` 选择登录账号（见 §1.3）；未选择或不可用时 `400`。
 
 #### `GET /api/db/schemas/:target_name` — `get_db_schemas` [OAS]
 
@@ -284,6 +296,8 @@
 
 ### 1.8 终端 WebSocket（非 OpenAPI）
 
+> 所有终端都接受查询参数 `account?: string` 选择登录账号（见 §1.3）。未选择或不可用时通过 `MSG_STATUS {status:"error"}` 帧报告。
+
 #### `GET /api/ssh/terminal/:target_name` — `api_ssh_terminal` [raw]
 
 - 升级前校验：`target_name` 必须满足正则，否则 `400 "Invalid target name"`；未鉴权 `401 "Not authenticated"`；并发会话超 `MAX_SESSIONS_PER_USER = 10` 时 `429 "Too many concurrent terminal sessions"`。
@@ -309,7 +323,8 @@
 
 > 通过网关自身的 SSH 客户端对 SSH 目标开 SFTP 子系统。除目标授权外还要求用户在该目标上至少有一个 `allow_file_transfer = true` 的角色，否则 `403 "File transfer is not allowed on this target"`。错误统一为 `Json<SftpErrorBody> { error: string }`；状态码 `400 / 401 / 403 / 404 / 409 / 413 / 429 / 500 / 502`。SFTP `NoSuchFile` → `404`、`PermissionDenied` → `403`、其余 SFTP 状态 → `400`，传输错误 → `502`。
 
-- 连接：每个（用户, 目标）复用一个 SFTP 连接，空闲 5 分钟关闭；每用户最多 4 个连接，超过 `429`。每个连接登记为一个 `WebSFTP` 会话，可在会话监控里关闭。
+- 账号：所有端点接受查询参数 `account?: string`（见 §1.3）；未选择或不可用时 `400`。
+- 连接：每个（用户, 目标, 账号）复用一个 SFTP 连接，空闲 5 分钟关闭；每用户最多 4 个连接，超过 `429`。每个连接登记为一个 `WebSFTP` 会话，可在会话监控里关闭。
 - 主机密钥：未知密钥只在 `auto_accept` 下接受，否则 `409` 并给出 `SHA256:` 指纹，提示先用 Web 终端确认；已知密钥不一致同样 `409`。
 - 审计：所有变更与传输（不含列目录）写入该会话名为 `web-files` 的 `FileAudit` 录像（`origin: "web"`），并记一条 `target: audit` 日志；查询见 §2.14。
 
@@ -539,6 +554,16 @@
 #### `GET /admin/api/targets/:id/roles` — `get_target_roles` [OAS] — `200` `Role[]` / `404`。
 #### `POST /admin/api/targets/:id/roles/:role_id` — `add_target_role` [OAS] — `201` / `409`。
 #### `DELETE /admin/api/targets/:id/roles/:role_id` — `delete_target_role` [OAS] — `204` / `404`。
+
+#### `GET /admin/api/targets/:id/role-accounts` — `get_target_role_accounts` [OAS]
+
+- Responses：`200 OK` `{ role_id: uuid, account_id: i32 | null }[]` — 每个已绑定角色使用的登录账号（`null`：默认登录）。
+
+#### `PUT /admin/api/targets/:id/roles/:role_id/account` — `set_target_role_account` [OAS]
+
+- Body：`{ account_id: i32 | null }`（`null` 恢复默认登录）。
+- Responses：`204` / `400 "The account is not bound to this target"` / `404`（该角色未绑定到目标）。
+- 从目标解绑账号（`PUT /admin/api/targets/:id` 更新 `accounts`）时，使用该账号的角色会恢复为默认登录。
 
 ### 2.6 目标组 (`target_groups.rs`)
 
@@ -1210,6 +1235,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/api/sso/providers/:name/start` | `start_sso` |  |
 | GET | `/api/sso/providers` | `get_sso_providers` |  |
 | GET | `/api/sso/return` | `return_to_sso` |  |
+| GET | `/api/targets/:name/accounts` | `get_target_accounts` | Accounts the user must choose between to connect to a target: the |
 | GET | `/api/targets` | `get_targets` |  |
 | POST | `/api/auth/activity` | `report_activity` | Report user activity so the browser session stays signed in for its |
 | POST | `/api/auth/login` | `login` |  |
@@ -1283,6 +1309,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/admin/api/target-groups/:id` | `get_target_group` |  |
 | GET | `/admin/api/target-groups` | `list_target_groups` |  |
 | GET | `/admin/api/targets/:id/known-ssh-host-keys` | `get_ssh_target_known_ssh_host_keys` |  |
+| GET | `/admin/api/targets/:id/role-accounts` | `get_target_role_accounts` |  |
 | GET | `/admin/api/targets/:id/roles` | `get_target_roles` |  |
 | GET | `/admin/api/targets/:id/upstream-certificate` | `get_target_upstream_certificate` |  |
 | GET | `/admin/api/targets/:id` | `get_target` |  |
@@ -1335,6 +1362,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | PUT | `/admin/api/parameters` | `update_parameters` |  |
 | PUT | `/admin/api/role/:id` | `update_role` |  |
 | PUT | `/admin/api/target-groups/:id` | `update_target_group` |  |
+| PUT | `/admin/api/targets/:id/roles/:role_id/account` | `set_target_role_account` |  |
 | PUT | `/admin/api/targets/:id` | `update_target` |  |
 | PUT | `/admin/api/tls/acme` | `update_acme_settings` | Saves the ACME account and DNS provider. Changing the directory or contact |
 | PUT | `/admin/api/tls/certificates/:listener/acme` | `enable_tls_acme` | Issues the listener's certificate through ACME now and renews it |

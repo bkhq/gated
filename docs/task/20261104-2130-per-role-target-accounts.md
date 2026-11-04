@@ -1,6 +1,6 @@
 # 20261104-2130-per-role-target-accounts Let one target sign in with a different account per role
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
 - **owner**: lexuue
 - **createdAt**: 2026-11-04 21:30
@@ -11,7 +11,7 @@ A target may have several upstream accounts, and different user groups (roles) s
 
 ## ActiveForm
 
-Awaiting proposal approval
+Completed
 
 ## Dependencies
 
@@ -34,6 +34,14 @@ Proposed plan (option A, recommended):
 
 Option B (not recommended now): a separate authorization-rule entity (users or roles × targets × accounts, with validity windows), as in JumpServer. More flexible, but it replaces the role model and touches every authorization path.
 
-Open questions:
-- Several matching accounts: user chooses (above), or a fixed priority with no prompt?
-- Drop the unused `fallback` / `readonly` binding roles, or keep them?
+Open questions (resolved at approval):
+- Several matching accounts: the user chooses.
+- The unused `fallback` / `readonly` binding roles are kept.
+
+Outcome:
+- Migration `m00017_target_role_accounts` adds the nullable `target_roles.account_id` (no foreign key: SQLite cannot add one to an existing table); unbinding an account from the target clears it. Admin API `GET /targets/:id/role-accounts` and `PUT /targets/:id/roles/:role_id/account`; the permissions tab has a per-role "Sign in as" select.
+- `gated-core::account_credentials::select_login` resolves the login (none → default, one → it, several → the user's choice, a name the roles do not map → refused). SSH, MySQL and PostgreSQL sessions, the web terminals, SFTP and the SQL console all use it; DB pools are keyed by (target, login).
+- Native selector `<user>:<target>:<account>`; web paths take `?account=`, and `GET /api/targets/:name/accounts` drives a picker shown before the terminal, file manager or SQL console connects.
+- The account used is recorded as a `Target account selected` audit entry with the session context instead of a sessions column.
+- Limitations: HTTP targets use the default login; the inline-credential login cannot be named, so it is reachable only when it is the user's only choice.
+- Tests: core resolution unit tests, selector parsing, admin unbinding test, web gate/socket/ref tests, integration test `tests/ssh/per-role-accounts.test.ts`.

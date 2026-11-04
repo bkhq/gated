@@ -58,6 +58,8 @@ use crate::{
 enum TargetSelection {
     None,
     NotFound(String),
+    /// Authorized, but the account to sign in with could not be chosen.
+    LoginUnavailable(String),
     Found(Target, TargetSSHOptions),
 }
 
@@ -468,6 +470,14 @@ impl ServerSession {
                     .await?;
                 self.disconnect_server().await;
                 anyhow::bail!("Target not found: {}", name);
+            }
+            TargetSelection::LoginUnavailable(message) => {
+                self.emit_service_message(&format!(
+                    "{message}. Add the account to the login name: <user>:<target>:<account>"
+                ))
+                .await?;
+                self.disconnect_server().await;
+                anyhow::bail!("Target account not selected: {message}");
             }
             TargetSelection::Found(target, ssh_options) => {
                 if self.rc_state == RCState::NotInitialized {
@@ -2043,6 +2053,7 @@ impl ServerSession {
             AuthSelector::User {
                 username,
                 target_name,
+                ..
             } => (sanitize_username(username), sanitize_username(target_name)),
             AuthSelector::Ticket { .. } => ("ticket".to_owned(), String::new()),
         };
@@ -2092,6 +2103,7 @@ impl ServerSession {
             if let AuthSelector::User {
                 username,
                 target_name,
+                ..
             } = &selector
             {
                 let target_authorized = self
@@ -2417,6 +2429,7 @@ impl ServerSession {
             AuthSelector::User {
                 username,
                 target_name,
+                account,
             } => {
                 let cp = self.services.config_provider.clone();
 
@@ -2458,7 +2471,8 @@ impl ServerSession {
                             );
                             return Ok(AuthResult::Rejected);
                         }
-                        self._auth_accept(user_info.clone(), target_name).await?;
+                        self._auth_accept(user_info.clone(), target_name, account.as_deref())
+                            .await?;
                         Ok(AuthResult::Accepted { user_info })
                     }
                     x => Ok(x),
@@ -2469,7 +2483,8 @@ impl ServerSession {
                     Some((ticket, user_info)) => {
                         info!("Authorized for {} with a ticket", ticket.target);
                         consume_ticket(&self.services.db, &ticket.id).await?;
-                        self._auth_accept(user_info.clone(), &ticket.target).await?;
+                        self._auth_accept(user_info.clone(), &ticket.target, None)
+                            .await?;
 
                         Ok(AuthResult::Accepted { user_info })
                     }
@@ -2483,6 +2498,7 @@ impl ServerSession {
         &mut self,
         user_info: AuthStateUserInfo,
         target_name: &str,
+        requested_account: Option<&str>,
     ) -> Result<(), GatedError> {
         self.username = Some(user_info.username.clone());
         let _ = self
@@ -2535,9 +2551,27 @@ impl ServerSession {
             let db = gated_core::db_required(&self.services.db)
                 .await
                 .map_err(|e| GatedError::Other(anyhow::anyhow!(e).into()))?;
+            let login = match gated_core::account_credentials::select_login(
+                &db,
+                target.id,
+                &user_info.username,
+                requested_account,
+            )
+            .await
+            {
+                Ok(login) => login,
+                Err(gated_core::account_credentials::LoginSelectionError::Internal(e)) => {
+                    return Err(GatedError::Other(anyhow::anyhow!(e).into()));
+                }
+                Err(e) => {
+                    self.target = TargetSelection::LoginUnavailable(e.to_string());
+                    return Ok(());
+                }
+            };
             gated_core::account_credentials::ssh_options_with_account(
                 &db,
                 &target,
+                login,
                 Some(&user_info.username),
             )
             .await

@@ -288,3 +288,11 @@ Administrators saw every target under My targets (and in the overview, quick con
 ## 2026-11-04 21:20 [BUG-P2]
 
 A locked gateway answers every API except encryption with 404, which flooded an open page with error toasts. A 404 or connection failure now first checks the lock status (one request shared by all failures); while the gateway is locked, uninitialised or starting no toast is shown and the boot gate moves to the unlock screen.
+
+## 2026-11-04 23:30 [progress]
+
+A target can sign in with a different bound account per role. An admin picks the account for each role on the target's permissions tab; connections use the account of the role that granted access, and when the user's roles lead to several accounts the user picks one: `<user>:<target>:<account>` for native SSH, MySQL and PostgreSQL clients, a picker before the web terminal, file manager or SQL console connects. The choice is audited as `Target account selected`. HTTP targets keep the default login.
+
+## 2026-11-04 23:30 [pitfall]
+
+The MySQL integration tests failed with `Plugin mysql_clear_password could not be loaded` because the local MariaDB client shim looked for plugins in a system path that no longer exists; the shim in `.tmp/bin/mysql` now passes `--plugin-dir`. On the gateway side this surfaced only as `expected NUL in byte sequence`.

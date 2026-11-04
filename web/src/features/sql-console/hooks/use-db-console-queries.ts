@@ -6,6 +6,7 @@ import type {
   DbTableList,
 } from '@/shared/lib/api/db-console'
 import type { ApiError } from '@/shared/lib/api/http'
+import type { TargetRef } from '@/shared/lib/api/target-ref'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   getDbColumns,
@@ -14,7 +15,7 @@ import {
   runDbQuery,
 } from '@/shared/lib/api/db-console'
 
-export function useDbSchemas(target: string) {
+export function useDbSchemas(target: TargetRef) {
   return useQuery<DbSchemaList, ApiError>({
     queryKey: ['db', target, 'schemas'],
     queryFn: async ({ signal }) => getDbSchemas(target, signal),
@@ -22,7 +23,7 @@ export function useDbSchemas(target: string) {
   })
 }
 
-export function useDbTables(target: string, schema: string | undefined) {
+export function useDbTables(target: TargetRef, schema: string | undefined) {
   return useQuery<DbTableList, ApiError>({
     queryKey: ['db', target, 'tables', schema ?? null],
     queryFn: async ({ signal }) => getDbTables(target, schema, signal),
@@ -30,7 +31,7 @@ export function useDbTables(target: string, schema: string | undefined) {
   })
 }
 
-export function useDbColumns(target: string, schema: string | undefined, table: string) {
+export function useDbColumns(target: TargetRef, schema: string | undefined, table: string) {
   return useQuery<DbColumnList, ApiError>({
     queryKey: ['db', target, 'columns', schema ?? null, table],
     queryFn: async ({ signal }) => getDbColumns(target, schema, table, signal),
@@ -38,7 +39,7 @@ export function useDbColumns(target: string, schema: string | undefined, table: 
   })
 }
 
-export function useRunDbQuery(target: string) {
+export function useRunDbQuery(target: TargetRef) {
   return useMutation<DbQueryResponse, ApiError, DbQueryRequest>({
     mutationFn: async body => runDbQuery(target, body),
   })
