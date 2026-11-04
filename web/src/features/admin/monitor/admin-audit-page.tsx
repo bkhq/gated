@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, Download, Search, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { auditExportLine } from '@/features/audit/audit-entry'
 import { useAudit } from '@/features/audit/hooks/use-audit-queries'
 
 import { CopyableId } from '@/shared/components/copyable-id'
@@ -15,6 +16,7 @@ import { Select } from '@/shared/ui/select'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { Table, TBody, TD, TH, THead, TR } from '@/shared/ui/table'
 
+const COLUMNS = 6
 const AUDIT_RANGES = ['24h', '7d', '30d'] as const
 type AuditRange = (typeof AUDIT_RANGES)[number]
 const AUDIT_RANGE_DAYS: Record<AuditRange, number> = { '24h': 1, '7d': 7, '30d': 30 }
@@ -70,22 +72,25 @@ export function AdminAuditPage({ embedded = false }: { embedded?: boolean }) {
       if (!needle) {
         return true
       }
-      const haystack = `${entry.actor} ${entry.action} ${entry.sessionId}`.toLowerCase()
+      const haystack = [
+        entry.actor,
+        entry.action,
+        eventLabel(t, entry.action),
+        entry.sessionId,
+        entry.target,
+        entry.protocol,
+        entry.clientAddress,
+        JSON.stringify(entry.values),
+      ].join(' ').toLowerCase()
       return haystack.includes(needle)
     })
-  }, [auditQuery.data, query, range])
+  }, [auditQuery.data, query, range, t])
 
   const handleExport = React.useCallback(() => {
     if (filtered.length === 0) {
       return
     }
-    const lines = filtered.map(entry => JSON.stringify({
-      id: entry.id,
-      at: entry.at,
-      actor: entry.actor,
-      action: entry.action,
-      sessionId: entry.sessionId,
-    }))
+    const lines = filtered.map(auditExportLine)
     const blob = new Blob([`${lines.join('\n')}\n`], { type: 'application/x-ndjson' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
@@ -171,6 +176,9 @@ export function AdminAuditPage({ embedded = false }: { embedded?: boolean }) {
             <TR>
               <TH className="w-[110px] pl-5">{t('audit.fields.time')}</TH>
               <TH>{t('audit.fields.actor')}</TH>
+              <TH>{t('audit.fields.target')}</TH>
+              <TH>{t('audit.fields.protocol')}</TH>
+              <TH>{t('audit.fields.client')}</TH>
               <TH className="pr-5">{t('audit.fields.action')}</TH>
             </TR>
           </THead>
@@ -180,13 +188,16 @@ export function AdminAuditPage({ embedded = false }: { embedded?: boolean }) {
                   <TR key={`skeleton-${index}`}>
                     <TD className="pl-5"><Skeleton className="h-3.5 w-16" /></TD>
                     <TD><Skeleton className="h-4 w-28" /></TD>
+                    <TD><Skeleton className="h-3.5 w-24" /></TD>
+                    <TD><Skeleton className="h-3.5 w-12" /></TD>
+                    <TD><Skeleton className="h-3.5 w-24" /></TD>
                     <TD className="pr-5"><Skeleton className="h-3.5 w-64" /></TD>
                   </TR>
                 ))
               : filtered.length === 0
                 ? (
                     <TR>
-                      <TD colSpan={3} className="px-0 py-0">
+                      <TD colSpan={COLUMNS} className="px-0 py-0">
                         <div className="p-6">
                           <EmptyState
                             icon={Search}
@@ -206,7 +217,12 @@ export function AdminAuditPage({ embedded = false }: { embedded?: boolean }) {
                     </TR>
                   )
                 : filtered.map((entry) => {
-                    const detailPairs = Object.entries(entry.values)
+                    const detailPairs: [string, unknown][] = [
+                      [t('audit.fields.session'), entry.sessionId],
+                      ...(entry.sessionStarted ? [[t('audit.fields.sessionStarted'), new Date(entry.sessionStarted).toLocaleString()] as [string, unknown]] : []),
+                      ...(entry.sessionEnded ? [[t('audit.fields.sessionEnded'), new Date(entry.sessionEnded).toLocaleString()] as [string, unknown]] : []),
+                      ...Object.entries(entry.values),
+                    ]
                     const isExpanded = expanded.has(entry.id)
                     return (
                       <React.Fragment key={entry.id}>
@@ -218,6 +234,9 @@ export function AdminAuditPage({ embedded = false }: { embedded?: boolean }) {
                               <span className="truncate">{entry.actor}</span>
                             </div>
                           </TD>
+                          <TD className="text-[13px]">{entry.target ?? '—'}</TD>
+                          <TD className="text-[12.5px] text-muted-foreground">{entry.protocol ?? '—'}</TD>
+                          <TD className="mono text-[12px] text-muted-foreground">{entry.clientAddress ?? '—'}</TD>
                           <TD className="pr-5">
                             <div className="flex items-center gap-1">
                               <span className="text-[13px]" title={entry.action}>{eventLabel(t, entry.action)}</span>
@@ -245,7 +264,7 @@ export function AdminAuditPage({ embedded = false }: { embedded?: boolean }) {
                         {isExpanded
                           ? (
                               <TR>
-                                <TD colSpan={3} className="pb-3 pl-5 pr-5 pt-0">
+                                <TD colSpan={COLUMNS} className="pb-3 pl-5 pr-5 pt-0">
                                   <dl className="mono grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[11.5px]">
                                     {detailPairs.map(([key, value]) => (
                                       <React.Fragment key={key}>

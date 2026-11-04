@@ -5,17 +5,90 @@ use gated_common::{api_response, api_routes};
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::{LogEntry, ManagementAudit, Session};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
 
+/// One audit log entry with the context of the session it belongs to.
+#[derive(Serialize, ToSchema)]
+struct AuditLogEntry {
+    id: Uuid,
+    text: String,
+    /// The event's own fields.
+    values: serde_json::Value,
+    timestamp: DateTime<Utc>,
+    session_id: Uuid,
+    /// The user the event names, if any; see `session.username` otherwise.
+    username: Option<String>,
+    /// The proxy session; null for management entries and unknown sessions.
+    session: Option<AuditSessionContext>,
+}
+
+#[derive(Clone, Serialize, ToSchema)]
+struct AuditSessionContext {
+    username: Option<String>,
+    /// Target name at connect time.
+    target: Option<String>,
+    protocol: String,
+    /// Client `ip:port`.
+    client_address: String,
+    started: DateTime<Utc>,
+    ended: Option<DateTime<Utc>>,
+}
+
+impl From<Session::Model> for AuditSessionContext {
+    fn from(session: Session::Model) -> Self {
+        let target = session
+            .target_snapshot
+            .as_deref()
+            .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+            .and_then(|snapshot| snapshot.get("name")?.as_str().map(str::to_owned));
+        Self {
+            username: session.username,
+            target,
+            protocol: session.protocol,
+            client_address: session.remote_address,
+            started: session.started,
+            ended: session.ended,
+        }
+    }
+}
+
+fn audit_entry(log: LogEntry::Model, session: Option<AuditSessionContext>) -> AuditLogEntry {
+    AuditLogEntry {
+        id: log.id,
+        text: log.text,
+        values: log.values,
+        timestamp: log.timestamp,
+        session_id: log.session_id,
+        username: log.username,
+        session,
+    }
+}
+
+/// Pair each entry with its session, given the sessions of the page.
+fn attach_sessions(
+    logs: Vec<LogEntry::Model>,
+    sessions: Vec<Session::Model>,
+) -> Vec<AuditLogEntry> {
+    let contexts: HashMap<Uuid, AuditSessionContext> =
+        sessions.into_iter().map(|s| (s.id, s.into())).collect();
+    logs.into_iter()
+        .map(|log| {
+            let session = contexts.get(&log.session_id).cloned();
+            audit_entry(log, session)
+        })
+        .collect()
+}
+
 api_response! {
     enum GetLogsResponse {
         #[oai(status = 200)]
-        Ok(Json<Vec<LogEntry::Model>>),
+        Ok(Json<Vec<AuditLogEntry>>),
     }
 }
 
@@ -66,7 +139,14 @@ async fn api_get_all_logs(
         q = q.filter(LogEntry::Column::SessionId.is_in(session_ids));
     }
     let logs = q.all(&db).await?;
-    Ok(GetLogsResponse::Ok(Json(logs)))
+    let mut session_ids: Vec<Uuid> = logs.iter().map(|log| log.session_id).collect();
+    session_ids.sort();
+    session_ids.dedup();
+    let sessions = Session::Entity::find()
+        .filter(Session::Column::Id.is_in(session_ids))
+        .all(&db)
+        .await?;
+    Ok(GetLogsResponse::Ok(Json(attach_sessions(logs, sessions))))
 }
 #[utoipa::path(
     post,
@@ -88,13 +168,14 @@ async fn api_get_management_audit(
     Ok(GetLogsResponse::Ok(Json(
         entries
             .into_iter()
-            .map(|entry| LogEntry::Model {
+            .map(|entry| AuditLogEntry {
                 id: entry.id,
                 text: entry.text,
                 values: entry.values,
                 timestamp: entry.timestamp,
                 session_id: entry.session_id,
                 username: entry.username,
+                session: None,
             })
             .collect(),
     )))
@@ -269,5 +350,40 @@ mod tests {
             .expect("query");
         let texts: Vec<&str> = rows.iter().map(|r| r.text.as_str()).collect();
         assert_eq!(texts, vec!["newer", "older"]);
+    }
+
+    #[test]
+    fn entries_carry_the_context_of_their_session() {
+        let session_id = Uuid::new_v4();
+        let started = Utc::now();
+        let log = |username: Option<&str>, session_id| LogEntry::Model {
+            id: Uuid::new_v4(),
+            text: "Host key is unknown".into(),
+            values: serde_json::json!({}),
+            timestamp: Utc::now(),
+            session_id,
+            username: username.map(Into::into),
+        };
+        let session = Session::Model {
+            id: session_id,
+            target_snapshot: Some(r#"{"name":"prod-api","options":{}}"#.into()),
+            username: Some("alice".into()),
+            remote_address: "10.0.0.9:51234".into(),
+            started,
+            ended: None,
+            ticket_id: None,
+            protocol: "SSH".into(),
+        };
+        let entries = attach_sessions(
+            vec![log(None, session_id), log(None, Uuid::new_v4())],
+            vec![session],
+        );
+        let context = entries[0].session.as_ref().expect("session context");
+        assert_eq!(context.username.as_deref(), Some("alice"));
+        assert_eq!(context.target.as_deref(), Some("prod-api"));
+        assert_eq!(context.protocol, "SSH");
+        assert_eq!(context.client_address, "10.0.0.9:51234");
+        assert_eq!(context.started, started);
+        assert!(entries[1].session.is_none());
     }
 }

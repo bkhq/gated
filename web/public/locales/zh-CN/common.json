@@ -1494,7 +1494,13 @@
     "fields": {
       "time": "时间",
       "actor": "操作者",
-      "action": "操作"
+      "action": "操作",
+      "target": "目标",
+      "protocol": "协议",
+      "client": "客户端地址",
+      "sessionStarted": "会话开始",
+      "sessionEnded": "会话结束",
+      "session": "会话"
     },
     "ranges": {
       "24h": "近 24 小时",
@@ -2355,7 +2361,9 @@
     "encryptionBootstrapTokenDeleteFailed": "删除引导令牌失败",
     "other": "其他事件",
     "copyId": "复制 ID",
-    "copied": "已复制"
+    "copied": "已复制",
+    "hostKeyTrusted": "已信任主机密钥",
+    "hostKeyRejected": "已拒绝主机密钥"
   },
   "about": {
     "title": "关于",

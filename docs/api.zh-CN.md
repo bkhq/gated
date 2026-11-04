@@ -660,13 +660,14 @@
   - `username?: string` — 匹配日志行的 `username` 列
   - `search?: string` — 子串匹配 `text` / `username` / `values`
   - `target_name?: string` — 匹配会话 `target_snapshot.name`
-- Responses：`200 OK` `Json<LogEntry[]>`。
+- Responses：`200 OK` `Json<AuditLogEntry[]>`：`id`、`text`、`values`、`timestamp`、`session_id`、`username`，以及 `session` —— 该条目所属代理会话的上下文（`username`、`target`、`protocol`、`client_address`、`started`、`ended`），会话已不存在时为 `null`。
+- SSH 主机密钥事件（`Host key is unknown`、`Host key accepted and trusted`、`Host key rejected`、`Host key does not match the trusted key`）带有 `host`、`port`、`key_type` 和收到密钥的 `SHA256:` `fingerprint`；不匹配事件另有 `known_key_type`。
 - 只包含会话面的审计事件；管理操作见 `/admin/api/management-audit`。
 
 #### `POST /admin/api/management-audit` — `get_management_audit` [OAS]
 
 - Body：同 `GetLogsRequest`（`target_name` 非空时直接返回空数组）。
-- Responses：`200 OK` `Json<LogEntry[]>`，数据来自独立的 `management_audit` 表：每个有身份的管理写操作各有 `requested` / `completed` 两条（`values.event = "management.action"`），以及 `session.delete`、`account.credentials.reveal` 事件。
+- Responses：`200 OK` `Json<AuditLogEntry[]>`（`session` 恒为 `null`），数据来自独立的 `management_audit` 表：每个有身份的管理写操作各有 `requested` / `completed` 两条（`values.event = "management.action"`），以及 `session.delete`、`account.credentials.reveal` 事件。
 - 本接口与 `/admin/api/logs` 都是只读查询，虽然用 POST，但不会被管理审计记录。
 
 #### `GET /admin/api/parameters` — `get_parameters` [OAS]

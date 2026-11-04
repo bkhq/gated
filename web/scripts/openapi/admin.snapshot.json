@@ -999,7 +999,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/LogEntry"
+                    "$ref": "#/components/schemas/AuditLogEntry"
                   }
                 }
               }
@@ -1036,7 +1036,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/LogEntry"
+                    "$ref": "#/components/schemas/AuditLogEntry"
                   }
                 }
               }
@@ -4825,6 +4825,96 @@
           }
         }
       },
+      "AuditLogEntry": {
+        "type": "object",
+        "description": "One audit log entry with the context of the session it belongs to.",
+        "required": [
+          "id",
+          "text",
+          "values",
+          "timestamp",
+          "session_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AuditSessionContext",
+                "description": "The proxy session; null for management entries and unknown sessions."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The user the event names, if any; see `session.username` otherwise."
+          },
+          "values": {
+            "description": "The event's own fields."
+          }
+        }
+      },
+      "AuditSessionContext": {
+        "type": "object",
+        "required": [
+          "protocol",
+          "client_address",
+          "started"
+        ],
+        "properties": {
+          "client_address": {
+            "type": "string",
+            "description": "Client `ip:port`."
+          },
+          "ended": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "started": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Target name at connect time."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "BearerTokenUpstreamAuth": {
         "type": "object",
         "required": [
@@ -6008,42 +6098,6 @@
           },
           "version": {
             "type": "string"
-          }
-        }
-      },
-      "LogEntry": {
-        "type": "object",
-        "required": [
-          "id",
-          "text",
-          "values",
-          "timestamp",
-          "session_id"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "session_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "text": {
-            "type": "string"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "username": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "values": {
-            "$ref": "#/components/schemas/Value"
           }
         }
       },
@@ -7721,8 +7775,7 @@
             }
           }
         }
-      },
-      "Value": {}
+      }
     },
     "securitySchemes": {
       "CookieSecurityScheme": {

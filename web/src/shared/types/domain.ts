@@ -218,5 +218,10 @@ export interface AuditEntry {
   // Structured fields recorded with the log line (LogEntry.values).
   values: Record<string, unknown>
   sessionId: string
+  target: string | null
+  protocol: string | null
+  clientAddress: string | null
+  sessionStarted: string | null
+  sessionEnded: string | null
   ageDays: number
 }

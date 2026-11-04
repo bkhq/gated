@@ -1,4 +1,6 @@
 # Tasks
+- [x] [**20261104-1830-audit-entry-context Give every audit log entry its session context**](20261104-1830-audit-entry-context.md) `P1`
+- [ ] [**20261104-1800-terminal-experience Bring the web terminal closer to Google's SSH-in-browser**](20261104-1800-terminal-experience.md) `P2`
 - [x] [**20261104-1430-trust-ssh-host-keys-from-ui Let administrators trust SSH host keys from the web UI**](20261104-1430-trust-ssh-host-keys-from-ui.md) `P1`
 - [x] [**20261104-1400-ssh-key-account-without-username Let SSH key accounts take the username from the target**](20261104-1400-ssh-key-account-without-username.md) `P2`
 - [x] [**20261104-0900-session-keepalive Let users pick a sliding admin session lifetime**](20261104-0900-session-keepalive.md) `P1`

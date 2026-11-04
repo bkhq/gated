@@ -26,6 +26,11 @@ const ENTRIES: AuditEntry[] = [
     values: { target: 'web-1', port: 22 },
     sessionId: SESSION_ID,
     ageDays: 0,
+    target: 'web-1',
+    protocol: 'SSH',
+    clientAddress: '10.1.2.3:51234',
+    sessionStarted: '2026-11-04T08:00:00Z',
+    sessionEnded: null,
   },
   {
     id: 'log-2',
@@ -35,6 +40,11 @@ const ENTRIES: AuditEntry[] = [
     values: {},
     sessionId: SESSION_ID,
     ageDays: 0,
+    target: null,
+    protocol: null,
+    clientAddress: null,
+    sessionStarted: null,
+    sessionEnded: null,
   },
 ]
 
@@ -59,21 +69,38 @@ describe('adminAuditPage rows', () => {
     expect(time?.textContent).not.toBe(ENTRIES[0]!.at)
   })
 
+  it('shows the session context of each entry in its own columns', () => {
+    const { container } = render(<AdminAuditPage />)
+    const firstRow = container.querySelector('tbody tr')!
+    expect(firstRow.textContent).toContain('web-1')
+    expect(firstRow.textContent).toContain('SSH')
+    expect(firstRow.textContent).toContain('10.1.2.3:51234')
+  })
+
   it('collapses details by default and toggles them', () => {
     render(<AdminAuditPage />)
     const toggles = screen.getAllByRole('button', { name: 'audit.details.expand' })
-    expect(toggles).toHaveLength(1)
+    expect(toggles).toHaveLength(2)
     expect(toggles[0]).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('web-1')).toBeNull()
+    expect(screen.queryByText('port')).toBeNull()
 
     fireEvent.click(toggles[0]!)
     const collapse = screen.getByRole('button', { name: 'audit.details.collapse' })
     expect(collapse).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('web-1')).toBeInTheDocument()
     expect(screen.getByText('port')).toBeInTheDocument()
+    expect(screen.getByText('audit.fields.session')).toBeInTheDocument()
+    expect(screen.getByText(SESSION_ID)).toBeInTheDocument()
+    expect(screen.getByText('audit.fields.sessionStarted')).toBeInTheDocument()
 
     fireEvent.click(collapse)
-    expect(screen.queryByText('web-1')).toBeNull()
+    expect(screen.queryByText('port')).toBeNull()
+  })
+
+  it('searches the client address and event fields', () => {
+    render(<AdminAuditPage />)
+    fireEvent.change(screen.getByLabelText('audit.searchAria'), { target: { value: '10.1.2.3' } })
+    expect(screen.getByText('events.targetConnected')).toBeInTheDocument()
+    expect(screen.queryByText('events.logout')).toBeNull()
   })
 
   it('still matches the raw action text when searching', () => {

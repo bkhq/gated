@@ -272,3 +272,7 @@ An SSH target's "Known host keys" stayed empty long after a key was learned: the
 ## 2026-11-04 17:30 [progress]
 
 Known hosts entries open a details dialog (row click or the eye button): host, port, key type, the SHA256 fingerprint computed in the browser (`features/known-hosts/host-key-fingerprint.ts`), the full key line with copy, and the SSH targets that use that host and port.
+
+## 2026-11-04 19:30 [progress]
+
+Audit entries carry the context of their proxy session. `POST /admin/api/logs` returns `session` (user, target, protocol, client address, start, end) with each entry; the audit page shows user, target, protocol and client address as columns, expands every row to the session id, session times and event fields, searches all of them, and exports them all to JSONL (`fields` holds the event's own values). Pre-sign-in events such as "Host key is unknown" now show the session's user and target instead of `system`. SSH host key events log `host`, `port`, `key_type` and the `SHA256:` fingerprint, and accepting or rejecting a key is now audited.

@@ -1494,7 +1494,13 @@
     "fields": {
       "time": "Time",
       "actor": "Actor",
-      "action": "Action"
+      "action": "Action",
+      "target": "Target",
+      "protocol": "Protocol",
+      "client": "Client address",
+      "sessionStarted": "Session started",
+      "sessionEnded": "Session ended",
+      "session": "Session"
     },
     "ranges": {
       "24h": "Last 24h",
@@ -2355,7 +2361,9 @@
     "encryptionBootstrapTokenDeleteFailed": "Failed to delete bootstrap token",
     "other": "Other event",
     "copyId": "Copy ID",
-    "copied": "Copied"
+    "copied": "Copied",
+    "hostKeyTrusted": "Host key trusted",
+    "hostKeyRejected": "Host key rejected"
   },
   "about": {
     "title": "About",

@@ -661,13 +661,14 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
   - `username?: string` — matches the log row's `username` column
   - `search?: string` — substring of `text` / `username` / `values`
   - `target_name?: string` — matches the session's `target_snapshot.name`
-- Responses: `200 OK` `Json<LogEntry[]>`.
+- Responses: `200 OK` `Json<AuditLogEntry[]>`: `id`, `text`, `values`, `timestamp`, `session_id`, `username`, plus `session` — the context of the proxy session the entry belongs to (`username`, `target`, `protocol`, `client_address`, `started`, `ended`), or `null` when that session is gone.
+- SSH host key events (`Host key is unknown`, `Host key accepted and trusted`, `Host key rejected`, `Host key does not match the trusted key`) carry `host`, `port`, `key_type` and the `SHA256:` `fingerprint` of the received key; the mismatch event also has `known_key_type`.
 - Contains session-plane audit events only; management actions are in `/admin/api/management-audit`.
 
 #### `POST /admin/api/management-audit` — `get_management_audit` [OAS]
 
 - Body: same as `GetLogsRequest` (a non-empty `target_name` returns an empty array).
-- Responses: `200 OK` `Json<LogEntry[]>` from the separate `management_audit` table: a `requested` and a `completed` entry for each identified management write (`values.event = "management.action"`), plus `session.delete` and `account.credentials.reveal` events.
+- Responses: `200 OK` `Json<AuditLogEntry[]>` (`session` is always `null`) from the separate `management_audit` table: a `requested` and a `completed` entry for each identified management write (`values.event = "management.action"`), plus `session.delete` and `account.credentials.reveal` events.
 - This endpoint and `/admin/api/logs` are read-only queries; although they use POST, they are not recorded by the management audit.
 
 #### `GET /admin/api/parameters` — `get_parameters` [OAS]

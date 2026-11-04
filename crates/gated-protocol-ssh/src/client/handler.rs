@@ -2,7 +2,7 @@ use gated_common::{SessionId, TargetSSHOptions};
 use gated_core::Services;
 use russh::Channel;
 use russh::client::{ChannelOpenHandle, Msg, Session};
-use russh::keys::{PublicKey, PublicKeyBase64, PublicKeyOrCertificate};
+use russh::keys::{HashAlg, PublicKey, PublicKeyBase64, PublicKeyOrCertificate};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 use tracing::*;
@@ -56,6 +56,10 @@ impl russh::client::Handler for ClientHandler {
             return Ok(false);
         };
         let mut known_hosts = KnownHosts::new(&self.services.db);
+        let host = self.ssh_options.host.as_str();
+        let port = self.ssh_options.port;
+        let key_type = server_public_key.algorithm().to_string();
+        let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
         self.event_tx
             .send(ClientHandlerEvent::HostKeyReceived(
                 server_public_key.clone(),
@@ -71,21 +75,23 @@ impl russh::client::Handler for ClientHandler {
         {
             Ok(KnownHostValidationResult::Valid) => Ok(true),
             Ok(KnownHostValidationResult::Invalid {
-                key_type,
+                key_type: known_key_type,
                 key_base64,
             }) => {
-                warn!(target: "audit",session=%self.session_id, "Host key is invalid!");
+                warn!(target: "audit", session=%self.session_id, host, port, key_type,
+                    fingerprint, known_key_type, "Host key does not match the trusted key");
                 Err(ClientHandlerError::ConnectionError(
                     ConnectionError::HostKeyMismatch {
                         received_key_type: server_public_key.algorithm(),
                         received_key_base64: server_public_key.public_key_base64(),
-                        known_key_type: key_type,
+                        known_key_type,
                         known_key_base64: key_base64,
                     },
                 ))
             }
             Ok(KnownHostValidationResult::Unknown) => {
-                warn!(target: "audit",session=%self.session_id, "Host key is unknown");
+                warn!(target: "audit", session=%self.session_id, host, port, key_type,
+                    fingerprint, "Host key is unknown");
 
                 let (tx, rx) = oneshot::channel();
                 self.event_tx
@@ -106,8 +112,12 @@ impl russh::client::Handler for ClientHandler {
                     {
                         error!(?error, session=%self.session_id, "Failed to save host key");
                     }
+                    info!(target: "audit", session=%self.session_id, host, port, key_type,
+                        fingerprint, "Host key accepted and trusted");
                     Ok(true)
                 } else {
+                    warn!(target: "audit", session=%self.session_id, host, port, key_type,
+                        fingerprint, "Host key rejected");
                     Ok(false)
                 }
             }

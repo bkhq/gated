@@ -1298,6 +1298,33 @@ export interface components {
             /** Format: int32 */
             port: number;
         };
+        /** @description One audit log entry with the context of the session it belongs to. */
+        AuditLogEntry: {
+            /** Format: uuid */
+            id: string;
+            session?: components["schemas"]["AuditSessionContext"] | null;
+            /** Format: uuid */
+            session_id: string;
+            text: string;
+            /** Format: date-time */
+            timestamp: string;
+            /** @description The user the event names, if any; see `session.username` otherwise. */
+            username?: string | null;
+            /** @description The event's own fields. */
+            values: unknown;
+        };
+        AuditSessionContext: {
+            /** @description Client `ip:port`. */
+            client_address: string;
+            /** Format: date-time */
+            ended?: string | null;
+            protocol: string;
+            /** Format: date-time */
+            started: string;
+            /** @description Target name at connect time. */
+            target?: string | null;
+            username?: string | null;
+        };
         BearerTokenUpstreamAuth: {
             token: string;
         };
@@ -1671,17 +1698,6 @@ export interface components {
             /** @description Parts of the `state.json` contract this lode supports. */
             features?: string[];
             version: string;
-        };
-        LogEntry: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            session_id: string;
-            text: string;
-            /** Format: date-time */
-            timestamp: string;
-            username?: string | null;
-            values: components["schemas"]["Value"];
         };
         ManagementSession: {
             /** Format: date-time */
@@ -2158,7 +2174,6 @@ export interface components {
             postgres?: components["schemas"]["CredentialKind"][] | null;
             ssh?: components["schemas"]["CredentialKind"][] | null;
         };
-        Value: unknown;
     };
     responses: never;
     parameters: never;
@@ -2809,7 +2824,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["LogEntry"][];
+                    "application/json; charset=utf-8": components["schemas"]["AuditLogEntry"][];
                 };
             };
         };
@@ -2832,7 +2847,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["LogEntry"][];
+                    "application/json; charset=utf-8": components["schemas"]["AuditLogEntry"][];
                 };
             };
         };
