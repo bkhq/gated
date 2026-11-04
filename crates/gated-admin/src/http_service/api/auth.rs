@@ -631,8 +631,9 @@ api_response! {
     }
 }
 
-/// Report user activity (navigation or an action) so the browser session
-/// stays signed in for its lifetime from now. Other requests do not extend it.
+/// Report user activity so the browser session stays signed in for its
+/// lifetime from now. The web UI calls it on navigation, which may not send
+/// any other request when the page data is cached.
 #[utoipa::path(post, path = "/auth/activity", operation_id = "report_activity")]
 async fn api_report_activity(
     session: Session,

@@ -1,5 +1,4 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
-import { noteActivity } from '@/shared/lib/session-activity'
 import { toastError } from '@/shared/lib/toast-error'
 
 declare module '@tanstack/react-query' {
@@ -24,8 +23,6 @@ export function createQueryClient(): QueryClient {
       },
     },
     mutationCache: new MutationCache({
-      // A mutation is a user action; queries (including polling) are not.
-      onMutate: () => noteActivity(),
       onError: (error, _variables, _context, mutation) => {
         if (shouldToast(error, mutation.meta?.inlineError))
           toastError(error)

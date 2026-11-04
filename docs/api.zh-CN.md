@@ -49,11 +49,11 @@
 - Summary：设置调用者浏览器会话无操作时保持登录的时长。登录前（登录页设置）和登录后都可调用。
 - Body：`{ seconds: u64 }`，取值须为 `/api/info` 中 `session_lifetime_options` 之一。
 - Responses：`204 No Content`；值不在可选项内时 `400` `Json<String>`。
-- 超过该时长没有上报活动（见 `report_activity`）会话即结束；设置时长本身算一次活动。
+- 超过该时长没有活动会话即结束。会话的每个请求都算活动，但对 Web 界面自动轮询或自动重新获取的接口发出的 `GET` 请求除外（`http_service/session.rs` 中的 `BACKGROUND_PATHS`：`/admin/api/sessions`、`/admin/api/management-sessions`、`/admin/api/command-reviews`、`/admin/api/system/update`、`/api/admin/encryption/lock-status`、`/api/auth/state`、`/api/auth/web-auth-requests`、`/api/profile/sessions` 及其子路径）。
 
 #### `POST /api/auth/activity` — `report_activity` [OAS]
 
-- Summary：把调用者的浏览器会话标记为此刻在用，从现在起保持登录所选时长。只有它会顺延会话，其他请求（页面数据、轮询）不会。SPA 在跳转页面和每次 mutation 时调用，最多每分钟一次。受 `require_auth` 保护。
+- Summary：把调用者的浏览器会话标记为此刻在用，从现在起保持登录所选时长。SPA 在跳转页面时调用（最多每分钟一次），因为页面数据有缓存时跳转可能不发其他请求。受 `require_auth` 保护。
 - Responses：`204 No Content`。
 
 #### `POST /api/auth/logout` — `logout` [OAS]
@@ -1210,7 +1210,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/api/sso/providers` | `get_sso_providers` |  |
 | GET | `/api/sso/return` | `return_to_sso` |  |
 | GET | `/api/targets` | `get_targets` |  |
-| POST | `/api/auth/activity` | `report_activity` | Report user activity (navigation or an action) so the browser session |
+| POST | `/api/auth/activity` | `report_activity` | Report user activity so the browser session stays signed in for its |
 | POST | `/api/auth/login` | `login` |  |
 | POST | `/api/auth/logout` | `logout` |  |
 | POST | `/api/auth/otp` | `otpLogin` |  |

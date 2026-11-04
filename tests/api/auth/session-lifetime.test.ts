@@ -55,7 +55,7 @@ describe("API Auth - Session lifetime", () => {
     expect(expires).toBe(14400 * 1000);
   });
 
-  test("only reported activity moves the session's last activity", async () => {
+  test("polled endpoints do not move the session's last activity", async () => {
     const url = `https://localhost:${wg.httpPort}`;
     const api = adminClient(url);
     const user = await api.createUser({ username: `user-${randomUUID()}` });
@@ -71,11 +71,17 @@ describe("API Auth - Session lifetime", () => {
     };
     const atLogin = await lastActive();
     await Bun.sleep(1100);
-    await session.get(`${url}/api/info`);
+    await session.get(`${url}/admin/api/system/update`);
+    await session.get(`${url}/admin/api/command-reviews`);
     // last_active is derived from a monotonic clock, so allow a little drift.
     expect(Math.abs(Date.parse(await lastActive()) - Date.parse(atLogin))).toBeLessThan(200);
 
+    await session.get(`${url}/api/info`);
+    const afterRequest = await lastActive();
+    expect(Date.parse(afterRequest) - Date.parse(atLogin)).toBeGreaterThan(1000);
+
+    await Bun.sleep(1100);
     expect((await session.post(`${url}/api/auth/activity`)).status).toBe(204);
-    expect(Date.parse(await lastActive()) - Date.parse(atLogin)).toBeGreaterThan(1000);
+    expect(Date.parse(await lastActive()) - Date.parse(afterRequest)).toBeGreaterThan(1000);
   });
 });

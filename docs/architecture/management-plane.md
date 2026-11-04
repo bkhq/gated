@@ -38,7 +38,7 @@ Middleware stack (`mod.rs`), outermost last:
    in the in-memory management registry (`http_service/session.rs`), not a
    proxy session: browser logins have no `sessions` row and do not appear in
    the session list. They end on logout, idle expiry
-   (the lifetime the user chose, default `admin.session_max_age`, counted from the last navigation or action reported via `/api/auth/activity`), restart, admin revocation
+   (the lifetime the user chose, default `admin.session_max_age`, counted from the last request, excluding the polled endpoints in `BACKGROUND_PATHS`), restart, admin revocation
    (`/admin/api/management-sessions`), or a password change (which revokes
    the user's other browser sessions and live proxy sessions).
 4. `CookieHostMiddleware` — binds cookies to the expected host to prevent

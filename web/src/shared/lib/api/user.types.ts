@@ -11,8 +11,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Report user activity (navigation or an action) so the browser session
-         *     stays signed in for its lifetime from now. Other requests do not extend it.
+         * Report user activity so the browser session stays signed in for its
+         *     lifetime from now. The web UI calls it on navigation, which may not send
+         *     any other request when the page data is cached.
          */
         post: operations["report_activity"];
         delete?: never;

@@ -248,3 +248,7 @@ Browser sessions slide and their lifetime is chosen by the user (task `20261104-
 ## 2026-11-04 11:30 [decision]
 
 Only user activity extends a browser session (task `20261104-0900`, reverses "polling counts as activity"): with polling counting, an open page kept a session alive forever. Requests no longer refresh the idle timestamp (`SessionStore::touch` only syncs the lifetime and purges dead sessions); `POST /api/auth/activity` (`SessionStore::mark_active`) does. The SPA reports it on route navigation (`router.subscribe('onResolved')`) and on every mutation (`MutationCache.onMutate`), throttled to once a minute (`shared/lib/session-activity.ts`). Typing in a web terminal or SQL console without navigating or saving does not count.
+
+## 2026-11-04 12:30 [decision]
+
+Activity is decided per request again, with an exclusion list (task `20261104-0900`): every request of a browser session extends it, except `GET` requests to the endpoints the web UI polls or refetches on push notifications (`BACKGROUND_PATHS` in `http_service/session.rs`, matched as path prefixes on segment boundaries). The SPA no longer reports mutations (they are requests); it still reports navigation via `POST /api/auth/activity`, because a navigation served from the query cache sends no request. A newly polled endpoint must be added to `BACKGROUND_PATHS`, or an open page will keep its session alive.

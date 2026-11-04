@@ -169,7 +169,11 @@ async fn track_session(request: Request, next: Next) -> Response {
         request.extensions().get::<Arc<Mutex<SessionStore>>>(),
         request.extensions().get::<Session>(),
     ) {
-        store.lock().await.touch(session);
+        let mut store = store.lock().await;
+        store.touch(session);
+        if session::counts_as_activity(request.method(), request.uri().path()) {
+            store.mark_active(session);
+        }
     }
     let (parts, body) = request.into_parts();
     let span = span_for_request(&parts, None).await;

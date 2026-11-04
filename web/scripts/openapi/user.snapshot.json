@@ -12,7 +12,7 @@
   "paths": {
     "/auth/activity": {
       "post": {
-        "summary": "Report user activity (navigation or an action) so the browser session\nstays signed in for its lifetime from now. Other requests do not extend it.",
+        "summary": "Report user activity so the browser session stays signed in for its\nlifetime from now. The web UI calls it on navigation, which may not send\nany other request when the page data is cached.",
         "operationId": "report_activity",
         "responses": {
           "204": {}

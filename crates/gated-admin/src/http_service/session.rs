@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use axum::extract::{FromRequestParts, Request, State};
 use axum::http::header::{COOKIE, SET_COOKIE};
 use axum::http::request::Parts;
-use axum::http::{HeaderValue, StatusCode};
+use axum::http::{HeaderValue, Method, StatusCode};
 use axum::middleware::Next;
 use axum::response::Response;
 use cookie::Cookie;
@@ -128,6 +128,29 @@ const SESSION_LIFETIME_CHOICES: [Duration; 5] = [
     Duration::from_secs(8 * 60 * 60),
     Duration::from_secs(24 * 60 * 60),
 ];
+
+/// GET endpoints the web UI polls or refetches by itself (timers and push
+/// notifications). Requests to them, or below them, do not count as user
+/// activity, so a page left open cannot keep its session alive forever.
+const BACKGROUND_PATHS: &[&str] = &[
+    "/admin/api/sessions",
+    "/admin/api/management-sessions",
+    "/admin/api/command-reviews",
+    "/admin/api/system/update",
+    "/api/admin/encryption/lock-status",
+    "/api/auth/state",
+    "/api/auth/web-auth-requests",
+    "/api/profile/sessions",
+];
+
+/// Whether a request extends the browser session it belongs to.
+pub fn counts_as_activity(method: &Method, path: &str) -> bool {
+    *method != Method::GET
+        || !BACKGROUND_PATHS.iter().any(|background| {
+            path.strip_prefix(background)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        })
+}
 
 /// The idle lifetimes a user may choose: the fixed choices up to `max`
 /// plus the configured `default`, ascending.
@@ -334,8 +357,8 @@ impl SessionStore {
     }
 
     /// Syncs the session's chosen lifetime, or drops its cookie when the
-    /// server-side handle no longer exists. Does not count as activity:
-    /// background requests such as page polling must not extend a session.
+    /// server-side handle no longer exists. Activity is recorded separately
+    /// (`mark_active`) because background requests must not extend a session.
     pub fn touch(&mut self, session: &Session) {
         if let Some(session_id) = session.get::<SessionId>(SESSION_ID_SESSION_KEY) {
             if self.session_handles.contains_key(&session_id) {
@@ -353,8 +376,7 @@ impl SessionStore {
         };
     }
 
-    /// Records user activity (navigation or an action), which extends the
-    /// session by its lifetime.
+    /// Records user activity, which extends the session by its lifetime.
     pub fn mark_active(&mut self, session: &Session) {
         if let Some(session_id) = session.get::<SessionId>(SESSION_ID_SESSION_KEY)
             && self.session_handles.contains_key(&session_id)
@@ -617,5 +639,34 @@ mod tests {
                 .get(&id)
                 .is_some_and(|at| *at > earlier)
         );
+    }
+
+    #[test]
+    fn polled_endpoints_do_not_count_as_activity() {
+        assert!(!counts_as_activity(
+            &Method::GET,
+            "/admin/api/system/update"
+        ));
+        assert!(!counts_as_activity(
+            &Method::GET,
+            "/admin/api/sessions/1234"
+        ));
+        assert!(!counts_as_activity(
+            &Method::GET,
+            "/api/admin/encryption/lock-status"
+        ));
+        assert!(counts_as_activity(
+            &Method::POST,
+            "/admin/api/system/update/check"
+        ));
+        assert!(counts_as_activity(
+            &Method::DELETE,
+            "/admin/api/sessions/closed"
+        ));
+        assert!(counts_as_activity(
+            &Method::GET,
+            "/admin/api/sessions-export"
+        ));
+        assert!(counts_as_activity(&Method::GET, "/api/info"));
     }
 }
