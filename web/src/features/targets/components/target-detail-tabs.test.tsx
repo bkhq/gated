@@ -1,6 +1,6 @@
 import type { Target } from '@/shared/types/domain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, renderHook, screen } from '@testing-library/react'
+import { cleanup, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { TargetDetailTabsBody } from './target-detail-tabs'
 import { useTargetDetailTabs } from './use-target-detail-tabs'
@@ -110,4 +110,21 @@ it('offers the security tab to users only for SSH targets', () => {
   expect(tabs('mysql', 'user')).toBe(false)
   expect(tabs('http', 'admin')).toBe(true)
   expect(tabs('postgres', 'admin')).toBe(true)
+})
+
+it('refetches the known host keys every time the security tab is shown', async () => {
+  const { getTargetKnownSshHostKeys } = await import('@/shared/lib/api/targets')
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60_000 } } })
+  const renderSecurity = () => render(
+    <QueryClientProvider client={client}>
+      <TargetDetailTabsBody target={sshTarget} mode="admin" mySessions={[]} tabsValue="security" onTabsChange={vi.fn()} />
+    </QueryClientProvider>,
+  )
+  const first = renderSecurity()
+  expect(await screen.findByText('targets.detail.security.noKnownKeys')).toBeTruthy()
+  first.unmount()
+
+  vi.mocked(getTargetKnownSshHostKeys).mockResolvedValueOnce([{ id: 'k1', host: '10.0.0.1', port: 22, key_type: 'ssh-ed25519', key_base64: 'AAAAC3NzKEY' }])
+  renderSecurity()
+  await waitFor(() => expect(screen.getByText('ssh-ed25519')).toBeTruthy())
 })

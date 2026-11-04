@@ -2426,6 +2426,14 @@
       "compareHint": "信任前请与主机上的指纹核对（ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub）。",
       "invalidKey": "没有找到主机密钥，请粘贴类似 \"ssh-ed25519 AAAA…\" 的一行。",
       "submit": "信任"
+    },
+    "details": {
+      "title": "主机密钥 — {{host}}",
+      "open": "查看详情",
+      "keyType": "密钥类型",
+      "copy": "复制",
+      "targets": "使用它的资产",
+      "noTargets": "没有 SSH 资产使用这个主机和端口。"
     }
   }
 }

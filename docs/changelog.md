@@ -264,3 +264,11 @@ SSH key accounts may leave the username to the target (task `20261104-1400`): `S
 ## 2026-11-04 16:00 [progress]
 
 Administrators can trust SSH host keys from the web UI (task `20261104-1430`); with the default `ssh.host_key_verification = auto_reject` there was no way to add one. An "Add host key" dialog on the Known hosts page and on an SSH target's Security tab fetches the key through the gateway (`POST /admin/api/ssh/check-host-key`, which now also returns the SHA256 `fingerprint`) or takes a pasted OpenSSH / known_hosts / ssh-keyscan line, and saves it with `POST /admin/api/ssh/known-hosts`. That endpoint now answers `400` with a reason for an invalid key (was `500`) and returns the existing entry when the same key is trusted again. The terminal's unknown-key error points to both places.
+
+## 2026-11-04 17:30 [BUG-P1]
+
+An SSH target's "Known host keys" stayed empty long after a key was learned: the list was cached for the default 60 s `staleTime`, and a key learned by a terminal or file connection never invalidated it, so returning to the target showed the stale empty list. The target security tab, the host keys dialog and the Known hosts page now refetch whenever they are shown (`staleTime: 0`). The backend endpoint was verified to return a key immediately (`tests/api/ssh/known-hosts.test.ts`).
+
+## 2026-11-04 17:30 [progress]
+
+Known hosts entries open a details dialog (row click or the eye button): host, port, key type, the SHA256 fingerprint computed in the browser (`features/known-hosts/host-key-fingerprint.ts`), the full key line with copy, and the SSH targets that use that host and port.

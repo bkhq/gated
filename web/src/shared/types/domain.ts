@@ -195,8 +195,12 @@ export interface Account {
 
 export interface KnownHost {
   id: string
+  // Display form: `host` on port 22, `host:port` otherwise.
   host: string
+  hostname: string
+  port: number
   algo: string
+  // The key's base64 blob (not a hashed fingerprint).
   fingerprint: string
 }
 

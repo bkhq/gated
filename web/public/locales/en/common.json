@@ -2426,6 +2426,14 @@
       "compareHint": "Compare it with the fingerprint on the host (ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub) before trusting it.",
       "invalidKey": "No host key found. Paste a line such as \"ssh-ed25519 AAAA…\".",
       "submit": "Trust"
+    },
+    "details": {
+      "title": "Host key — {{host}}",
+      "open": "View details",
+      "keyType": "Key type",
+      "copy": "Copy",
+      "targets": "Used by targets",
+      "noTargets": "No SSH target uses this host and port."
     }
   }
 }

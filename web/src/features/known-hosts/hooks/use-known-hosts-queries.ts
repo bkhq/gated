@@ -12,6 +12,8 @@ function adapt(item: SSHKnownHost): KnownHost {
   return {
     id: item.id,
     host: item.port === 22 ? item.host : `${item.host}:${item.port}`,
+    hostname: item.host,
+    port: item.port,
     algo: item.key_type,
     fingerprint: item.key_base64,
   }
@@ -52,6 +54,8 @@ export function useKnownHosts() {
       const list = await listKnownHosts(signal)
       return list.map(adapt)
     },
+    // Connections learn keys at any time; never show a cached list as current.
+    staleTime: 0,
   })
 }
 

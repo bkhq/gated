@@ -20,6 +20,8 @@ export function HostKeysDialog({ open, target, onClose }: HostKeysDialogProps) {
     queryKey: ['targets', target?.id ?? null, 'known-ssh-host-keys'],
     queryFn: async ({ signal }) => getTargetKnownSshHostKeys(target!.id, signal),
     enabled: open && !!target,
+    // A connection may have learned a key since the last look.
+    staleTime: 0,
   })
 
   const copyKey = (line: string) => {

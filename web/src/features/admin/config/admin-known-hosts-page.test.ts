@@ -31,6 +31,8 @@ describe('buildCsv', () => {
       {
         id: '1',
         host: 'evil.example.com',
+        hostname: 'evil.example.com',
+        port: 22,
         algo: '=cmd|\'/C calc\'!A1',
         fingerprint: 'SHA256:abc',
       },

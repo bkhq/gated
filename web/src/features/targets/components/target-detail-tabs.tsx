@@ -262,6 +262,9 @@ export function TargetDetailTabsBody({ target, mode, mySessions, tabsValue, onTa
     queryKey: ['targets', target.id, 'known-ssh-host-keys'],
     queryFn: async ({ signal }) => getTargetKnownSshHostKeys(target.id, signal),
     enabled: isAdminView && target.kind === 'ssh',
+    // A connection elsewhere (terminal, file manager) may learn a key at any
+    // time, so a cached list is never trusted as current.
+    staleTime: 0,
   })
   const targetRolesQuery = useTargetRoles(isAdminView ? target.id : undefined)
 

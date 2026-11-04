@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
+  Eye,
   Fingerprint,
   Plus,
   Search,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { KnownHostDetailsDialog } from '@/features/known-hosts/components/known-host-details-dialog'
 import { TrustHostKeyDialog } from '@/features/known-hosts/components/trust-host-key-dialog'
 import {
   useDeleteKnownHost,
@@ -126,6 +128,7 @@ export function AdminKnownHostsPage() {
   const [pendingBulkPurge, setPendingBulkPurge] = React.useState<KnownHost[] | null>(null)
   const [notice, setNotice] = React.useState<{ key: number, message: string } | null>(null)
   const [adding, setAdding] = React.useState(false)
+  const [viewing, setViewing] = React.useState<KnownHost | null>(null)
 
   React.useEffect(() => {
     if (notice === null) {
@@ -430,6 +433,7 @@ export function AdminKnownHostsPage() {
                             host={host}
                             checked={selected.has(host.id)}
                             onToggle={() => toggleOne(host.id)}
+                            onView={() => setViewing(host)}
                             onDelete={() => setPendingDelete(host)}
                           />
                         ))}
@@ -439,6 +443,7 @@ export function AdminKnownHostsPage() {
       </div>
 
       {adding ? <TrustHostKeyDialog open onClose={() => setAdding(false)} /> : null}
+      {viewing ? <KnownHostDetailsDialog host={viewing} onClose={() => setViewing(null)} /> : null}
 
       <Dialog open={pendingDelete !== null} onClose={() => setPendingDelete(null)} width={440}>
         {pendingDelete
@@ -499,16 +504,17 @@ export function AdminKnownHostsPage() {
   )
 }
 
-function KnownHostRow({ host, checked, onToggle, onDelete }: {
+function KnownHostRow({ host, checked, onToggle, onView, onDelete }: {
   host: KnownHost
   checked: boolean
   onToggle: () => void
+  onView: () => void
   onDelete: () => void
 }) {
   const { t } = useTranslation()
   const stop = (event: React.MouseEvent | React.KeyboardEvent) => event.stopPropagation()
   return (
-    <TR>
+    <TR className="cursor-pointer" onClick={onView}>
       <TD className="pl-5" onClick={stop}>
         <Checkbox
           checked={checked}
@@ -524,6 +530,14 @@ function KnownHostRow({ host, checked, onToggle, onDelete }: {
         {truncateFingerprint(host.fingerprint)}
       </TD>
       <TD className="pr-5 text-right" onClick={stop}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onView}
+          aria-label={t('knownHosts.details.open')}
+        >
+          <Eye size={14} />
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
