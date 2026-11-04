@@ -161,7 +161,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 
 - Summary: list the targets the current principal can access. Wrapped in `require_auth`.
 - Query: `search?: string` — case-insensitive substring of the target name or group name.
-- Responses: `200 OK` `Json<TargetSnapshot[]>`. A ticket session sees only the ticket's target.
+- Responses: `200 OK` `Json<TargetSnapshot[]>`. A ticket session sees only the ticket's target. `status` is the target's last reachability check (`TargetStatusInfo`, see §2.5) or `null` when never checked; users can read it but only admins can run a check.
 
 #### `GET /api/targets/:name/accounts` — `get_target_accounts` [OAS]
 
@@ -539,7 +539,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 
 #### `DELETE /admin/api/targets/:id` — `delete_target` [OAS]
 
-- Also deletes role bindings; for SSH targets the known-hosts entries for its host:port are removed; the target's DB pool is invalidated.
+- Also deletes role bindings and the stored reachability status; for SSH targets the known-hosts entries for its host:port are removed; the target's DB pool is invalidated.
 - Responses: `204` / `404`.
 
 #### `GET /admin/api/targets/:id/known-ssh-host-keys` — `get_ssh_target_known_ssh_host_keys` [OAS]
@@ -565,6 +565,17 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 - Body: `{ account_id: i32 | null }` (`null` returns the role to the default login).
 - Responses: `204` / `400 "The account is not bound to this target"` / `404` (the role is not bound to the target).
 - Unbinding an account from the target (`PUT /admin/api/targets/:id` with a new `accounts` list) resets the roles that used it to the default login.
+
+#### `GET /admin/api/targets/status` — `get_target_statuses` [OAS]
+
+- Responses: `200 OK` `TargetStatusInfo[]` — the last reachability check of every target that has been checked: `{ target_id: uuid, reachable: bool, latency_ms: i32 | null, error: string | null, checked_at: datetime }`.
+
+#### `POST /admin/api/targets/check` — `check_targets` [OAS]
+
+- Body: `{ target_ids: uuid[] }` (1 to 200; unknown ids are skipped).
+- Opens a TCP connection to each target's host and port (HTTP targets: the URL's host and port, 80/443 by default), 3 s timeout, at most 16 at once. No credentials are used and no session or recording is created. Errors are short reasons such as `connection refused`, `connection timed out`, `host unreachable`, `no address configured`.
+- Stores the results (replacing the previous check) and returns them: `200 OK` `TargetStatusInfo[]` / `400` (empty or more than 200 ids).
+- Scheduled checks: every minute the gateway checks the targets never checked or last checked longer than `target_check_interval_hours` ago (`PUT /admin/api/parameters`; default 24, `0` turns it off). Nothing runs while the database is locked.
 
 ### 2.6 Target groups (`target_groups.rs`)
 
@@ -706,6 +717,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
   - `sql_console_rate_limit_per_user?: u32`, `sql_console_rate_limit_per_target?: u32`
   - `terminal_watermark_enabled: bool`
   - `site_title?: string` (`null` = the built-in title "Gated")
+  - `target_check_interval_hours: u32` (hours between automatic target reachability checks, `0` = off; default 24)
 
 #### `PUT /admin/api/parameters` — `update_parameters` [OAS]
 
@@ -714,7 +726,8 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
   - Always written: `rate_limit_bytes_per_second?`, `sql_console_rate_limit_per_user?`, `sql_console_rate_limit_per_target?` (`null` clears)
   - Partial (omitted = keep the old value): `ssh_client_auth_publickey?`, `ssh_client_auth_password?`, `ssh_client_auth_keyboard_interactive?`, `minimize_password_login?`, `terminal_watermark_enabled?`
   - `site_title?: string`: omitted keeps the old value; empty after trimming clears it (back to "Gated"); at most 64 characters, no control characters.
-- Responses: `201 Created` (variant `Done`), empty body; `400` `Json<string>` (invalid `site_title`).
+  - `target_check_interval_hours?: u32`: 0 to 168; omitted keeps the old value.
+- Responses: `201 Created` (variant `Done`), empty body; `400` `Json<string>` (invalid `site_title` or `target_check_interval_hours`).
 
 ### 2.12 OpenAPI metadata
 
@@ -1189,8 +1202,8 @@ ParameterValues  { allow_own_credential_management, rate_limit_bytes_per_second?
                    ssh_client_auth_publickey, ssh_client_auth_password,
                    ssh_client_auth_keyboard_interactive, minimize_password_login,
                    sql_console_rate_limit_per_user?: u32, sql_console_rate_limit_per_target?: u32,
-                   terminal_watermark_enabled, site_title?: string }
-ParameterUpdate  // as above, but ssh_*, minimize_password_login, terminal_watermark_enabled and site_title may be omitted (old value kept)
+                   terminal_watermark_enabled, site_title?: string, target_check_interval_hours: u32 }
+ParameterUpdate  // as above, but ssh_*, minimize_password_login, terminal_watermark_enabled, site_title and target_check_interval_hours may be omitted (old value kept)
 SSHKey           { kind: string, public_key_base64: string }
 PaginatedResponse<T> { items: T[], total: u64, offset: u64 }                         // limit is not echoed
 ```
@@ -1314,6 +1327,7 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | GET | `/admin/api/targets/:id/roles` | `get_target_roles` |  |
 | GET | `/admin/api/targets/:id/upstream-certificate` | `get_target_upstream_certificate` |  |
 | GET | `/admin/api/targets/:id` | `get_target` |  |
+| GET | `/admin/api/targets/status` | `get_target_statuses` | The last check of every target that has been checked. |
 | GET | `/admin/api/targets` | `get_targets` |  |
 | GET | `/admin/api/tickets` | `get_tickets` |  |
 | GET | `/admin/api/tls/acme` | `get_acme_settings` | The ACME account and DNS provider used for every listener. |
@@ -1347,6 +1361,7 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | POST | `/admin/api/system/update` | `apply_update` |  |
 | POST | `/admin/api/target-groups` | `create_target_group` |  |
 | POST | `/admin/api/targets/:id/roles/:role_id` | `add_target_role` |  |
+| POST | `/admin/api/targets/check` | `check_targets` | Opens a TCP connection to each target's service port (3 s timeout, 16 at |
 | POST | `/admin/api/targets` | `create_target` |  |
 | POST | `/admin/api/tickets` | `create_ticket` |  |
 | POST | `/admin/api/tls/certificates/:listener/generate` | `generate_tls_certificate` | Replaces the listener's certificate with a new self-signed one and stops |

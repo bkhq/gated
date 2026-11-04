@@ -649,7 +649,11 @@
     },
     "actions": {
       "import": "Import",
-      "newTarget": "New target"
+      "newTarget": "New target",
+      "checkReachability": "Check reachability",
+      "checkAll": "Check all",
+      "checkFiltered": "Check {{count}} shown",
+      "selectAllFiltered": "Select all {{count}}"
     },
     "menu": {
       "copyConnect": "Copy connect command",
@@ -848,6 +852,19 @@
     "accountGate": {
       "title": "Sign in to {{target}} as",
       "description": "Your roles give you several accounts on this target. Choose the one to use for this connection."
+    },
+    "selectTarget": "Select {{name}}",
+    "selectPage": "Select all on this page",
+    "status": {
+      "label": "Status",
+      "filter": "Status",
+      "all": "All statuses",
+      "up": "Up",
+      "down": "Down",
+      "unknown": "Not checked",
+      "upLatency": "Up · {{ms}} ms",
+      "checkedAt": "Checked {{time}}",
+      "summary": "{{total}} targets · {{up}} up · {{down}} down · {{unknown}} not checked"
     }
   },
   "targetGroups": {
@@ -1555,7 +1572,12 @@
       "terminalWatermarkEnabled": "Terminal watermark",
       "terminalWatermarkEnabledHint": "Overlay a tiled identity + timestamp watermark on web terminals.",
       "siteTitle": "Site title",
-      "siteTitleHint": "Shown with the logo on the login page, in the sidebar and in the browser tab. Leave empty to use \"Gated\"."
+      "siteTitleHint": "Shown with the logo on the login page, in the sidebar and in the browser tab. Leave empty to use \"Gated\".",
+      "targetCheckInterval": "Target reachability check",
+      "targetCheckIntervalHint": "How often the gateway opens a TCP connection to every target to record whether it is up. Admins can also check targets from the target list.",
+      "targetCheckOff": "Off",
+      "targetCheckHours_one": "Every hour",
+      "targetCheckHours_other": "Every {{count}} hours"
     },
     "encryptionAdmin": {
       "title": "Database encryption",

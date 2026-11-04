@@ -649,7 +649,11 @@
     },
     "actions": {
       "import": "导入",
-      "newTarget": "新建目标"
+      "newTarget": "新建目标",
+      "checkReachability": "检测存活",
+      "checkAll": "检测全部",
+      "checkFiltered": "检测当前 {{count}} 个",
+      "selectAllFiltered": "选择全部 {{count}} 个"
     },
     "menu": {
       "copyConnect": "复制连接命令",
@@ -848,6 +852,19 @@
     "accountGate": {
       "title": "以哪个账号登录 {{target}}",
       "description": "你的角色在该资产上对应多个账号，请选择本次连接使用的账号。"
+    },
+    "selectTarget": "选择 {{name}}",
+    "selectPage": "选择本页全部",
+    "status": {
+      "label": "状态",
+      "filter": "状态",
+      "all": "全部状态",
+      "up": "在线",
+      "down": "离线",
+      "unknown": "未检测",
+      "upLatency": "在线 · {{ms}} ms",
+      "checkedAt": "检测于 {{time}}",
+      "summary": "共 {{total}} 个 · 在线 {{up}} · 离线 {{down}} · 未检测 {{unknown}}"
     }
   },
   "targetGroups": {
@@ -1555,7 +1572,12 @@
       "terminalWatermarkEnabled": "终端水印",
       "terminalWatermarkEnabledHint": "在 Web 终端上叠加平铺的身份与时间戳水印。",
       "siteTitle": "网站标题",
-      "siteTitleHint": "显示在登录页 Logo 下方、侧边栏和浏览器标签页中。留空则使用“Gated”。"
+      "siteTitleHint": "显示在登录页 Logo 下方、侧边栏和浏览器标签页中。留空则使用“Gated”。",
+      "targetCheckInterval": "资产存活检测",
+      "targetCheckIntervalHint": "网关定期对每个资产发起 TCP 连接，记录是否在线。管理员也可以在资产列表中手动检测。",
+      "targetCheckOff": "关闭",
+      "targetCheckHours_one": "每小时",
+      "targetCheckHours_other": "每 {{count}} 小时"
     },
     "encryptionAdmin": {
       "title": "数据库加密",

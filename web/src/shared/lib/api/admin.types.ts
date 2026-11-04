@@ -704,6 +704,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/targets/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Opens a TCP connection to each target's service port (3 s timeout, 16 at
+         *     once), stores and returns the results. Unknown ids are skipped.
+         */
+        post: operations["check_targets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/targets/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The last check of every target that has been checked. */
+        get: operations["get_target_statuses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/targets/{id}": {
         parameters: {
             query?: never;
@@ -1386,6 +1423,9 @@ export interface components {
             remote_key_base64: string;
             remote_key_type: string;
         };
+        CheckTargetsRequest: {
+            target_ids: string[];
+        };
         ClientCertificateUpstreamAuth: {
             certificate: string;
             private_key: string;
@@ -1811,6 +1851,12 @@ export interface components {
             ssh_client_auth_password?: boolean | null;
             ssh_client_auth_publickey?: boolean | null;
             /**
+             * Format: int32
+             * @description Hours between automatic target reachability checks, 0 (off) to 168.
+             *     Omitted leaves the current value unchanged.
+             */
+            target_check_interval_hours?: number | null;
+            /**
              * @description When true, the web terminal renders a frontend-only operator-identity +
              *     timestamp watermark overlay. Omitted leaves the current value unchanged.
              */
@@ -1841,6 +1887,11 @@ export interface components {
             ssh_client_auth_keyboard_interactive: boolean;
             ssh_client_auth_password: boolean;
             ssh_client_auth_publickey: boolean;
+            /**
+             * Format: int32
+             * @description Hours between automatic target reachability checks; 0 = off.
+             */
+            target_check_interval_hours: number;
             /**
              * @description When true, the web terminal renders a frontend-only operator-identity +
              *     timestamp watermark overlay. Defaults to false.
@@ -2094,6 +2145,17 @@ export interface components {
             /** Format: int32 */
             port: number;
             username: string;
+        };
+        /** @description The last reachability check of a target. */
+        TargetStatusInfo: {
+            /** Format: date-time */
+            checked_at: string;
+            error?: string | null;
+            /** Format: int32 */
+            latency_ms?: number | null;
+            reachable: boolean;
+            /** Format: uuid */
+            target_id: string;
         };
         Ticket: {
             /** Format: date-time */
@@ -3970,6 +4032,56 @@ export interface operations {
                 };
                 content: {
                     "application/json; charset=utf-8": string;
+                };
+            };
+        };
+    };
+    check_targets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["CheckTargetsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["TargetStatusInfo"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
+        };
+    };
+    get_target_statuses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["TargetStatusInfo"][];
                 };
             };
         };

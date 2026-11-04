@@ -3,10 +3,11 @@ import type {
   AdminTargetDataRequest,
   AdminTargetOptions,
   TargetAccountMetadata,
+  TargetStatusInfo,
   UserTargetKind,
   UserTargetSnapshot,
 } from '@/shared/lib/api/targets'
-import type { LiveSession, Target, TargetKind } from '@/shared/types/domain'
+import type { LiveSession, Target, TargetHealth, TargetKind } from '@/shared/types/domain'
 import type { InlineAuth, TargetDraft } from '@/shared/types/drafts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useIsAdmin } from '@/shared/hooks/use-info'
@@ -14,6 +15,7 @@ import { ApiError } from '@/shared/lib/api/http'
 import { listTargetGroups } from '@/shared/lib/api/target-groups'
 import {
   addTargetRole,
+  checkTargets,
   createAdminTarget,
   deleteAdminTarget,
   deleteTargetRole,
@@ -22,6 +24,7 @@ import {
   listTargetAccountChoices,
   listTargetRoleAccounts,
   listTargetRoles,
+  listTargetStatuses,
   listUserTargets,
   setTargetRoleAccount,
   updateAdminTarget,
@@ -99,6 +102,17 @@ function inlineAuthFromOptions(options: AdminTargetOptions): InlineAuth {
   }
 }
 
+export function toTargetHealth(info: Omit<TargetStatusInfo, 'target_id'> | null | undefined): TargetHealth | null {
+  if (!info)
+    return null
+  return {
+    reachable: info.reachable,
+    latencyMs: info.latency_ms ?? null,
+    error: info.error ?? null,
+    checkedAt: info.checked_at,
+  }
+}
+
 function userSnapshotToDomain(snapshot: UserTargetSnapshot): Target {
   return {
     id: snapshot.name,
@@ -111,6 +125,7 @@ function userSnapshotToDomain(snapshot: UserTargetSnapshot): Target {
     groupName: snapshot.group?.name ?? '',
     description: snapshot.description,
     readonly: false,
+    status: toTargetHealth(snapshot.status),
   }
 }
 
@@ -257,8 +272,42 @@ async function fetchMyTargets(isAdmin: boolean, signal: AbortSignal): Promise<Ta
   if (!isAdmin)
     return mine.map(userSnapshotToDomain)
   const [list, groupNames] = await Promise.all([listAdminTargets(signal), listGroupNames(signal)])
-  const granted = new Set(mine.map(target => target.name))
-  return list.filter(target => granted.has(target.name)).map(target => adminTargetToDomain(target, groupNames))
+  const granted = new Map(mine.map(target => [target.name, target]))
+  return list
+    .filter(target => granted.has(target.name))
+    .map(target => ({ ...adminTargetToDomain(target, groupNames), status: toTargetHealth(granted.get(target.name)?.status) }))
+}
+
+const TARGET_STATUS_KEY = ['targets', 'status'] as const
+
+/** Last reachability check per target id (admin). */
+export function useTargetStatuses() {
+  return useQuery<Map<string, TargetHealth>>({
+    queryKey: TARGET_STATUS_KEY,
+    queryFn: async ({ signal }) => {
+      const list = await listTargetStatuses(signal)
+      return new Map(list.map(info => [info.target_id, toTargetHealth(info)!]))
+    },
+  })
+}
+
+export function useCheckTargets() {
+  const qc = useQueryClient()
+  return useMutation({
+    // The gateway takes at most 200 targets per request.
+    mutationFn: async (targetIds: string[]) => {
+      const results: TargetStatusInfo[] = []
+      for (let i = 0; i < targetIds.length; i += 200)
+        results.push(...await checkTargets(targetIds.slice(i, i + 200)))
+      return results
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: TARGET_STATUS_KEY }),
+        qc.invalidateQueries({ queryKey: MY_TARGETS_KEY }),
+      ])
+    },
+  })
 }
 
 export function useMyTargets() {

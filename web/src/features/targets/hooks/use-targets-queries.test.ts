@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import * as React from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { useMyTarget, useMyTargets, useTarget, useTargets } from './use-targets-queries'
+import { useCheckTargets, useMyTarget, useMyTargets, useTarget, useTargets } from './use-targets-queries'
 
 const state = vi.hoisted(() => ({ admin: true }))
 
@@ -24,9 +24,16 @@ vi.mock('@/shared/lib/api/targets', () => ({
   listAdminTargets: vi.fn(async () => [adminTarget('t1', 'web-01', 'g1'), adminTarget('t2', 'web-02')]),
   getAdminTarget: vi.fn(async () => adminTarget('t1', 'web-01', 'g1')),
   listUserTargets: vi.fn(async () => [
-    { name: 'web-01', kind: 'Ssh', description: '', group: { id: 'g1', name: 'Production' } },
+    {
+      name: 'web-01',
+      kind: 'Ssh',
+      description: '',
+      group: { id: 'g1', name: 'Production' },
+      status: { target_id: 't1', reachable: false, latency_ms: null, error: 'connection refused', checked_at: '2026-11-05T00:00:00Z' },
+    },
     { name: 'web-02', kind: 'Ssh', description: '' },
   ]),
+  checkTargets: vi.fn(async (ids: string[]) => ids.map(id => ({ target_id: id, reachable: true, checked_at: '' }))),
 }))
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -70,4 +77,25 @@ it('my target detail is empty for a target that is not granted', async () => {
   const { result } = renderHook(() => useMyTarget('t1'), { wrapper })
   await waitFor(() => expect(result.current.isSuccess).toBe(true))
   expect(result.current.data).toBeNull()
+})
+
+it('my targets carry the last reachability check', async () => {
+  for (const admin of [true, false]) {
+    state.admin = admin
+    const { result } = renderHook(() => useMyTargets(), { wrapper })
+    await waitFor(() => expect(result.current.data).toBeDefined())
+    expect(result.current.data?.map(t => t.status)).toEqual([
+      { reachable: false, latencyMs: null, error: 'connection refused', checkedAt: '2026-11-05T00:00:00Z' },
+      null,
+    ])
+  }
+})
+
+it('checks large selections in batches of 200', async () => {
+  const { checkTargets } = await import('@/shared/lib/api/targets')
+  const { result } = renderHook(() => useCheckTargets(), { wrapper })
+  const ids = Array.from({ length: 450 }, (_unused, i) => `t${i}`)
+  const results = await result.current.mutateAsync(ids)
+  expect(vi.mocked(checkTargets).mock.calls.map(([batch]) => batch.length)).toEqual([200, 200, 50])
+  expect(results).toHaveLength(450)
 })

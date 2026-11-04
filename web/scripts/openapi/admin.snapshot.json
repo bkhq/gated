@@ -2503,6 +2503,81 @@
         ]
       }
     },
+    "/targets/check": {
+      "post": {
+        "summary": "Opens a TCP connection to each target's service port (3 s timeout, 16 at\nonce), stores and returns the results. Unknown ids are skipped.",
+        "operationId": "check_targets",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckTargetsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TargetStatusInfo"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/targets/status": {
+      "get": {
+        "summary": "The last check of every target that has been checked.",
+        "operationId": "get_target_statuses",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TargetStatusInfo"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
     "/targets/{id}": {
       "get": {
         "operationId": "get_target",
@@ -5112,6 +5187,21 @@
           }
         }
       },
+      "CheckTargetsRequest": {
+        "type": "object",
+        "required": [
+          "target_ids"
+        ],
+        "properties": {
+          "target_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
       "ClientCertificateUpstreamAuth": {
         "type": "object",
         "required": [
@@ -6447,6 +6537,15 @@
               "null"
             ]
           },
+          "target_check_interval_hours": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Hours between automatic target reachability checks, 0 (off) to 168.\nOmitted leaves the current value unchanged.",
+            "minimum": 0
+          },
           "terminal_watermark_enabled": {
             "type": [
               "boolean",
@@ -6464,7 +6563,8 @@
           "ssh_client_auth_password",
           "ssh_client_auth_keyboard_interactive",
           "minimize_password_login",
-          "terminal_watermark_enabled"
+          "terminal_watermark_enabled",
+          "target_check_interval_hours"
         ],
         "properties": {
           "allow_own_credential_management": {
@@ -6514,6 +6614,12 @@
           },
           "ssh_client_auth_publickey": {
             "type": "boolean"
+          },
+          "target_check_interval_hours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Hours between automatic target reachability checks; 0 = off.",
+            "minimum": 0
           },
           "terminal_watermark_enabled": {
             "type": "boolean",
@@ -7385,6 +7491,41 @@
           },
           "username": {
             "type": "string"
+          }
+        }
+      },
+      "TargetStatusInfo": {
+        "type": "object",
+        "description": "The last reachability check of a target.",
+        "required": [
+          "target_id",
+          "reachable",
+          "checked_at"
+        ],
+        "properties": {
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "latency_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "reachable": {
+            "type": "boolean"
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

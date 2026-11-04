@@ -15,6 +15,7 @@ use gated_db_entities::{Target, TargetGroup};
 use sea_orm::EntityTrait;
 use serde::Serialize;
 
+use crate::api::target_status::TargetStatusInfo;
 use crate::http_service::api::AnySecurityScheme;
 use crate::http_service::common::{RequestAuthorization, SessionAuthorization, require_auth};
 
@@ -32,6 +33,8 @@ pub struct TargetSnapshot {
     pub kind: Target::TargetKind,
     pub group: Option<GroupInfo>,
     pub default_database_name: Option<String>,
+    /// The last reachability check; `null` when never checked.
+    pub status: Option<TargetStatusInfo>,
 }
 
 api_response! {
@@ -69,10 +72,13 @@ async fn api_get_all_targets(
 ) -> Result<GetTargetsResponse, GatedError> {
     let GetAllTargetsQuery { search } = query;
     // Fetch target groups for group information
-    let groups: Vec<TargetGroup::Model> = {
+    let (groups, mut statuses) = {
         let db = services.db_required().await?;
-        TargetGroup::Entity::find().all(&db).await
-    }?;
+        (
+            TargetGroup::Entity::find().all(&db).await?,
+            gated_core::target_status::all_statuses(&db).await?,
+        )
+    };
 
     let group_map: HashMap<uuid::Uuid, &TargetGroup::Model> =
         groups.iter().map(|g| (g.id, g)).collect();
@@ -141,6 +147,7 @@ async fn api_get_all_targets(
                     _ => None,
                 },
                 group,
+                status: statuses.remove(&t.id).map(Into::into),
             }
         })
         .collect();

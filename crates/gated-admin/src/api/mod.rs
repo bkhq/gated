@@ -27,6 +27,7 @@ mod sso_credentials;
 mod step_up_grace;
 mod system;
 mod target_groups;
+pub(crate) mod target_status;
 mod targets;
 mod tickets_detail;
 mod tickets_list;
@@ -50,6 +51,7 @@ pub fn router() -> OpenApiRouter {
         .merge(tls_certificates::router())
         .merge(logs::router())
         .merge(targets::router())
+        .merge(target_status::router())
         .merge(target_groups::router())
         .merge(users::router())
         .merge(password_credentials::router())

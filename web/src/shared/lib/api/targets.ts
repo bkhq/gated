@@ -54,6 +54,17 @@ export async function deleteAdminTarget(id: string, signal?: AbortSignal): Promi
   return adminApi.delete<void>(`/targets/${encodeURIComponent(id)}`, signal)
 }
 
+export type TargetStatusInfo = AdminComponents['schemas']['TargetStatusInfo']
+
+export async function listTargetStatuses(signal?: AbortSignal): Promise<TargetStatusInfo[]> {
+  return adminApi.get<TargetStatusInfo[]>('/targets/status', signal)
+}
+
+/** Checks reachability now (TCP connect, 3 s timeout); stores and returns the results. */
+export async function checkTargets(targetIds: string[], signal?: AbortSignal): Promise<TargetStatusInfo[]> {
+  return adminApi.post<TargetStatusInfo[]>('/targets/check', { target_ids: targetIds }, signal)
+}
+
 export async function listUserTargets(signal?: AbortSignal): Promise<UserTargetSnapshot[]> {
   return userApi.get<UserTargetSnapshot[]>('/targets', signal)
 }

@@ -3729,6 +3729,52 @@
           },
           "name": {
             "type": "string"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TargetStatusInfo",
+                "description": "The last reachability check; `null` when never checked."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "TargetStatusInfo": {
+        "type": "object",
+        "description": "The last reachability check of a target.",
+        "required": [
+          "target_id",
+          "reachable",
+          "checked_at"
+        ],
+        "properties": {
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "latency_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "reachable": {
+            "type": "boolean"
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

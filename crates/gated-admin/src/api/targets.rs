@@ -10,7 +10,9 @@ use gated_common::{api_response, api_routes};
 use gated_core::Services;
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::Target::TargetKind;
-use gated_db_entities::{Account, KnownHost, Role, Target, TargetAccount, TargetRoleAssignment};
+use gated_db_entities::{
+    Account, KnownHost, Role, Target, TargetAccount, TargetRoleAssignment, TargetStatus,
+};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait, QueryFilter,
     QueryOrder, Set, TransactionTrait,
@@ -412,6 +414,10 @@ async fn api_delete_target(
             }
         }
     }
+
+    TargetStatus::Entity::delete_by_id(target.id)
+        .exec(&db)
+        .await?;
 
     let target_id = target.id;
     target.delete(&db).await?;

@@ -160,7 +160,7 @@
 
 - Summary：列出当前主体可访问的目标。Wrapped in `require_auth`。
 - Query：`search?: string` — 不区分大小写子串，匹配 target.name 或 group.name。
-- Responses：`200 OK` `Json<TargetSnapshot[]>`。Ticket 会话只会看到 ticket 绑定的那一个目标。
+- Responses：`200 OK` `Json<TargetSnapshot[]>`。Ticket 会话只会看到 ticket 绑定的那一个目标。`status` 为该目标最近一次存活检测（`TargetStatusInfo`，见 §2.5），从未检测为 `null`；普通用户只读，只有管理员能发起检测。
 
 #### `GET /api/targets/:name/accounts` — `get_target_accounts` [OAS]
 
@@ -538,7 +538,7 @@
 
 #### `DELETE /admin/api/targets/:id` — `delete_target` [OAS]
 
-- 同步删除角色绑定；SSH 目标会删除其 host:port 对应的 known-hosts；使该目标的 DB pool 失效。
+- 同步删除角色绑定和已保存的存活状态；SSH 目标会删除其 host:port 对应的 known-hosts；使该目标的 DB pool 失效。
 - Responses：`204` / `404`。
 
 #### `GET /admin/api/targets/:id/known-ssh-host-keys` — `get_ssh_target_known_ssh_host_keys` [OAS]
@@ -564,6 +564,17 @@
 - Body：`{ account_id: i32 | null }`（`null` 恢复默认登录）。
 - Responses：`204` / `400 "The account is not bound to this target"` / `404`（该角色未绑定到目标）。
 - 从目标解绑账号（`PUT /admin/api/targets/:id` 更新 `accounts`）时，使用该账号的角色会恢复为默认登录。
+
+#### `GET /admin/api/targets/status` — `get_target_statuses` [OAS]
+
+- Responses：`200 OK` `TargetStatusInfo[]` — 每个已检测目标最近一次的存活检测：`{ target_id: uuid, reachable: bool, latency_ms: i32 | null, error: string | null, checked_at: datetime }`。
+
+#### `POST /admin/api/targets/check` — `check_targets` [OAS]
+
+- Body：`{ target_ids: uuid[] }`（1 到 200 个；不存在的 id 跳过）。
+- 对每个目标的 host:port 发起 TCP 连接（HTTP 目标取 URL 的主机和端口，默认 80/443），超时 3 秒，最多 16 个并发。不使用任何凭据，不创建会话或录像。错误为简短原因，如 `connection refused`、`connection timed out`、`host unreachable`、`no address configured`。
+- 保存结果（覆盖上一次）并返回：`200 OK` `TargetStatusInfo[]` / `400`（为空或超过 200 个）。
+- 定时检测：网关每分钟检测从未检测或距上次检测超过 `target_check_interval_hours` 的目标（`PUT /admin/api/parameters`；默认 24，`0` 关闭）。数据库锁定期间不运行。
 
 ### 2.6 目标组 (`target_groups.rs`)
 
@@ -705,6 +716,7 @@
   - `sql_console_rate_limit_per_user?: u32`、`sql_console_rate_limit_per_target?: u32`
   - `terminal_watermark_enabled: bool`
   - `site_title?: string`（`null` 表示使用内置标题 “Gated”）
+  - `target_check_interval_hours: u32`（自动存活检测间隔小时数，`0` 关闭；默认 24）
 
 #### `PUT /admin/api/parameters` — `update_parameters` [OAS]
 
@@ -713,7 +725,8 @@
   - 总会写：`rate_limit_bytes_per_second?`、`sql_console_rate_limit_per_user?`、`sql_console_rate_limit_per_target?`（`null` 清空）
   - 部分字段（缺省 = 保留旧值）：`ssh_client_auth_publickey?`、`ssh_client_auth_password?`、`ssh_client_auth_keyboard_interactive?`、`minimize_password_login?`、`terminal_watermark_enabled?`
   - `site_title?: string`：缺省保留旧值；去除首尾空白后为空则清除（恢复 “Gated”）；最多 64 个字符，不能包含控制字符。
-- Responses：`201 Created`（变体 `Done`），空 body；`400` `Json<string>`（`site_title` 不合法）。
+  - `target_check_interval_hours?: u32`：0 到 168；缺省保留旧值。
+- Responses：`201 Created`（变体 `Done`），空 body；`400` `Json<string>`（`site_title` 或 `target_check_interval_hours` 不合法）。
 
 ### 2.12 OpenAPI 元数据
 
@@ -1188,8 +1201,8 @@ ParameterValues  { allow_own_credential_management, rate_limit_bytes_per_second?
                    ssh_client_auth_publickey, ssh_client_auth_password,
                    ssh_client_auth_keyboard_interactive, minimize_password_login,
                    sql_console_rate_limit_per_user?: u32, sql_console_rate_limit_per_target?: u32,
-                   terminal_watermark_enabled, site_title?: string }
-ParameterUpdate  // 同上，但 ssh_*、minimize_password_login、terminal_watermark_enabled、site_title 可缺省（保留旧值）
+                   terminal_watermark_enabled, site_title?: string, target_check_interval_hours: u32 }
+ParameterUpdate  // 同上，但 ssh_*、minimize_password_login、terminal_watermark_enabled、site_title、target_check_interval_hours 可缺省（保留旧值）
 SSHKey           { kind: string, public_key_base64: string }
 PaginatedResponse<T> { items: T[], total: u64, offset: u64 }                         // limit 不回显
 ```
@@ -1313,6 +1326,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/admin/api/targets/:id/roles` | `get_target_roles` |  |
 | GET | `/admin/api/targets/:id/upstream-certificate` | `get_target_upstream_certificate` |  |
 | GET | `/admin/api/targets/:id` | `get_target` |  |
+| GET | `/admin/api/targets/status` | `get_target_statuses` | The last check of every target that has been checked. |
 | GET | `/admin/api/targets` | `get_targets` |  |
 | GET | `/admin/api/tickets` | `get_tickets` |  |
 | GET | `/admin/api/tls/acme` | `get_acme_settings` | The ACME account and DNS provider used for every listener. |
@@ -1346,6 +1360,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/admin/api/system/update` | `apply_update` |  |
 | POST | `/admin/api/target-groups` | `create_target_group` |  |
 | POST | `/admin/api/targets/:id/roles/:role_id` | `add_target_role` |  |
+| POST | `/admin/api/targets/check` | `check_targets` | Opens a TCP connection to each target's service port (3 s timeout, 16 at |
 | POST | `/admin/api/targets` | `create_target` |  |
 | POST | `/admin/api/tickets` | `create_ticket` |  |
 | POST | `/admin/api/tls/certificates/:listener/generate` | `generate_tls_certificate` | Replaces the listener's certificate with a new self-signed one and stops |

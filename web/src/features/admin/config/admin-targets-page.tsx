@@ -1,19 +1,32 @@
 import type { Target } from '@/shared/types/domain'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { Plus, Search } from 'lucide-react'
+import { Activity, Loader2, Plus, Search } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { TargetGroupsPanel } from '@/features/target-groups/components/target-groups-panel'
 import { useTargetGroups } from '@/features/target-groups/hooks/use-target-groups-queries'
 import { DeleteTargetDialog, HostKeysDialog, TargetCard, TargetFormDrawer, TargetRow, TargetViewToggle } from '@/features/targets/components'
 import { useTargetView } from '@/features/targets/hooks/use-target-view'
-import { useTargets } from '@/features/targets/hooks/use-targets-queries'
+import { useCheckTargets, useTargets, useTargetStatuses } from '@/features/targets/hooks/use-targets-queries'
+import { BulkActionBar } from '@/shared/components/bulk-action-bar'
 import { PageHeader } from '@/shared/components/page-header'
+import { Pager } from '@/shared/components/pager'
 import { Button } from '@/shared/ui/button'
+import { Checkbox } from '@/shared/ui/checkbox'
 import { Input } from '@/shared/ui/input'
 import { Select } from '@/shared/ui/select'
 import { Table, TBody, TH, THead, TR } from '@/shared/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+
+const PAGE_SIZE = 50
+
+type StatusFilter = 'all' | 'up' | 'down' | 'unknown'
+
+function statusOf(target: Target): Exclude<StatusFilter, 'all'> {
+  if (!target.status)
+    return 'unknown'
+  return target.status.reachable ? 'up' : 'down'
+}
 
 interface DrawerState {
   mode: 'create' | 'edit'
@@ -59,7 +72,12 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
   const navigate = useNavigate()
   const [view, setView] = useTargetView()
   const targetsData = useTargets().data
-  const targets = React.useMemo(() => targetsData ?? [], [targetsData])
+  const statuses = useTargetStatuses().data
+  const targets = React.useMemo(
+    () => (targetsData ?? []).map(target => ({ ...target, status: statuses?.get(target.id) ?? null })),
+    [targetsData, statuses],
+  )
+  const check = useCheckTargets()
   const groupsData = useTargetGroups().data
   const groups = React.useMemo(() => groupsData ?? [], [groupsData])
   const [drawer, setDrawer] = React.useState<DrawerState | null>(null)
@@ -67,6 +85,9 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
   const [deleteTarget, setDeleteTarget] = React.useState<Target | null>(null)
   const [query, setQuery] = React.useState('')
   const [kindFilter, setKindFilter] = React.useState<'all' | Target['kind']>('all')
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all')
+  const [offset, setOffset] = React.useState(0)
+  const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
 
   // target.group holds the backend group_id; resolve display names from the
   // real target-groups list.
@@ -85,11 +106,56 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
         return false
       if (groupFilter !== 'all' && target.group !== groupFilter)
         return false
+      if (statusFilter !== 'all' && statusOf(target) !== statusFilter)
+        return false
       if (query && !`${target.name} ${target.host} ${target.user}`.toLowerCase().includes(query.toLowerCase()))
         return false
       return true
     })
-  }, [targets, kindFilter, groupFilter, query])
+  }, [targets, kindFilter, groupFilter, statusFilter, query])
+
+  const counts = React.useMemo(() => {
+    const result = { up: 0, down: 0, unknown: 0 }
+    for (const target of targets)
+      result[statusOf(target)] += 1
+    return result
+  }, [targets])
+
+  // Filters reset the page; an offset past the end (after a delete) does too.
+  const pageOffset = offset < filtered.length ? offset : 0
+  const paged = filtered.slice(pageOffset, pageOffset + PAGE_SIZE)
+  const filteredIds = filtered.map(target => target.id)
+  const selectedIds = filteredIds.filter(id => selected.has(id))
+  const pageAllSelected = paged.length > 0 && paged.every(target => selected.has(target.id))
+  const pageSomeSelected = !pageAllSelected && paged.some(target => selected.has(target.id))
+
+  const setTargetSelected = (id: string, value: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (value)
+        next.add(id)
+      else
+        next.delete(id)
+      return next
+    })
+  }
+  const togglePage = () => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const target of paged) {
+        if (pageAllSelected)
+          next.delete(target.id)
+        else
+          next.add(target.id)
+      }
+      return next
+    })
+  }
+  const runCheck = (ids: string[]) => {
+    if (ids.length > 0)
+      check.mutate(ids)
+  }
+  const filtering = kindFilter !== 'all' || groupFilter !== 'all' || statusFilter !== 'all' || query !== ''
 
   const openDetail = (target: Target) => {
     void navigate({ to: '/admin/targets/$targetId', params: { targetId: target.id } })
@@ -103,14 +169,20 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
             icon={Search}
             placeholder={`${t('actions.search')}…`}
             value={query}
-            onChange={event => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setOffset(0)
+            }}
             aria-label={t('actions.search')}
           />
         </div>
         <Select
           className="w-[160px]"
           value={kindFilter}
-          onValueChange={value => setKindFilter(value as 'all' | Target['kind'])}
+          onValueChange={(value) => {
+            setKindFilter(value as 'all' | Target['kind'])
+            setOffset(0)
+          }}
           aria-label={t('fields.protocol')}
           options={[
             { value: 'all', label: t('targets.filters.allProtocols') },
@@ -123,19 +195,39 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
         <Select
           className="w-[160px]"
           value={groupFilter}
-          onValueChange={onGroupFilter}
+          onValueChange={(value) => {
+            onGroupFilter(value)
+            setOffset(0)
+          }}
           aria-label={t('targets.detail.overview.group')}
           options={groupOptions}
         />
-        {(kindFilter !== 'all' || groupFilter !== 'all' || query)
+        <Select
+          className="w-[140px]"
+          value={statusFilter}
+          onValueChange={(value) => {
+            setStatusFilter(value as StatusFilter)
+            setOffset(0)
+          }}
+          aria-label={t('targets.status.filter')}
+          options={[
+            { value: 'all', label: t('targets.status.all') },
+            { value: 'up', label: t('targets.status.up') },
+            { value: 'down', label: t('targets.status.down') },
+            { value: 'unknown', label: t('targets.status.unknown') },
+          ]}
+        />
+        {filtering
           ? (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
                   setKindFilter('all')
+                  setStatusFilter('all')
                   onGroupFilter('all')
                   setQuery('')
+                  setOffset(0)
                 }}
               >
                 {t('actions.clearFilters')}
@@ -143,6 +235,13 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
             )
           : null}
         <span className="flex-1" />
+        <span className="text-[12px] text-muted-foreground" aria-live="polite">
+          {t('targets.status.summary', { total: targets.length, up: counts.up, down: counts.down, unknown: counts.unknown })}
+        </span>
+        <Button size="sm" variant="outline" disabled={check.isPending || filtered.length === 0} onClick={() => runCheck(filteredIds)}>
+          {check.isPending ? <Loader2 size={13} className="animate-spin" /> : <Activity size={13} />}
+          <span>{filtering ? t('targets.actions.checkFiltered', { count: filtered.length }) : t('targets.actions.checkAll')}</span>
+        </Button>
         <TargetViewToggle view={view} onChange={setView} />
         <Button size="sm" onClick={() => setDrawer({ mode: 'create', target: null })}>
           <Plus size={13} />
@@ -150,11 +249,25 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
         </Button>
       </div>
 
+      <BulkActionBar selectedCount={selectedIds.length} onClear={() => setSelected(new Set())}>
+        <Button size="sm" variant="outline" disabled={check.isPending} onClick={() => runCheck(selectedIds)}>
+          <Activity size={13} />
+          <span>{t('targets.actions.checkReachability')}</span>
+        </Button>
+        {selectedIds.length < filtered.length
+          ? (
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set(filteredIds))}>
+                {t('targets.actions.selectAllFiltered', { count: filtered.length })}
+              </Button>
+            )
+          : null}
+      </BulkActionBar>
+
       <div className="px-6 pb-6">
         {view === 'grid'
           ? (
               <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
-                {filtered.map(target => (
+                {paged.map(target => (
                   <TargetCard
                     key={target.id}
                     target={{ ...target, groupName: groupNameById.get(target.group) ?? '' }}
@@ -163,6 +276,9 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
                     onEdit={item => setDrawer({ mode: 'edit', target: item })}
                     onDelete={setDeleteTarget}
                     onHostKeys={setHostKeysTarget}
+                    onCheck={item => runCheck([item.id])}
+                    selected={selected.has(target.id)}
+                    onSelectedChange={value => setTargetSelected(target.id, value)}
                   />
                 ))}
               </div>
@@ -171,15 +287,24 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
               <Table>
                 <THead>
                   <TR>
-                    <TH className="pl-5">{t('fields.name')}</TH>
+                    <TH className="w-[44px] pl-5">
+                      <Checkbox
+                        checked={pageAllSelected}
+                        indeterminate={pageSomeSelected}
+                        onCheckedChange={togglePage}
+                        aria-label={t('targets.selectPage')}
+                      />
+                    </TH>
+                    <TH>{t('fields.name')}</TH>
                     <TH>{t('fields.protocol')}</TH>
                     <TH>{t('fields.address')}</TH>
                     <TH>{t('targets.detail.overview.group')}</TH>
+                    <TH>{t('targets.status.label')}</TH>
                     <TH className="pr-5 text-right" aria-label={t('fields.actions')} />
                   </TR>
                 </THead>
                 <TBody>
-                  {filtered.map(target => (
+                  {paged.map(target => (
                     <TargetRow
                       key={target.id}
                       target={target}
@@ -189,11 +314,15 @@ function TargetsView({ groupFilter, onGroupFilter }: { groupFilter: string, onGr
                       onEdit={t => setDrawer({ mode: 'edit', target: t })}
                       onDelete={setDeleteTarget}
                       onHostKeys={setHostKeysTarget}
+                      onCheck={item => runCheck([item.id])}
+                      selected={selected.has(target.id)}
+                      onSelectedChange={value => setTargetSelected(target.id, value)}
                     />
                   ))}
                 </TBody>
               </Table>
             )}
+        <Pager offset={pageOffset} pageSize={PAGE_SIZE} total={filtered.length} onOffsetChange={setOffset} />
       </div>
 
       <TargetFormDrawer

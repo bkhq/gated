@@ -6,6 +6,8 @@ import { AdminTargetsPage } from './admin-targets-page'
 const state = vi.hoisted(() => ({
   navigate: vi.fn(),
   search: {},
+  check: vi.fn(),
+  targets: [] as Target[],
 }))
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
@@ -22,13 +24,18 @@ const targets: Target[] = [
   { id: 't1', name: 'web-01', kind: 'ssh', host: 'web', port: 22, user: 'root', group: 'g1', groupName: 'prod' },
   { id: 't2', name: 'db-01', kind: 'mysql', host: 'db', port: 3306, user: 'root', group: '', groupName: '' },
 ]
+const statuses = new Map([
+  ['t1', { reachable: true, latencyMs: 4, error: null, checkedAt: '2026-11-05T00:00:00Z' }],
+])
 const groups: TargetGroup[] = [
   { id: 'g1', name: 'prod', description: 'Production hosts' },
   { id: 'g2', name: 'empty', description: '' },
 ]
 
 vi.mock('@/features/targets/hooks/use-targets-queries', () => ({
-  useTargets: () => ({ data: targets, isLoading: false, isError: false }),
+  useTargets: () => ({ data: state.targets, isLoading: false, isError: false }),
+  useTargetStatuses: () => ({ data: statuses }),
+  useCheckTargets: () => ({ mutate: state.check, isPending: false }),
 }))
 vi.mock('@/features/target-groups/hooks/use-target-groups-queries', () => {
   const mutation = { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }
@@ -42,6 +49,8 @@ vi.mock('@/features/target-groups/hooks/use-target-groups-queries', () => {
 
 beforeEach(() => {
   state.navigate.mockReset()
+  state.check.mockReset()
+  state.targets = targets
   state.search = {}
   localStorage.clear()
 })
@@ -71,4 +80,41 @@ it('filters targets by the group in the URL', () => {
   const rows = screen.getAllByRole('row').slice(1)
   expect(rows).toHaveLength(1)
   expect(within(rows[0]!).getByText('web-01')).toBeTruthy()
+})
+
+it('shows each target\'s last check and filters by status', () => {
+  render(<AdminTargetsPage />)
+  expect(screen.getByText('targets.status.upLatency')).toBeTruthy()
+  expect(screen.getByText('targets.status.unknown')).toBeTruthy()
+  expect(screen.getByText('targets.status.summary')).toBeTruthy()
+})
+
+it('checks the selected targets', () => {
+  render(<AdminTargetsPage />)
+  fireEvent.click(screen.getAllByRole('checkbox', { name: 'targets.selectTarget' })[0]!)
+  fireEvent.click(screen.getByRole('button', { name: 'targets.actions.checkReachability' }))
+  expect(state.check).toHaveBeenCalledWith(['t1'])
+})
+
+it('checks every listed target', () => {
+  render(<AdminTargetsPage />)
+  fireEvent.click(screen.getByRole('button', { name: 'targets.actions.checkAll' }))
+  expect(state.check).toHaveBeenCalledWith(['t1', 't2'])
+})
+
+it('pages long lists', () => {
+  state.targets = Array.from({ length: 60 }, (_unused, i) => ({
+    id: `id-${i}`,
+    name: `host-${String(i).padStart(2, '0')}`,
+    kind: 'ssh' as const,
+    host: 'h',
+    port: 22,
+    user: 'root',
+    group: '',
+    groupName: '',
+  }))
+  render(<AdminTargetsPage />)
+  expect(screen.getAllByRole('row')).toHaveLength(51)
+  fireEvent.click(screen.getByRole('button', { name: 'pagination.next' }))
+  expect(screen.getAllByRole('row')).toHaveLength(11)
 })

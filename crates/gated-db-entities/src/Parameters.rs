@@ -30,6 +30,8 @@ pub struct Model {
     /// Title shown on the login page, sidebar and browser tab. `None` uses
     /// the built-in "Gated".
     pub site_title: Option<String>,
+    /// Hours between automatic target reachability checks; 0 turns them off.
+    pub target_check_interval_hours: i32,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
@@ -56,6 +58,7 @@ impl Entity {
                     sql_console_rate_limit_per_target: Set(None),
                     terminal_watermark_enabled: Set(false),
                     site_title: Set(None),
+                    target_check_interval_hours: Set(24),
                 }
                 .insert(db)
                 .await

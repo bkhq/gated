@@ -21,6 +21,15 @@ export interface Target {
   flavor?: HttpFlavor
   // Upstream TLS settings of HTTP/MySQL/PostgreSQL targets (admin data only).
   tls?: { mode: string, verify: boolean }
+  // Last reachability check; null when never checked.
+  status?: TargetHealth | null
+}
+
+export interface TargetHealth {
+  reachable: boolean
+  latencyMs: number | null
+  error: string | null
+  checkedAt: string
 }
 
 export interface RecentActivityEntry {

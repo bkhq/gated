@@ -1,5 +1,5 @@
 import type { Target } from '@/shared/types/domain'
-import { Edit, Key, MoreHorizontal, Terminal, Trash2 } from 'lucide-react'
+import { Activity, Edit, Key, MoreHorizontal, Terminal, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { buildConnectCommand } from '@/features/targets/lib/connect-command'
 import { formatTargetAddress } from '@/features/targets/lib/target-address'
@@ -7,8 +7,10 @@ import { useInfo } from '@/shared/hooks/use-info'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
+import { Checkbox } from '@/shared/ui/checkbox'
 import { DropdownMenu } from '@/shared/ui/dropdown-menu'
 import { TargetKindIcon } from './target-kind-icon'
+import { TargetStatusIndicator } from './target-status-indicator'
 import { TargetUserAction } from './target-user-action'
 
 export interface TargetCardProps {
@@ -19,9 +21,13 @@ export interface TargetCardProps {
   onEdit?: (target: Target) => void
   onDelete?: (target: Target) => void
   onHostKeys?: (target: Target) => void
+  onCheck?: (target: Target) => void
+  /** Renders a selection checkbox when set. */
+  selected?: boolean
+  onSelectedChange?: (selected: boolean) => void
 }
 
-export function TargetCard({ target, mode, onOpen, onConnect, onEdit, onDelete, onHostKeys }: TargetCardProps) {
+export function TargetCard({ target, mode, onOpen, onConnect, onEdit, onDelete, onHostKeys, onCheck, selected, onSelectedChange }: TargetCardProps) {
   const { t } = useTranslation()
   const info = useInfo().data
 
@@ -37,6 +43,9 @@ export function TargetCard({ target, mode, onOpen, onConnect, onEdit, onDelete, 
         { label: t('actions.edit'), icon: Edit, onClick: () => onEdit?.(target) },
         ...(onHostKeys && target.kind === 'ssh'
           ? [{ label: t('targets.menu.hostKeys'), icon: Key, onClick: () => onHostKeys(target) }]
+          : []),
+        ...(onCheck
+          ? [{ label: t('targets.actions.checkReachability'), icon: Activity, onClick: () => onCheck(target) }]
           : []),
         'separator' as const,
         { label: t('actions.delete'), icon: Trash2, danger: true, onClick: () => onDelete?.(target) },
@@ -54,6 +63,17 @@ export function TargetCard({ target, mode, onOpen, onConnect, onEdit, onDelete, 
     >
       <CardContent className="flex flex-col gap-3 p-4">
         <div className="flex items-start gap-2.5">
+          {onSelectedChange
+            ? (
+                <span className="pt-1" onClick={event => event.stopPropagation()}>
+                  <Checkbox
+                    checked={selected ?? false}
+                    onCheckedChange={checked => onSelectedChange(checked)}
+                    aria-label={t('targets.selectTarget', { name: target.name })}
+                  />
+                </span>
+              )
+            : null}
           <TargetKindIcon kind={target.kind} />
           <div className="min-w-0 flex-1">
             <span className="truncate text-[14px] font-semibold">{target.name}</span>
@@ -76,8 +96,11 @@ export function TargetCard({ target, mode, onOpen, onConnect, onEdit, onDelete, 
               )
             : null}
         </div>
-        <div className="mono truncate text-[12px] text-muted-foreground">
-          {formatTargetAddress(target)}
+        <div className="flex items-center justify-between gap-2">
+          <div className="mono min-w-0 truncate text-[12px] text-muted-foreground">
+            {formatTargetAddress(target)}
+          </div>
+          <TargetStatusIndicator status={target.status} />
         </div>
         {target.readonly
           ? (

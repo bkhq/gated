@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { useMySessions } from '@/features/sessions/hooks/use-sessions-queries'
 import { TargetCard, TargetViewToggle } from '@/features/targets/components'
 import { TargetKindIcon } from '@/features/targets/components/target-kind-icon'
+import { TargetStatusIndicator } from '@/features/targets/components/target-status-indicator'
 import { TargetUserAction } from '@/features/targets/components/target-user-action'
 import { useTargetView } from '@/features/targets/hooks/use-target-view'
 import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
@@ -14,6 +15,7 @@ import { formatTargetAddress } from '@/features/targets/lib/target-address'
 import { targetGroupOptions } from '@/features/targets/lib/target-group'
 import { EmptyState } from '@/shared/components/empty-state'
 import { PageHeader } from '@/shared/components/page-header'
+import { Pager } from '@/shared/components/pager'
 import { StatCard } from '@/shared/components/stat-card'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -22,6 +24,8 @@ import { Select } from '@/shared/ui/select'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { Table, TBody, TD, TH, THead, TR } from '@/shared/ui/table'
 import { useAppStore } from '@/store/app-store'
+
+const PAGE_SIZE = 50
 
 type SortKey = 'name' | 'group'
 type SortDir = 'asc' | 'desc'
@@ -129,6 +133,13 @@ export function TargetsPage() {
     next.sort((a, b) => compareTargets(a, b, sortKey, sortDir))
     return next
   }, [targets, kindFilter, groupFilter, query, sortKey, sortDir])
+
+  // The page belongs to one filter/sort combination; changing either starts
+  // again at the first page.
+  const pageKey = `${query}\u0000${kindFilter}\u0000${groupFilter}\u0000${sortKey}\u0000${sortDir}`
+  const [page, setPage] = React.useState({ key: pageKey, offset: 0 })
+  const pageOffset = page.key === pageKey && page.offset < filtered.length ? page.offset : 0
+  const paged = filtered.slice(pageOffset, pageOffset + PAGE_SIZE)
 
   // Distinct accessible targets the caller has sessions on; sessions on
   // targets no longer accessible are ignored so this never exceeds the total.
@@ -297,7 +308,7 @@ export function TargetsPage() {
                 : view === 'grid'
                   ? (
                       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
-                        {filtered.map(target => (
+                        {paged.map(target => (
                           <TargetCard
                             key={target.id}
                             target={target}
@@ -332,11 +343,12 @@ export function TargetsPage() {
                                 ariaLabel={t('a11y.targets.sortBy', { column: t('targets.detail.overview.group') })}
                               />
                             </TH>
+                            <TH>{t('targets.status.label')}</TH>
                             <TH className="pr-5 text-right">{t('fields.actions')}</TH>
                           </TR>
                         </THead>
                         <TBody>
-                          {filtered.map(target => (
+                          {paged.map(target => (
                             <TR key={target.id} onClick={() => openDetail(target)}>
                               <TD className="pl-5">
                                 <div className="flex items-center gap-2.5">
@@ -349,6 +361,7 @@ export function TargetsPage() {
                                 {formatTargetAddress(target)}
                               </TD>
                               <TD className="text-muted-foreground">{target.groupName}</TD>
+                              <TD><TargetStatusIndicator status={target.status} /></TD>
                               <TD className="pr-5 text-right" onClick={event => event.stopPropagation()}>
                                 <TargetUserAction target={target} variant="outline" onOpen={openDetail} onConnect={connect} />
                               </TD>
@@ -357,6 +370,7 @@ export function TargetsPage() {
                         </TBody>
                       </Table>
                     )}
+        <Pager offset={pageOffset} pageSize={PAGE_SIZE} total={filtered.length} onOffsetChange={offset => setPage({ key: pageKey, offset })} />
       </div>
     </>
   )

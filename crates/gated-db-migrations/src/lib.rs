@@ -20,6 +20,7 @@ mod m00014_tls_certificates;
 mod m00015_acme;
 mod m00016_drop_ssh_client_keys;
 mod m00017_target_role_accounts;
+mod m00018_target_status;
 
 pub struct Migrator;
 
@@ -48,6 +49,7 @@ impl MigratorTrait for Migrator {
             Box::new(m00015_acme::Migration),
             Box::new(m00016_drop_ssh_client_keys::Migration),
             Box::new(m00017_target_role_accounts::Migration),
+            Box::new(m00018_target_status::Migration),
         ]
     }
 }

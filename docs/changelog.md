@@ -304,3 +304,7 @@ Web terminals stayed at 80x24 on the remote side (`ps -ef` and other output cut 
 ## 2026-11-05 00:20 [BUG-P2]
 
 The bottom row of the web terminal was cut off. The terminal padding sat on the element xterm is opened in, and FitAddon reads that element's border-box height, so it fitted one row more than fits. The padding now sits on a wrapper. Browser sessions stay in memory, so a restart still signs everyone out; that behaviour is kept on purpose.
+
+## 2026-11-05 02:30 [progress]
+
+Targets record whether they are reachable. The gateway opens a TCP connection to each target's service port (3 s timeout, 16 at once) and stores the last result; it checks every target automatically, daily by default (`target_check_interval_hours` on the settings page, 0 turns it off), and admins can check selected, filtered or all targets from the target list. Both target lists show the status (users read-only), are paged at 50 per page, and the admin list shows totals by status and filters by it.

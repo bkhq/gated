@@ -1146,6 +1146,18 @@ export interface components {
             group?: components["schemas"]["GroupInfo"] | null;
             kind: components["schemas"]["TargetKind"];
             name: string;
+            status?: components["schemas"]["TargetStatusInfo"] | null;
+        };
+        /** @description The last reachability check of a target. */
+        TargetStatusInfo: {
+            /** Format: date-time */
+            checked_at: string;
+            error?: string | null;
+            /** Format: int32 */
+            latency_ms?: number | null;
+            reachable: boolean;
+            /** Format: uuid */
+            target_id: string;
         };
         Tls: {
             mode: components["schemas"]["TlsMode"];

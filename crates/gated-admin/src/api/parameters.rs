@@ -32,6 +32,8 @@ struct ParameterValues {
     /// Title shown on the login page, sidebar and browser tab. `None` uses
     /// the built-in "Gated".
     pub site_title: Option<String>,
+    /// Hours between automatic target reachability checks; 0 = off.
+    pub target_check_interval_hours: u32,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -56,6 +58,9 @@ struct ParameterUpdate {
     /// Site title, at most 64 characters. Omitted leaves the current value
     /// unchanged; an empty string restores the built-in "Gated".
     pub site_title: Option<String>,
+    /// Hours between automatic target reachability checks, 0 (off) to 168.
+    /// Omitted leaves the current value unchanged.
+    pub target_check_interval_hours: Option<u32>,
 }
 
 api_response! {
@@ -75,6 +80,7 @@ api_response! {
 }
 
 const SITE_TITLE_MAX_CHARS: usize = 64;
+const TARGET_CHECK_INTERVAL_MAX_HOURS: u32 = 168;
 
 /// Normalize a submitted site title: surrounding whitespace is dropped and an
 /// empty value clears the title.
@@ -114,6 +120,8 @@ async fn api_get(
             .map(|x| x as u32),
         terminal_watermark_enabled: parameters.terminal_watermark_enabled,
         site_title: parameters.site_title,
+        target_check_interval_hours: u32::try_from(parameters.target_check_interval_hours)
+            .unwrap_or(0),
     })))
 }
 
@@ -128,9 +136,20 @@ async fn api_update_parameters(
         Some(Ok(title)) => Set(title),
         Some(Err(message)) => return Ok(UpdateParametersResponse::BadRequest(Json(message))),
     };
+    if body
+        .target_check_interval_hours
+        .is_some_and(|hours| hours > TARGET_CHECK_INTERVAL_MAX_HOURS)
+    {
+        return Ok(UpdateParametersResponse::BadRequest(Json(format!(
+            "target_check_interval_hours must be 0 to {TARGET_CHECK_INTERVAL_MAX_HOURS}"
+        ))));
+    }
     let db = services.db_required().await?;
     let mut parameters = Parameters::Entity::get(&db).await?.into_active_model();
     parameters.site_title = site_title;
+    parameters.target_check_interval_hours = body
+        .target_check_interval_hours
+        .map_or(NotSet, |hours| Set(hours as i32));
 
     parameters.allow_own_credential_management = Set(body.allow_own_credential_management);
     parameters.rate_limit_bytes_per_second =

@@ -22,6 +22,7 @@ import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
+import { Select } from '@/shared/ui/select'
 import { Separator } from '@/shared/ui/separator'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { Switch } from '@/shared/ui/switch'
@@ -94,6 +95,9 @@ function GatewayParametersCard({ section }: { section: ParameterSection | null }
   return <GatewayParametersForm initial={query.data} section={section} />
 }
 
+/** Hours between automatic target reachability checks; 0 turns them off. */
+const TARGET_CHECK_INTERVALS = [0, 1, 6, 24]
+
 function GatewayParametersForm({ initial, section }: { initial: BackedParameters, section: ParameterSection | null }) {
   const { t } = useTranslation()
   const mutation = useUpdateBackendParameters()
@@ -110,6 +114,7 @@ function GatewayParametersForm({ initial, section }: { initial: BackedParameters
       initial.sql_console_rate_limit_per_target ?? DEFAULT_SQL_CONSOLE_RATE_LIMIT_PER_MINUTE,
     terminal_watermark_enabled: initial.terminal_watermark_enabled,
     site_title: initial.site_title ?? '',
+    target_check_interval_hours: initial.target_check_interval_hours,
   }), [initial])
 
   const [draft, setDraft] = React.useState<BackedParametersUpdate>(() => initialDraft)
@@ -277,6 +282,24 @@ function GatewayParametersForm({ initial, section }: { initial: BackedParameters
                     checked={draft.terminal_watermark_enabled ?? false}
                     onCheckedChange={v => set('terminal_watermark_enabled', Boolean(v))}
                     aria-label={t('settings.parameters.terminalWatermarkEnabled')}
+                  />
+                )}
+              />
+              <Separator />
+              <Row
+                label={t('settings.parameters.targetCheckInterval')}
+                hint={t('settings.parameters.targetCheckIntervalHint')}
+                control={(
+                  <Select
+                    className="w-[200px]"
+                    value={String(draft.target_check_interval_hours ?? 24)}
+                    onValueChange={value => set('target_check_interval_hours', Number(value))}
+                    aria-label={t('settings.parameters.targetCheckInterval')}
+                    // A value set through the API outside the presets stays selectable.
+                    options={[...new Set([...TARGET_CHECK_INTERVALS, draft.target_check_interval_hours ?? 24])].map(hours => ({
+                      value: String(hours),
+                      label: hours === 0 ? t('settings.parameters.targetCheckOff') : t('settings.parameters.targetCheckHours', { count: hours }),
+                    }))}
                   />
                 )}
               />
