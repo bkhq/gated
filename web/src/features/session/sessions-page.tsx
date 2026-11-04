@@ -218,6 +218,7 @@ export function SessionsPage({ visible }: { visible: boolean }) {
                             keyBarLabels={keyBarLabels}
                             statusMenuLabels={statusMenuLabels}
                             onStatusChange={status => reportStatus(session.id, status)}
+                            onNewConnection={() => setQuickOpen(true)}
                             className="h-full"
                           />
                         )}

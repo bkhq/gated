@@ -1,6 +1,6 @@
 # 20261104-1800-terminal-experience Bring the web terminal closer to Google's SSH-in-browser
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
 - **owner**: lexuue
 - **createdAt**: 2026-11-04 18:00
@@ -11,7 +11,7 @@ Improve the web SSH terminal using Google Cloud's SSH-in-browser as the referenc
 
 ## ActiveForm
 
-Awaiting proposal approval
+Completed
 
 ## Dependencies
 
@@ -35,3 +35,10 @@ Proposed plan:
 5. Tests: settings persistence and application, clipboard key handling, upload/download calls, reconnect; docs, changelog.
 
 Out of scope: SSH key / security-key sign-in from the browser and IAP-specific hints (gated signs in with bound accounts).
+
+Outcome:
+- Settings (`terminal-settings.ts`, `terminal-settings-dialog.tsx`, gear in the status bar): theme (dark, light, Solarized dark/light), custom text and background colors, font (system monospace, JetBrains Mono, custom family), font size (also Ctrl+= / Ctrl+- / Ctrl+0), padding, scrollbar, copy-on-select and the Ctrl+Shift+C/V shortcuts. Saved in `localStorage` under `gated.terminal.settings` and applied live to every open terminal.
+- Clipboard: Ctrl+Shift+C copies the selection, Ctrl+Shift+V pastes through `term.paste` (bracketed paste kept), Ctrl+C still reaches the remote program; copy-on-select is off by default.
+- Files (SSH only): Upload and Download in the status bar and drag-and-drop onto the terminal (`terminal-files-dialog.tsx`); uploads go to the home directory or an absolute directory and ask before overwriting; downloads take an absolute path. Uses the existing `/api/sftp/{target}` endpoints.
+- Connection: progress lines ("Connecting to …", "Signing in to the target…", server `info` messages) and the end reason are written into the terminal; once the session ends, a bar shows the reason with Reconnect (a fresh session via `useTerminalSocket`'s `connectionId`) and New connection (quick connect on the Sessions page, the Sessions page from a standalone terminal). Output is kept.
+- `TerminalScreen` lost its unused `theme` / `fontFamily` / `fontSize` props in favour of the settings.

@@ -164,6 +164,7 @@ export function TerminalPage() {
           keyBarLabels={keyBarLabels}
           statusMenuLabels={statusMenuLabels}
           onSessionEnd={handleSessionEnd}
+          onNewConnection={() => void navigate({ to: '/sessions' })}
           className="flex-1"
         />
       </div>

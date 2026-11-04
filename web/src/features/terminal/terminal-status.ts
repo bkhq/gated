@@ -58,3 +58,14 @@ export function statusDotClass(status: BannerStatus | undefined): string {
       return 'bg-muted-foreground/40'
   }
 }
+
+export type ProgressTone = 'progress' | 'ended' | 'failed'
+
+/** A gateway line written into the terminal, styled apart from session output. */
+export function progressLine(text: string, tone: ProgressTone): string {
+  const color = tone === 'failed' ? '31' : tone === 'ended' ? '33' : '2'
+  const clean = text.replace(/[\r\n]+/g, ' ')
+  // An end line starts on a fresh line after whatever the session printed.
+  const lead = tone === 'progress' ? '' : '\r\n'
+  return `${lead}\x1B[${color}m${clean}\x1B[0m\r\n`
+}

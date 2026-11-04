@@ -24,6 +24,8 @@ export interface UseTerminalSocketOptions {
   targetName: string
   /** Disable the socket without unmounting. Default: true. */
   enabled?: boolean
+  /** Changing it opens a fresh session, e.g. to reconnect after the session ended. */
+  connectionId?: number
   /** Called per 0x00 DATA frame. Payload is a view into the receive buffer. */
   onData?: (payload: Uint8Array) => void
   /** Called per 0x02 STATUS frame. */
@@ -83,6 +85,7 @@ export function useTerminalSocket(
     kind,
     targetName,
     enabled = true,
+    connectionId = 0,
     onData,
     onStatus,
     onHostKeyVerify,
@@ -219,7 +222,7 @@ export function useTerminalSocket(
       if (ws !== null && ws.readyState !== WebSocket.CLOSED)
         ws.close()
     }
-  }, [enabled, kind, targetName, reconnectBaseMs, reconnectMaxMs])
+  }, [enabled, kind, targetName, connectionId, reconnectBaseMs, reconnectMaxMs])
 
   const sendInput = React.useCallback((bytes: Uint8Array) => {
     const ws = socketRef.current

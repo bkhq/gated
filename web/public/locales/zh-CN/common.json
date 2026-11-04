@@ -1989,7 +1989,9 @@
       "unsupported": "终端"
     },
     "actions": {
-      "disconnect": "断开连接"
+      "disconnect": "断开连接",
+      "reconnect": "重新连接",
+      "newConnection": "新建连接"
     },
     "status": {
       "connecting": "连接中…",
@@ -2036,6 +2038,50 @@
       "tlsNotVerified": "未校验证书",
       "client": "客户端",
       "database": "数据库"
+    },
+    "progress": {
+      "connecting": "正在连接 {{target}}…",
+      "signingIn": "正在登录目标主机…"
+    },
+    "settings": {
+      "title": "终端设置",
+      "theme": "主题",
+      "themes": {
+        "dark": "深色",
+        "light": "浅色",
+        "solarizedDark": "Solarized 深色",
+        "solarizedLight": "Solarized 浅色"
+      },
+      "foreground": "文字颜色",
+      "background": "背景颜色",
+      "resetColor": "使用主题颜色",
+      "font": "字体",
+      "fonts": {
+        "system": "系统等宽字体",
+        "jetbrains": "JetBrains Mono",
+        "custom": "自定义"
+      },
+      "customFont": "自定义字体",
+      "fontSize": "字号",
+      "padding": "内边距（px）",
+      "zoomHint": "Ctrl+= 与 Ctrl+- 调整字号，Ctrl+0 恢复默认。",
+      "scrollbar": "显示滚动条",
+      "copyOnSelect": "选中即复制",
+      "clipboardShortcuts": "Ctrl+Shift+C / Ctrl+Shift+V 复制与粘贴",
+      "reset": "恢复默认"
+    },
+    "files": {
+      "upload": "上传",
+      "download": "下载",
+      "uploadTitle": "上传文件",
+      "downloadTitle": "下载文件",
+      "files": "文件",
+      "destination": "目标目录",
+      "home": "主目录",
+      "remotePath": "目标主机上的绝对路径",
+      "exists": "{{path}} 已存在，是否覆盖？",
+      "overwrite": "覆盖",
+      "dropHint": "拖放文件以上传到目标主机"
     }
   },
   "recordings": {

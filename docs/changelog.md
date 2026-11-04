@@ -276,3 +276,7 @@ Known hosts entries open a details dialog (row click or the eye button): host, p
 ## 2026-11-04 19:30 [progress]
 
 Audit entries carry the context of their proxy session. `POST /admin/api/logs` returns `session` (user, target, protocol, client address, start, end) with each entry; the audit page shows user, target, protocol and client address as columns, expands every row to the session id, session times and event fields, searches all of them, and exports them all to JSONL (`fields` holds the event's own values). Pre-sign-in events such as "Host key is unknown" now show the session's user and target instead of `system`. SSH host key events log `host`, `port`, `key_type` and the `SHA256:` fingerprint, and accepting or rejecting a key is now audited.
+
+## 2026-11-04 20:30 [progress]
+
+The web terminal gains a settings dialog (theme presets, custom colors, font family and size with Ctrl+= / Ctrl+- / Ctrl+0, padding, scrollbar, copy-on-select, Ctrl+Shift+C / Ctrl+Shift+V), saved per browser and applied live; file upload (button or drag-and-drop, overwrite confirmation) and download by absolute path for SSH targets; connection progress and the end reason written into the terminal; and Reconnect / New connection actions once a session ends, keeping the earlier output.

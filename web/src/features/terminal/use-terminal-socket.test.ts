@@ -323,6 +323,24 @@ describe('useTerminalSocket', () => {
     },
   )
 
+  it('opens a fresh session when connectionId changes after the session ended', async () => {
+    const hook = renderHook(
+      ({ connectionId }) => useTerminalSocket({ kind: 'ssh', targetName: 't', connectionId }),
+      { initialProps: { connectionId: 0 } },
+    )
+    await flush()
+    const ws = FakeWebSocket.instances[0]!
+    act(() => ws.open())
+    act(() => ws.emitBinary(frame(MSG_STATUS, JSON.stringify({ status: 'error', message: 'auth failed' }))))
+    act(() => ws.closeRemote())
+    expect(hook.result.current.terminationReason?.status).toBe('error')
+
+    hook.rerender({ connectionId: 1 })
+    await flush()
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    expect(hook.result.current.terminationReason).toBeNull()
+  })
+
   it('non-terminal status frames (e.g. info) do not block reconnect', async () => {
     renderHook(() => useTerminalSocket({
       kind: 'ssh',

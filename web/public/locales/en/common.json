@@ -1989,7 +1989,9 @@
       "unsupported": "Terminal"
     },
     "actions": {
-      "disconnect": "Disconnect"
+      "disconnect": "Disconnect",
+      "reconnect": "Reconnect",
+      "newConnection": "New connection"
     },
     "status": {
       "connecting": "Connecting…",
@@ -2036,6 +2038,50 @@
       "tlsNotVerified": "certificate not verified",
       "client": "Client",
       "database": "Database"
+    },
+    "progress": {
+      "connecting": "Connecting to {{target}}…",
+      "signingIn": "Signing in to the target…"
+    },
+    "settings": {
+      "title": "Terminal settings",
+      "theme": "Theme",
+      "themes": {
+        "dark": "Dark",
+        "light": "Light",
+        "solarizedDark": "Solarized dark",
+        "solarizedLight": "Solarized light"
+      },
+      "foreground": "Text color",
+      "background": "Background",
+      "resetColor": "Use the theme color",
+      "font": "Font",
+      "fonts": {
+        "system": "System monospace",
+        "jetbrains": "JetBrains Mono",
+        "custom": "Custom"
+      },
+      "customFont": "Custom font family",
+      "fontSize": "Font size",
+      "padding": "Padding (px)",
+      "zoomHint": "Ctrl+= and Ctrl+- change the font size, Ctrl+0 resets it.",
+      "scrollbar": "Show scrollbar",
+      "copyOnSelect": "Copy on select",
+      "clipboardShortcuts": "Ctrl+Shift+C / Ctrl+Shift+V copy and paste",
+      "reset": "Restore defaults"
+    },
+    "files": {
+      "upload": "Upload",
+      "download": "Download",
+      "uploadTitle": "Upload files",
+      "downloadTitle": "Download file",
+      "files": "Files",
+      "destination": "Destination directory",
+      "home": "Home directory",
+      "remotePath": "Absolute path on the target",
+      "exists": "{{path}} already exists. Overwrite it?",
+      "overwrite": "Overwrite",
+      "dropHint": "Drop files to upload them to the target"
     }
   },
   "recordings": {
