@@ -412,12 +412,16 @@ export function TerminalScreen({
             setFiles({ mode: 'upload', dropped })
         }}
       >
-        <div
-          ref={containerRef}
-          data-testid="terminal-screen-container"
-          className="absolute inset-0 overflow-hidden"
-          style={{ background: theme.background, padding: settings.padding }}
-        />
+        {/* Padding goes on a wrapper: FitAddon reads the host's border-box
+            height, so padding on the host itself would add a row that is
+            then cut off at the bottom. */}
+        <div className="absolute inset-0" style={{ background: theme.background, padding: settings.padding }}>
+          <div
+            ref={containerRef}
+            data-testid="terminal-screen-container"
+            className="h-full w-full overflow-hidden"
+          />
+        </div>
         <TerminalWatermark enabled={watermarkEnabled} username={watermarkUsername} />
         {dragging
           ? (

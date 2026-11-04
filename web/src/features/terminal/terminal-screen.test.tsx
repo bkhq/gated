@@ -12,7 +12,8 @@ const term: {
   selectionHandler: (() => void) | null
   selection: string
   options: Record<string, unknown>
-} = { written: [], keyHandler: null, selectionHandler: null, selection: '', options: {} }
+  host: HTMLElement | null
+} = { written: [], keyHandler: null, selectionHandler: null, selection: '', options: {}, host: null }
 
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
@@ -42,7 +43,10 @@ vi.mock('@xterm/xterm', () => ({
       return term.selection
     }
 
-    open() {}
+    open(host: HTMLElement) {
+      term.host = host
+    }
+
     focus() {
       focusSpy()
     }
@@ -130,6 +134,15 @@ describe('terminalScreen size', () => {
 
   // The first fit happens before the socket opens and the gateway opens the
   // PTY at 80x24, so the size has to be sent once the session is connected.
+  // FitAddon counts the host's padding as usable height (border-box), so the
+  // padding must sit outside the element xterm is opened in, or the last row
+  // is cut off.
+  it('keeps the padding outside the element the terminal is fitted to', () => {
+    renderScreen()
+    expect(term.host?.style.padding).toBe('')
+    expect(term.host?.parentElement?.style.padding).toBe('8px')
+  })
+
   it('sends the terminal size when the session connects', () => {
     renderScreen()
     expect(stableSocket.sendResize).not.toHaveBeenCalled()

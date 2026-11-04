@@ -300,3 +300,7 @@ The MySQL integration tests failed with `Plugin mysql_clear_password could not b
 ## 2026-11-04 23:50 [BUG-P2]
 
 Web terminals stayed at 80x24 on the remote side (`ps -ef` and other output cut at column 80) until the browser window was resized: the first fit ran before the socket opened, the gateway ignores resizes before the session is connected, and xterm only reports size changes. The terminal now sends its size when each connection is established.
+
+## 2026-11-05 00:20 [BUG-P2]
+
+The bottom row of the web terminal was cut off. The terminal padding sat on the element xterm is opened in, and FitAddon reads that element's border-box height, so it fitted one row more than fits. The padding now sits on a wrapper. Browser sessions stay in memory, so a restart still signs everyone out; that behaviour is kept on purpose.
