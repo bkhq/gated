@@ -1,13 +1,17 @@
 import type { Timezone, UserIdentity } from '@/store/app-store'
 
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { AuthRequestsContent } from '@/features/auth/auth-requests-page'
 import { PageHeader } from '@/shared/components/page-header'
+import { SessionLifetimeSelect } from '@/shared/components/session-lifetime-select'
 import { StatusDot } from '@/shared/components/status-dot'
-import { useIsAdmin } from '@/shared/hooks/use-info'
+import { useInfo, useIsAdmin } from '@/shared/hooks/use-info'
+import { setSessionLifetime } from '@/shared/lib/api/auth'
 
 import { SUPPORTED_LANGS } from '@/shared/lib/languages'
+import { rememberSessionLifetime } from '@/shared/lib/session-lifetime'
 import { Avatar } from '@/shared/ui/avatar'
 import { Badge } from '@/shared/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -152,7 +156,44 @@ function InfoTab() {
           </FieldGroup>
         </CardContent>
       </Card>
+      <SessionCard />
     </div>
+  )
+}
+
+function SessionCard() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const info = useInfo().data
+  const change = useMutation({
+    mutationFn: async (seconds: number) => setSessionLifetime(seconds),
+    onSuccess: (_, seconds) => {
+      rememberSessionLifetime(seconds)
+      void queryClient.invalidateQueries({ queryKey: ['info'] })
+    },
+  })
+  if (!info?.session_lifetime_options.length)
+    return null
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>{t('profile.info.session')}</CardTitle>
+          <CardDescription>{t('profile.info.sessionHint')}</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <FieldGroup label={t('profile.info.sessionLifetime')} htmlFor="profile-session-lifetime">
+          <SessionLifetimeSelect
+            id="profile-session-lifetime"
+            value={change.variables ?? info.session_lifetime}
+            options={info.session_lifetime_options}
+            onValueChange={(seconds) => { change.mutate(seconds) }}
+            disabled={change.isPending}
+          />
+        </FieldGroup>
+      </CardContent>
+    </Card>
   )
 }
 

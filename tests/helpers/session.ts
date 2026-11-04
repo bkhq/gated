@@ -22,6 +22,14 @@ export class HttpSession {
     return this.request("POST", url, body, opts);
   }
 
+  async put(
+    url: string,
+    body?: any,
+    opts: { headers?: Record<string, string> } = {}
+  ): Promise<Response> {
+    return this.request("PUT", url, body, opts);
+  }
+
   async del(
     url: string,
     opts: { headers?: Record<string, string> } = {}

@@ -113,6 +113,33 @@ impl ApiArgument for Session {}
 struct StoredSession {
     entries: BTreeMap<String, Value>,
     expires_at: Instant,
+    /// When the cookie `Max-Age` was last sent.
+    cookie_sent: Instant,
+}
+
+/// How often the cookie of an active session is re-sent with a fresh `Max-Age`.
+const COOKIE_REFRESH_INTERVAL: Duration = Duration::from_secs(60);
+
+/// Session lifetimes offered to users, besides the configured default.
+const SESSION_LIFETIME_CHOICES: [Duration; 5] = [
+    Duration::from_secs(30 * 60),
+    Duration::from_secs(60 * 60),
+    Duration::from_secs(4 * 60 * 60),
+    Duration::from_secs(8 * 60 * 60),
+    Duration::from_secs(24 * 60 * 60),
+];
+
+/// The idle lifetimes a user may choose: the fixed choices up to `max`
+/// plus the configured `default`, ascending.
+pub fn session_lifetime_options(default: Duration, max: Duration) -> Vec<Duration> {
+    let mut options: Vec<_> = SESSION_LIFETIME_CHOICES
+        .into_iter()
+        .filter(|choice| *choice <= max)
+        .chain([default])
+        .collect();
+    options.sort();
+    options.dedup();
+    options
 }
 
 /// In-memory session storage keyed by the random identifier carried in the
@@ -142,8 +169,12 @@ impl SessionLayer {
 
     fn load(&self, id: &str) -> Option<BTreeMap<String, Value>> {
         let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
-        match sessions.get(id) {
-            Some(session) if session.expires_at > Instant::now() => Some(session.entries.clone()),
+        let now = Instant::now();
+        match sessions.get_mut(id) {
+            Some(session) if session.expires_at > now => {
+                session.expires_at = now + self.max_age;
+                Some(session.entries.clone())
+            }
             Some(_) => {
                 sessions.remove(id);
                 None
@@ -153,14 +184,31 @@ impl SessionLayer {
     }
 
     fn store(&self, id: &str, entries: BTreeMap<String, Value>) {
-        let session = StoredSession {
-            entries,
-            expires_at: Instant::now() + self.max_age,
-        };
-        self.sessions
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .insert(id.to_owned(), session);
+        let now = Instant::now();
+        let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
+        let cookie_sent = sessions.get(id).map_or(now, |session| session.cookie_sent);
+        sessions.insert(
+            id.to_owned(),
+            StoredSession {
+                entries,
+                expires_at: now + self.max_age,
+                cookie_sent,
+            },
+        );
+    }
+
+    /// Whether the cookie of a live session is due to have its `Max-Age`
+    /// re-sent, so the browser keeps it as long as the session slides.
+    fn cookie_refresh_due(&self, id: &str) -> bool {
+        let now = Instant::now();
+        let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
+        match sessions.get_mut(id) {
+            Some(session) if now.duration_since(session.cookie_sent) >= COOKIE_REFRESH_INTERVAL => {
+                session.cookie_sent = now;
+                true
+            }
+            _ => false,
+        }
     }
 
     fn remove(&self, id: &str) {
@@ -185,6 +233,15 @@ impl SessionLayer {
         cookie.set_secure(self.secure);
         cookie.set_http_only(true);
         cookie
+    }
+
+    fn refreshed_cookie(&self, id: String) -> Option<Cookie<'static>> {
+        if !self.cookie_refresh_due(&id) {
+            return None;
+        }
+        let mut cookie = self.cookie(id);
+        cookie.set_max_age(cookie::time::Duration::try_from(self.max_age).ok());
+        Some(cookie)
     }
 
     fn session_id(&self, request: &Request) -> Option<String> {
@@ -222,7 +279,7 @@ pub async fn session_middleware(
     let cookie = match (session.snapshot(), session_id) {
         ((SessionStatus::Changed, entries), Some(id)) => {
             layer.store(&id, entries);
-            None
+            layer.refreshed_cookie(id)
         }
         ((SessionStatus::Changed, entries), None) => {
             let id = generate_session_id();
@@ -237,6 +294,7 @@ pub async fn session_middleware(
             cookie.make_removal();
             Some(cookie)
         }
+        ((SessionStatus::Unchanged, _), Some(id)) => layer.refreshed_cookie(id),
         _ => None,
     };
     if let Some(cookie) = cookie
@@ -252,20 +310,26 @@ pub struct ManagementSessionSummary {
     pub username: String,
     pub created: chrono::DateTime<chrono::Utc>,
     pub last_active: chrono::DateTime<chrono::Utc>,
+    pub expires: chrono::DateTime<chrono::Utc>,
 }
 
 pub struct SessionStore {
     session_handles: HashMap<SessionId, Arc<Mutex<ManagementSessionHandle>>>,
     session_timestamps: HashMap<SessionId, Instant>,
+    /// Idle lifetimes chosen by users; sessions without one use the default.
+    session_lifetimes: HashMap<SessionId, Duration>,
 }
 
 static SESSION_ID_SESSION_KEY: &str = "session_id";
+/// Session entry holding the idle lifetime the user chose, in seconds.
+pub static SESSION_LIFETIME_KEY: &str = "session_lifetime";
 
 impl SessionStore {
     pub fn new() -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             session_handles: HashMap::new(),
             session_timestamps: HashMap::new(),
+            session_lifetimes: HashMap::new(),
         }))
     }
 
@@ -275,6 +339,10 @@ impl SessionStore {
         if let Some(session_id) = session.get::<SessionId>(SESSION_ID_SESSION_KEY) {
             if self.session_handles.contains_key(&session_id) {
                 self.session_timestamps.insert(session_id, Instant::now());
+                if let Some(seconds) = session.get::<u64>(SESSION_LIFETIME_KEY) {
+                    self.session_lifetimes
+                        .insert(session_id, Duration::from_secs(seconds));
+                }
             } else {
                 // The server-side handle is gone (revoked by a password
                 // change or expired by the idle vacuum), so the cookie must
@@ -311,9 +379,18 @@ impl SessionStore {
 
     pub fn remove_session(&mut self, session: &Session) {
         if let Some(id) = session.get::<SessionId>(SESSION_ID_SESSION_KEY) {
-            self.session_handles.remove(&id);
-            self.session_timestamps.remove(&id);
+            self.forget(id);
         }
+    }
+
+    fn forget(&mut self, id: SessionId) -> bool {
+        self.session_timestamps.remove(&id);
+        self.session_lifetimes.remove(&id);
+        self.session_handles.remove(&id).is_some()
+    }
+
+    fn lifetime(&self, id: &SessionId, default: Duration) -> Duration {
+        self.session_lifetimes.get(id).copied().unwrap_or(default)
     }
 
     pub async fn revoke_other_sessions(
@@ -335,14 +412,13 @@ impl SessionStore {
             }
         }
         for id in &ids {
-            self.session_handles.remove(id);
-            self.session_timestamps.remove(id);
+            self.forget(*id);
         }
         ids.len()
     }
 
     /// Snapshot of live authenticated browser sessions, oldest first.
-    pub async fn list(&self) -> Vec<ManagementSessionSummary> {
+    pub async fn list(&self, default_lifetime: Duration) -> Vec<ManagementSessionSummary> {
         let now = Instant::now();
         let now_utc = chrono::Utc::now();
         let mut sessions = Vec::new();
@@ -356,11 +432,14 @@ impl SessionStore {
                 .get(id)
                 .map(|at| now.duration_since(*at))
                 .unwrap_or_default();
+            let last_active = now_utc - chrono::Duration::from_std(idle).unwrap_or_default();
+            let lifetime = self.lifetime(id, default_lifetime);
             sessions.push(ManagementSessionSummary {
                 id: *id,
                 username: user_info.username.clone(),
                 created: handle.created,
-                last_active: now_utc - chrono::Duration::from_std(idle).unwrap_or_default(),
+                last_active,
+                expires: last_active + chrono::Duration::from_std(lifetime).unwrap_or_default(),
             });
         }
         sessions.sort_by_key(|session| session.created);
@@ -370,21 +449,22 @@ impl SessionStore {
     /// Revoke one browser session. Its cookie stops authenticating on the
     /// next request. Returns `false` when no such session exists.
     pub fn revoke(&mut self, id: SessionId) -> bool {
-        self.session_timestamps.remove(&id);
-        self.session_handles.remove(&id).is_some()
+        self.forget(id)
     }
 
-    pub async fn vacuum(&mut self, session_max_age: Duration) {
+    /// Drops sessions idle for longer than their lifetime.
+    pub async fn vacuum(&mut self, default_lifetime: Duration) {
         let now = Instant::now();
-        let mut to_remove = vec![];
-        for (id, timestamp) in self.session_timestamps.iter() {
-            if now.duration_since(*timestamp) > session_max_age {
-                to_remove.push(*id);
-            }
-        }
+        let to_remove: Vec<_> = self
+            .session_timestamps
+            .iter()
+            .filter(|(id, timestamp)| {
+                now.duration_since(**timestamp) > self.lifetime(id, default_lifetime)
+            })
+            .map(|(id, _)| *id)
+            .collect();
         for id in to_remove {
-            self.session_handles.remove(&id);
-            self.session_timestamps.remove(&id);
+            self.forget(id);
         }
     }
 }
@@ -444,12 +524,67 @@ mod tests {
                 created: chrono::Utc::now(),
             })),
         );
-        let listed = store.list().await;
+        let listed = store.list(Duration::from_secs(60)).await;
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].id, alice);
         assert_eq!(listed[0].username, "alice");
         assert!(store.revoke(alice));
         assert!(!store.revoke(alice));
-        assert!(store.list().await.is_empty());
+        assert!(store.list(Duration::from_secs(60)).await.is_empty());
+    }
+
+    #[test]
+    fn lifetime_options_include_the_default_and_stop_at_the_maximum() {
+        let minutes = |m: u64| Duration::from_secs(m * 60);
+        assert_eq!(
+            session_lifetime_options(minutes(30), minutes(24 * 60)),
+            [30, 60, 240, 480, 1440].map(minutes)
+        );
+        assert_eq!(
+            session_lifetime_options(minutes(45), minutes(240)),
+            [30, 45, 60, 240].map(minutes)
+        );
+    }
+
+    #[tokio::test]
+    async fn idle_expiry_follows_the_lifetime_chosen_for_the_session() {
+        let store = SessionStore::new();
+        let mut store = store.lock().await;
+        let chosen = add(&mut store, "alice", Instant::now()).await;
+        let default = add(&mut store, "bob", Instant::now()).await;
+        let session = Session::new(BTreeMap::new());
+        session.set(SESSION_ID_SESSION_KEY, chosen);
+        session.set(SESSION_LIFETIME_KEY, 4 * 3600);
+        store.touch(&session);
+        let two_hours_ago = Instant::now() - Duration::from_secs(2 * 3600);
+        store.session_timestamps.insert(chosen, two_hours_ago);
+        store.session_timestamps.insert(default, two_hours_ago);
+
+        let listed = store.list(Duration::from_secs(1800)).await;
+        let expires = listed.iter().find(|s| s.id == chosen).map(|s| s.expires);
+        let expected = chrono::Utc::now() + chrono::Duration::hours(2);
+        assert!(expires.is_some_and(|at| (at - expected).num_seconds().abs() < 5));
+
+        store.vacuum(Duration::from_secs(1800)).await;
+        assert!(store.session_handles.contains_key(&chosen));
+        assert!(!store.session_handles.contains_key(&default));
+    }
+
+    #[test]
+    fn cookie_sessions_slide_on_every_load() {
+        let layer = SessionLayer::new("s", false, Duration::from_secs(600));
+        layer.store("id", BTreeMap::new());
+        let soon = Instant::now() + Duration::from_secs(10);
+        if let Some(session) = layer.sessions.lock().unwrap().get_mut("id") {
+            session.expires_at = soon;
+        }
+        assert!(layer.load("id").is_some());
+        let expires_at = layer
+            .sessions
+            .lock()
+            .unwrap()
+            .get("id")
+            .map(|s| s.expires_at);
+        assert!(expires_at.is_some_and(|at| at > soon + Duration::from_secs(500)));
     }
 }

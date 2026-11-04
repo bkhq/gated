@@ -240,3 +240,7 @@ Failed operations show their specific reason in a global toast (task `20261103-1
 ## 2026-11-03 15:30 [progress]
 
 System Settings shows more about the lode supervisor: the last version that started successfully (`last_good`) and lode's own version, commit and features, read from the `lode` object lode 0.3.0+ writes to `state.json` (`GET /system/update` field `lode`). Updating lode itself stays with the operator (`lode-cli self-update`).
+
+## 2026-11-04 10:30 [progress]
+
+Browser sessions slide and their lifetime is chosen by the user (task `20261104-0900`). Previously the cookie session expired `admin.cookie_max_age` (24 h) after sign-in regardless of activity, and the idle timeout was the server-wide `admin.session_max_age`. Now every request pushes the expiry forward (the cookie `Max-Age` is re-sent at most once a minute), and the idle lifetime comes from the session: the login page offers "Stay signed in" (30 min, 1 h, 4 h, 8 h, 24 h up to `cookie_max_age`, plus the configured default; remembered in the browser) and the profile page changes it for the current session. API: `PUT /api/auth/session-lifetime`, `/api/info` fields `session_lifetime` / `session_lifetime_options`, management session `expires`. Page polling counts as activity. Tests: session store unit tests, `tests/api/auth/session-lifetime.test.ts`, login and profile page tests.

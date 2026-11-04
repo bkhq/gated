@@ -10,11 +10,16 @@ const state = vi.hoisted(() => ({
   loginMutateAsync: vi.fn(),
   otpMutateAsync: vi.fn(),
   siteTitle: null as string | null,
+  setSessionLifetime: vi.fn(),
 }))
 
 vi.mock('@/shared/hooks/use-info', () => ({
-  useInfo: () => ({ data: { site_title: state.siteTitle } }),
+  useInfo: () => ({ data: { site_title: state.siteTitle, session_lifetime: 1800, session_lifetime_options: [1800, 3600, 14400] } }),
 }))
+
+vi.mock('@/shared/lib/api/auth', () => ({ setSessionLifetime: state.setSessionLifetime }))
+
+vi.mock('@/shared/ui/select', () => ({ Select: ({ id, value, onValueChange, options }: { id: string, value: string, onValueChange: (value: string) => void, options: { value: string, label: string }[] }) => <select id={id} value={value} onChange={event => onValueChange(event.target.value)}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> }))
 
 vi.mock('@/shared/hooks/use-auth', () => ({
   useLogin: () => ({ mutateAsync: state.loginMutateAsync, isPending: false }),
@@ -35,6 +40,8 @@ beforeEach(() => {
   state.authStateIntervals = []
   state.siteTitle = null
   vi.clearAllMocks()
+  localStorage.clear()
+  state.setSessionLifetime.mockResolvedValue(undefined)
   state.loginMutateAsync.mockRejectedValue(new ApiError(401, 'HTTP 401', { state: 'WebUserApprovalNeeded' }))
   Object.defineProperty(window, 'location', {
     configurable: true,
@@ -111,4 +118,24 @@ it('accepts a whole code autofilled into one OTP box', async () => {
   await waitFor(() => expect(otpBoxes()).toHaveLength(6))
   fireEvent.change(otpBoxes()[0]!, { target: { value: '654321' } })
   expect(otpBoxes().map(box => box.value).join('')).toBe('654321')
+})
+
+it('applies the chosen session lifetime before signing in and remembers it', async () => {
+  render(<LoginPage />)
+  expect(screen.getByLabelText('login.sessionLifetime')).toHaveProperty('value', '1800')
+  fireEvent.change(screen.getByLabelText('login.sessionLifetime'), { target: { value: '14400' } })
+  await submitCredentials()
+  expect(state.setSessionLifetime).toHaveBeenCalledWith(14400)
+  expect(state.setSessionLifetime.mock.invocationCallOrder[0]).toBeLessThan(state.loginMutateAsync.mock.invocationCallOrder[0]!)
+  expect(localStorage.getItem('gated.sessionLifetime')).toBe('14400')
+})
+
+it('preselects the remembered lifetime while the gateway still offers it', () => {
+  localStorage.setItem('gated.sessionLifetime', '3600')
+  render(<LoginPage />)
+  expect(screen.getByLabelText('login.sessionLifetime')).toHaveProperty('value', '3600')
+  cleanup()
+  localStorage.setItem('gated.sessionLifetime', '999')
+  render(<LoginPage />)
+  expect(screen.getByLabelText('login.sessionLifetime')).toHaveProperty('value', '1800')
 })

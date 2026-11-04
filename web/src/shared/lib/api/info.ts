@@ -25,6 +25,10 @@ export interface Info {
   terminal_watermark_enabled: boolean
   // Configured site title; null uses the built-in "Gated".
   site_title?: string | null
+  // Idle lifetime of this browser session in seconds; activity extends it.
+  session_lifetime: number
+  // Lifetimes the user may choose, in seconds.
+  session_lifetime_options: number[]
 }
 
 export async function getInfo(signal?: AbortSignal): Promise<Info> {

@@ -7,6 +7,7 @@ use crate::http_service::session::Session;
 use axum::extract::Path;
 use gated_common::web::{Data, Json};
 use gated_common::{api_response, api_routes};
+use gated_core::Services;
 use serde::Serialize;
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -25,6 +26,8 @@ struct ManagementSession {
     username: String,
     created: DateTime<Utc>,
     last_active: DateTime<Utc>,
+    /// When the session ends unless it is used again.
+    expires: DateTime<Utc>,
     /// Whether this is the caller's own browser session.
     current: bool,
 }
@@ -52,16 +55,18 @@ api_response! {
 )]
 async fn api_get_management_sessions(
     store: Data<Arc<Mutex<SessionStore>>>,
+    services: Data<Services>,
     session: Session,
     _sec_scheme: AnySecurityScheme,
 ) -> ListResponse {
+    let default_lifetime = services.config.read().await.store.admin.session_max_age;
     let store = store.lock().await;
     let current = match store.handle_for(&session) {
         Some(handle) => Some(handle.lock().await.id()),
         None => None,
     };
     let sessions = store
-        .list()
+        .list(default_lifetime)
         .await
         .into_iter()
         .map(|summary| ManagementSession {
@@ -70,6 +75,7 @@ async fn api_get_management_sessions(
             username: summary.username,
             created: summary.created,
             last_active: summary.last_active,
+            expires: summary.expires,
         })
         .collect();
     ListResponse::Ok(Json(sessions))

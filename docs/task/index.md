@@ -1,4 +1,5 @@
 # Tasks
+- [x] [**20261104-0900-session-keepalive Let users pick a sliding admin session lifetime**](20261104-0900-session-keepalive.md) `P1`
 - [x] [**20261103-1500-lode-settings-panel Show the supervising lode in System Settings**](20261103-1500-lode-settings-panel.md) `P2`
 - [x] [**20261103-1215-specific-error-messages Show specific error reasons in a global toast**](20261103-1215-specific-error-messages.md) `P1`
 - [x] [**20261103-1000-ssh-keys-per-account Move gateway SSH client keys into ssh-key accounts**](20261103-1000-ssh-keys-per-account.md) `P1`

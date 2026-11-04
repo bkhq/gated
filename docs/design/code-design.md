@@ -349,7 +349,8 @@ decrement, change broadcast, and `mark_session_complete`
      (`crates/gated-protocol-http/src/kubernetes/correlator.rs`);
      dropping the cached `GatedServerHandle` closes the session.
    - Web (cookie) sessions: `SessionStore::vacuum` drops management
-     session handles idle longer than `store.admin.session_max_age`
+     session handles idle longer than their chosen lifetime (default
+     `store.admin.session_max_age`)
      (`crates/gated-admin/src/http_service/session.rs`), driven by
      a 60-second loop (`crates/gated-admin/src/http_service/mod.rs`).
 

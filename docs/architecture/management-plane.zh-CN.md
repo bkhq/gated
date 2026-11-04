@@ -26,7 +26,7 @@
 3. `SessionLayer` —— cookie 会话（cookie `gated-http-session`，TLS 开启时带 secure 标志，max-age 可配置）；
    服务端状态保存在内存中并定期清理。登录会在内存管理会话注册表中创建 `ManagementSessionHandle`
    （`http_service/session.rs`），而不是代理会话：浏览器登录没有 `sessions` 行，也不出现在会话列表中。它们在
-   登出、空闲过期（`admin.session_max_age`）、重启、管理员撤销（`/admin/api/management-sessions`）或修改密码
+   登出、空闲过期（用户选择的时长，默认 `admin.session_max_age`）、重启、管理员撤销（`/admin/api/management-sessions`）或修改密码
    （会撤销该用户的其他浏览器会话和实时代理会话）时结束。
 4. `CookieHostMiddleware` —— 把 cookie 绑定到预期主机，防止跨子域复用。
 

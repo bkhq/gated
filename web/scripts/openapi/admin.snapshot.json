@@ -6040,6 +6040,7 @@
           "username",
           "created",
           "last_active",
+          "expires",
           "current"
         ],
         "properties": {
@@ -6050,6 +6051,11 @@
           "current": {
             "type": "boolean",
             "description": "Whether this is the caller's own browser session."
+          },
+          "expires": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the session ends unless it is used again."
           },
           "id": {
             "type": "string",

@@ -287,7 +287,10 @@
         "nameRequired": "Display name is required.",
         "nameTooLong": "Display name is at most 64 characters."
       },
-      "localPreferencesHint": "Language is saved in this browser; timezone applies to this session. These preferences do not change your account."
+      "localPreferencesHint": "Language is saved in this browser; timezone applies to this session. These preferences do not change your account.",
+      "session": "Session",
+      "sessionHint": "How long this browser stays signed in without activity. Any activity extends it.",
+      "sessionLifetime": "Stay signed in"
     },
     "auth": {
       "password": "Password",
@@ -506,7 +509,8 @@
     "errorNotStarted": "No sign-in session in progress. Start over from the password step.",
     "errorPublicKey": "This account requires public-key authentication, which the browser cannot complete.",
     "ssoChoose": "Choose a single sign-on provider to continue.",
-    "waitingApproval": "Waiting for an approver to confirm your sign-in request."
+    "waitingApproval": "Waiting for an approver to confirm your sign-in request.",
+    "sessionLifetime": "Stay signed in"
   },
   "encryption": {
     "passwordShow": "Show password",
@@ -1307,7 +1311,8 @@
         "current": "This session",
         "revoke": "Revoke",
         "confirmTitle": "Revoke browser session",
-        "confirmBody": "Sign {{user}} out of this browser session? Their next request will require logging in again."
+        "confirmBody": "Sign {{user}} out of this browser session? Their next request will require logging in again.",
+        "expires": "Expires"
       }
     },
     "detail": {
@@ -2400,5 +2405,9 @@
       "other": "The request failed (HTTP {{status}})."
     },
     "unknown": "Something went wrong."
+  },
+  "sessionLifetime": {
+    "minutes": "{{count}} min",
+    "hours": "{{count}} h"
   }
 }

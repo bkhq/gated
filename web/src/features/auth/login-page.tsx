@@ -4,6 +4,7 @@ import { AlertTriangle, Building2, ChevronLeft, Eye, EyeOff, Loader2 } from 'luc
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { BrandHero } from '@/shared/components/gated-logo'
+import { SessionLifetimeSelect } from '@/shared/components/session-lifetime-select'
 import {
   useAuthState,
   useContinueAuth,
@@ -12,9 +13,12 @@ import {
   useStartSso,
   useSubmitOtp,
 } from '@/shared/hooks/use-auth'
+import { useInfo } from '@/shared/hooks/use-info'
 import { useSiteTitle } from '@/shared/hooks/use-site-title'
+import { setSessionLifetime } from '@/shared/lib/api/auth'
 import { ApiError } from '@/shared/lib/api/http'
 import { otpCode } from '@/shared/lib/otp'
+import { rememberedSessionLifetime, rememberSessionLifetime } from '@/shared/lib/session-lifetime'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
@@ -51,6 +55,12 @@ export function LoginPage() {
   const startSsoMutation = useStartSso()
   const ssoProvidersQuery = useSsoProviders()
   const continueMutation = useContinueAuth()
+  const info = useInfo().data
+  const lifetimeOptions = info?.session_lifetime_options ?? []
+  const [chosenLifetime, setChosenLifetime] = React.useState<number | null>(null)
+  const remembered = rememberedSessionLifetime()
+  const lifetime = chosenLifetime
+    ?? (remembered !== null && lifetimeOptions.includes(remembered) ? remembered : info?.session_lifetime)
 
   const [step, setStep] = React.useState<Step>('password')
   // While waiting for an out-of-band approval, poll the auth state so the
@@ -133,6 +143,15 @@ export function LoginPage() {
     }
   }
 
+  // The lifetime is stored in the pre-login session and carries over once
+  // the sign-in completes.
+  const applyLifetime = async () => {
+    if (lifetime === undefined)
+      return
+    await setSessionLifetime(lifetime)
+    rememberSessionLifetime(lifetime)
+  }
+
   const submitPassword = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!username || !password) {
@@ -141,6 +160,7 @@ export function LoginPage() {
     }
     setError(null)
     try {
+      await applyLifetime()
       await loginMutation.mutateAsync({ username, password })
       goToShell()
     }
@@ -181,6 +201,7 @@ export function LoginPage() {
   const launchSso = async (provider: SsoProvider) => {
     setError(null)
     try {
+      await applyLifetime()
       const { url } = await startSsoMutation.mutateAsync(provider.name)
       window.location.href = url
     }
@@ -280,6 +301,15 @@ export function LoginPage() {
                   )}
                 />
               </div>
+
+              {lifetime !== undefined && lifetimeOptions.length > 0
+                ? (
+                    <div>
+                      <Label htmlFor="session-lifetime">{t('login.sessionLifetime')}</Label>
+                      <SessionLifetimeSelect id="session-lifetime" value={lifetime} options={lifetimeOptions} onValueChange={setChosenLifetime} />
+                    </div>
+                  )
+                : null}
 
               {error
                 ? (

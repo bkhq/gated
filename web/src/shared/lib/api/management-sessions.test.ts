@@ -7,7 +7,7 @@ afterEach(() => {
 
 describe('management sessions', () => {
   it('lists browser sessions from the admin API', async () => {
-    const sessions = [{ id: 's1', username: 'alice', created: '2026-09-29T00:00:00Z', last_active: '2026-09-29T00:01:00Z', current: true }]
+    const sessions = [{ id: 's1', username: 'alice', created: '2026-09-29T00:00:00Z', last_active: '2026-09-29T00:01:00Z', expires: '2026-09-29T00:31:00Z', current: true }]
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(sessions), { status: 200 }))
     vi.stubGlobal('fetch', fetch)
     expect(await listManagementSessions()).toEqual(sessions)

@@ -1686,6 +1686,11 @@ export interface components {
             created: string;
             /** @description Whether this is the caller's own browser session. */
             current: boolean;
+            /**
+             * Format: date-time
+             * @description When the session ends unless it is used again.
+             */
+            expires: string;
             /** Format: uuid */
             id: string;
             /** Format: date-time */

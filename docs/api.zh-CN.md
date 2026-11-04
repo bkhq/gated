@@ -44,6 +44,13 @@
   - `201 Created` — 空 body；会话升级同 `login`。
   - `401 Unauthorized` — `Json<LoginFailureResponse>`；`NotStarted` 表示会话没有挂载 `auth_state_id`。
 
+#### `PUT /api/auth/session-lifetime` — `set_session_lifetime` [OAS]
+
+- Summary：设置调用者浏览器会话无操作时保持登录的时长。登录前（登录页设置）和登录后都可调用。
+- Body：`{ seconds: u64 }`，取值须为 `/api/info` 中 `session_lifetime_options` 之一。
+- Responses：`204 No Content`；值不在可选项内时 `400` `Json<String>`。
+- 已登录会话的每次请求都会把过期时间顺延到当前时间 + 时长；cookie 的 `Max-Age` 最多每分钟重发一次。
+
 #### `POST /api/auth/logout` — `logout` [OAS]
 
 - Summary：清空当前会话并解除其在 `SessionStore` 的服务端 handle。
@@ -142,7 +149,7 @@
 #### `GET /api/info` — `get_info` [OAS]
 
 - Summary：用于 SPA 启动的实例 / 会话信息。
-- Responses：`200 OK` `Json<Info>`。`site_title`（未设置为 `null`）对未鉴权请求同样返回，供登录页显示。未鉴权时 `version`、`ports.*` 均为 `null`；`setup_state` 仅对 admin 且 users 或 targets 计数 ≤ 1 时返回。
+- Responses：`200 OK` `Json<Info>`。`site_title`（未设置为 `null`）对未鉴权请求同样返回，供登录页显示。未鉴权时 `version`、`ports.*` 均为 `null`；`setup_state` 仅对 admin 且 users 或 targets 计数 ≤ 1 时返回。`session_lifetime` 为当前会话的空闲时长（秒，默认 `admin.session_max_age`）；`session_lifetime_options` 为可选项：30 分钟、1 小时、4 小时、8 小时、24 小时中不超过 `admin.cookie_max_age` 的值，外加默认值。
 
 #### `GET /api/targets` — `get_targets` [OAS]
 
@@ -688,7 +695,7 @@
 
 #### `GET /admin/api/management-sessions` — `get_management_sessions` [OAS]
 
-- Responses：`200 OK` `ManagementSession[]`：`{ id: uuid, username: string, created: date-time, last_active: date-time, current: bool }`，按登录时间升序；`current` 表示调用者自己的会话。未完成登录的会话不列出。
+- Responses：`200 OK` `ManagementSession[]`：`{ id: uuid, username: string, created: date-time, last_active: date-time, expires: date-time, current: bool }`（`expires` = `last_active` + 该会话的时长），按登录时间升序；`current` 表示调用者自己的会话。未完成登录的会话不列出。
 
 #### `DELETE /admin/api/management-sessions/:id` — `revoke_management_session` [OAS]
 
@@ -908,7 +915,7 @@
 
 #### 会话 Cookie
 
-名称 `gated-http-session`。`Secure` = `admin.tls`；`Max-Age` = `admin.cookie_max_age`；`Domain` 取 `admin.cookie_domain` 或派生的 `.<external_host>`，本地 / 裸 IP 时由 `CookieHostMiddleware` 自动剥离。
+名称 `gated-http-session`。`Secure` = `admin.tls`；`Max-Age` = `admin.cookie_max_age`，会话使用期间会重发；`Domain` 取 `admin.cookie_domain` 或派生的 `.<external_host>`，本地 / 裸 IP 时由 `CookieHostMiddleware` 自动剥离。
 
 ### 6.2 实例 / 目标
 
@@ -1216,6 +1223,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/api/sftp/:target_name/remove` | `sftp_remove` |  |
 | POST | `/api/sftp/:target_name/rename` | `sftp_rename` |  |
 | POST | `/api/sso/return` | `return_to_sso_with_form_data` |  |
+| PUT | `/api/auth/session-lifetime` | `set_session_lifetime` | Choose how long the caller's browser session stays signed in without |
 
 ### 管理面 `/admin/api`
 

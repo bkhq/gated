@@ -234,7 +234,7 @@ Kubernetes 关联器以 `(username, target_name, client_ip)`（`correlator.rs`�
      russh 断开连接，进入路径 1。
    - Kubernetes HTTP 会话：60 秒周期的清理任务丢弃早于 `store.http.session_max_age` 的关联器句柄
      （`crates/gated-protocol-http/src/kubernetes/correlator.rs`）；释放缓存的 `GatedServerHandle` 即关闭会话。
-   - Web（cookie）会话：`SessionStore::vacuum` 丢弃空闲超过 `store.admin.session_max_age` 的管理会话句柄
+   - Web（cookie）会话：`SessionStore::vacuum` 丢弃空闲超过所选时长（默认 `store.admin.session_max_age`）的管理会话句柄
      （`crates/gated-admin/src/http_service/session.rs`），由 60 秒周期的循环驱动
      （`crates/gated-admin/src/http_service/mod.rs`）。
 

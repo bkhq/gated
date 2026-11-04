@@ -287,7 +287,10 @@
         "nameRequired": "请填写显示名。",
         "nameTooLong": "显示名最多 64 个字符。"
       },
-      "localPreferencesHint": "语言保存在当前浏览器，时区仅对当前会话生效。这些偏好不会修改账号资料。"
+      "localPreferencesHint": "语言保存在当前浏览器，时区仅对当前会话生效。这些偏好不会修改账号资料。",
+      "session": "会话",
+      "sessionHint": "此浏览器无操作时保持登录的时长，有活动会自动顺延。",
+      "sessionLifetime": "保持登录"
     },
     "auth": {
       "password": "密码",
@@ -506,7 +509,8 @@
     "errorNotStarted": "登录会话尚未开始，请从密码步骤重新开始。",
     "errorPublicKey": "此账号需要公钥认证，浏览器无法完成。",
     "ssoChoose": "请选择单点登录方式继续。",
-    "waitingApproval": "等待审批人确认你的登录请求。"
+    "waitingApproval": "等待审批人确认你的登录请求。",
+    "sessionLifetime": "保持登录"
   },
   "encryption": {
     "passwordShow": "显示密码",
@@ -1307,7 +1311,8 @@
         "current": "当前会话",
         "revoke": "撤销",
         "confirmTitle": "撤销浏览器会话",
-        "confirmBody": "确定让 {{user}} 退出此浏览器会话？其下一次请求需要重新登录。"
+        "confirmBody": "确定让 {{user}} 退出此浏览器会话？其下一次请求需要重新登录。",
+        "expires": "过期时间"
       }
     },
     "detail": {
@@ -2400,5 +2405,9 @@
       "other": "请求失败（HTTP {{status}}）。"
     },
     "unknown": "操作失败。"
+  },
+  "sessionLifetime": {
+    "minutes": "{{count}} 分钟",
+    "hours": "{{count}} 小时"
   }
 }

@@ -15,6 +15,11 @@ export async function submitOtp(req: OtpLoginRequest, signal?: AbortSignal): Pro
   await userApi.post<void>('/auth/otp', req, signal)
 }
 
+/** Choose how long this browser session stays signed in without activity. */
+export async function setSessionLifetime(seconds: number, signal?: AbortSignal): Promise<void> {
+  await userApi.put<void>('/auth/session-lifetime', { seconds }, signal)
+}
+
 export async function logout(signal?: AbortSignal): Promise<void> {
   await userApi.post<void>('/auth/logout', undefined, signal)
 }

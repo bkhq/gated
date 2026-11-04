@@ -49,6 +49,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/session-lifetime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose how long the caller's browser session stays signed in without
+         *     activity. Allowed before sign-in so the login page can set it.
+         */
+        put: operations["set_session_lifetime"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/state": {
         parameters: {
             query?: never;
@@ -764,6 +784,13 @@ export interface components {
             own_credential_management_allowed: boolean;
             ports: components["schemas"]["PortsInfo"];
             selected_target?: string | null;
+            /**
+             * Format: int64
+             * @description Idle lifetime of this browser session in seconds; activity extends it.
+             */
+            session_lifetime: number;
+            /** @description Lifetimes the user may choose, in seconds. */
+            session_lifetime_options: number[];
             setup_state?: components["schemas"]["SetupState"] | null;
             /**
              * @description Configured site title; `None` means the built-in "Gated". Public so
@@ -887,6 +914,13 @@ export interface components {
             kind: string;
             readonly: boolean;
             schemas: string[];
+        };
+        SessionLifetimeRequest: {
+            /**
+             * Format: int64
+             * @description Idle lifetime in seconds; one of `session_lifetime_options` in `/info`.
+             */
+            seconds: number;
         };
         SessionSnapshot: {
             /** Format: date-time */
@@ -1194,6 +1228,35 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    set_session_lifetime: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["SessionLifetimeRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
             };
         };
     };

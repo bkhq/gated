@@ -620,6 +620,7 @@ function ManagementSessionsPanel() {
                     <TH className="pl-5">{t('fields.user')}</TH>
                     <TH>{t('monitor.sessions.management.created')}</TH>
                     <TH>{t('monitor.sessions.management.lastActive')}</TH>
+                    <TH>{t('monitor.sessions.management.expires')}</TH>
                     <TH className="pr-5 text-right">{t('fields.actions')}</TH>
                   </TR>
                 </THead>
@@ -634,6 +635,7 @@ function ManagementSessionsPanel() {
                       </TD>
                       <TD className="tabular"><TimeText iso={session.created} /></TD>
                       <TD className="tabular"><TimeText iso={session.last_active} mode="relative" /></TD>
+                      <TD className="tabular"><TimeText iso={session.expires} /></TD>
                       <TD className="pr-5 text-right">
                         <Button
                           variant="ghost"

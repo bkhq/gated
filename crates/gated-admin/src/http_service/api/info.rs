@@ -14,6 +14,8 @@ use utoipa_axum::router::OpenApiRouter;
 use crate::http_service::common::{
     RequestAuthorization, SessionAuthorization, SessionExt, is_user_admin,
 };
+use crate::http_service::session::{SESSION_LIFETIME_KEY, session_lifetime_options};
+use std::time::Duration;
 
 #[derive(Serialize, ToSchema)]
 pub struct PortsInfo {
@@ -60,6 +62,10 @@ pub struct Info {
     /// Configured site title; `None` means the built-in "Gated". Public so
     /// the login page can show it.
     site_title: Option<String>,
+    /// Idle lifetime of this browser session in seconds; activity extends it.
+    session_lifetime: u64,
+    /// Lifetimes the user may choose, in seconds.
+    session_lifetime_options: Vec<u64>,
 }
 
 api_response! {
@@ -181,6 +187,16 @@ async fn api_get_info(
             .flatten(),
         terminal_watermark_enabled: parameters.terminal_watermark_enabled,
         site_title: parameters.site_title.clone(),
+        session_lifetime: session
+            .get::<u64>(SESSION_LIFETIME_KEY)
+            .unwrap_or(config.store.admin.session_max_age.as_secs()),
+        session_lifetime_options: session_lifetime_options(
+            config.store.admin.session_max_age,
+            config.store.admin.cookie_max_age,
+        )
+        .iter()
+        .map(Duration::as_secs)
+        .collect(),
     })))
 }
 

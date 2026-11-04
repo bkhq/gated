@@ -78,6 +78,34 @@
         }
       }
     },
+    "/auth/session-lifetime": {
+      "put": {
+        "summary": "Choose how long the caller's browser session stays signed in without\nactivity. Allowed before sign-in so the login page can set it.",
+        "operationId": "set_session_lifetime",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionLifetimeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {},
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/state": {
       "get": {
         "operationId": "get_default_auth_state",
@@ -2421,7 +2449,9 @@
           "authorized_via_ticket",
           "authorized_via_sso_with_single_logout",
           "own_credential_management_allowed",
-          "terminal_watermark_enabled"
+          "terminal_watermark_enabled",
+          "session_lifetime",
+          "session_lifetime_options"
         ],
         "properties": {
           "admin": {
@@ -2460,6 +2490,21 @@
               "string",
               "null"
             ]
+          },
+          "session_lifetime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Idle lifetime of this browser session in seconds; activity extends it.",
+            "minimum": 0
+          },
+          "session_lifetime_options": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "description": "Lifetimes the user may choose, in seconds."
           },
           "setup_state": {
             "oneOf": [
@@ -2911,6 +2956,20 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "SessionLifetimeRequest": {
+        "type": "object",
+        "required": [
+          "seconds"
+        ],
+        "properties": {
+          "seconds": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Idle lifetime in seconds; one of `session_lifetime_options` in `/info`.",
+            "minimum": 0
           }
         }
       },

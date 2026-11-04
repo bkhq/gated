@@ -31,7 +31,7 @@ use crate::http_service::common::{
     RequestAuthorization, SessionAuthorization, SessionExt, authorize_session,
     get_auth_state_for_request, require_auth,
 };
-use crate::http_service::session::SessionStore;
+use crate::http_service::session::{SESSION_LIFETIME_KEY, SessionStore, session_lifetime_options};
 
 /// Maximum credential attempts per `(username, client-IP)` per
 /// minute, shared across the `/auth/login` and `/auth/otp` endpoints. The
@@ -65,6 +65,21 @@ async fn login_rate_limit_key(req: &Parts, services: &Services, username: &str) 
 struct LoginRequest {
     username: String,
     password: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct SessionLifetimeRequest {
+    /// Idle lifetime in seconds; one of `session_lifetime_options` in `/info`.
+    seconds: u64,
+}
+
+api_response! {
+    enum SessionLifetimeResponse {
+        #[oai(status = 204)]
+        Updated,
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
+    }
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -574,6 +589,39 @@ async fn serialize_auth_state_inner(
     })
 }
 
+/// Choose how long the caller's browser session stays signed in without
+/// activity. Allowed before sign-in so the login page can set it.
+#[utoipa::path(
+    put,
+    path = "/auth/session-lifetime",
+    operation_id = "set_session_lifetime"
+)]
+async fn api_set_session_lifetime(
+    session: Session,
+    services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
+    body: Json<SessionLifetimeRequest>,
+) -> SessionLifetimeResponse {
+    let options = {
+        let config = services.config.read().await;
+        session_lifetime_options(
+            config.store.admin.session_max_age,
+            config.store.admin.cookie_max_age,
+        )
+    };
+    if !options
+        .iter()
+        .any(|option| option.as_secs() == body.seconds)
+    {
+        return SessionLifetimeResponse::BadRequest(Json(
+            "session lifetime is not one of the offered options".into(),
+        ));
+    }
+    session.set(SESSION_LIFETIME_KEY, body.seconds);
+    store.lock().await.touch(&session);
+    SessionLifetimeResponse::Updated
+}
+
 pub async fn api_get_web_auth_requests_stream(
     req: Parts,
     ws: WebSocketUpgrade,
@@ -625,6 +673,7 @@ pub fn router() -> OpenApiRouter {
         api_default_auth_state,
         api_continue_default_auth,
         api_cancel_default_auth,
+        api_set_session_lifetime,
     )
     .merge(
         api_routes!(
