@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Activity, Database, FileText, Home, Inbox, Key, Search, Server, ShieldCheck, SlidersHorizontal, Terminal, Ticket, User as UserIcon, Users } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useTargets } from '@/features/targets/hooks/use-targets-queries'
+import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
 import { formatTargetAddress } from '@/features/targets/lib/target-address'
 import { useUsers } from '@/features/users/hooks/use-users-queries'
 import { useIsAdmin } from '@/shared/hooks/use-info'
@@ -59,7 +59,7 @@ const optionId = (idx: number) => `spotlight-option-${idx}`
 export function SpotlightDialog({ open, onClose }: { open: boolean, onClose: () => void }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const targetsData = useTargets().data
+  const targetsData = useMyTargets().data
   const usersData = useUsers().data
   const isAdmin = useIsAdmin()
 

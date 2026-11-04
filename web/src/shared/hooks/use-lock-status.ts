@@ -3,7 +3,7 @@ import type { LockStatus } from '@/shared/lib/api/encryption'
 import { useQuery } from '@tanstack/react-query'
 import { getLockStatus } from '@/shared/lib/api/encryption'
 
-const LOCK_STATUS_QUERY_KEY = ['encryption', 'lock-status'] as const
+export const LOCK_STATUS_QUERY_KEY = ['encryption', 'lock-status'] as const
 
 const POLL_INTERVAL_MS = 3000
 // Unlocked but not yet served by the full server: the switch-over takes a
@@ -18,6 +18,11 @@ function shouldPoll(status: LockStatus['status']): boolean {
 // only the full server answers with `db_ready`.
 export function isStarting(data: LockStatus): boolean {
   return data.status === 'unlocked' && !data.db_ready
+}
+
+/** The full server is serving the app (not locked, uninitialised or starting). */
+export function isServing(data: LockStatus): boolean {
+  return data.status === 'disabled' || (data.status === 'unlocked' && !isStarting(data))
 }
 
 export function useLockStatus() {

@@ -5,10 +5,20 @@ import { createQueryClient } from './query-client'
 const toast = vi.hoisted(() => ({ error: vi.fn() }))
 vi.mock('sonner', () => ({ toast }))
 vi.mock('i18next', () => ({ default: { t: (key: string) => key } }))
+const lock = vi.hoisted(() => ({ getLockStatus: vi.fn() }))
+vi.mock('@/shared/lib/api/encryption', () => lock)
 
-beforeEach(() => toast.error.mockReset())
+beforeEach(() => {
+  toast.error.mockReset()
+  lock.getLockStatus.mockReset()
+  lock.getLockStatus.mockResolvedValue({ status: 'unlocked', db_ready: true })
+})
 
 function ignore() {}
+
+async function notFound(): Promise<never> {
+  throw new ApiError(404, 'HTTP 404', undefined)
+}
 
 function failWith(message: string) {
   return async () => {
@@ -48,4 +58,31 @@ it('shows a query failure only while the query has no data', async () => {
   client.setQueryData(['b'], 1)
   await client.fetchQuery({ queryKey: ['b'], queryFn: failWith('refetch failed'), staleTime: 0 }).catch(ignore)
   expect(toast.error).not.toHaveBeenCalled()
+})
+
+it('stays quiet about 404s while the gateway is locked and shows the lock screen instead', async () => {
+  lock.getLockStatus.mockResolvedValue({ status: 'locked' })
+  const client = createQueryClient()
+  client.setDefaultOptions({ queries: { retry: false } })
+  for (const key of ['a', 'b', 'c'])
+    await client.fetchQuery({ queryKey: [key], queryFn: async () => { throw new ApiError(404, 'HTTP 404', undefined) } }).catch(ignore)
+  await vi.waitFor(() => expect(client.getQueryData(['encryption', 'lock-status'])).toEqual({ status: 'locked' }))
+  expect(lock.getLockStatus).toHaveBeenCalledTimes(1)
+  expect(toast.error).not.toHaveBeenCalled()
+})
+
+it('still reports a 404 when the gateway is open', async () => {
+  const client = createQueryClient()
+  await expect(client.getMutationCache().build(client, {
+    mutationFn: async () => { throw new ApiError(404, 'target not found', 'target not found') },
+  }).execute(undefined)).rejects.toThrow()
+  await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith('target not found', expect.anything()))
+})
+
+it('a failing background refetch still notices the lock', async () => {
+  lock.getLockStatus.mockResolvedValue({ status: 'locked' })
+  const client = createQueryClient()
+  client.setQueryData(['b'], 1)
+  await client.fetchQuery({ queryKey: ['b'], queryFn: notFound, staleTime: 0, retry: false }).catch(ignore)
+  await vi.waitFor(() => expect(client.getQueryData(['encryption', 'lock-status'])).toEqual({ status: 'locked' }))
 })

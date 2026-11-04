@@ -18,7 +18,7 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 vi.mock('@/features/auth-requests/hooks/use-auth-requests-queries', () => ({ useAuthRequests: () => empty }))
 vi.mock('@/features/sessions/hooks/use-sessions-queries', () => ({ useMyLiveSessions: () => empty }))
-vi.mock('@/features/targets/hooks/use-targets-queries', () => ({ useTargets: () => empty, useFrequentTargets: () => empty }))
+vi.mock('@/features/targets/hooks/use-targets-queries', () => ({ useMyTargets: () => empty, useFrequentTargets: () => empty }))
 vi.mock('@/features/tickets/hooks/use-tickets-queries', () => ({ useMyTickets: () => empty }))
 vi.mock('@/features/recent-activity/hooks/use-recent-activity-queries', () => ({
   useRecentActivity: () => ({ data: recent.current, isLoading: false }),

@@ -17,7 +17,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileManager } from '@/features/files/file-manager'
 import { SqlConsolePage } from '@/features/sql-console/sql-console-page'
-import { useTargets } from '@/features/targets/hooks/use-targets-queries'
+import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
 import { TerminalScreen } from '@/features/terminal/terminal-screen'
 import { statusDotClass } from '@/features/terminal/terminal-status'
 import { cn } from '@/shared/lib/utils'
@@ -37,7 +37,7 @@ function isTerminalKind(kind: Target['kind']): kind is TerminalKind {
 // their WebSockets) survive navigating away; hidden while off-route.
 export function SessionsPage({ visible }: { visible: boolean }) {
   const { t } = useTranslation()
-  const targetsData = useTargets().data
+  const targetsData = useMyTargets().data
   // Only protocols with an in-browser terminal client (api.md §1.8). HTTP
   // targets are reached through the HTTP proxy listener, not a terminal.
   const targets = React.useMemo(

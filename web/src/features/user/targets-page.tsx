@@ -9,7 +9,7 @@ import { TargetCard, TargetViewToggle } from '@/features/targets/components'
 import { TargetKindIcon } from '@/features/targets/components/target-kind-icon'
 import { TargetUserAction } from '@/features/targets/components/target-user-action'
 import { useTargetView } from '@/features/targets/hooks/use-target-view'
-import { useTargets } from '@/features/targets/hooks/use-targets-queries'
+import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
 import { formatTargetAddress } from '@/features/targets/lib/target-address'
 import { targetGroupOptions } from '@/features/targets/lib/target-group'
 import { EmptyState } from '@/shared/components/empty-state'
@@ -95,7 +95,7 @@ export function TargetsPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
-  const targetsQuery = useTargets()
+  const targetsQuery = useMyTargets()
   const sessionsQuery = useMySessions()
 
   const targets = React.useMemo(() => targetsQuery.data ?? [], [targetsQuery.data])

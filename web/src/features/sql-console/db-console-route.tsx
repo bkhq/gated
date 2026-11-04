@@ -2,13 +2,13 @@ import { Link, useParams } from '@tanstack/react-router'
 import { Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SqlConsolePage } from '@/features/sql-console/sql-console-page'
-import { useTargets } from '@/features/targets/hooks/use-targets-queries'
+import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
 import { EmptyState } from '@/shared/components/empty-state'
 
 export function SqlConsoleRoute() {
   const { t } = useTranslation()
   const { targetName } = useParams({ from: '/db/$targetName' })
-  const targetsQuery = useTargets()
+  const targetsQuery = useMyTargets()
 
   if (targetsQuery.isLoading) {
     return (

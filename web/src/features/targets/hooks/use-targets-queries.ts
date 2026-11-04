@@ -214,13 +214,47 @@ export function useTargets() {
   })
 }
 
+const MY_TARGETS_KEY = ['targets', 'mine'] as const
+
+/**
+ * Targets the signed-in user's roles grant, the same set the gateway lets
+ * them connect to. Admins get the admin view of those targets (address,
+ * accounts), never the whole catalogue.
+ */
+async function fetchMyTargets(isAdmin: boolean, signal: AbortSignal): Promise<TargetWithAccounts[]> {
+  const mine = await listUserTargets(signal)
+  if (!isAdmin)
+    return mine.map(userSnapshotToDomain)
+  const [list, groupNames] = await Promise.all([listAdminTargets(signal), listGroupNames(signal)])
+  const granted = new Set(mine.map(target => target.name))
+  return list.filter(target => granted.has(target.name)).map(target => adminTargetToDomain(target, groupNames))
+}
+
+export function useMyTargets() {
+  const isAdmin = useIsAdmin()
+  return useQuery<TargetWithAccounts[]>({
+    queryKey: MY_TARGETS_KEY,
+    queryFn: async ({ signal }) => fetchMyTargets(isAdmin, signal),
+  })
+}
+
+export function useMyTarget(id: string | undefined) {
+  const isAdmin = useIsAdmin()
+  return useQuery<TargetWithAccounts[], Error, TargetWithAccounts | null>({
+    queryKey: MY_TARGETS_KEY,
+    queryFn: async ({ signal }) => fetchMyTargets(isAdmin, signal),
+    select: list => list.find(target => target.id === id) ?? null,
+    enabled: typeof id === 'string',
+  })
+}
+
 export function useFrequentTargets(limit: number = 5) {
   const qc = useQueryClient()
-  const targetsQuery = useTargets()
+  const targetsQuery = useMyTargets()
   return useQuery<Target[]>({
     queryKey: ['targets', 'frequent', limit],
     queryFn: async () => {
-      const targets = targetsQuery.data ?? qc.getQueryData<Target[]>(['targets']) ?? []
+      const targets = targetsQuery.data ?? qc.getQueryData<Target[]>(MY_TARGETS_KEY) ?? []
       if (targets.length === 0)
         return []
       const mine = qc.getQueryData<LiveSession[]>(['sessions', 'mine']) ?? []

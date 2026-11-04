@@ -21,7 +21,7 @@ vi.mock('@/features/sessions/hooks/use-sessions-queries', () => ({
   useMySessionsForTarget: () => ({ data: state.sessions, dataUpdatedAt: 0, isFetching: false, refetch: vi.fn() }),
 }))
 vi.mock('@/features/targets/hooks/use-targets-queries', () => ({
-  useTarget: () => ({ data: state.target, isLoading: false, isError: false, isFetching: false, dataUpdatedAt: 0, refetch: vi.fn() }),
+  useMyTarget: () => ({ data: state.target, isLoading: false, isError: false, isFetching: false, dataUpdatedAt: 0, refetch: vi.fn() }),
 }))
 vi.mock('@/features/targets/components', () => ({
   useTargetDetailTabs: () => ({ list: [], value: 'overview', onChange: vi.fn() }),

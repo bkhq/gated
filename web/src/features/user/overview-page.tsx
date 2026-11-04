@@ -7,7 +7,7 @@ import { useAuthRequests } from '@/features/auth-requests/hooks/use-auth-request
 import { useRecentActivity } from '@/features/recent-activity/hooks/use-recent-activity-queries'
 import { useMyLiveSessions } from '@/features/sessions/hooks/use-sessions-queries'
 import { TargetKindIcon } from '@/features/targets/components/target-kind-icon'
-import { useFrequentTargets, useTargets } from '@/features/targets/hooks/use-targets-queries'
+import { useFrequentTargets, useMyTargets } from '@/features/targets/hooks/use-targets-queries'
 import { formatTargetAddress } from '@/features/targets/lib/target-address'
 import { useMyTickets } from '@/features/tickets/hooks/use-tickets-queries'
 import { EmptyState } from '@/shared/components/empty-state'
@@ -126,7 +126,7 @@ export function OverviewPage() {
   const identity = useAppStore(state => state.identity)
   const firstName = identity.name.split(' ')[0] ?? identity.name
 
-  const targetsQuery = useTargets()
+  const targetsQuery = useMyTargets()
   const liveSessionsQuery = useMyLiveSessions()
   const authRequestsQuery = useAuthRequests()
   const myTicketsQuery = useMyTickets(identity.username)

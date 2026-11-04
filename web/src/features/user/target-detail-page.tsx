@@ -5,7 +5,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMySessionsForTarget } from '@/features/sessions/hooks/use-sessions-queries'
 import { TargetDetailHeader, TargetDetailTabsBody, useTargetDetailTabs } from '@/features/targets/components'
-import { useTarget } from '@/features/targets/hooks/use-targets-queries'
+import { useMyTarget } from '@/features/targets/hooks/use-targets-queries'
 import { buildConnectCommand } from '@/features/targets/lib/connect-command'
 import { EmptyState } from '@/shared/components/empty-state'
 import { useInfo, useIsAdmin } from '@/shared/hooks/use-info'
@@ -21,7 +21,7 @@ export function TargetDetailPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { targetId } = route.useParams()
-  const targetQuery = useTarget(targetId)
+  const targetQuery = useMyTarget(targetId)
   const target = targetQuery.data
 
   const sessionsQuery = useMySessionsForTarget(target?.name)

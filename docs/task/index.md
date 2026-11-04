@@ -1,4 +1,6 @@
 # Tasks
+- [x] [**20261104-2110-quiet-404-while-locked Stop error toasts while the gateway is locked**](20261104-2110-quiet-404-while-locked.md) `P2`
+- [x] [**20261104-2100-my-targets-only-granted Show admins only the targets their roles grant under My targets**](20261104-2100-my-targets-only-granted.md) `P1`
 - [x] [**20261104-1830-audit-entry-context Give every audit log entry its session context**](20261104-1830-audit-entry-context.md) `P1`
 - [x] [**20261104-1800-terminal-experience Bring the web terminal closer to Google's SSH-in-browser**](20261104-1800-terminal-experience.md) `P2`
 - [x] [**20261104-1430-trust-ssh-host-keys-from-ui Let administrators trust SSH host keys from the web UI**](20261104-1430-trust-ssh-host-keys-from-ui.md) `P1`

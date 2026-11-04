@@ -17,7 +17,7 @@ vi.mock('@/store/app-store', () => ({
 }))
 vi.mock('@/shared/hooks/use-info', () => ({ useInfo: () => ({ data: undefined }) }))
 vi.mock('@/features/targets/hooks/use-targets-queries', () => ({
-  useTargets: () => ({ data: state.targets, isLoading: false, isError: false, refetch: vi.fn() }),
+  useMyTargets: () => ({ data: state.targets, isLoading: false, isError: false, refetch: vi.fn() }),
 }))
 vi.mock('@/features/sessions/hooks/use-sessions-queries', () => ({
   useMySessions: () => ({ data: state.sessions, isLoading: false }),

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import * as React from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { useTarget, useTargets } from './use-targets-queries'
+import { useMyTarget, useMyTargets, useTarget, useTargets } from './use-targets-queries'
 
 const state = vi.hoisted(() => ({ admin: true }))
 
@@ -54,4 +54,20 @@ it('user targets use the same id/name shape', async () => {
   const { result } = renderHook(() => useTargets(), { wrapper })
   await waitFor(() => expect(result.current.data).toBeDefined())
   expect(result.current.data?.map(t => [t.group, t.groupName])).toEqual([['g1', 'Production'], ['', '']])
+})
+
+it('an admin sees only the targets granted to their roles under my targets', async () => {
+  const { listUserTargets } = await import('@/shared/lib/api/targets')
+  vi.mocked(listUserTargets).mockResolvedValueOnce([{ name: 'web-02', kind: 'Ssh', description: '' }] as never)
+  const { result } = renderHook(() => useMyTargets(), { wrapper })
+  await waitFor(() => expect(result.current.data).toBeDefined())
+  expect(result.current.data?.map(t => [t.id, t.name, t.host])).toEqual([['t2', 'web-02', 'h']])
+})
+
+it('my target detail is empty for a target that is not granted', async () => {
+  const { listUserTargets } = await import('@/shared/lib/api/targets')
+  vi.mocked(listUserTargets).mockResolvedValueOnce([{ name: 'web-02', kind: 'Ssh', description: '' }] as never)
+  const { result } = renderHook(() => useMyTarget('t1'), { wrapper })
+  await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  expect(result.current.data).toBeNull()
 })

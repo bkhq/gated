@@ -280,3 +280,11 @@ Audit entries carry the context of their proxy session. `POST /admin/api/logs` r
 ## 2026-11-04 20:30 [progress]
 
 The web terminal gains a settings dialog (theme presets, custom colors, font family and size with Ctrl+= / Ctrl+- / Ctrl+0, padding, scrollbar, copy-on-select, Ctrl+Shift+C / Ctrl+Shift+V), saved per browser and applied live; file upload (button or drag-and-drop, overwrite confirmation) and download by absolute path for SSH targets; connection progress and the end reason written into the terminal; and Reconnect / New connection actions once a session ends, keeping the earlier output.
+
+## 2026-11-04 21:20 [BUG-P1]
+
+Administrators saw every target under My targets (and in the overview, quick connect, spotlight and the SQL console route) although the gateway only lets them connect to targets their roles grant, so connecting failed. These views now list exactly what `GET /api/targets` returns for the user (`useMyTargets`); admin pages keep the full catalogue.
+
+## 2026-11-04 21:20 [BUG-P2]
+
+A locked gateway answers every API except encryption with 404, which flooded an open page with error toasts. A 404 or connection failure now first checks the lock status (one request shared by all failures); while the gateway is locked, uninitialised or starting no toast is shown and the boot gate moves to the unlock screen.
