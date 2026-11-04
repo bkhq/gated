@@ -62,26 +62,17 @@ describe('terminalStatusBanner', () => {
 
 describe('deriveBannerStatus', () => {
   it('prefers the last server status frame when it is known', () => {
-    expect(
-      deriveBannerStatus('open', { status: 'rate_limited', message: '' }),
-    ).toBe('rate_limited')
-    expect(
-      deriveBannerStatus('closed', { status: 'error', message: 'x' }),
-    ).toBe('error')
+    expect(deriveBannerStatus({ status: 'rate_limited', message: '' })).toBe('rate_limited')
+    expect(deriveBannerStatus({ status: 'error', message: 'x' })).toBe('error')
   })
 
-  it('falls back to readyState=open → "connected"', () => {
-    expect(deriveBannerStatus('open', null)).toBe('connected')
-  })
-
-  it('uses "connecting" when no status has arrived and the socket is not open', () => {
-    expect(deriveBannerStatus('connecting', null)).toBe('connecting')
-    expect(deriveBannerStatus('closed', null)).toBe('connecting')
+  it('stays "connecting" until the server reports the session connected', () => {
+    // The WebSocket opens before the gateway has signed in to the target, so
+    // an open socket alone must not read as connected.
+    expect(deriveBannerStatus(null)).toBe('connecting')
   })
 
   it('ignores unknown server status strings and falls through', () => {
-    expect(
-      deriveBannerStatus('open', { status: 'something-new', message: '' }),
-    ).toBe('connected')
+    expect(deriveBannerStatus({ status: 'something-new', message: '' })).toBe('connecting')
   })
 })

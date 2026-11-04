@@ -250,7 +250,7 @@ export function TerminalScreen({
   const watermarkEnabled = info.data?.terminal_watermark_enabled ?? false
   const watermarkUsername = info.data?.username ?? null
 
-  const bannerStatus: BannerStatus = deriveBannerStatus(socket.readyState, lastStatus)
+  const bannerStatus: BannerStatus = deriveBannerStatus(lastStatus)
   React.useEffect(() => {
     onStatusChange?.(bannerStatus)
   }, [bannerStatus, onStatusChange])

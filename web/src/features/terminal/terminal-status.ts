@@ -21,19 +21,13 @@ export interface BannerLabels {
 }
 
 /**
- * Map the hook's `readyState` + last status payload to a banner status. The
- * server's terminal frames (`closed`/`error`/`rate_limited`) win over the
- * WebSocket `readyState` so the failure reason isn't masked by the close
- * that follows.
+ * Map the last status payload to a banner status. Until the server reports
+ * `connected` the session is still connecting: the WebSocket opens before the
+ * gateway has signed in to the target, and that sign-in may still fail.
  */
-export function deriveBannerStatus(
-  readyState: 'connecting' | 'open' | 'closed',
-  lastStatus: StatusPayload | null,
-): BannerStatus {
+export function deriveBannerStatus(lastStatus: StatusPayload | null): BannerStatus {
   if (lastStatus !== null && isKnownBannerStatus(lastStatus.status))
     return lastStatus.status
-  if (readyState === 'open')
-    return 'connected'
   return 'connecting'
 }
 

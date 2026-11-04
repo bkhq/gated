@@ -252,3 +252,7 @@ Only user activity extends a browser session (task `20261104-0900`, reverses "po
 ## 2026-11-04 12:30 [decision]
 
 Activity is decided per request again, with an exclusion list (task `20261104-0900`): every request of a browser session extends it, except `GET` requests to the endpoints the web UI polls or refetches on push notifications (`BACKGROUND_PATHS` in `http_service/session.rs`, matched as path prefixes on segment boundaries). The SPA no longer reports mutations (they are requests); it still reports navigation via `POST /api/auth/activity`, because a navigation served from the query cache sends no request. A newly polled endpoint must be added to `BACKGROUND_PATHS`, or an open page will keep its session alive.
+
+## 2026-11-04 14:00 [BUG-P1]
+
+The web terminal showed "Connected" as soon as its WebSocket opened, before the gateway had signed in to the target, so a session whose key or password the target rejected looked connected until the error arrived. `deriveBannerStatus` now stays "connecting" until the server sends the `connected` status frame (after the shell is open); the WebSocket ready state no longer decides it.
