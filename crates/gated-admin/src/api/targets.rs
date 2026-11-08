@@ -120,11 +120,13 @@ async fn api_create_target(
     _sec_scheme: AnySecurityScheme,
     body: Json<TargetDataRequest>,
 ) -> Result<CreateTargetResponse, GatedError> {
-    if body.name.is_empty() {
+    let name = body.name.trim().to_owned();
+    if name.is_empty() {
         return Ok(CreateTargetResponse::BadRequest(Json("name".into())));
     }
 
     let mut options: TargetOptions = body.options.clone().into();
+    trim_target_address(&mut options);
     // An empty `accounts` list switches the target to inline credentials
     // and drops existing bindings.
     let bound_accounts = body
@@ -147,7 +149,7 @@ async fn api_create_target(
 
     let db = gated_core::db_required(&db).await?;
     let existing = Target::Entity::find()
-        .filter(Target::Column::Name.eq(body.name.clone()))
+        .filter(Target::Column::Name.eq(name.clone()))
         .one(&db)
         .await?;
     if existing.is_some() {
@@ -164,7 +166,7 @@ async fn api_create_target(
     let txn = db.begin().await?;
     let values = Target::ActiveModel {
         id: Set(Uuid::new_v4()),
-        name: Set(body.name.clone()),
+        name: Set(name),
         description: Set(body.description.clone().unwrap_or_default()),
         kind: Set((&options).into()),
         options: Set(serde_json::to_value(options).map_err(GatedError::from)?),
@@ -278,7 +280,8 @@ async fn api_update_target(
             "the target kind cannot be changed".into(),
         )));
     }
-    if body.name.is_empty() {
+    let name = body.name.trim().to_owned();
+    if name.is_empty() {
         return Ok(UpdateTargetResponse::BadRequest(Json(
             "name is required".into(),
         )));
@@ -286,7 +289,7 @@ async fn api_update_target(
     // Targets are resolved by name everywhere (authorization, tickets,
     // terminals); a rename onto an existing name must be refused.
     let name_taken = Target::Entity::find()
-        .filter(Target::Column::Name.eq(body.name.clone()))
+        .filter(Target::Column::Name.eq(name.clone()))
         .filter(Target::Column::Id.ne(id.0))
         .one(&db)
         .await?
@@ -298,6 +301,7 @@ async fn api_update_target(
     }
 
     let mut options: TargetOptions = body.options.clone().into();
+    trim_target_address(&mut options);
     // An empty `accounts` list switches the target to inline credentials
     // and drops existing bindings.
     let bound_accounts = body
@@ -337,7 +341,7 @@ async fn api_update_target(
 
     let txn = db.begin().await?;
     let mut model: Target::ActiveModel = target.into();
-    model.name = Set(body.name.clone());
+    model.name = Set(name);
     model.description = Set(body.description.clone().unwrap_or_default());
     model.options = Set(serde_json::to_value(options).map_err(GatedError::from)?);
     model.rate_limit_bytes_per_second = Set(body.rate_limit_bytes_per_second.map(|x| x as i64));
@@ -612,6 +616,18 @@ fn account_kind_matches_target(kind: &str, options: &TargetOptions) -> bool {
             matches!(kind, "http-headers" | "k8s-token" | "k8s-client-cert")
         }
     }
+}
+
+/// Surrounding whitespace in an address is always a typing slip, and would
+/// make every connection to the target fail.
+fn trim_target_address(options: &mut TargetOptions) {
+    let address = match options {
+        TargetOptions::Ssh(options) => &mut options.host,
+        TargetOptions::Http(options) => &mut options.url,
+        TargetOptions::MySql(options) => &mut options.host,
+        TargetOptions::Postgres(options) => &mut options.host,
+    };
+    *address = address.trim().to_owned();
 }
 
 fn parse_target_account_role(role: &str) -> Option<TargetAccountRole> {

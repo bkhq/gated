@@ -515,7 +515,7 @@
 #### `POST /admin/api/targets` — `create_target` [OAS]
 
 - Body：`TargetDataRequest`：
-  - `name: string`（非空）
+  - `name: string`（去除首尾空白后非空；首尾空白会被移除，`options` 中的主机或 URL 同样处理）
   - `description?: string`
   - `options: TargetOptions`
   - `accounts?: TargetAccountBinding[]`（`{ account_id: i32, role: "primary"|"fallback"|"readonly" }`；非空列表进入 account-mode 并清空 inline 凭据；空列表 `[]` 表示使用 inline 凭据并移除已有绑定；省略则不改动绑定）

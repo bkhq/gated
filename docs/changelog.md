@@ -308,3 +308,7 @@ The bottom row of the web terminal was cut off. The terminal padding sat on the 
 ## 2026-11-05 02:30 [progress]
 
 Targets record whether they are reachable. The gateway opens a TCP connection to each target's service port (3 s timeout, 16 at once) and stores the last result; it checks every target automatically, daily by default (`target_check_interval_hours` on the settings page, 0 turns it off), and admins can check selected, filtered or all targets from the target list. Both target lists show the status (users read-only), are paged at 50 per page, and the admin list shows totals by status and filters by it.
+
+## 2026-11-08 10:00 [BUG-P2]
+
+Target names and addresses kept surrounding whitespace, so a host pasted with a trailing space failed every connection and a name of only spaces was accepted. Creating or updating a target now trims the name and the host or URL; a name that is empty after trimming is refused. Targets already stored with such whitespace are corrected the next time they are saved.

@@ -516,7 +516,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 #### `POST /admin/api/targets` — `create_target` [OAS]
 
 - Body: `TargetDataRequest`:
-  - `name: string` (non-empty)
+  - `name: string` (non-empty after trimming; surrounding whitespace is removed, as it is from the host or URL in `options`)
   - `description?: string`
   - `options: TargetOptions`
   - `accounts?: TargetAccountBinding[]` (`{ account_id: i32, role: "primary"|"fallback"|"readonly" }`; a non-empty list switches to account mode and clears inline credentials; an empty list `[]` means inline credentials and removes existing bindings; omitting it leaves bindings unchanged)
