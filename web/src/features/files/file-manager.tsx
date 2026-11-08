@@ -1,20 +1,26 @@
+import type { Selection, SelectMode, SortKey, SortState } from './lib/entries'
+import type { UploadItem } from './upload-panel'
 import type { SftpEntry } from '@/shared/lib/api/sftp'
+import type { DropdownItem } from '@/shared/ui/dropdown-menu'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowUp,
+  Copy,
   Download,
-  File,
-  FileSymlink,
-  Folder,
+  Eye,
+  FolderOpen,
   FolderPlus,
+  Info,
+  PanelLeft,
   Pencil,
   RefreshCw,
+  Search,
   Trash2,
   Upload,
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { RowActionsMenu } from '@/shared/components/row-actions-menu'
+import { toast } from 'sonner'
 import { ApiError } from '@/shared/lib/api/http'
 import {
   downloadUrl,
@@ -28,48 +34,33 @@ import {
 import { toastError } from '@/shared/lib/toast-error'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { ContextMenu } from '@/shared/ui/context-menu'
 import { Dialog } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
-import { Skeleton } from '@/shared/ui/skeleton'
-import { Table, TBody, TD, TH, THead, TR } from '@/shared/ui/table'
-import { formatMode, formatSize, joinPath, parentPath, pathSegments } from './lib/paths'
-
-interface UploadItem {
-  id: number
-  name: string
-  size: number
-  loaded: number
-  status: 'uploading' | 'done' | 'error'
-  error?: string
-}
+import { DetailsPanel } from './details-panel'
+import { FileList } from './file-list'
+import { FileTree } from './file-tree'
+import { applySelection, NO_SELECTION, sortEntries } from './lib/entries'
+import { joinPath, parentPath } from './lib/paths'
+import { PathBar } from './path-bar'
+import { PreviewDialog } from './preview-dialog'
+import { UploadPanel } from './upload-panel'
 
 type PendingDialog
   = | { type: 'mkdir' }
     | { type: 'rename', entry: SftpEntry }
-    | { type: 'remove', entry: SftpEntry }
-    | { type: 'overwrite', file: File }
+    | { type: 'remove', entries: SftpEntry[] }
+
+interface PendingOverwrite {
+  file: File
+  /** The folder the upload started in, which may no longer be the current one. */
+  dir: string
+}
+
+// Browsers drop downloads started in the same tick.
+const DOWNLOAD_GAP_MS = 400
 
 let uploadSeq = 0
-
-function formatMtime(seconds: number | null | undefined): string {
-  if (seconds == null)
-    return '—'
-  return new Date(seconds * 1000).toLocaleString(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function EntryIcon({ kind }: { kind: string }) {
-  if (kind === 'dir')
-    return <Folder size={15} className="text-[hsl(var(--primary))]" />
-  if (kind === 'symlink')
-    return <FileSymlink size={15} className="text-muted-foreground" />
-  return <File size={15} className="text-muted-foreground" />
-}
 
 export function FileManager({ targetName, account, className }: { targetName: string, account?: string, className?: string }) {
   const target = React.useMemo(() => ({ name: targetName, account }), [targetName, account])
@@ -77,11 +68,16 @@ export function FileManager({ targetName, account, className }: { targetName: st
   const queryClient = useQueryClient()
   // undefined = the login directory; the server answers with its canonical path.
   const [path, setPath] = React.useState<string | undefined>(undefined)
-  // null = show the current directory; a string while the user edits the path.
-  const [pathDraft, setPathDraft] = React.useState<string | null>(null)
   const [dialog, setDialog] = React.useState<PendingDialog | null>(null)
+  const [overwrites, setOverwrites] = React.useState<PendingOverwrite[]>([])
   const [uploads, setUploads] = React.useState<UploadItem[]>([])
   const [dragging, setDragging] = React.useState(false)
+  const [treeOpen, setTreeOpen] = React.useState(true)
+  const [filter, setFilter] = React.useState('')
+  const [sort, setSort] = React.useState<SortState>({ key: 'name', order: 'asc' })
+  const [selection, setSelection] = React.useState<Selection>(NO_SELECTION)
+  const [detailsName, setDetailsName] = React.useState<string | null>(null)
+  const [preview, setPreview] = React.useState<SftpEntry | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
   const listing = useQuery({
@@ -98,7 +94,9 @@ export function FileManager({ targetName, account, className }: { targetName: st
   }, [queryClient, targetName])
 
   const navigate = (next: string) => {
-    setPathDraft(null)
+    setSelection(NO_SELECTION)
+    setDetailsName(null)
+    setFilter('')
     setPath(next)
   }
 
@@ -116,21 +114,27 @@ export function FileManager({ targetName, account, className }: { targetName: st
     setUploads(items => items.map(item => (item.id === id ? { ...item, ...patch } : item)))
   }
 
-  const startUpload = async (file: File, overwrite: boolean) => {
+  const startUpload = async (file: File, dir: string, overwrite: boolean) => {
     uploadSeq += 1
     const id = uploadSeq
-    setUploads(items => [...items, { id, name: file.name, size: file.size, loaded: 0, status: 'uploading' }])
+    const controller = new AbortController()
+    setUploads(items => [...items, { id, name: file.name, size: file.size, loaded: 0, status: 'uploading', controller }])
     try {
-      await uploadFile(target, joinPath(cwd, file.name), file, {
+      await uploadFile(target, joinPath(dir, file.name), file, {
         overwrite,
+        signal: controller.signal,
         onProgress: loaded => patchUpload(id, { loaded }),
       })
       patchUpload(id, { status: 'done', loaded: file.size })
     }
     catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        patchUpload(id, { status: 'canceled' })
+        return
+      }
       if (!overwrite && err instanceof ApiError && err.status === 409) {
         setUploads(items => items.filter(item => item.id !== id))
-        setDialog({ type: 'overwrite', file })
+        setOverwrites(pending => [...pending, { file, dir }])
         return
       }
       patchUpload(id, { status: 'error', error: sftpErrorMessage(err) })
@@ -141,15 +145,137 @@ export function FileManager({ targetName, account, className }: { targetName: st
 
   const uploadFiles = (files: FileList | null) => {
     for (const file of Array.from(files ?? []))
-      void startUpload(file, false)
+      void startUpload(file, cwd, false)
   }
 
-  const entries = listing.data?.entries ?? []
+  const pathOf = (entry: SftpEntry) => joinPath(cwd, entry.name)
+
+  const entries = React.useMemo(() => {
+    const term = filter.trim().toLowerCase()
+    const all = listing.data?.entries ?? []
+    return sortEntries(term ? all.filter(entry => entry.name.toLowerCase().includes(term)) : all, sort)
+  }, [listing.data, filter, sort])
+  const order = entries.map(entry => entry.name)
+  const selected = entries.filter(entry => selection.names.has(entry.name))
+  const downloadable = selected.filter(entry => entry.kind !== 'dir')
+  const single = selected.length === 1 ? selected[0] : undefined
+  const details = detailsName === null ? undefined : entries.find(entry => entry.name === detailsName)
   const listError = listing.error ? sftpErrorMessage(listing.error) : null
+
+  const select = (name: string, mode: SelectMode) => setSelection(current => applySelection(current, order, name, mode))
+
+  const open = (entry: SftpEntry) => {
+    // Symlinks may point at directories; opening one lists it, or shows the error.
+    if (entry.kind === 'dir' || entry.kind === 'symlink')
+      navigate(pathOf(entry))
+    else if (entry.kind === 'file')
+      setPreview(entry)
+  }
+
+  const download = (list: SftpEntry[]) => {
+    list.forEach((entry, index) => {
+      window.setTimeout(() => {
+        const anchor = document.createElement('a')
+        anchor.href = downloadUrl(target, pathOf(entry))
+        anchor.download = entry.name
+        document.body.appendChild(anchor)
+        anchor.click()
+        anchor.remove()
+      }, index * DOWNLOAD_GAP_MS)
+    })
+  }
+
+  const remove = async (list: SftpEntry[]) => {
+    setSelection(NO_SELECTION)
+    for (const entry of list) {
+      try {
+        await removePath(target, pathOf(entry), entry.kind === 'dir')
+      }
+      catch (err) {
+        toast.error(`${entry.name}: ${sftpErrorMessage(err)}`)
+      }
+    }
+    refresh()
+  }
+
+  const copyPath = (entry: SftpEntry) => {
+    void navigator.clipboard?.writeText(pathOf(entry)).catch(() => {})
+  }
+
+  const canEdit = listing.data !== undefined
+  const pickFiles = () => fileInputRef.current?.click()
+
+  const entryMenu = (): DropdownItem[] => [
+    ...(single
+      ? [
+          { label: t(single.kind === 'file' ? 'files.actions.preview' : 'files.actions.open'), icon: single.kind === 'file' ? Eye : FolderOpen, shortcut: 'Enter', onClick: () => open(single) },
+        ]
+      : []),
+    ...(downloadable.length > 0
+      ? [{ label: t('files.actions.downloadSelected'), icon: Download, onClick: () => download(downloadable) }]
+      : []),
+    ...(single
+      ? [
+          'separator' as const,
+          { label: t('files.actions.rename'), icon: Pencil, shortcut: 'F2', onClick: () => setDialog({ type: 'rename', entry: single }) },
+          { label: t('files.actions.copyPath'), icon: Copy, onClick: () => copyPath(single) },
+          { label: t('files.actions.details'), icon: Info, onClick: () => setDetailsName(single.name) },
+        ]
+      : []),
+    'separator',
+    { label: t('actions.delete'), icon: Trash2, danger: true, shortcut: 'Del', onClick: () => setDialog({ type: 'remove', entries: selected }) },
+  ]
+
+  const blankMenu = (): DropdownItem[] => [
+    { label: t('files.actions.newFolder'), icon: FolderPlus, disabled: !canEdit, onClick: () => setDialog({ type: 'mkdir' }) },
+    { label: t('files.actions.upload'), icon: Upload, disabled: !canEdit, onClick: pickFiles },
+    'separator',
+    { label: t('actions.refresh'), icon: RefreshCw, onClick: refresh },
+  ]
+
+  const moveSelection = (step: number) => {
+    const from = selection.anchor === null ? -1 : order.indexOf(selection.anchor)
+    const next = order[from === -1 ? (step > 0 ? 0 : order.length - 1) : Math.min(order.length - 1, Math.max(0, from + step))]
+    if (next !== undefined)
+      select(next, 'single')
+  }
+
+  const onListKeyDown = (event: React.KeyboardEvent) => {
+    const command = event.ctrlKey || event.metaKey
+    let handled = true
+    if (command && event.key.toLowerCase() === 'a')
+      setSelection({ names: new Set(order), anchor: order[0] ?? null })
+    else if (event.key === 'Escape')
+      setSelection(NO_SELECTION)
+    else if (event.key === 'ArrowDown')
+      moveSelection(1)
+    else if (event.key === 'ArrowUp')
+      moveSelection(-1)
+    else if (event.key === 'Backspace' && cwd && cwd !== '/')
+      navigate(parentPath(cwd))
+    else if (event.key === 'Enter' && single)
+      open(single)
+    else if (event.key === 'F2' && single)
+      setDialog({ type: 'rename', entry: single })
+    else if (event.key === 'Delete' && selected.length > 0)
+      setDialog({ type: 'remove', entries: selected })
+    else
+      handled = false
+    if (handled)
+      event.preventDefault()
+  }
+
+  const onSort = (key: SortKey) => {
+    setSort(current => ({ key, order: current.key === key && current.order === 'asc' ? 'desc' : 'asc' }))
+  }
+
+  const removing = dialog?.type === 'remove' ? dialog.entries : null
+  const onlyRemoving = removing?.length === 1 ? removing[0] : undefined
+  const overwriting = overwrites[0]
 
   return (
     <div
-      className={cn('relative flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card', className)}
+      className={cn('@container relative flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card', className)}
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes('Files')) {
           event.preventDefault()
@@ -166,7 +292,18 @@ export function FileManager({ targetName, account, className }: { targetName: st
         uploadFiles(event.dataTransfer.files)
       }}
     >
-      <div className="flex flex-none flex-wrap items-center gap-1.5 border-b border-border p-2">
+      <div className="flex flex-none flex-wrap items-center gap-1 border-b border-border p-1.5">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="hidden @2xl:inline-flex"
+          aria-label={t('files.tree.toggle')}
+          aria-pressed={treeOpen}
+          title={t('files.tree.toggle')}
+          onClick={() => setTreeOpen(value => !value)}
+        >
+          <PanelLeft size={14} />
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -177,73 +314,25 @@ export function FileManager({ targetName, account, className }: { targetName: st
         >
           <ArrowUp size={14} />
         </Button>
-        {pathDraft === null
-          ? (
-              <div
-                className="flex h-8 min-w-[160px] flex-1 cursor-text items-center gap-1 rounded-md border border-input bg-background pl-1 pr-0.5"
-                onClick={(event) => {
-                  // Only clicks on the empty area switch to editing; segments navigate.
-                  if (event.target === event.currentTarget)
-                    setPathDraft(cwd)
-                }}
-              >
-                <nav aria-label={t('files.breadcrumbs')} className="flex min-w-0 items-center overflow-hidden text-[12.5px]">
-                  {pathSegments(cwd).map((segment, index) => (
-                    <React.Fragment key={segment.path}>
-                      {index > 1 ? <span className="shrink-0 px-0.5 text-muted-foreground">/</span> : null}
-                      <button
-                        type="button"
-                        className="focus-ring mono min-w-0 truncate rounded px-1 py-0.5 hover:bg-accent"
-                        onClick={() => navigate(segment.path)}
-                      >
-                        {segment.name}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </nav>
-                <button
-                  type="button"
-                  className="focus-ring ml-auto inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label={t('files.editPath')}
-                  title={t('files.editPath')}
-                  onClick={() => setPathDraft(cwd)}
-                >
-                  <Pencil size={13} />
-                </button>
-              </div>
-            )
-          : (
-              <form
-                className="min-w-[160px] flex-1"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  if (pathDraft.trim())
-                    navigate(pathDraft.trim())
-                }}
-              >
-                <Input
-                  className="mono text-[12.5px]"
-                  wrapperClassName="h-8"
-                  autoFocus
-                  value={pathDraft}
-                  onChange={event => setPathDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape')
-                      setPathDraft(null)
-                  }}
-                  onBlur={() => setPathDraft(null)}
-                  aria-label={t('files.pathLabel')}
-                />
-              </form>
-            )}
+        <PathBar cwd={cwd} onNavigate={navigate} />
+        <div className="w-44">
+          <Input
+            icon={Search}
+            wrapperClassName="h-8"
+            value={filter}
+            onChange={event => setFilter(event.target.value)}
+            placeholder={t('files.filter')}
+            aria-label={t('files.filter')}
+          />
+        </div>
         <Button variant="ghost" size="icon-sm" aria-label={t('actions.refresh')} title={t('actions.refresh')} onClick={refresh}>
           <RefreshCw size={14} className={cn(listing.isFetching && 'animate-spin')} />
         </Button>
-        <Button variant="outline" size="sm" disabled={!listing.data} onClick={() => setDialog({ type: 'mkdir' })}>
+        <Button variant="outline" size="sm" disabled={!canEdit} onClick={() => setDialog({ type: 'mkdir' })}>
           <FolderPlus size={14} />
           <span>{t('files.actions.newFolder')}</span>
         </Button>
-        <Button size="sm" disabled={!listing.data} onClick={() => fileInputRef.current?.click()}>
+        <Button size="sm" disabled={!canEdit} onClick={pickFiles}>
           <Upload size={14} />
           <span>{t('files.actions.upload')}</span>
         </Button>
@@ -267,88 +356,81 @@ export function FileManager({ targetName, account, className }: { targetName: st
           )
         : null}
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <Table className="rounded-none border-0">
-          <THead>
-            <TR>
-              <TH className="pl-4">{t('fields.name')}</TH>
-              <TH className="w-[100px] text-right">{t('files.fields.size')}</TH>
-              <TH className="hidden w-[160px] md:table-cell">{t('files.fields.modified')}</TH>
-              <TH className="hidden w-[110px] lg:table-cell">{t('files.fields.permissions')}</TH>
-              <TH className="w-[48px] pr-3" aria-label={t('fields.actions')} />
-            </TR>
-          </THead>
-          <TBody>
-            {listing.isLoading
-              ? Array.from({ length: 6 }, (_, index) => (
-                  <TR key={`files-skeleton-${String(index)}`} className="h-9">
-                    <TD className="py-1.5 pl-4"><Skeleton className="h-3.5 w-40" /></TD>
-                    <TD className="py-1.5"><Skeleton className="ml-auto h-3.5 w-12" /></TD>
-                    <TD className="hidden py-1.5 md:table-cell"><Skeleton className="h-3.5 w-28" /></TD>
-                    <TD className="hidden py-1.5 lg:table-cell"><Skeleton className="h-3.5 w-20" /></TD>
-                    <TD className="py-1.5" />
-                  </TR>
-                ))
-              : entries.length === 0 && listing.data
-                ? (
-                    <TR>
-                      <TD colSpan={5} className="py-10 text-center text-[13px] text-muted-foreground">
-                        {t('files.empty')}
-                      </TD>
-                    </TR>
-                  )
-                : entries.map(entry => (
-                    <EntryRow
-                      key={entry.name}
-                      entry={entry}
-                      href={downloadUrl(target, joinPath(cwd, entry.name))}
-                      onOpen={() => navigate(joinPath(cwd, entry.name))}
-                      onRename={() => setDialog({ type: 'rename', entry })}
-                      onRemove={() => setDialog({ type: 'remove', entry })}
-                    />
-                  ))}
-          </TBody>
-        </Table>
+      <div className="relative flex min-h-0 flex-1">
+        {treeOpen
+          ? (
+              <div className="hidden w-56 flex-none overflow-auto border-r border-border @2xl:block">
+                <FileTree target={target} cwd={cwd} onNavigate={navigate} />
+              </div>
+            )
+          : null}
+        <ContextMenu
+          items={selected.length > 0 ? entryMenu() : blankMenu()}
+          className="flex min-w-0 flex-1 flex-col"
+          onContextMenu={(event) => {
+            if (!(event.target as HTMLElement).closest('[data-name]'))
+              setSelection(NO_SELECTION)
+          }}
+        >
+          <FileList
+            entries={entries}
+            loading={listing.isLoading}
+            empty={listing.data
+              ? <div className="flex min-h-40 flex-1 items-center justify-center text-[13px] text-muted-foreground">{t('files.empty')}</div>
+              : null}
+            selection={selection}
+            sort={sort}
+            onSort={onSort}
+            onSelect={select}
+            onClearSelection={() => setSelection(NO_SELECTION)}
+            onOpen={open}
+            onEntryContextMenu={(entry) => {
+              if (!selection.names.has(entry.name))
+                setSelection({ names: new Set([entry.name]), anchor: entry.name })
+            }}
+            onKeyDown={onListKeyDown}
+          />
+        </ContextMenu>
+        {details
+          ? <DetailsPanel entry={details} path={pathOf(details)} onCopyPath={() => copyPath(details)} onClose={() => setDetailsName(null)} />
+          : null}
       </div>
 
-      {uploads.length > 0
-        ? (
-            <div className="flex max-h-40 flex-none flex-col gap-1 overflow-auto border-t border-border px-3 py-2" aria-label={t('files.uploads.title')}>
-              <div className="flex items-center justify-between text-[12px] font-medium">
-                <span>{t('files.uploads.title')}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setUploads(items => items.filter(item => item.status === 'uploading'))}
-                >
-                  {t('files.uploads.clear')}
+      <div className="flex h-8 flex-none items-center gap-2 border-t border-border px-3 text-[12px] text-muted-foreground">
+        <span>{t('files.itemCount', { count: entries.length })}</span>
+        {selected.length > 0
+          ? (
+              <>
+                <span>{`· ${t('common.selectedCount', { count: selected.length })}`}</span>
+                <span className="flex-1" />
+                {downloadable.length > 0
+                  ? (
+                      <Button variant="ghost" size="sm" onClick={() => download(downloadable)}>
+                        <Download size={13} />
+                        <span>{t('files.actions.downloadSelected')}</span>
+                      </Button>
+                    )
+                  : null}
+                <Button variant="ghost" size="sm" className="text-destructive" aria-label={t('files.actions.deleteSelected')} onClick={() => setDialog({ type: 'remove', entries: selected })}>
+                  <Trash2 size={13} />
+                  <span>{t('files.actions.deleteSelected')}</span>
                 </Button>
-              </div>
-              {uploads.map(item => (
-                <div key={item.id} className="flex items-center gap-2 text-[12px]">
-                  <span className="mono min-w-0 flex-1 truncate" title={item.name}>{item.name}</span>
-                  {item.status === 'error'
-                    ? <span className="min-w-0 max-w-[50%] truncate text-destructive" title={item.error}>{item.error}</span>
-                    : (
-                        <span className="tabular text-muted-foreground">
-                          {item.status === 'done'
-                            ? t('files.uploads.done')
-                            : `${formatSize(item.loaded)} / ${formatSize(item.size)}`}
-                        </span>
-                      )}
-                </div>
-              ))}
-            </div>
-          )
-        : null}
+              </>
+            )
+          : null}
+      </div>
+
+      <UploadPanel uploads={uploads} onClearFinished={() => setUploads(items => items.filter(item => item.status === 'uploading'))} />
 
       {dragging
         ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg border-2 border-dashed border-[hsl(var(--primary))] bg-[hsl(var(--background)/0.85)] text-[14px] font-medium">
+            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-lg border-2 border-dashed border-[hsl(var(--primary))] bg-[hsl(var(--background)/0.85)] text-[14px] font-medium">
               {t('files.dropHint', { path: cwd })}
             </div>
           )
         : null}
+
+      {preview ? <PreviewDialog target={target} entry={preview} path={pathOf(preview)} onClose={() => setPreview(null)} /> : null}
 
       <NameDialog
         key={dialog?.type === 'rename' ? `rename-${dialog.entry.name}` : dialog?.type ?? 'closed'}
@@ -360,92 +442,38 @@ export function FileManager({ targetName, account, className }: { targetName: st
           const current = dialog
           setDialog(null)
           if (current?.type === 'rename')
-            void run(async () => renamePath(target, joinPath(cwd, current.entry.name), joinPath(cwd, name)))
+            void run(async () => renamePath(target, pathOf(current.entry), joinPath(cwd, name)))
           else
             void run(async () => makeDirectory(target, joinPath(cwd, name)))
         }}
       />
       <ConfirmDialog
-        open={dialog?.type === 'remove' || dialog?.type === 'overwrite'}
-        title={dialog?.type === 'overwrite' ? t('files.overwrite.title') : t('files.remove.title')}
-        body={dialog?.type === 'overwrite'
-          ? t('files.overwrite.body', { name: dialog.file.name })
-          : dialog?.type === 'remove'
-            ? t(dialog.entry.kind === 'dir' ? 'files.remove.bodyDir' : 'files.remove.body', { name: dialog.entry.name })
-            : ''}
-        confirmLabel={dialog?.type === 'overwrite' ? t('files.overwrite.confirm') : t('actions.delete')}
+        open={removing !== null}
+        title={t('files.remove.title')}
+        body={onlyRemoving
+          ? t(onlyRemoving.kind === 'dir' ? 'files.remove.bodyDir' : 'files.remove.body', { name: onlyRemoving.name })
+          : t('files.remove.bodyMany', { count: removing?.length ?? 0 })}
+        confirmLabel={t('actions.delete')}
         onCancel={() => setDialog(null)}
         onConfirm={() => {
-          const current = dialog
           setDialog(null)
-          if (current?.type === 'overwrite')
-            void startUpload(current.file, true)
-          else if (current?.type === 'remove')
-            void run(async () => removePath(target, joinPath(cwd, current.entry.name), current.entry.kind === 'dir'))
+          if (removing)
+            void remove(removing)
+        }}
+      />
+      <ConfirmDialog
+        open={overwriting !== undefined}
+        title={t('files.overwrite.title')}
+        body={overwriting ? t('files.overwrite.body', { name: joinPath(overwriting.dir, overwriting.file.name) }) : ''}
+        confirmLabel={t('files.overwrite.confirm')}
+        onCancel={() => setOverwrites(pending => pending.slice(1))}
+        onConfirm={() => {
+          setOverwrites(pending => pending.slice(1))
+          if (overwriting)
+            void startUpload(overwriting.file, overwriting.dir, true)
         }}
       />
     </div>
-  )
-}
-
-interface EntryRowProps {
-  entry: SftpEntry
-  href: string
-  onOpen: () => void
-  onRename: () => void
-  onRemove: () => void
-}
-
-function EntryRow({ entry, href, onOpen, onRename, onRemove }: EntryRowProps) {
-  const { t } = useTranslation()
-  // Symlinks may point at directories; opening one lists it, or shows the error.
-  const navigable = entry.kind === 'dir' || entry.kind === 'symlink'
-  const downloadable = entry.kind !== 'dir'
-  return (
-    <TR className="h-9">
-      <TD className="py-1.5 pl-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <EntryIcon kind={entry.kind} />
-          {navigable
-            ? (
-                <button type="button" className="focus-ring mono truncate rounded text-left text-[13px] hover:underline" onClick={onOpen}>
-                  {entry.name}
-                </button>
-              )
-            : <span className="mono truncate text-[13px]">{entry.name}</span>}
-        </div>
-      </TD>
-      <TD className="mono tabular py-1.5 text-right text-[12px] text-muted-foreground">
-        {entry.kind === 'dir' ? '—' : formatSize(entry.size)}
-      </TD>
-      <TD className="mono tabular hidden py-1.5 text-[12px] text-muted-foreground md:table-cell">{formatMtime(entry.mtime)}</TD>
-      <TD className="mono hidden py-1.5 text-[12px] text-muted-foreground lg:table-cell">{formatMode(entry.permissions, entry.kind)}</TD>
-      <TD className="py-1 pr-3 text-right">
-        <div className="flex items-center justify-end gap-0.5">
-          {downloadable
-            ? (
-                <a
-                  href={href}
-                  download={entry.name}
-                  className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label={t('files.actions.download', { name: entry.name })}
-                  title={t('files.actions.download', { name: entry.name })}
-                >
-                  <Download size={14} />
-                </a>
-              )
-            : null}
-          <RowActionsMenu
-            label={t('files.actions.more', { name: entry.name })}
-            items={[
-              { label: t('files.actions.rename'), icon: Pencil, onClick: onRename },
-              'separator',
-              { label: t('actions.delete'), icon: Trash2, danger: true, onClick: onRemove },
-            ]}
-          />
-        </div>
-      </TD>
-    </TR>
   )
 }
 

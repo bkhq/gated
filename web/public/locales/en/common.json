@@ -2327,9 +2327,13 @@
       "up": "Parent folder",
       "newFolder": "New folder",
       "upload": "Upload",
-      "download": "Download {{name}}",
-      "more": "Actions for {{name}}",
-      "rename": "Rename"
+      "rename": "Rename",
+      "open": "Open",
+      "preview": "Preview",
+      "downloadSelected": "Download",
+      "deleteSelected": "Delete",
+      "copyPath": "Copy path",
+      "details": "Details"
     },
     "mkdir": {
       "title": "New folder"
@@ -2340,7 +2344,8 @@
     "remove": {
       "title": "Delete",
       "body": "Delete the file {{name}}? This cannot be undone.",
-      "bodyDir": "Delete the folder {{name}}? Only empty folders can be deleted."
+      "bodyDir": "Delete the folder {{name}}? Only empty folders can be deleted.",
+      "bodyMany": "Delete {{count}} items? This cannot be undone. Folders that are not empty are skipped."
     },
     "overwrite": {
       "title": "Replace file?",
@@ -2350,7 +2355,33 @@
     "uploads": {
       "title": "Uploads",
       "clear": "Clear finished",
-      "done": "Done"
+      "done": "Done",
+      "cancel": "Cancel uploading {{name}}",
+      "canceled": "Canceled"
+    },
+    "filter": "Filter this folder",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items",
+    "tree": {
+      "label": "Folders",
+      "toggle": "Show or hide the folder tree",
+      "expand": "Expand {{name}}",
+      "collapse": "Collapse {{name}}"
+    },
+    "kinds": {
+      "dir": "Folder",
+      "file": "File",
+      "symlink": "Symbolic link"
+    },
+    "details": {
+      "title": "Details",
+      "path": "Path",
+      "type": "Type"
+    },
+    "preview": {
+      "download": "Download",
+      "binary": "This file is not text, so it cannot be previewed.",
+      "unavailable": "This file cannot be previewed. Text files up to 1 MB and images up to 20 MB can."
     }
   },
   "fileRecords": {

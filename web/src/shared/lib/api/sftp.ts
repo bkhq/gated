@@ -44,6 +44,15 @@ export function downloadUrl(target: TargetRef, path: string): string {
   return withAccount(`/api${base(target)}/download?path=${encodeURIComponent(path)}`, target)
 }
 
+/** File content for a preview; audited as a download by the gateway. */
+export async function readFile(target: TargetRef, path: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const response = await fetch(downloadUrl(target, path), { credentials: 'same-origin', signal })
+  if (response.ok)
+    return response.arrayBuffer()
+  const body: unknown = await response.json().catch(() => null)
+  throw new ApiError(response.status, `HTTP ${response.status}`, body)
+}
+
 export interface UploadOptions {
   overwrite?: boolean
   onProgress?: (loaded: number) => void

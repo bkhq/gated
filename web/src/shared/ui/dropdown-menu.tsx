@@ -20,6 +20,34 @@ export interface DropdownMenuProps {
   align?: 'left' | 'right'
 }
 
+/** The rows of a dropdown or context menu popup. */
+export function DropdownItems({ items }: { items: DropdownItem[] }) {
+  return items.map((item, index) => {
+    if (item === 'separator') {
+      return <div key={`sep-${String(index)}`} className="my-1 h-px bg-border" />
+    }
+    const Icon = item.icon
+    return (
+      <MenuPrimitive.Item
+        key={`it-${String(index)}`}
+        data-slot="dropdown-item"
+        disabled={item.disabled}
+        onClick={() => item.onClick?.()}
+        className={cn(
+          'flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left text-[13px] outline-none transition',
+          'data-highlighted:bg-accent data-highlighted:text-accent-foreground',
+          'data-disabled:cursor-not-allowed data-disabled:opacity-50',
+          item.danger && 'text-destructive data-highlighted:text-destructive',
+        )}
+      >
+        {Icon ? <Icon size={14} /> : null}
+        <span className="flex-1">{item.label}</span>
+        {item.shortcut ? <span aria-hidden="true" className="text-[11px] text-muted-foreground">{item.shortcut}</span> : null}
+      </MenuPrimitive.Item>
+    )
+  })
+}
+
 export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuProps) {
   return (
     <MenuPrimitive.Root>
@@ -43,30 +71,7 @@ export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuPr
               'transition duration-150 ease-out data-ending-style:opacity-0 data-ending-style:scale-[0.97] data-starting-style:opacity-0 data-starting-style:scale-[0.97]',
             )}
           >
-            {items.map((item, index) => {
-              if (item === 'separator') {
-                return <div key={`sep-${String(index)}`} className="my-1 h-px bg-border" />
-              }
-              const Icon = item.icon
-              return (
-                <MenuPrimitive.Item
-                  key={`it-${String(index)}`}
-                  data-slot="dropdown-item"
-                  disabled={item.disabled}
-                  onClick={() => item.onClick?.()}
-                  className={cn(
-                    'flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left text-[13px] outline-none transition',
-                    'data-highlighted:bg-accent data-highlighted:text-accent-foreground',
-                    'data-disabled:cursor-not-allowed data-disabled:opacity-50',
-                    item.danger && 'text-destructive data-highlighted:text-destructive',
-                  )}
-                >
-                  {Icon ? <Icon size={14} /> : null}
-                  <span className="flex-1">{item.label}</span>
-                  {item.shortcut ? <span className="text-[11px] text-muted-foreground">{item.shortcut}</span> : null}
-                </MenuPrimitive.Item>
-              )
-            })}
+            <DropdownItems items={items} />
           </MenuPrimitive.Popup>
         </MenuPrimitive.Positioner>
       </MenuPrimitive.Portal>

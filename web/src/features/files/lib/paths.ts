@@ -45,3 +45,15 @@ export function formatMode(permissions: number | null | undefined, kind: string)
     out += permissions & (1 << (8 - i)) ? bits[i] : '-'
   return out
 }
+
+export function formatMtime(seconds: number | null | undefined): string {
+  if (seconds == null)
+    return '—'
+  return new Date(seconds * 1000).toLocaleString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}

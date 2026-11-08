@@ -312,3 +312,7 @@ Targets record whether they are reachable. The gateway opens a TCP connection to
 ## 2026-11-08 10:00 [BUG-P2]
 
 Target names and addresses kept surrounding whitespace, so a host pasted with a trailing space failed every connection and a name of only spaces was accepted. Creating or updating a target now trims the name and the host or URL; a name that is empty after trimming is refused. Targets already stored with such whitespace are corrected the next time they are saved.
+
+## 2026-11-08 11:30 [progress]
+
+Web file manager reworked after `bkhq/filemanager`: folder tree, sortable list with multi-select and keyboard control, filter, context menus, details panel, floating upload panel with per-file cancel, bulk download and delete. Text (up to 1 MiB) and image (up to 20 MiB) previews use the download endpoint, so each preview is audited as a download. No backend change.

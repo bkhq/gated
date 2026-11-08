@@ -2327,9 +2327,13 @@
       "up": "上级目录",
       "newFolder": "新建文件夹",
       "upload": "上传",
-      "download": "下载 {{name}}",
-      "more": "{{name}} 的操作",
-      "rename": "重命名"
+      "rename": "重命名",
+      "open": "打开",
+      "preview": "预览",
+      "downloadSelected": "下载",
+      "deleteSelected": "删除",
+      "copyPath": "复制路径",
+      "details": "详情"
     },
     "mkdir": {
       "title": "新建文件夹"
@@ -2340,7 +2344,8 @@
     "remove": {
       "title": "删除",
       "body": "确定删除文件 {{name}}？此操作无法撤销。",
-      "bodyDir": "确定删除文件夹 {{name}}？只能删除空文件夹。"
+      "bodyDir": "确定删除文件夹 {{name}}？只能删除空文件夹。",
+      "bodyMany": "删除这 {{count}} 项？此操作无法撤销，非空文件夹会被跳过。"
     },
     "overwrite": {
       "title": "替换文件？",
@@ -2350,7 +2355,33 @@
     "uploads": {
       "title": "上传",
       "clear": "清除已完成",
-      "done": "完成"
+      "done": "完成",
+      "cancel": "取消上传 {{name}}",
+      "canceled": "已取消"
+    },
+    "filter": "筛选当前文件夹",
+    "itemCount_one": "{{count}} 项",
+    "itemCount_other": "{{count}} 项",
+    "tree": {
+      "label": "文件夹",
+      "toggle": "显示或隐藏目录树",
+      "expand": "展开 {{name}}",
+      "collapse": "收起 {{name}}"
+    },
+    "kinds": {
+      "dir": "文件夹",
+      "file": "文件",
+      "symlink": "符号链接"
+    },
+    "details": {
+      "title": "详情",
+      "path": "路径",
+      "type": "类型"
+    },
+    "preview": {
+      "download": "下载",
+      "binary": "这不是文本文件，无法预览。",
+      "unavailable": "此文件无法预览。可预览 1 MB 以内的文本和 20 MB 以内的图片。"
     }
   },
   "fileRecords": {
