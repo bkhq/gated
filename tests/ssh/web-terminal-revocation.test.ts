@@ -172,9 +172,15 @@ describe("Web terminal and browser session revocation", () => {
     expect(output).toContain("Command blocked by policy");
     expect(output).not.toContain("root\r\n");
 
-    const records = await (await admin("GET", `/command-records?source=shell&q=whoami`)).json() as {
-      items: { origin: string, outcome: string, target: string }[]
-    };
-    expect(records.items.some(r => r.target === target.name && r.origin === "web" && r.outcome === "blocked")).toBe(true);
+    // The recording is flushed in the background once the terminal closes.
+    let recorded = false;
+    for (let attempt = 0; attempt < 40 && !recorded; attempt++) {
+      if (attempt > 0) await Bun.sleep(250);
+      const records = await (await admin("GET", `/command-records?source=shell&q=whoami`)).json() as {
+        items: { origin: string, outcome: string, target: string }[]
+      };
+      recorded = records.items.some(r => r.target === target.name && r.origin === "web" && r.outcome === "blocked");
+    }
+    expect(recorded).toBe(true);
   }, 60_000);
 });
