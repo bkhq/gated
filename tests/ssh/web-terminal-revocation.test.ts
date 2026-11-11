@@ -19,7 +19,7 @@ describe("Web terminal and browser session revocation", () => {
   const keyPath = resolve(import.meta.dir, "../ssh-keys/id_ed25519");
 
   beforeAll(async () => {
-    gateway = await processes.startWg();
+    gateway = await processes.startWg({ configPatch: { recordings: { enable: true } } });
     await waitPort(gateway.httpPort, { recv: false, process: gateway.process });
     sshPort = processes.startSshServer({ trustedKeys: [readFileSync(`${keyPath}.pub`, "utf8").trim()] });
     await waitPort(sshPort);
