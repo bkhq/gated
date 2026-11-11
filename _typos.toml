@@ -5,6 +5,8 @@ extend-exclude = [
     "web/src/shared/lib/api/",
     "tests/certs/",
     "tests/ssh-keys/",
+    # Vendored upstream sources; not ours to spell-check.
+    "third/",
 ]
 
 [default]

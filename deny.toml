@@ -197,6 +197,11 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "Zlib",
+    # sqlcipher-src: SQLite's public-domain "blessing" and libtomcrypt's WTFPL
+    # (libtomcrypt is only built for targets without a system crypto library;
+    # we link the vendored OpenSSL).
+    "blessing",
+    "WTFPL",
     "WTFPL",
     "CC0-1.0",
     "LGPL-3.0",

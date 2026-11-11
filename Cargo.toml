@@ -46,9 +46,10 @@ sea-orm-migration = { version = "1.0", default-features = false, features = [
     "cli",
 ] }
 hex = { version = "0.4", default-features = false }
-libsqlite3-sys = { version = "=0.30.1", default-features = false, features = [
+# 0.40 bundles SQLCipher 4.20 / SQLite 3.54.1 (RUSTSEC-2026-0459). sqlx caps
+# this below 0.40, hence the patched copy under `third/sqlx` (see third/README.md).
+libsqlite3-sys = { version = "=0.40.0", default-features = false, features = [
     "bundled-sqlcipher-vendored-openssl",
-    "min_sqlite_version_3_14_0",
 ] }
 password-hash = { version = "0.5", features = ["std"], default-features = false }
 tracing = { version = "0.1", default-features = false }
@@ -111,3 +112,13 @@ debug = "line-tables-only"
 [profile.coverage]
 inherits = "dev"
 # rustflags = ["-Cinstrument-coverage"]
+
+# sqlx 0.8.6 with its libsqlite3-sys bound raised to 0.40; see third/README.md.
+[patch.crates-io]
+sqlx = { path = "third/sqlx" }
+sqlx-core = { path = "third/sqlx/sqlx-core" }
+sqlx-macros = { path = "third/sqlx/sqlx-macros" }
+sqlx-macros-core = { path = "third/sqlx/sqlx-macros-core" }
+sqlx-mysql = { path = "third/sqlx/sqlx-mysql" }
+sqlx-postgres = { path = "third/sqlx/sqlx-postgres" }
+sqlx-sqlite = { path = "third/sqlx/sqlx-sqlite" }

@@ -1,4 +1,22 @@
 # Tasks
+- [ ] [**20261111-1425-audit-minor-hardening Fix the small hardening items from the November audit**](20261111-1425-audit-minor-hardening.md) `P3`
+- [-] [**20261111-1425-ssh-key-and-required-factors Decide how a self-registered SSH key relates to required factors**](20261111-1425-ssh-key-and-required-factors.md) `P2`
+- [ ] [**20261111-1425-audit-record-listing-scans Stop reading every recording file to list command and file records**](20261111-1425-audit-record-listing-scans.md) `P2`
+- [ ] [**20261111-1425-admin-ticket-validation Validate admin-issued tickets and keep their sessions alive**](20261111-1425-admin-ticket-validation.md) `P2`
+- [ ] [**20261111-1425-sql-console-connection-state-leak Reset pooled SQL console connections between requests**](20261111-1425-sql-console-connection-state-leak.md) `P2`
+- [ ] [**20261111-1425-auth-hot-path-contention Take password hashing and full-table scans out of the global auth lock**](20261111-1425-auth-hot-path-contention.md) `P2`
+- [ ] [**20261111-1425-native-protocol-auth-throttling Throttle failed logins on the SSH, MySQL and Postgres listeners**](20261111-1425-native-protocol-auth-throttling.md) `P2`
+- [ ] [**20261111-1425-session-revocation-on-identity-change Revoke sessions when a user's credentials or identity change**](20261111-1425-session-revocation-on-identity-change.md) `P2`
+- [ ] [**20261111-1425-admin-websocket-origin-check Check the Origin on admin WebSockets and stop trusting every subdomain**](20261111-1425-admin-websocket-origin-check.md) `P2`
+- [ ] [**20261111-1425-http-proxy-token-forwarded-upstream Strip the gateway token from proxied request URLs**](20261111-1425-http-proxy-token-forwarded-upstream.md) `P2`
+- [ ] [**20261111-1425-db-readonly-enforcement Enforce the read-only target flag on every database path**](20261111-1425-db-readonly-enforcement.md) `P1`
+- [ ] [**20261111-1425-command-control-coverage Apply command control and command audit on every access path**](20261111-1425-command-control-coverage.md) `P1`
+- [ ] [**20261111-1425-ticket-session-lifetime-and-revocation Bind a claimed ticket session to its ticket and make it revocable**](20261111-1425-ticket-session-lifetime-and-revocation.md) `P1`
+- [ ] [**20261111-1425-short-web-session-erases-audit Stop short web terminal sessions from deleting their audit trail**](20261111-1425-short-web-session-erases-audit.md) `P1`
+- [ ] [**20261111-1425-auth-rate-limiter-unbounded-memory Bound the login rate limiter's memory**](20261111-1425-auth-rate-limiter-unbounded-memory.md) `P1`
+- [ ] [**20261111-1425-ticket-session-profile-escalation Keep ticket sessions out of the profile API**](20261111-1425-ticket-session-profile-escalation.md) `P1`
+- [-] [**20261111-1425-db-terminal-host-client-escape Stop web DB terminals from giving users a shell on the gateway**](20261111-1425-db-terminal-host-client-escape.md) `P0`
+- [x] [**20261111-1420-fix-sqlite-advisory-vendored-sqlx Fix RUSTSEC-2026-0459 with a vendored sqlx**](20261111-1420-fix-sqlite-advisory-vendored-sqlx.md) `P1`
 - [x] [**20261111-1125-ticket-handoff-and-claim-page Hand a ticket to its recipient without a login**](20261111-1125-ticket-handoff-and-claim-page.md) `P1`
 - [x] [**20261111-1122-ssh-public-key-satisfies-otp-policy SSH asks for password and OTP although the client key is registered**](20261111-1122-ssh-public-key-satisfies-otp-policy.md) `P1`
 - [x] [**20261108-1030-sftp-ui-like-filemanager Rework the web file manager after bkhq/filemanager**](20261108-1030-sftp-ui-like-filemanager.md) `P2`

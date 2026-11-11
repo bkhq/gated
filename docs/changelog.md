@@ -324,3 +324,7 @@ A registered SSH public key was asked for a password and an OTP once the user en
 ## 2026-11-11 12:40 [progress]
 
 Tickets are handed over from a dialog shown once after creation, on the user and the admin page: claim link, command line (`ticket-<secret>` user) and the secret. The link is `/ui/ticket#<secret>`; the page posts the secret to the new `POST /api/tickets/claim`, which signs the session in and consumes one use, so previewing the link no longer burns a ticket and a dead link explains itself instead of showing the login page. Ticket sessions see only the pages they can use. The admin row menu's "copy claim link" copied a link that never worked and is gone.
+
+## 2026-11-11 14:30 [progress]
+
+The embedded SQLCipher moves to 4.20.0 on SQLite 3.54.1 (`libsqlite3-sys` 0.40), closing RUSTSEC-2026-0459 (CVE-2026-119375) without an advisory ignore. Every sqlx release caps `libsqlite3-sys` below 0.40, so sqlx 0.8.6 is vendored under `third/sqlx` with that one bound raised and applied through `[patch.crates-io]`; `third/README.md` records the origin and the condition for removing it. `deny.toml` allows the `blessing` and `WTFPL` licenses that `sqlcipher-src` declares.
