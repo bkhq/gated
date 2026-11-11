@@ -11,6 +11,10 @@ use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
+use crate::http_service::session::{Session, SessionStore, end_sessions_after_credential_change};
+use gated_core::Services;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Serialize, ToSchema)]
 struct ExistingSsoCredential {
@@ -163,6 +167,9 @@ async fn api_update(
 async fn api_delete(
     Path((user_id, id)): Path<(Uuid, Uuid)>,
     db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
+    session: Session,
     _sec_scheme: AnySecurityScheme,
 ) -> Result<DeleteCredentialResponse, GatedError> {
     let db = gated_core::db_required(&db).await?;
@@ -176,6 +183,7 @@ async fn api_delete(
     };
 
     role.delete(&db).await?;
+    end_sessions_after_credential_change(&services, &store, &session, user_id).await;
     Ok(DeleteCredentialResponse::Deleted)
 }
 

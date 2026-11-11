@@ -109,7 +109,9 @@ async fn api_list(
     if let Some(sid) = query.session_id {
         recs = recs.filter(Recording::Column::SessionId.eq(sid));
     }
-    let recs = recs.all(&db).await?;
+    let recs = super::command_records::overlapping(recs, from, to)
+        .all(&db)
+        .await?;
 
     let paths: Vec<_> = {
         let store = recordings.lock().await;

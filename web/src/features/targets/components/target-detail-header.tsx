@@ -50,11 +50,11 @@ export function TargetDetailHeader({
   onOpenFiles,
 }: TargetDetailHeaderProps) {
   const { t } = useTranslation()
-  // Connect plus the protocol's second tool (files for SSH, SQL console for
-  // databases), shown as buttons in both modes so nothing hides in a menu.
+  // Terminal and files for SSH, the SQL console for databases, shown as
+  // buttons in both modes so nothing hides in a menu.
   const openActions = (
     <>
-      {onConnect && target.kind !== 'http'
+      {onConnect && target.kind === 'ssh'
         ? (
             <Button onClick={() => onConnect(target)}>
               <Terminal size={14} />
@@ -72,7 +72,7 @@ export function TargetDetailHeader({
         : null}
       {onOpenSqlConsole && (target.kind === 'mysql' || target.kind === 'postgres')
         ? (
-            <Button variant="outline" onClick={() => onOpenSqlConsole(target)}>
+            <Button onClick={() => onOpenSqlConsole(target)}>
               <Database size={14} />
               <span>{t('targets.detail.actions.openSqlConsole')}</span>
             </Button>

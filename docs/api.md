@@ -174,6 +174,8 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 >
 > Naming an account the user's roles do not map to is refused. Each selection writes a `Target account selected` audit entry (`account`), a refusal a `Target account not selected` entry. Limitations: HTTP targets always use the default login; the inline-credential login cannot be named, so it is reachable only when it is the user's only choice.
 
+> Every `/api/profile/*` endpoint (§1.4–§1.7) answers `403` to a ticket session: a ticket reaches one target, never the account behind it.
+
 ### 1.4 Own credentials (`credentials.rs`)
 
 > All of these paths are wrapped in `parameters_based_auth`: when `parameters.allow_own_credential_management = false`, **every** endpoint returns `403 Forbidden` with the plain text `"Credential management is disabled"` instead of the OpenAPI `403` variant.
@@ -189,8 +191,9 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 
 #### `POST /api/profile/credentials/public-keys` — `add_my_public_key` [OAS]
 
-- Body: `Json<NewPublicKeyCredential> { label: string, openssh_public_key: string }`.
-- Responses: `201 Created` `Json<ExistingPublicKeyCredential>` / `400 Bad Request` `Json<string>` (not an OpenSSH public key) / `401` / `403`. The key is stored as `<type> <base64>` without its comment; returns the stored `openssh_public_key` and its SHA256 `fingerprint`.
+- Body: `Json<NewPublicKeyCredential> { label: string, openssh_public_key: string, password?: string, otp?: string }`.
+- A browser session confirms the user's identity: `otp` when an OTP is enrolled, otherwise `password`; a user with neither (SSO only) needs none. API tokens need none. Each request is confirmed; there is no grace window.
+- Responses: `201 Created` `Json<ExistingPublicKeyCredential>` / `400 Bad Request` `Json<string>` (not an OpenSSH public key, or `confirmation required: otp|password`) / `401` (confirmation rejected; an OTP code is single-use) / `403` / `429`. The key is stored as `<type> <base64>` without its comment; returns the stored `openssh_public_key` and its SHA256 `fingerprint`.
 
 #### `DELETE /api/profile/credentials/public-keys/:id` — `delete_my_public_key` [OAS]
 
@@ -231,7 +234,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 #### `POST /api/profile/api-tokens` — `create_api_token` [OAS]
 
 - Body: `Json<NewApiToken> { label: string, expiry: date-time }`.
-- Responses: `201 Created` `Json<TokenAndSecret> { token, secret }` (`secret` — one-time reveal) / `401`.
+- Responses: `201 Created` `Json<TokenAndSecret> { token, secret }` (`secret` — one-time reveal) / `400` when `expiry` is not in the future / `401`.
 
 #### `DELETE /api/profile/api-tokens/:id` — `delete_my_api_token` [OAS]
 
@@ -315,19 +318,14 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
   - `0x00 MSG_TERMINAL_DATA` — both directions: raw terminal bytes.
   - `0x01 MSG_RESIZE` — client → server: JSON `{ cols: u32, rows: u32 }`.
   - `0x02 MSG_STATUS` — server → client: JSON `{ status, message }`, `status` ∈ `"info" | "connected" | "closed" | "error" | "rate_limited"`.
-    The `connected` frame also carries `details`: `{ session_id, address, username, host_key?: { algorithm, fingerprint } }` (SSH); database terminals send `{ session_id, address, username, tls: { mode, verify }, client, database? }`.
+    The `connected` frame also carries `details`: `{ session_id, address, username, host_key?: { algorithm, fingerprint } }`.
   - `0x03 MSG_HOST_KEY_VERIFY` — only when `ssh.host_key_verification = prompt` and the remote host key is unknown:
     - server → client: `{ status: "host_key_verify", algorithm, key_base64, fingerprint, host, port }`; `fingerprint` is the OpenSSH `SHA256:…` form, `host`/`port` the target address.
     - client → server: `{ accepted: bool }`, which must arrive within 60 s.
 - Keepalive: the server sends `Ping` every 30 s. There are no custom close codes; errors are reported in a final `MSG_STATUS` frame.
 - Host key errors: when a known host key differs, the `MSG_STATUS {status:"error"}` message starts with `Host key mismatch` and gives both the received and the known `SHA256:` fingerprints; when `auto_reject` refuses an unknown key, the message asks an admin to add it under Known hosts.
 
-#### `GET /api/mysql/terminal/:target_name` — `api_mysql_terminal` [raw]
-#### `GET /api/postgres/terminal/:target_name` — `api_postgres_terminal` [raw]
-
-- The server spawns a real `mysql` / `psql` binary and bridges its PTY to the WebSocket. Account, password (`MYSQL_PWD` / `PGPASSWORD`), TLS mode, host/port and default database come from the target's stored configuration.
-- `400 / 401` before the upgrade; when `sql_console_rate_limiter` is exceeded, a `MSG_STATUS {status:"rate_limited",...}` frame is sent right after the upgrade and the socket is closed.
-- Same framing as SSH, but `MSG_RESIZE` uses `u16` and there is no `0x03`. `MSG_STATUS.status` ∈ `"connected" | "error" | "rate_limited"`.
+Database targets have no terminal endpoint; the web UI opens them in the SQL console (`/api/db/*`).
 
 ### 1.9 File manager (`sftp.rs`)
 
@@ -674,7 +672,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 - Body: `CreateTicketRequest { username, target_name, expiry?: date-time, number_of_uses?: i16, description? }`.
 - Responses:
   - `201 Created` `TicketAndSecret { ticket: Ticket, secret: string }` (`secret` — one-time reveal).
-  - `400` `Json<string>`: `"username"` or `"target_name"`.
+  - `400` `Json<string>`: an empty or unknown `username` / `target_name`, a user without a role on the target, an `expiry` that is not in the future, or a `number_of_uses` below 1.
 
 #### `DELETE /admin/api/tickets/:id` — `delete_ticket` [OAS] — `204` / `404`.
 
@@ -1110,6 +1108,8 @@ ProfileTicketAndSecret { ticket: ExistingProfileTicket, secret: string }        
 - `http` — `TargetHttpOptions { url, tls: Tls, ca_certificate?: secret, upstream_auth: UpstreamAuth, flavor: "generic" | "kubernetes" }`
 - `mysql` — `TargetMySqlOptions { host, port: u16=3306, username="root", password?: secret, tls, default_database_name?, readonly: bool }`
 - `postgres` — `TargetPostgresOptions { host, port, username, password?: secret, tls, idle_timeout?, default_database_name?, readonly }`
+
+  `readonly` is enforced on every path. The SQL console accepts a single read statement (`validate_readonly_sql`, lexed with the target engine's quoting and comment rules) and runs it in a `READ ONLY` transaction. The native proxies put the upstream session in read-only transaction mode (`SET SESSION TRANSACTION READ ONLY`, re-applied after `COM_RESET_CONNECTION`, for MySQL/MariaDB; `default_transaction_read_only=on` in the startup options for PostgreSQL) and refuse the statements that would leave it or write despite it: `READ WRITE`, the `*_read_only` variables, `set_config`, `RESET`, `DISCARD`, `DO`, `PREPARE`, `SET GLOBAL`/`PERSIST`, `INTO OUTFILE`/`DUMPFILE`, and server administration statements (MySQL error `1792`, PostgreSQL SQLSTATE `25006`). This is a guard-rail: a server-side function that runs dynamic SQL, or a PostgreSQL function with side effects such as `dblink_exec`, is not stopped. Give the upstream account read-only privileges when a hard guarantee is needed.
 
 ```
 Tls            { mode: TlsMode, verify: bool }

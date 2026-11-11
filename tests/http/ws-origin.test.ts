@@ -56,6 +56,7 @@ describe("Gateway HTTP - WebSocket Origin validation (CSWSH)", () => {
   let url: string;
   let wsBase: string;
   let cookie: string;
+  let adminCookie: string;
   const timeout = Number(process.env.TIMEOUT || 10);
 
   beforeAll(async () => {
@@ -78,6 +79,17 @@ describe("Gateway HTTP - WebSocket Origin validation (CSWSH)", () => {
     expect(loginResp.status).toBe(201);
     cookie = session.getCookieString();
     expect(cookie).toContain("gated-http-session");
+
+    const admin = await api.createUser({ username: `admin-${randomUUID()}` });
+    await api.createPasswordCredential(admin.id, { password: "pwd-ok" });
+    const adminRoles = await api.getRoles("admin");
+    await api.addUserRole(admin.id, adminRoles[0]!.id);
+    const adminSession = new HttpSession();
+    expect((await adminSession.post(`${url}/api/auth/login`, {
+      username: admin.username,
+      password: "pwd-ok",
+    })).status).toBe(201);
+    adminCookie = adminSession.getCookieString();
   }, 60_000);
 
   afterAll(async () => {
@@ -115,6 +127,28 @@ describe("Gateway HTTP - WebSocket Origin validation (CSWSH)", () => {
       `${wsBase}/api/auth/web-auth-requests/stream`,
       { Origin: url, Cookie: cookie }
     );
+    expect(opened).toBe(true);
+  });
+
+  test("admin session stream: foreign Origin is rejected, same-origin upgrades", async () => {
+    const path = `${wsBase}/admin/api/sessions/changes`;
+    expect((await tryWs(path, { Origin: FOREIGN_ORIGIN, Cookie: adminCookie })).opened).toBe(false);
+    expect((await tryWs(path, { Cookie: adminCookie })).opened).toBe(false);
+    expect((await tryWs(path, { Origin: url, Cookie: adminCookie })).opened).toBe(true);
+  });
+
+  test("a subdomain of the gateway host is not a trusted Origin", async () => {
+    const { opened } = await tryWs(`${wsBase}/api/auth/web-auth-requests/stream`, {
+      Origin: `https://app.localhost:${wg.httpPort}`,
+      Cookie: cookie,
+    });
+    expect(opened).toBe(false);
+  });
+
+  test("a token-authenticated client needs no Origin", async () => {
+    const { opened } = await tryWs(`${wsBase}/admin/api/sessions/changes`, {
+      "X-Gated-Token": "token-value",
+    });
     expect(opened).toBe(true);
   });
 });

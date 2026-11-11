@@ -249,10 +249,14 @@ async fn unlock(
         );
     }
 
-    match runtime
+    // One key derivation at a time: each takes 256 MiB.
+    static UNLOCK_GATE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let unlock_gate = UNLOCK_GATE.lock().await;
+    let unlocked = runtime
         .unlock(SecretString::from(body.master_password))
-        .await
-    {
+        .await;
+    drop(unlock_gate);
+    match unlocked {
         Ok(()) => {
             if let Err(error) = open_unlocked_db(&services, &runtime).await {
                 error!(%error, "encryption_unlock_open_db_failed");
@@ -433,7 +437,7 @@ pub(super) async fn client_ip(req: &Parts, services: &Services) -> Option<String
 
 fn rate_limited(state: &EncryptionAdminState, client_ip: &Option<String>) -> bool {
     let key = client_ip.clone().unwrap_or_else(|| "<unknown>".to_owned());
-    state.limiter.check_key(&key).is_err()
+    !super::auth::rate_limit_allows(&state.limiter, &key)
 }
 
 fn status_name(status: &EncryptionStatus) -> &'static str {

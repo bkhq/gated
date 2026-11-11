@@ -14,3 +14,12 @@ it('accepts a pasted OTP code with spaces', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'ok' }))
   await waitFor(() => expect(onConfirm).toHaveBeenCalledWith({ otp: '123456' }))
 })
+
+it('asks only for the fixed factor', async () => {
+  const onConfirm = vi.fn().mockResolvedValue(undefined)
+  render(<StepUpDialog open factor="otp" title="t" description="d" confirmLabel="ok" onCancel={vi.fn()} onConfirm={onConfirm} />)
+  expect(screen.queryByRole('combobox')).toBeNull()
+  fireEvent.change(screen.getByLabelText('accounts.form.reveal.otp'), { target: { value: '123456' } })
+  fireEvent.click(screen.getByRole('button', { name: 'ok' }))
+  await waitFor(() => expect(onConfirm).toHaveBeenCalledWith({ otp: '123456' }))
+})

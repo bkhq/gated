@@ -108,7 +108,10 @@ api_response! {
 
 fn make_redirect_url(err: &str) -> String {
     error!("SSO error: {err}");
-    format!("/ui/?login_error={err}")
+    format!(
+        "/ui/?login_error={}",
+        percent_encoding::utf8_percent_encode(err, percent_encoding::NON_ALPHANUMERIC)
+    )
 }
 
 /// HTML-escape a string for safe interpolation into both element

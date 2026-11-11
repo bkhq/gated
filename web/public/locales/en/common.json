@@ -327,6 +327,11 @@
           "sameAsCurrent": "New password must differ from the current one."
         }
       },
+      "keyConfirm": {
+        "title": "Confirm access",
+        "description": "A registered key signs in to SSH on its own. Confirm it is you before adding one.",
+        "confirm": "Confirm and add key"
+      },
       "keyDrawer": {
         "titleNew": "Add SSH public key",
         "titleEdit": "Rename key",
@@ -2023,8 +2028,6 @@
   "terminal": {
     "title": {
       "ssh": "SSH — {{name}}",
-      "mysql": "MySQL — {{name}}",
-      "postgres": "PostgreSQL — {{name}}",
       "unsupported": "Terminal"
     },
     "actions": {

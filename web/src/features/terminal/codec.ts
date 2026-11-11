@@ -13,16 +13,14 @@
  *
  * Status set:
  *   SSH      info | connected | closed | error | rate_limited
- *   MySQL    connected | error | rate_limited
- *   Postgres connected | error | rate_limited
  *
  * Backend types for resize: SSH parses `cols`/`rows` as `u32`; MySQL and
  * Postgres parse them as `u16`. The JSON wire format is the same — values
  * outside the host's native range are silently ignored by the server, so the
  * caller must clamp before sending (see {@link clampResize}).
  *
- * See `crates/gated-admin/src/http_service/api/ssh_terminal.rs` and
- * `db_terminal.rs` for the server side.
+ * See `crates/gated-admin/src/http_service/api/ssh_terminal.rs` for the
+ * server side.
  */
 
 export const MSG_DATA = 0x00

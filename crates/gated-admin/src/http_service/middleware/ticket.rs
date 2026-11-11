@@ -6,8 +6,12 @@ use gated_common::Secret;
 use gated_core::{Services, authorize_ticket, consume_ticket};
 use serde::Deserialize;
 
-use crate::http_service::common::{SessionAuthorization, SessionExt};
-use crate::http_service::session::Session;
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
+use crate::http_service::common::{SessionAuthorization, SessionExt, authorize_ticket_session};
+use crate::http_service::session::{Session, SessionStore};
 
 #[derive(Deserialize)]
 struct QueryParams {
@@ -52,14 +56,30 @@ pub async fn ticket_middleware(request: Request, next: Next) -> Response {
                 Ok(authorized) => authorized,
                 Err(error) => return error.into_response(),
             };
-            if let Some((ticket_model, _user_info)) = authorized {
+            if let Some((ticket_model, user_info)) = authorized {
                 if let Err(error) = consume_ticket(&services.db, &ticket_model.id).await {
                     return error.into_response();
                 }
-                session.set_auth(SessionAuthorization::Ticket {
-                    username: ticket_model.username,
-                    target_name: ticket_model.target,
-                });
+                if session_is_temporary {
+                    session.set_auth(SessionAuthorization::Ticket {
+                        username: ticket_model.username,
+                        target_name: ticket_model.target,
+                        ticket_id: ticket_model.id,
+                    });
+                } else {
+                    let Some(store) = request
+                        .extensions()
+                        .get::<Arc<Mutex<SessionStore>>>()
+                        .cloned()
+                    else {
+                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                    };
+                    if let Err(error) =
+                        authorize_ticket_session(&store, &session, &ticket_model, user_info).await
+                    {
+                        return error.into_response();
+                    }
+                }
             }
         }
     }

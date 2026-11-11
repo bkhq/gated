@@ -23,8 +23,11 @@ use utoipa_axum::router::OpenApiRouter;
 
 use chrono::Utc;
 use gated_common::{Target, TargetOptions};
+use gated_core::command_acl::AclAction;
+use gated_core::command_acl_loader::DbCommandAclEnforcer;
 use gated_core::db_pool_registry::TargetPool;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
+use gated_core::sql_validation::{SqlDialect, validate_readonly_sql};
 use gated_core::{ConfigProvider, Services};
 use gated_db_entities::Session;
 use sea_orm::{ActiveModelTrait, EntityTrait};
@@ -72,13 +75,13 @@ async fn resolve_and_authorize(
 ) -> Result<(Uuid, Target), DbError> {
     let mut config_provider = services.config_provider.lock().await;
 
-    let users = config_provider.list_users().await.map_err(|e| {
-        error!(%e, "Failed to list users");
-        DbError::internal("Internal server error")
-    })?;
-    let user_id = users
-        .iter()
-        .find(|u| u.username == username)
+    let user_id = config_provider
+        .get_user(username)
+        .await
+        .map_err(|e| {
+            error!(%e, "Failed to load user");
+            DbError::internal("Internal server error")
+        })?
         .map(|u| u.id)
         .ok_or_else(|| DbError::unauthorized("User not found"))?;
 
@@ -93,13 +96,13 @@ async fn resolve_and_authorize(
         return Err(DbError::forbidden("Access denied to target"));
     }
 
-    let targets = config_provider.list_targets().await.map_err(|e| {
-        error!(%e, "Failed to list targets");
-        DbError::internal("Internal server error")
-    })?;
-    let target = targets
-        .into_iter()
-        .find(|t| t.name == target_name)
+    let target = config_provider
+        .get_target(target_name)
+        .await
+        .map_err(|e| {
+            error!(%e, "Failed to load target");
+            DbError::internal("Internal server error")
+        })?
         .ok_or_else(|| DbError::not_found("Target not found"))?;
 
     match target.options {
@@ -925,7 +928,11 @@ async fn api_db_query(
     let recording_name = "sql-console";
     ensure_sql_console_group_session(&services, session_id, &username, &target).await?;
 
-    if readonly && let Err(violation) = super::sql_validation::validate_readonly_sql(&sql) {
+    let dialect = match &target.options {
+        TargetOptions::Postgres(_) => SqlDialect::Postgres,
+        _ => SqlDialect::MySql,
+    };
+    if readonly && let Err(violation) = validate_readonly_sql(&sql, dialect) {
         record_sql_console_request(
             &services,
             session_id,
@@ -947,6 +954,49 @@ async fn api_db_query(
             "sql_console_readonly_violation"
         );
         return Err(DbError::forbidden(violation.to_string()));
+    }
+
+    // Command control, as on the native proxies: Deny and Review both block,
+    // and a rule-load failure forwards.
+    let acl_protocol = match dialect {
+        SqlDialect::Postgres => "postgres",
+        SqlDialect::MySql => "mysql",
+    };
+    let decision = match services.db_required().await {
+        Ok(db) => match DbCommandAclEnforcer::new(db, target.id, user_id).await {
+            Ok(enforcer) => enforcer.evaluate(acl_protocol, &sql).await,
+            Err(error) => Err(error),
+        }
+        .map_err(|error| warn!(%error, "Command-ACL rule load failed; running query"))
+        .ok(),
+        Err(_) => None,
+    };
+    if let Some(decision) = decision
+        && decision.action != AclAction::Allow
+    {
+        let outcome = if decision.action == AclAction::Review {
+            "blocked-review-unsupported"
+        } else {
+            "blocked"
+        };
+        record_sql_console_request(
+            &services,
+            session_id,
+            recording_name,
+            &target,
+            &sql,
+            statement_kind,
+            readonly,
+            0,
+            false,
+            Some(format!(
+                "{outcome}: command blocked by ACL rule {}",
+                decision.rule_name.unwrap_or_default()
+            )),
+        )
+        .await;
+        warn!(%username, target = %target.name, outcome, "sql_console_command_blocked");
+        return Err(DbError::forbidden("command blocked by policy"));
     }
 
     let sql_hash = {
@@ -1064,6 +1114,8 @@ async fn run_mysql_query(
     readonly: bool,
 ) -> Result<QueryResultBody, String> {
     let mut conn = pool.acquire().await.map_err(|e| format!("acquire: {e}"))?;
+    // User SQL can leave session state behind; never hand it to the next request.
+    conn.close_on_drop();
 
     let timeout_ms = STATEMENT_TIMEOUT.as_millis() as u64;
     // Enforce the server-side execution-time bound (MySQL 5.7+) so a runaway
@@ -1187,6 +1239,8 @@ async fn run_postgres_query(
     readonly: bool,
 ) -> Result<QueryResultBody, String> {
     let mut conn = pool.acquire().await.map_err(|e| format!("acquire: {e}"))?;
+    // User SQL can leave session state behind; never hand it to the next request.
+    conn.close_on_drop();
 
     let timeout_ms = STATEMENT_TIMEOUT.as_millis() as u64;
     // Enforce the server-side execution-time bound; fail closed

@@ -117,8 +117,13 @@ credentials. Entity (`crates/gated-db-entities/src/Ticket.rs`):
 `secret` (stored as a hash), `username`, `target`, optional `uses_left`
 counter (null = unlimited), and optional `expiry`.
 
-- Creation (admin API) verifies the named user is authorized for the target,
-  generates 32 random bytes hex-encoded
+- A ticket narrows the user's access to one target; it never replaces the
+  user's own grant. Creation requires the grant, every use rechecks it, and
+  `Services::revalidate_sessions` closes a ticket session when the user loses
+  it.
+- Creation (admin API) verifies that the user and target exist, that the user
+  is authorized for the target, that `expiry` is in the future and
+  `number_of_uses` is positive, generates 32 random bytes hex-encoded
   (`crates/gated-common/src/helpers/hash.rs`), and returns the secret once.
 - Consumption: `authorize_ticket`
   (`crates/gated-core/src/config_providers/mod.rs`) hashes the presented
@@ -130,6 +135,30 @@ counter (null = unlimited), and optional `expiry`.
   (`crates/gated-admin/src/http_service/middleware/ticket.rs`), which
   establishes a session restricted to the ticket's target. The HTTP reverse
   proxy listener does not accept tickets.
+- A ticket session is listed with the browser sessions and can be revoked
+  there. It ends when its ticket is deleted or expires; an open web terminal
+  is closed within 10 seconds. It cannot use `/api/profile/*`.
+- Tickets name their user and target. Deleting a user or a target deletes
+  its tickets; renaming one moves the tickets to the new name and ends
+  ticket sessions opened under the old one.
+
+## Failed login throttling
+
+`gated_core::auth_throttle` counts failed password and OTP attempts from
+every listener (SSH, MySQL, PostgreSQL, web login) in one bounded in-memory
+table with a 5-minute window. Once a counter is full, further attempts are
+answered as a wrong credential without being checked:
+
+| Counter | Limit per window |
+|---|---|
+| password, per (user, client address) | 10 |
+| password, per client address | 60 |
+| password, per user | 100 |
+| OTP, per user | 10 |
+
+Public keys, certificates and SSO are not counted. The web login keeps its own
+per-attempt limiter in addition. Counters are per process and reset on
+restart.
 
 ## API tokens and web sessions
 
@@ -145,7 +174,15 @@ counter (null = unlimited), and optional `expiry`.
 - **Web sessions**: cookie `gated-http-session`
   (`crates/gated-admin/src/http_service/common.rs`), server-side
   session storage, with separate cookie max-age (24 h default) and session
-  max-age (30 min default) and host-scoped cookie validation.
+  max-age (30 min default) and host-scoped cookie validation. The session
+  identifier is replaced at sign-in.
+- **Revocation on identity changes** (`end_user_sessions`,
+  `crates/gated-admin/src/http_service/session.rs`): a user's browser
+  sessions end and their proxy sessions are closed when an administrator
+  sets or removes their password, removes an OTP, public key, SSO or
+  certificate credential, removes the `admin` role, renames or deletes the
+  user. A credential change keeps the session that made it. Sessions are
+  matched by user id.
 
 ## Failed-auth behavior
 

@@ -21,6 +21,7 @@ use gated_common::{
     GatedError, Secret, SessionId, SshHostKeyVerificationMode, Target, TargetOptions,
     TargetSSHOptions,
 };
+use gated_core::auth_throttle::validate_credential_throttled;
 use gated_core::command_acl::{AclAction, AclContext, AclDecision, CommandAclRuleView, evaluate};
 use gated_core::recordings::{
     self, CommandAuditRecorder, ConnectionRecorder, FileAuditRecorder, FileAuditRecordingItem,
@@ -163,6 +164,8 @@ pub struct ServerSession {
     username: Option<String>,
     session_handle: Option<russh::server::Handle>,
     pty_channels: Vec<Uuid>,
+    /// Shell channels, with or without a PTY; their input is command-filtered.
+    shell_channels: Vec<Uuid>,
     all_channels: Vec<Uuid>,
     channel_recorders: HashMap<Uuid, TerminalRecorder>,
     channel_map: BiMap<ServerChannelId, Uuid>,
@@ -259,6 +262,7 @@ impl ServerSession {
             username: None,
             session_handle: None,
             pty_channels: vec![],
+            shell_channels: vec![],
             all_channels: vec![],
             channel_recorders: HashMap::new(),
             channel_map: BiMap::new(),
@@ -644,6 +648,7 @@ impl ServerSession {
                 .await;
 
                 info!(%channel_id, "Opening shell");
+                self.shell_channels.push(channel_id);
 
                 let _ = self
                     .session_handle
@@ -1980,7 +1985,7 @@ impl ServerSession {
         // line is blocked we instead withhold THIS chunk (including the newline,
         // so the shell never receives Enter for the buffered command) and
         // terminate the channel best-effort.
-        if self.pty_channels.contains(&channel_id)
+        if (self.pty_channels.contains(&channel_id) || self.shell_channels.contains(&channel_id))
             && self.filter_pty_input(channel_id, &data).await == AclFlow::Block
         {
             info!(channel=%channel_id, "Interactive command blocked by command-ACL (best-effort)");
@@ -2437,11 +2442,13 @@ impl ServerSession {
                 let mut state = state_arc.lock().await;
 
                 if let Some(credential) = credential
-                    && cp
-                        .lock()
-                        .await
-                        .validate_credential(username, &credential)
-                        .await?
+                    && validate_credential_throttled(
+                        &cp,
+                        username,
+                        &self.remote_address.ip().to_string(),
+                        &credential,
+                    )
+                    .await?
                 {
                     state.add_valid_credential(credential);
                 }
@@ -2530,15 +2537,15 @@ impl ServerSession {
                 .config_provider
                 .lock()
                 .await
-                .list_targets()
+                .get_target(target_name)
                 .await?
-                .iter()
-                .filter_map(|t| match t.options {
-                    TargetOptions::Ssh(ref options) => Some((t, options)),
+                .and_then(|t| match t.options {
+                    TargetOptions::Ssh(ref options) => {
+                        let options = options.clone();
+                        Some((t, options))
+                    }
                     _ => None,
                 })
-                .find(|(t, _)| t.name == target_name)
-                .map(|(t, opt)| (t.clone(), opt.clone()))
         };
 
         let Some((target, _ssh_options)) = target else {
@@ -2671,6 +2678,7 @@ impl ServerSession {
         self.channel_map.remove_by_right(channel_id);
         self.all_channels.retain(|c| c != channel_id);
         self.pty_channels.retain(|c| c != channel_id);
+        self.shell_channels.retain(|c| c != channel_id);
         self.channel_pty_size_map.remove(channel_id);
         self.channel_recorders.remove(channel_id);
         self.traffic_connection_recorders.remove(channel_id);

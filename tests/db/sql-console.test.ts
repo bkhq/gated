@@ -150,6 +150,17 @@ async function provisionDbTarget(
   return { target, userToken };
 }
 
+async function runSql(url: string, targetName: string, token: string, sql: string) {
+  const res = await userFetch(`${url}/api/db/query/${encodeURIComponent(targetName)}`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sql }),
+  });
+  const body = await res.text();
+  if (!res.ok) throw new Error(`${sql}: ${res.status} ${body}`);
+  return JSON.parse(body) as { rows: unknown[][] };
+}
+
 describe("SQL Console (MySQL)", () => {
   let processes: ProcessManager;
   let wg: GatedProcess;
@@ -582,6 +593,47 @@ describe("SQL Console (MySQL)", () => {
     const body = (await res.json()) as { error: string };
     expect(body.error.toLowerCase()).toContain("not a database");
   });
+  test("a command-ACL deny rule blocks a matching console query", async () => {
+    const db = await getSharedMysql();
+    const url = `https://localhost:${wg.httpPort}`;
+    const { target, userToken } = await provisionDbTarget(url, {
+      kind: "MySql",
+      host: db.host,
+      port: db.port,
+      namePrefix: "mysql-acl",
+    });
+    await adminReq(url, "POST", "/command-acl-rules", {
+      name: `deny-console-${randomUUID()}`, enabled: true, priority: 10, protocol: "mysql",
+      match_type: "regex", pattern: "console_blocked_sentinel", action: "deny", target_id: target.id,
+    });
+
+    const run = (sql: string) => userFetch(`${url}/api/db/query/${encodeURIComponent(target.name)}`, userToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sql }),
+    });
+    const denied = await run("SELECT 'console_blocked_sentinel' AS s");
+    expect(denied.status).toBe(403);
+    expect(await denied.text()).toContain("blocked by policy");
+    expect((await run("SELECT 1 AS n")).status).toBe(200);
+  }, 60_000);
+
+  test("session state set by one request does not reach the next", async () => {
+    const db = await getSharedMysql();
+    const url = `https://localhost:${wg.httpPort}`;
+    const { target, userToken } = await provisionDbTarget(url, {
+      kind: "MySql",
+      host: db.host,
+      port: db.port,
+      namePrefix: "mysql-state",
+    });
+
+    await runSql(url, target.name, userToken, "SET @leak = 42");
+    for (let i = 0; i < 5; i++) {
+      const next = await runSql(url, target.name, userToken, "SELECT @leak");
+      expect(next.rows[0]![0]).toBeNull();
+    }
+  }, 60_000);
 });
 
 describe("SQL Console (Postgres)", () => {
@@ -666,5 +718,24 @@ describe("SQL Console (Postgres)", () => {
     expect(res.ok).toBe(false);
     expect(res.status).toBe(400);
     expect(elapsed).toBeLessThan(40_000);
+  }, 60_000);
+  test("session state set by one request does not reach the next", async () => {
+    const db = await getSharedPg();
+    const url = `https://localhost:${wg.httpPort}`;
+    const { target, userToken } = await provisionDbTarget(url, {
+      kind: "Postgres",
+      host: db.host,
+      port: db.port,
+      namePrefix: "pg-state",
+    });
+
+    await runSql(url, target.name, userToken, "SET search_path TO pg_catalog");
+    await runSql(url, target.name, userToken, "BEGIN ISOLATION LEVEL SERIALIZABLE");
+    for (let i = 0; i < 5; i++) {
+      const path = await runSql(url, target.name, userToken, "SHOW search_path");
+      expect(String(path.rows[0]![0])).not.toBe("pg_catalog");
+      const tx = await runSql(url, target.name, userToken, "SHOW transaction_isolation");
+      expect(tx.rows[0]![0]).toBe("read committed");
+    }
   }, 60_000);
 });

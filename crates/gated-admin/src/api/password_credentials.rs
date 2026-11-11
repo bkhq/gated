@@ -11,6 +11,10 @@ use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
+use crate::http_service::session::{Session, SessionStore, end_sessions_after_credential_change};
+use gated_core::Services;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Serialize, ToSchema)]
 struct ExistingPasswordCredential {
@@ -73,6 +77,9 @@ async fn api_get_all(
 async fn api_create(
     user_id: Path<Uuid>,
     db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
+    session: Session,
     _sec_scheme: AnySecurityScheme,
     body: Json<NewPasswordCredential>,
 ) -> Result<CreatePasswordCredentialResponse, GatedError> {
@@ -89,6 +96,7 @@ async fn api_create(
     .await
     .map_err(GatedError::from)?;
 
+    end_sessions_after_credential_change(&services, &store, &session, *user_id).await;
     Ok(CreatePasswordCredentialResponse::Created(Json(
         object.into(),
     )))
@@ -111,6 +119,9 @@ api_response! {
 async fn api_delete(
     Path((user_id, id)): Path<(Uuid, Uuid)>,
     db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
+    session: Session,
     _sec_scheme: AnySecurityScheme,
 ) -> Result<DeleteCredentialResponse, GatedError> {
     let db = gated_core::db_required(&db).await?;
@@ -124,6 +135,7 @@ async fn api_delete(
     };
 
     model.delete(&db).await?;
+    end_sessions_after_credential_change(&services, &store, &session, user_id).await;
     Ok(DeleteCredentialResponse::Deleted)
 }
 

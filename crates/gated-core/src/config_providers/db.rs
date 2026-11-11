@@ -91,6 +91,50 @@ impl ConfigProvider for DatabaseConfigProvider {
         Ok(targets?)
     }
 
+    async fn get_user(&mut self, username: &str) -> Result<Option<User>, GatedError> {
+        let db = crate::db_required(&self.db).await?;
+        entities::User::Entity::find()
+            .filter(entities::User::Column::Username.eq(username))
+            .one(&db)
+            .await?
+            .map(TryInto::try_into)
+            .transpose()
+    }
+
+    async fn get_target(&mut self, name: &str) -> Result<Option<Target>, GatedError> {
+        let db = crate::db_required(&self.db).await?;
+        Ok(entities::Target::Entity::find()
+            .filter(entities::Target::Column::Name.eq(name))
+            .one(&db)
+            .await?
+            .map(TryInto::try_into)
+            .transpose()?)
+    }
+
+    async fn password_hashes(
+        &mut self,
+        username: &str,
+    ) -> Result<Vec<gated_common::Secret<String>>, GatedError> {
+        let db = crate::db_required(&self.db).await?;
+        let Some(user) = entities::User::Entity::find()
+            .filter(entities::User::Column::Username.eq(username))
+            .one(&db)
+            .await?
+        else {
+            return Ok(Vec::new());
+        };
+        Ok(user
+            .load_details(&db)
+            .await?
+            .credentials
+            .into_iter()
+            .filter_map(|credential| match credential {
+                UserAuthCredential::Password(UserPasswordCredential { hash }) => Some(hash),
+                _ => None,
+            })
+            .collect())
+    }
+
     async fn get_credential_policy(
         &mut self,
         username: &str,

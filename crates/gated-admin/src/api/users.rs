@@ -6,12 +6,16 @@ use gated_common::{
 use gated_common::{api_response, api_routes};
 use gated_core::Services;
 use gated_core::SharedDatabaseConnection;
-use gated_db_entities::{Role, User, UserRoleAssignment};
+use gated_core::consts::BUILTIN_ADMIN_ROLE_NAME;
+use gated_db_entities::{Role, Ticket, User, UserRoleAssignment};
+use sea_orm::sea_query::Expr;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, JoinType, ModelTrait,
     QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
@@ -19,6 +23,7 @@ use uuid::Uuid;
 use gated_common::api::types as api_types;
 
 use super::AnySecurityScheme;
+use crate::http_service::session::{SessionStore, end_user_sessions};
 
 #[derive(Deserialize, ToSchema)]
 struct CreateUserRequest {
@@ -245,6 +250,7 @@ async fn api_get_user(
 async fn api_update_user(
     id: Path<Uuid>,
     services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
     _sec_scheme: AnySecurityScheme,
     body: Json<UserDataRequest>,
 ) -> Result<UpdateUserResponse, GatedError> {
@@ -265,6 +271,7 @@ async fn api_update_user(
         )));
     }
 
+    let old_username = user.username.clone();
     let mut model: User::ActiveModel = user.into();
     model.username = Set(body.username.clone());
     model.description = Set(body.description.clone().unwrap_or_default());
@@ -289,8 +296,22 @@ async fn api_update_user(
         }
         Err(error) => return Err(error.into()),
     };
+    let renamed = user.username != old_username;
+    if renamed {
+        // Tickets name their user, so they follow the rename.
+        Ticket::Entity::update_many()
+            .col_expr(Ticket::Column::Username, Expr::value(user.username.clone()))
+            .filter(Ticket::Column::Username.eq(old_username))
+            .exec(&db)
+            .await?;
+    }
 
     drop(db);
+
+    if renamed {
+        end_user_sessions(&services, &store, user.id, None).await;
+        services.notify_authorization_changed();
+    }
 
     services
         .rate_limiter_registry
@@ -309,6 +330,7 @@ async fn api_delete_user(
     id: Path<Uuid>,
     db: Data<SharedDatabaseConnection>,
     services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
     _sec_scheme: AnySecurityScheme,
 ) -> Result<DeleteUserResponse, GatedError> {
     let db = gated_core::db_required(&db).await?;
@@ -322,7 +344,15 @@ async fn api_delete_user(
         .exec(&db)
         .await?;
 
+    Ticket::Entity::delete_many()
+        .filter(Ticket::Column::Username.eq(&user.username))
+        .exec(&db)
+        .await?;
+
+    let user_id = user.id;
     user.delete(&db).await?;
+    drop(db);
+    end_user_sessions(&services, &store, user_id, None).await;
     services.notify_authorization_changed();
     Ok(DeleteUserResponse::Deleted)
 }
@@ -420,6 +450,7 @@ async fn api_delete_user_role(
     Path((id, role_id)): Path<(Uuid, Uuid)>,
     db: Data<SharedDatabaseConnection>,
     services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
     _sec_scheme: AnySecurityScheme,
 ) -> Result<DeleteUserRoleResponse, GatedError> {
     let db = gated_core::db_required(&db).await?;
@@ -428,7 +459,7 @@ async fn api_delete_user_role(
         return Ok(DeleteUserRoleResponse::NotFound);
     };
 
-    let Some(_role) = Role::Entity::find_by_id(role_id).one(&db).await? else {
+    let Some(role) = Role::Entity::find_by_id(role_id).one(&db).await? else {
         return Ok(DeleteUserRoleResponse::NotFound);
     };
 
@@ -443,6 +474,10 @@ async fn api_delete_user_role(
     };
 
     model.delete(&db).await.map_err(GatedError::from)?;
+    drop(db);
+    if role.name == BUILTIN_ADMIN_ROLE_NAME {
+        end_user_sessions(&services, &store, id, None).await;
+    }
     services.notify_authorization_changed();
 
     Ok(DeleteUserRoleResponse::Deleted)

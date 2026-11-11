@@ -126,6 +126,15 @@ describe("Web terminal and browser session revocation", () => {
     } finally { socket.close(); }
   }, 120000);
 
+  test("a short web terminal session that received input is kept", async () => {
+    const { target, cookie } = await setup();
+    const { socket, ended, connected } = await openTerminal(target.name, cookie);
+    socket.close();
+    await withTimeout(ended, 10000, "terminal close");
+    await Bun.sleep(1000);
+    expect((await admin("GET", `/sessions/${connected.details!.session_id}`)).status).toBe(200);
+  }, 120000);
+
   test("an admin can list and revoke a browser session", async () => {
     const { user, cookie } = await setup();
     const me = async () => fetch(`${base}/api/profile/sessions`, {
@@ -143,4 +152,29 @@ describe("Web terminal and browser session revocation", () => {
     expect((await admin("DELETE", `/management-sessions/${session!.id}`)).status).toBe(404);
     expect((await me()).status).toBe(401);
   }, 120000);
+
+  test("a deny rule blocks a matching command typed into a web terminal", async () => {
+    const { target, cookie } = await setup();
+    const rule = await admin("POST", "/command-acl-rules", {
+      name: `deny-web-${randomUUID()}`, enabled: true, priority: 10, protocol: "ssh",
+      match_type: "keyword", pattern: "whoami", action: "deny", target_id: target.id,
+    });
+    expect(rule.status).toBe(201);
+
+    const terminal = await openTerminal(target.name, cookie);
+    let output = "";
+    terminal.socket.on("message", (data) => {
+      const frame = Buffer.from(data as Buffer);
+      if (frame[0] === 0) output += frame.subarray(1).toString();
+    });
+    terminal.socket.send(Buffer.concat([Buffer.from([0]), Buffer.from("whoami\n")]));
+    await withTimeout(terminal.ended, 15000, "blocked terminal close");
+    expect(output).toContain("Command blocked by policy");
+    expect(output).not.toContain("root\r\n");
+
+    const records = await (await admin("GET", `/command-records?source=shell&q=whoami`)).json() as {
+      items: { origin: string, outcome: string, target: string }[]
+    };
+    expect(records.items.some(r => r.target === target.name && r.origin === "web" && r.outcome === "blocked")).toBe(true);
+  }, 60_000);
 });

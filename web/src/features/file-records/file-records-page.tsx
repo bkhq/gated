@@ -45,7 +45,11 @@ const EMPTY_FILTERS: Filters = {
 export function FileRecordsPage({ embedded = false, sessionId }: { embedded?: boolean, sessionId?: string }) {
   const { t } = useTranslation()
   // A fixed session scope survives "clear filters" and hides the session input.
-  const baseFilters = React.useMemo<Filters>(() => ({ ...EMPTY_FILTERS, sessionId: sessionId ?? '' }), [sessionId])
+  // Without one the list starts on a bounded window: every recording in range is read.
+  const baseFilters = React.useMemo<Filters>(
+    () => ({ ...EMPTY_FILTERS, sessionId: sessionId ?? '', range: sessionId ? 'any' : '7d' }),
+    [sessionId],
+  )
   const [filters, setFilters] = React.useState<Filters>(baseFilters)
   const [offset, setOffset] = React.useState(0)
 

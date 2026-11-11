@@ -1,8 +1,8 @@
 # 20261111-1425-auth-hot-path-contention Take password hashing and full-table scans out of the global auth lock
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

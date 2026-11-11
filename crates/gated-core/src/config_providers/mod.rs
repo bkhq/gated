@@ -25,6 +25,13 @@ pub trait ConfigProvider {
 
     async fn list_targets(&mut self) -> Result<Vec<Target>, GatedError>;
 
+    async fn get_user(&mut self, username: &str) -> Result<Option<User>, GatedError>;
+
+    async fn get_target(&mut self, name: &str) -> Result<Option<Target>, GatedError>;
+
+    /// The user's stored password hashes, for verification outside the provider lock.
+    async fn password_hashes(&mut self, username: &str) -> Result<Vec<Secret<String>>, GatedError>;
+
     async fn validate_credential(
         &mut self,
         username: &str,
@@ -107,10 +114,35 @@ pub async fn authorize_ticket(
             Ok(Some((ticket, (&User::try_from(ticket_user)?).into())))
         }
         None => {
-            warn!("Ticket not found: {}", &secret.expose_secret());
+            warn!("Ticket not found");
             Ok(None)
         }
     }
+}
+
+/// The ticket, while it exists and has not expired. Remaining uses are not
+/// checked: a session opened with the last use stays valid.
+pub async fn live_ticket(
+    db: &SharedDatabaseConnection,
+    ticket_id: &Uuid,
+) -> Result<Option<e::Ticket::Model>, GatedError> {
+    let db = crate::db_required(db).await?;
+    Ok(e::Ticket::Entity::find_by_id(*ticket_id)
+        .one(&db)
+        .await?
+        .filter(|ticket| {
+            ticket
+                .expiry
+                .is_none_or(|expiry| expiry >= chrono::Utc::now())
+        }))
+}
+
+/// Whether the ticket still exists and has not expired.
+pub async fn ticket_is_live(
+    db: &SharedDatabaseConnection,
+    ticket_id: &Uuid,
+) -> Result<bool, GatedError> {
+    Ok(live_ticket(db, ticket_id).await?.is_some())
 }
 
 pub async fn consume_ticket(
@@ -249,6 +281,19 @@ mod tests {
     }
 
     /// An already-exhausted ticket is rejected.
+    #[tokio::test]
+    async fn a_used_up_ticket_stays_live_until_deleted() {
+        let db = setup_ticket_db().await;
+        let id = insert_ticket(&db, Some(0)).await;
+        assert!(ticket_is_live(&db, &id).await.expect("live"));
+        let conn = crate::db_required(&db).await.expect("db");
+        e::Ticket::Entity::delete_by_id(id)
+            .exec(&conn)
+            .await
+            .expect("delete");
+        assert!(!ticket_is_live(&db, &id).await.expect("live"));
+    }
+
     #[tokio::test]
     async fn exhausted_ticket_rejected() {
         let db = setup_ticket_db().await;

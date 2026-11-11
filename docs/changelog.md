@@ -332,3 +332,99 @@ The embedded SQLCipher moves to 4.20.0 on SQLite 3.54.1 (`libsqlite3-sys` 0.40),
 ## 2026-11-11 17:30 [progress]
 
 `rustix` moves from 1.1.4 to 1.1.6 (via `tempfile` / `dialoguer`), closing RUSTSEC-2026-0486, which cargo-deny started rejecting in the `v0.0.11` build minutes after the tag was pushed. Lockfile-only change; the tag is moved to this commit.
+
+## 2026-11-11 16:00 [BUG-P0]
+
+The web MySQL/PostgreSQL terminals ran `mycli` / `mysql` / `psql` on the gateway host with the target password in the environment; the clients' shell escapes gave any user with a database target command execution as the gateway user. The endpoints `/api/mysql/terminal/:target` and `/api/postgres/terminal/:target`, the PTY bridge and the `portable-pty` dependency are removed. Database targets open in the SQL console; `/ui/terminal/{mysql,postgres}/:target` redirects there and a claimed database ticket lands on it. The lode image no longer installs the database clients.
+
+## 2026-11-11 16:00 [decision]
+
+Adding an SSH public key from a browser session now confirms the user's identity (owner decision, 2026-11-11): the OTP when one is enrolled, otherwise the password; SSO-only users and API tokens are not asked. A key signs in to SSH on its own, so a stolen password alone could otherwise register a key and skip a required OTP. The confirmation is per request, without the 15-minute window used for shared accounts.
+
+## 2026-11-11 17:00 [BUG-P1]
+
+A ticket session could read and change the account behind it: `/api/profile/*` (API tokens, tickets, sessions, credential listing) accepted it, so a single-target ticket could mint a full API token. Those routers now answer `403` to ticket sessions (`forbid_ticket_sessions`). `POST /api/profile/api-tokens` rejects an `expiry` that is not in the future with `400`.
+
+## 2026-11-11 17:00 [BUG-P1]
+
+Ticket sessions outlived their ticket and were invisible to administrators. A ticket session now registers a management session handle, so it is listed and revocable with the browser sessions, and carries its ticket id: every request checks that the ticket still exists and has not expired, and an open web terminal rechecks every 10 seconds. A session opened with a ticket's last use stays valid until the ticket is deleted or expires.
+
+## 2026-11-11 17:00 [BUG-P1]
+
+The keyed login, OTP, ticket-claim, setup and unlock rate limiters grew without bound under a spray of distinct keys. They are capped at 50,000 keys (stale keys are dropped first; a full limiter refuses new keys), login rejects usernames longer than 256 bytes before any lookup, and database unlock attempts run one at a time.
+
+## 2026-11-11 17:00 [BUG-P1]
+
+A web terminal session that ended within 2 seconds was deleted together with its recording, so a quick command left no audit trail. Only sessions that received no input are discarded now.
+
+## 2026-11-11 17:00 [pitfall]
+
+Integration tests that start `gated-e2e-ssh-server` publish its port on the Docker host, which is not reachable from inside the `station` container; `tests/ssh/*` cannot run there. `/api/targets` requires a session cookie or `X-Gated-Token` (`AnySecurityScheme`), so it cannot probe a header ticket; the ticket tests probe `/api/profile/tickets` and read `403` as "authenticated".
+
+## 2026-11-11 17:40 [BUG-P2]
+
+The HTTP proxy forwarded `?gated-token=` / `?gated-ticket=` to the upstream application along with the rest of the query string, so an account-wide API token reached upstream access logs and the request recording. `construct_target_url` now drops `SECRET_QUERY_PARAMS`.
+
+## 2026-11-11 17:40 [BUG-P2]
+
+The admin WebSockets (`/admin/api/recordings/{id}/stream`, `/admin/api/sessions/changes`, `/admin/api/sessions/{id}/monitor`) upgraded for any `Origin`, and the user ones trusted every subdomain of the external host, including proxied target hosts. One middleware, `ws_origin_guard`, now checks every cookie-authenticated upgrade: request host or external host only, subdomains only under a configured `admin.cookie_domain`, never a host under `http.base_domain`. Token-authenticated upgrades are not checked, since a browser cannot attach the token header cross-site.
+
+## 2026-11-11 18:00 [BUG-P2]
+
+`POST /admin/api/tickets` stored any user name, target name, expiry and use count. It now answers `400` for an unknown user or target, a user without a role on the target, an `expiry` that is not in the future and a `number_of_uses` below 1. The rule is recorded in `docs/architecture/auth.md`: a ticket narrows the user's access and never replaces the user's own grant, so `revalidate_sessions` closing a ticket session whose user lost the grant is intended.
+
+## 2026-11-11 18:30 [BUG-P2]
+
+The SQL console returned a connection to the shared per-target pool after running user SQL, so an open `BEGIN`, `SET search_path`, `SET ROLE`, `USE`, session variables and temporary tables reached whoever got the connection next. A connection that ran user SQL is now closed instead of reused (`close_on_drop`); schema browsing still uses pooled connections.
+
+## 2026-11-11 19:30 [BUG-P1]
+
+A database target's `readonly` flag was enforced only in the SQL console; the native MySQL and PostgreSQL proxies forwarded writes. The proxies now keep the upstream session in read-only transaction mode and refuse the statements that would leave it (`escapes_readonly_session`). The validator moved to `gated_core::sql_validation` and lexes per engine: backslash escapes and `#` comments for MySQL, `E'...'` and dollar quotes for PostgreSQL only, and `--` needs trailing whitespace in MySQL. The old shared lexer let `SELECT '\' ; DELETE ...` hide a second statement from the PostgreSQL console check.
+
+## 2026-11-11 19:30 [decision]
+
+Read-only database targets remain a guard-rail, not a privilege boundary: dynamic SQL inside server-side functions and PostgreSQL functions with side effects (`dblink_exec`, `lo_import` outside the blocklist) are not stopped. `docs/api.md` states the limit and recommends a read-only upstream account.
+
+## 2026-11-11 19:30 [pitfall]
+
+MariaDB in read-only transaction mode still executes `SET GLOBAL ...` and `SELECT ... INTO OUTFILE`; both are refused by the proxy guard instead. The `mysql` and `psql` clients are not installed in the `station` container, so `tests/db/readonly-native.test.ts` runs the client inside the upstream database container and connects back to the gateway by hostname.
+
+## 2026-11-11 20:10 [BUG-P2]
+
+Only the web login limited password guessing; SSH, MySQL and PostgreSQL accepted attempts without bound, and a known password left the six-digit OTP open to brute force over SSH keyboard-interactive. `gated_core::auth_throttle` now counts failed password and OTP attempts from every listener in one bounded table (5-minute window: 10 per user and address, 60 per address, 100 per user, 10 OTP failures per user) and refuses further attempts as a wrong credential. `get_allowed_auth_methods` logged "Enabling all methods as fallback" while denying every method; the message now says so.
+
+## 2026-11-11 20:10 [decision]
+
+The per-user password counter is set high (100) and the tight one is per user and address (10), so a remote party cannot lock a user out of every address with a handful of failures. Not done in this change: a refused attempt on the MySQL and PostgreSQL listeners still allocates an auth state for ten minutes.
+
+## 2026-11-11 21:00 [BUG-P2]
+
+Argon2 verification for every password attempt ran on an async worker while holding the global `Mutex<ConfigProviderEnum>`, so failing logins delayed authorization on every listener. `gated_core::auth_throttle::validate_credential` reads the hashes under the lock and verifies them in `spawn_blocking` outside it; SSH, MySQL, PostgreSQL, the web login, the password change and the step-up check use it. `ConfigProvider` gains `get_user` and `get_target`, replacing the `list_users()` / `list_targets()` scans in `AuthStateStore::create`, the HTTP proxy resolver, the three native proxies, the web terminal and the SQL console. `tests/http/auth-contention.test.ts` measures token-authenticated requests during 40 concurrent failing logins (median stayed under the 3 ms baseline here); it was not run against the previous binary.
+
+## 2026-11-11 21:00 [pitfall]
+
+Running `bun test http/ api/ ...` with all files at once on the shared development host produced `database is locked` (SQLite code 5) during gateway start-up in two files; both pass when run alone.
+
+## 2026-11-11 21:30 [progress]
+
+Minor audit hardening: an unknown ticket secret is no longer written to the log; the MySQL and PostgreSQL proxies log statement length at info and the text only at debug (the statement is still in the session's SQL audit recording); `login_error` in the SSO redirect is percent-encoded; `POST /api/profile/credentials/password` counts wrong current passwords in the shared failed-login throttle; `DbLockMiddleware` is documented as answering 423. Declined or open items are listed in the task `20261111-1425-audit-minor-hardening`.
+
+## 2026-11-11 22:00 [progress]
+
+`GET /admin/api/command-records` and `/admin/api/file-records` parsed every audit recording on disk for each request. The `from` / `to` bounds are now applied to the recording rows first (`overlapping`: started before `to`, still open or ended after `from`), so only recordings that can hold an item in range are opened, and both admin pages start on the last 7 days instead of "any time" unless they are scoped to one session. `total` stays exact. Choosing "any time" still reads the whole history; removing that cost needs the records indexed in the database, which is not part of this change.
+
+## 2026-11-11 22:30 [BUG-P1]
+
+Command ACL was skipped on three paths: the web SSH terminal, the SQL console and a native SSH shell without a PTY (`ssh -T`). A command denied over native SSH or the database proxies ran there unrecorded. The non-PTY shell is now filtered like a PTY shell; the web terminal rebuilds lines from its input, records them (`origin: web`) and ends the terminal on `deny` or `review`; the SQL console evaluates the rules before running a statement and answers `403`. `docs/design/command-control.md` lists the coverage per path, what stays best effort, and that the file transfer permission covers only the `sftp` subsystem. Plan: `20261111-2200-command-control-coverage`.
+
+## 2026-11-11 22:30 [pitfall]
+
+Only the SQL console part of this change was verified end to end. `tests/ssh/acl-filter.test.ts` (non-PTY shell) and `tests/ssh/web-terminal-revocation.test.ts` (web terminal deny, short session kept) could not run in the `station` container: the SSH test server's published port is unreachable from it and `sshpass` is not installed.
+
+## 2026-11-11 23:00 [BUG-P2]
+
+A user's sessions survived an administrator resetting or removing their credentials, removing the `admin` role, and renaming or deleting the user; a user or target created later under the same name inherited the old sessions and tickets. These changes now end the user's browser sessions and close their proxy sessions (matched by user id; a credential change keeps the session that made it). Tickets are deleted with their user or target and follow a rename. The session identifier is replaced at sign-in. Plan: `20261111-2300-session-revocation-on-identity-change`.
+
+## 2026-11-11 23:00 [decision]
+
+Tickets keep naming their user and target instead of gaining id columns. Rename and delete update or remove the tickets in the same request, which closes the re-binding without a migration or a ticket API change.

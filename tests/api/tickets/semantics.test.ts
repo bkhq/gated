@@ -39,18 +39,16 @@ async function createTicketRaw(
   return { id: data.ticket.id, secret: data.secret };
 }
 
-// Present a ticket via the `Authorization: Gated <secret>` header to a
-// connection-class API endpoint that requires authentication. GET
-// /api/profile/tickets has no ticket-specific guard, so an *authorized*
-// ticket yields 200 (the ticket's user is resolved) and an
-// expired/exhausted/revoked/unknown ticket yields 401 (the middleware never
-// establishes a session). This is the lifecycle probe for G4/G5/G6/G7.
+// Present a ticket via the `Authorization: Gated <secret>` header. GET
+// /api/profile/tickets answers 403 to a ticket session and 401 when no session
+// was established, so the probe reports an accepted ticket as 200 and an
+// expired/exhausted/revoked/unknown one as 401.
 async function probeWithHeader(url: string, secret: string): Promise<number> {
   const resp = await fetch(`${url}/api/profile/tickets`, {
     headers: { Authorization: `Gated ${secret}` },
     tls: { rejectUnauthorized: false },
   } as any);
-  return resp.status;
+  return resp.status === 403 ? 200 : resp.status;
 }
 
 // This host runs a large fleet of concurrent e2e suites that allocate listener
@@ -109,11 +107,11 @@ describe("API Tickets - Semantics", () => {
   });
 
   // An expired ticket is rejected; a not-yet-expired one is accepted.
-  test("expiry: future-dated ticket authorizes, past-dated ticket is denied", async () => {
+  test("expiry: a ticket authorizes until its expiry passes", async () => {
     const { user, target } = await setupUserAndTarget(api);
 
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const past = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const soon = new Date(Date.now() + 1500).toISOString();
 
     const valid = await createTicketRaw(url, {
       username: user.username,
@@ -123,9 +121,10 @@ describe("API Tickets - Semantics", () => {
     const expired = await createTicketRaw(url, {
       username: user.username,
       target_name: target.name,
-      expiry: past,
+      expiry: soon,
     });
 
+    await Bun.sleep(2000);
     expect(await probeWithHeader(url, valid.secret)).toBe(200);
     expect(await probeWithHeader(url, expired.secret)).toBe(401);
   });
@@ -212,7 +211,7 @@ describe("API Tickets - Semantics", () => {
     const establish = await ticketSession.get(
       `${url}/api/profile/tickets?gated-ticket=${encodeURIComponent(secret)}`
     );
-    expect(establish.status).toBe(200);
+    expect(establish.status).toBe(403);
 
     // Change password (body must parse so the is_ticket_auth guard, not a
     // payload error, produces the rejection).
@@ -249,6 +248,7 @@ describe("API Tickets - Semantics", () => {
     expect(login.status).toBe(201);
     const ok = await session.post(`${url}/api/profile/credentials/public-keys`, {
       label: "k2",
+      password: "pw-123",
       // A real key: the endpoint now rejects unparsable keys with 400.
       openssh_public_key: readFileSync(resolve(import.meta.dir, "../../ssh-keys/id_ed25519.pub"), "utf-8").trim(),
     });

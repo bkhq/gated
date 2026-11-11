@@ -1,5 +1,6 @@
 import type { PublicKeyDraft } from '@/shared/types/drafts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { isStepUpPromptError } from '@/features/accounts/utils'
 import { profileApi } from '@/shared/lib/api/profile'
 
 export function usePublicKeys() {
@@ -10,6 +11,7 @@ export function useRegisterPublicKey() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (draft: PublicKeyDraft) => profileApi.publicKeys.register(draft),
+    meta: { inlineError: isStepUpPromptError },
     onSuccess: async () => qc.invalidateQueries({ queryKey: ['public-keys'] }),
   })
 }

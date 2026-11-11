@@ -14,7 +14,7 @@ use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::common::get_user;
-use crate::http_service::common::{RequestAuthorization, require_auth};
+use crate::http_service::common::{RequestAuthorization, forbid_ticket_sessions, require_auth};
 
 api_response! {
     enum GetApiTokensResponse {
@@ -60,6 +60,8 @@ api_response! {
     enum CreateApiTokenResponse {
         #[oai(status = 201)]
         Created(Json<TokenAndSecret>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
         #[oai(status = 401)]
         Unauthorized(Json<String>),
     }
@@ -109,6 +111,12 @@ async fn api_create_api_token(
             "not signed in".into(),
         )));
     };
+
+    if body.expiry <= Utc::now() {
+        return Ok(CreateApiTokenResponse::BadRequest(Json(
+            "expiry must be in the future".into(),
+        )));
+    }
 
     let secret = generate_ticket_secret();
     let object = ApiToken::ActiveModel {
@@ -166,5 +174,6 @@ pub fn router() -> OpenApiRouter {
         api_create_api_token,
         api_delete_api_token,
     )
+    .route_layer(from_fn(forbid_ticket_sessions))
     .route_layer(from_fn(require_auth))
 }

@@ -37,6 +37,9 @@ pub mod users;
 
 pub use gated_common::web::AnySecurityScheme;
 
+pub(crate) use accounts::{StepUpFailure, verify_step_up};
+pub(crate) use reveal_guard::RevealConfirmation;
+
 pub fn router() -> OpenApiRouter {
     OpenApiRouter::new()
         .merge(sessions_list::router())

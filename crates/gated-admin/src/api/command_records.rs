@@ -28,7 +28,7 @@ use gated_core::SharedDatabaseConnection;
 use gated_core::recordings::{SessionRecordings, ShellCommandRecordingItem, SqlAuditRecordingItem};
 use gated_db_entities::Recording::{self, RecordingKind};
 use gated_db_entities::Session;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder, Select};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::Mutex;
 use tracing::*;
@@ -169,7 +169,7 @@ async fn api_list(
     if let Some(sid) = session_id {
         query = query.filter(Recording::Column::SessionId.eq(sid));
     }
-    let recs = query.all(&db).await?;
+    let recs = overlapping(query, from_ts, to_ts).all(&db).await?;
 
     // Load the parent sessions once so SQL items (which carry no user in the
     // item itself) can inherit the session username.
@@ -275,6 +275,26 @@ async fn api_list(
     })))
 }
 
+/// Keeps the recordings that can hold an item inside the time bounds: started
+/// before `to`, and still open or ended after `from`.
+pub(super) fn overlapping(
+    mut query: Select<Recording::Entity>,
+    from: Option<DateTime<Utc>>,
+    to: Option<DateTime<Utc>>,
+) -> Select<Recording::Entity> {
+    if let Some(from) = from {
+        query = query.filter(
+            Condition::any()
+                .add(Recording::Column::Ended.is_null())
+                .add(Recording::Column::Ended.gte(from)),
+        );
+    }
+    if let Some(to) = to {
+        query = query.filter(Recording::Column::Started.lte(to));
+    }
+    query
+}
+
 /// Parse an optional RFC3339 timestamp query value into UTC.
 fn parse_ts(value: Option<&str>) -> Result<Option<DateTime<Utc>>, chrono::ParseError> {
     match value {
@@ -377,4 +397,71 @@ async fn read_recording_into(
 
 pub fn router() -> OpenApiRouter {
     api_routes!(api_list,)
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Duration;
+    use sea_orm::{ActiveModelTrait, ConnectionTrait, Database, Set};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn time_bounds_select_only_overlapping_recordings() {
+        let db = Database::connect("sqlite::memory:").await.expect("db");
+        db.execute_unprepared(
+            "CREATE TABLE recordings (id BLOB PRIMARY KEY, name TEXT NOT NULL, \
+             started TEXT NOT NULL, ended TEXT, session_id BLOB NOT NULL, \
+             kind TEXT NOT NULL, metadata TEXT NOT NULL)",
+        )
+        .await
+        .expect("create table");
+
+        let now = Utc::now();
+        let days = |n: i64| now - Duration::days(n);
+        for (name, started, ended) in [
+            ("old", days(30), Some(days(29))),
+            ("spanning", days(10), Some(days(2))),
+            ("recent", days(1), Some(now)),
+            ("open", days(20), None),
+        ] {
+            Recording::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                name: Set(name.to_owned()),
+                started: Set(started),
+                ended: Set(ended),
+                session_id: Set(Uuid::new_v4()),
+                kind: Set(RecordingKind::CommandAudit),
+                metadata: Set(String::new()),
+            }
+            .insert(&db)
+            .await
+            .expect("insert");
+        }
+
+        let names = |from, to| {
+            let db = db.clone();
+            async move {
+                let mut names: Vec<String> = overlapping(Recording::Entity::find(), from, to)
+                    .all(&db)
+                    .await
+                    .expect("query")
+                    .into_iter()
+                    .map(|recording| recording.name)
+                    .collect();
+                names.sort();
+                names
+            }
+        };
+        assert_eq!(names(None, None).await.len(), 4);
+        assert_eq!(
+            names(Some(days(7)), None).await,
+            ["open", "recent", "spanning"]
+        );
+        assert_eq!(
+            names(Some(days(7)), Some(days(5))).await,
+            ["open", "spanning"]
+        );
+        assert_eq!(names(None, Some(days(25))).await, ["old"]);
+    }
 }

@@ -44,7 +44,7 @@ use tracing::*;
 use crate::http_service::common::{SESSION_COOKIE_NAME, page_auth, require_admin, require_auth};
 use crate::http_service::middleware::{
     CookieHostMiddleware, DbLockMiddleware, cookie_host_middleware, db_lock_middleware,
-    ticket_middleware,
+    ticket_middleware, ws_origin_guard,
 };
 use crate::http_service::session::{Session, SessionLayer, SessionStore, session_middleware};
 use crate::{admin_api_app, user_api_router, with_openapi_routes};
@@ -259,14 +259,6 @@ impl ProtocolServer for HTTPProtocolServer {
             put(api::sftp::api_sftp_upload).route_layer(from_fn(require_auth)),
         )
         .route(
-            "/mysql/terminal/{target_name}",
-            get(api::db_terminal::api_mysql_terminal).route_layer(from_fn(require_auth)),
-        )
-        .route(
-            "/postgres/terminal/{target_name}",
-            get(api::db_terminal::api_postgres_terminal).route_layer(from_fn(require_auth)),
-        )
-        .route(
             "/auth/web-auth-requests/stream",
             get(api::auth::api_get_web_auth_requests_stream).route_layer(from_fn(require_auth)),
         )
@@ -286,6 +278,7 @@ impl ProtocolServer for HTTPProtocolServer {
             .fallback(any(catchall::catchall_endpoint).layer(from_fn(page_auth)))
             .layer(from_fn_with_state(self.services.clone(), log_requests))
             .layer(from_fn(management_audit::audit_request))
+            .layer(from_fn(ws_origin_guard))
             .layer(from_fn(inject_request_authorization))
             .layer(from_fn(track_session))
             .layer(from_fn(ticket_middleware))

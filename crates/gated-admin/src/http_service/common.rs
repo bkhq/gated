@@ -127,6 +127,8 @@ pub enum SessionAuthorization {
     Ticket {
         username: String,
         target_name: String,
+        /// The session ends with this ticket.
+        ticket_id: Uuid,
     },
 }
 
@@ -265,6 +267,30 @@ pub(crate) async fn inject_request_authorization(mut request: Request, next: Nex
         }
     }
 
+    // A ticket session ends when its ticket is deleted, expires or is moved
+    // to another user or target name.
+    if let Some(SessionAuthorization::Ticket {
+        ticket_id,
+        username,
+        target_name,
+    }) = &session_auth
+    {
+        let unchanged = gated_core::live_ticket(&services.db, ticket_id)
+            .await
+            .map(|ticket| {
+                ticket.is_some_and(|t| t.username == *username && t.target == *target_name)
+            });
+        match unchanged {
+            Ok(true) => {}
+            Ok(false) => {
+                tracing::info!(%ticket_id, "Ticket is gone, ending its session");
+                session.purge();
+                session_auth = None;
+            }
+            Err(error) => return error.into_response(),
+        }
+    }
+
     let auth = match session_auth {
         Some(auth) => Some(RequestAuthorization::Session(auth)),
         None => match request.headers().get(&X_GATED_TOKEN) {
@@ -322,6 +348,24 @@ pub fn request_host(headers: &HeaderMap, uri: &Uri) -> Option<String> {
 pub async fn require_auth(request: Request, next: Next) -> Response {
     if request.extensions().get::<RequestAuthorization>().is_none() {
         return StatusCode::UNAUTHORIZED.into_response();
+    }
+    next.run(request).await
+}
+
+/// Answers 403 to ticket sessions: a ticket reaches one target, never the
+/// account behind it.
+pub async fn forbid_ticket_sessions(request: Request, next: Next) -> Response {
+    if matches!(
+        request.extensions().get::<RequestAuthorization>(),
+        Some(RequestAuthorization::Session(
+            SessionAuthorization::Ticket { .. }
+        ))
+    ) {
+        return (
+            StatusCode::FORBIDDEN,
+            "not available when signed in with a ticket",
+        )
+            .into_response();
     }
     next.run(request).await
 }
@@ -395,6 +439,25 @@ pub async fn get_auth_state_for_request(
     Ok(state)
 }
 
+/// Signs the session in with a ticket and registers it so it is listed with
+/// the browser sessions and can be revoked.
+pub async fn authorize_ticket_session(
+    store: &Arc<Mutex<SessionStore>>,
+    session: &Session,
+    ticket: &gated_db_entities::Ticket::Model,
+    user_info: AuthStateUserInfo,
+) -> Result<(), GatedError> {
+    session.renew();
+    let handle = store.lock().await.create_handle_for(session);
+    handle.lock().await.set_user_info(user_info).await?;
+    session.set_auth(SessionAuthorization::Ticket {
+        username: ticket.username.clone(),
+        target_name: ticket.target.clone(),
+        ticket_id: ticket.id,
+    });
+    Ok(())
+}
+
 pub async fn authorize_session(
     parts: &Parts,
     user_info: AuthStateUserInfo,
@@ -436,6 +499,7 @@ pub async fn authorize_session(
         return Err(error.into());
     }
     session.set_auth(SessionAuthorization::User(user_info.username));
+    session.renew();
 
     Ok(())
 }
@@ -460,6 +524,7 @@ mod audit_regression_tests {
         let ticket = RequestAuthorization::Session(SessionAuthorization::Ticket {
             username: "alice".into(),
             target_name: "target-a".into(),
+            ticket_id: Uuid::nil(),
         });
         assert!(ticket.permits_target("target-a"));
         assert!(!ticket.permits_target("target-b"));

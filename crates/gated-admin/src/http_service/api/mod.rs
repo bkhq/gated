@@ -20,11 +20,9 @@ mod tickets;
 //   /api/postgres/terminal/:target_name
 // The read-only session monitor WS is mounted inside `admin_api_app` (lib.rs)
 // at `/admin/api/sessions/:id/monitor`, inheriting the admin-only nest gate:
-pub(crate) mod db_terminal;
 pub(crate) mod session_monitor;
 // Raw download/upload routes are mounted in `http_service/mod.rs`.
 pub(crate) mod sftp;
-pub(crate) mod sql_validation;
 pub(crate) mod ssh_terminal;
 pub(crate) mod terminal_details;
 

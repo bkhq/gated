@@ -1,8 +1,8 @@
 # 20261111-1425-short-web-session-erases-audit Stop short web terminal sessions from deleting their audit trail
 
-- **status**: pending
+- **status**: completed
 - **priority**: P1
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

@@ -54,8 +54,8 @@ export function claimDestination(kind: ClaimedKind, targetName: string): string 
   const name = encodeURIComponent(targetName)
   switch (kind) {
     case 'Ssh': return `/ui/terminal/ssh/${name}`
-    case 'MySql': return `/ui/terminal/mysql/${name}`
-    case 'Postgres': return `/ui/terminal/postgres/${name}`
+    case 'MySql':
+    case 'Postgres': return `/ui/db/${name}`
     case 'Http': return '/ui/targets'
   }
 }

@@ -62,12 +62,11 @@ describe('targetDetailHeader', () => {
     expect(handlers.onToggleFavorite).toHaveBeenCalledWith(false)
   })
 
-  it.each(['mysql', 'postgres'] as const)('shows the SQL console next to connect for %s targets', (kind) => {
+  it.each(['mysql', 'postgres'] as const)('shows only the SQL console for %s targets', (kind) => {
     const handlers = userHandlers()
     render(<TargetDetailHeader target={makeTarget(kind)} mode="user" breadcrumbs={[]} onConnect={vi.fn()} {...handlers} />)
 
     expect(visibleButtonNames()).toEqual([
-      'actions.connect',
       'targets.detail.actions.openSqlConsole',
       'targets.detail.actions.more',
     ])

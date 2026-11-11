@@ -168,9 +168,7 @@ run on startup, so lode's automatic rollback to an older binary is not a safe
 migration rollback.
 
 [`deploy/lode/Dockerfile`](../deploy/lode/Dockerfile) builds a container image
-for this setup on the `bkhq/lode` slim image. It adds the clients the web
-MySQL and PostgreSQL terminals start (`mycli` with the MariaDB `mysql` as a
-fallback, and `psql`); without them those terminals fail to start. lode
+for this setup on the `bkhq/lode` slim image. lode
 downloads the gated release itself, so the image does not change with gated
 versions. Mount a volume at `/srv/gated-lode` and `lode.toml` into it.
 

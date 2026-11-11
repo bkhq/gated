@@ -57,4 +57,32 @@ describe("SSH User Auth Password", () => {
     await proc.exited;
     expect(proc.exitCode).not.toBe(0);
   });
+
+  test("repeated wrong passwords lock the user out from this address", async () => {
+    const sshPort = processes.startSshServer({
+      trustedKeys: [readPubkey(wgClientEd25519PubkeyPath())],
+    });
+    await waitPort(sshPort);
+    const api = adminClient(`https://localhost:${wg.httpPort}`);
+    const { user, target } = await setupUserAndSshTarget(api, sshPort);
+
+    const login = async (password: string) => {
+      const proc = processes.startSshClient(
+        `${user.username}:${target.name}@localhost`,
+        "-p", String(wg.sshPort),
+        "-i", "/dev/null",
+        "-o", "PreferredAuthentications=password",
+        "-o", "NumberOfPasswordPrompts=1",
+        "ls", "/bin/sh",
+        { password }
+      );
+      await new Response(proc.stdout).text();
+      await proc.exited;
+      return proc.exitCode;
+    };
+
+    expect(await login("123")).toBe(0);
+    for (let i = 0; i < 10; i++) expect(await login("321")).not.toBe(0);
+    expect(await login("123")).not.toBe(0);
+  }, 120_000);
 });

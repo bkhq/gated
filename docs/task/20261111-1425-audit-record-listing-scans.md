@@ -1,8 +1,8 @@
 # 20261111-1425-audit-record-listing-scans Stop reading every recording file to list command and file records
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description
@@ -25,3 +25,5 @@ Indexing command and file audit records
 ## Notes
 
 Source: full repository audit of `6ecc941` (2026-11-11). Confirmed by reading the code.
+
+- complete: bounded by time; the any-time view still scans everything until records are indexed in the database

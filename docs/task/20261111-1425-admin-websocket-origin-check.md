@@ -1,8 +1,8 @@
 # 20261111-1425-admin-websocket-origin-check Check the Origin on admin WebSockets and stop trusting every subdomain
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

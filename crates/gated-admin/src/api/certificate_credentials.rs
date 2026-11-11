@@ -15,6 +15,10 @@ use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
 use super::AnySecurityScheme;
+use crate::http_service::session::{Session, SessionStore, end_sessions_after_credential_change};
+use gated_core::Services;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 fn certificate_fingerprint(certificate_pem: &str) -> Result<String, GatedError> {
     Ok(gated_ca::certificate_sha256_hex_fingerprint(
@@ -198,6 +202,9 @@ async fn api_update(
 async fn api_delete(
     Path((user_id, id)): Path<(Uuid, Uuid)>,
     db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
+    session: Session,
     _auth: AnySecurityScheme,
 ) -> Result<RevokeCertificateCredentialResponse, GatedError> {
     let db = gated_core::db_required(&db).await?;
@@ -221,6 +228,7 @@ async fn api_delete(
     .await?;
 
     model.delete(&db).await?;
+    end_sessions_after_credential_change(&services, &store, &session, user_id).await;
     Ok(RevokeCertificateCredentialResponse::Revoked)
 }
 

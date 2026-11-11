@@ -2,6 +2,7 @@
 pub mod account_credentials;
 pub mod acme;
 mod auth_state_store;
+pub mod auth_throttle;
 pub mod command_acl;
 pub mod command_acl_loader;
 mod config_providers;
@@ -19,6 +20,7 @@ pub mod rate_limiting;
 pub mod recordings;
 mod services;
 pub mod sql_console_rate_limit;
+pub mod sql_validation;
 mod state;
 pub mod target_status;
 pub mod tls_certificates;

@@ -327,6 +327,11 @@
           "sameAsCurrent": "新密码不能与当前密码相同。"
         }
       },
+      "keyConfirm": {
+        "title": "确认身份",
+        "description": "已登记的公钥可单独登录 SSH，添加前请确认是你本人。",
+        "confirm": "确认并添加"
+      },
       "keyDrawer": {
         "titleNew": "添加 SSH 公钥",
         "titleEdit": "重命名公钥",
@@ -2023,8 +2028,6 @@
   "terminal": {
     "title": {
       "ssh": "SSH — {{name}}",
-      "mysql": "MySQL — {{name}}",
-      "postgres": "PostgreSQL — {{name}}",
       "unsupported": "终端"
     },
     "actions": {

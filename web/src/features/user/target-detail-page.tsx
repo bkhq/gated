@@ -43,7 +43,7 @@ export function TargetDetailPage() {
   const info = useInfo().data
   const openTerminalTab = useAppStore(state => state.openTerminalTab)
 
-  // Only ssh/mysql/postgres have an in-browser terminal client (api.md §1.8).
+  // ssh opens a terminal, mysql/postgres the SQL console (api.md §1.8).
   // HTTP targets are reached through the HTTP proxy listener, so the Connect
   // button is hidden for them (handleConnect stays undefined).
   const isTerminalKind = target && (target.kind === 'ssh' || target.kind === 'mysql' || target.kind === 'postgres')

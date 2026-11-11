@@ -114,8 +114,7 @@ PostgreSQL 监听器各自的证书保存在数据库中：首次启动时自动
 迁移回滚。
 
 [`deploy/lode/Dockerfile`](../deploy/lode/Dockerfile) 基于 `bkhq/lode` slim 镜像为该部署构建容器镜像。
-它加入了 Web MySQL 和 PostgreSQL 终端所启动的客户端（`mycli`，以 MariaDB 的 `mysql` 作为后备，以及
-`psql`）；没有它们这些终端无法启动。gated 版本由 lode 自行下载，因此镜像不随 gated 版本变化。在
+gated 版本由 lode 自行下载，因此镜像不随 gated 版本变化。在
 `/srv/gated-lode` 挂载卷，并把 `lode.toml` 放入其中。
 
 ## 监控与审计

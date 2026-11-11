@@ -1,8 +1,8 @@
 # 20261111-1425-native-protocol-auth-throttling Throttle failed logins on the SSH, MySQL and Postgres listeners
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description
@@ -26,3 +26,5 @@ Adding login throttling to native listeners
 ## Notes
 
 Source: full repository audit of `6ecc941` (2026-11-11). Confirmed by reading the code (`gated-protocol-ssh/src/server/mod.rs`, `gated-protocol-mysql/src/session.rs`, `gated-protocol-postgres/src/session.rs`). Unrelated nit in `get_allowed_auth_methods`: with every SSH method disabled it logs "Enabling all methods as fallback" but returns an empty set.
+
+- complete: auth state allocation on refused DB attempts left as is; SSH test not runnable in station (no sshpass)

@@ -1,8 +1,8 @@
 # 20261111-1425-session-revocation-on-identity-change Revoke sessions when a user's credentials or identity change
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description
@@ -27,3 +27,5 @@ Revoking sessions on identity changes
 ## Notes
 
 Source: full repository audit of `6ecc941` (2026-11-11). Confirmed by reading the code. Changing tickets to ids needs a migration: Full tier with a plan.
+
+- complete: Done without a ticket schema migration; see plan 20261111-2300-session-revocation-on-identity-change

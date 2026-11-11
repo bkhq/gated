@@ -27,10 +27,13 @@ interface RequestOptions {
 // the user. Anywhere else, 401 means "session is gone, go re-login".
 const SKIP_GLOBAL_UNAUTHORIZED_PREFIXES = ['/api/auth/', '/api/sso/', '/api/admin/encryption/']
 
-// Account writes and reveals carry a step-up confirmation; their 401 means
-// "wrong password/OTP" and is shown in the confirmation prompt.
+// Account writes, reveals and adding a public key carry a step-up
+// confirmation; their 401 means "wrong password/OTP" and is shown in the
+// confirmation prompt.
 function isStepUpRequest(path: string, method: string): boolean {
-  return method !== 'GET' && path.startsWith('/admin/api/accounts')
+  if (method === 'GET')
+    return false
+  return path.startsWith('/admin/api/accounts') || path === '/api/profile/credentials/public-keys'
 }
 
 let onUnauthorized: (() => void) | null = null

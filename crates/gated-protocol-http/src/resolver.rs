@@ -97,16 +97,10 @@ pub async fn resolve_target(
 ) -> Result<Target, ResolveError> {
     let name = target_name_from_request(req, config)?;
     let mut cp = services.config_provider.lock().await;
-    let targets = cp
-        .list_targets()
+    cp.get_target(&name)
         .await
-        .map_err(|e| ResolveError::ListTargets(anyhow::anyhow!(e)))?;
-    for target in targets {
-        if target.name == name {
-            return Ok(target);
-        }
-    }
-    Err(ResolveError::NotFound { name })
+        .map_err(|e| ResolveError::ListTargets(anyhow::anyhow!(e)))?
+        .ok_or(ResolveError::NotFound { name })
 }
 
 /// Extract the leading label of `host` if `host` shapes as

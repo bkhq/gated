@@ -10,7 +10,7 @@ Based on [Warpgate](https://github.com/warp-tech/warpgate) by Warpgate contribut
 
 - SSH, HTTPS, MySQL, PostgreSQL, Kubernetes proxying
 - Web SQL Console against MySQL / PostgreSQL targets (readonly-safe, 30 s statement timeout, 5 MiB result cap)
-- Web SSH / DB terminals (xterm.js over WebSocket)
+- Web SSH terminal (xterm.js over WebSocket)
 - Admin-issued user API tokens (`X-Gated-Token`)
 - Centralized authentication with 2FA (TOTP) and SSO (OpenID Connect)
 - Role-based access control (RBAC)

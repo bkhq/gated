@@ -1,5 +1,4 @@
-//! Request-rate limiter for the SQL Console and DB Terminal gateway
-//! endpoints.
+//! Request-rate limiter for the SQL Console gateway endpoints.
 //!
 //! Unlike [`crate::rate_limiting::RateLimiterRegistry`] which enforces
 //! bytes-per-second on protocol streams, this limiter enforces
@@ -9,8 +8,6 @@
 //! - `GET  /api/db/tables/:target`
 //! - `GET  /api/db/columns/:target`
 //! - `POST /api/db/query/:target`
-//! - `GET  /api/mysql/terminal/:target` (WebSocket)
-//! - `GET  /api/postgres/terminal/:target` (WebSocket)
 //!
 //! Quotas live in the `parameters` table
 //! (`sql_console_rate_limit_per_user`, `sql_console_rate_limit_per_target`).

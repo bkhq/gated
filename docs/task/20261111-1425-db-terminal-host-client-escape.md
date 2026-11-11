@@ -1,6 +1,6 @@
 # 20261111-1425-db-terminal-host-client-escape Stop web DB terminals from giving users a shell on the gateway
 
-- **status**: in_progress
+- **status**: completed
 - **priority**: P0
 - **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
@@ -33,3 +33,5 @@ Options to weigh in the proposal:
 3. Until fixed, gate the feature behind a config flag that defaults to off.
 
 Option 2 is hard to make complete for `psql`; option 1 removes the class of bug. Related: 20261111-1425-command-control-coverage, 20261111-1425-db-readonly-enforcement.
+
+- complete: Decision (owner, 2026-11-11): remove the host client. The terminal endpoints, PTY bridge and portable-pty are gone; database targets open in the SQL console (UI redirect, ticket claim, target header). Lode image no longer installs DB clients. Verified: clippy, gated-admin unit tests, web gates, tests/http/web-ticket-scope.

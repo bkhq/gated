@@ -1,69 +1,90 @@
 use axum::extract::{Request, State};
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use cookie::Cookie;
 use gated_common::web::server::ConnectionInfo;
 use gated_core::Services;
 
-use crate::http_service::common::{SESSION_COOKIE_NAME, is_localhost_host, request_host};
+use crate::http_service::common::{
+    RequestAuthorization, SESSION_COOKIE_NAME, is_localhost_host, request_host,
+};
 
-/// Validate a WebSocket request's `Origin` header to mitigate Cross-Site
-/// WebSocket Hijacking (CSWSH). WS upgrades are exempt from CORS / the
-/// Same-Origin Policy, so a browser will attach the session cookie to a
-/// handshake initiated by an attacker page. We therefore explicitly require the
-/// `Origin` host to match either the request's own host (same-origin) or the
-/// configured external host (or one of its subdomains, for cross-subdomain SSO).
-///
-/// Returns `true` if the upgrade may proceed. A missing or unparseable `Origin`
-/// is rejected.
-pub(crate) async fn is_ws_origin_allowed(
-    headers: &HeaderMap,
-    uri: &http::Uri,
-    services: &Services,
+/// Whether a browser page served from `origin_host` may open a
+/// cookie-authenticated WebSocket: the request's own host, the external host,
+/// or a subdomain of an explicitly configured cookie domain. Hosts of proxied
+/// HTTP targets (`<label>.<proxy_base_domain>`) are never trusted.
+fn origin_host_allowed(
+    origin_host: &str,
+    request_host: Option<&str>,
+    external_host: Option<&str>,
+    cookie_domain: Option<&str>,
+    proxy_base_domain: &str,
 ) -> bool {
-    let Some(origin) = headers
-        .get(http::header::ORIGIN)
-        .and_then(|origin| origin.to_str().ok())
-    else {
+    let origin_host = origin_host.to_ascii_lowercase();
+    let proxy_base_domain = proxy_base_domain.trim_matches('.').to_ascii_lowercase();
+    if !proxy_base_domain.is_empty() && origin_host.ends_with(&format!(".{proxy_base_domain}")) {
         return false;
-    };
-    let Some(origin_host) = origin
-        .parse::<http::Uri>()
-        .ok()
-        .and_then(|u| u.host().map(str::to_owned))
-    else {
-        return false;
-    };
-
-    // Same-origin: the Origin host equals the request's own Host. Covers direct
-    // access and local development without any configuration.
-    let request_host = request_host(headers, uri);
-    if request_host.as_deref() == Some(origin_host.as_str()) {
+    }
+    if request_host.is_some_and(|host| host.eq_ignore_ascii_case(&origin_host))
+        || external_host.is_some_and(|host| host.eq_ignore_ascii_case(&origin_host))
+    {
         return true;
     }
+    cookie_domain.is_some_and(|domain| {
+        let domain = domain.trim_matches('.').to_ascii_lowercase();
+        !domain.is_empty()
+            && (origin_host == domain || origin_host.ends_with(&format!(".{domain}")))
+    })
+}
 
-    // Otherwise the Origin must match the configured external host (or one of
-    // its subdomains). Reuse the same configured-host source as the Host-binding
-    // check in `common.rs`.
+/// A missing or unparseable `Origin` is rejected.
+async fn is_ws_origin_allowed(headers: &HeaderMap, uri: &http::Uri, services: &Services) -> bool {
+    let Some(origin_host) = headers
+        .get(http::header::ORIGIN)
+        .and_then(|origin| origin.to_str().ok())
+        .and_then(|origin| origin.parse::<http::Uri>().ok())
+        .and_then(|origin| origin.host().map(str::to_owned))
+    else {
+        return false;
+    };
+    let request_host = request_host(headers, uri);
     let config = services.config.read().await;
-    let base_host = config
-        .store
-        .admin
-        .cookie_domain
-        .as_deref()
-        .map(|d| d.strip_prefix('.').unwrap_or(d).to_string())
-        .or_else(|| {
-            config
-                .construct_external_url(None, None)
-                .ok()
-                .and_then(|url| url.host_str().map(str::to_owned))
-        });
+    let external_host = config
+        .construct_external_url(None, None)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_owned));
+    origin_host_allowed(
+        &origin_host,
+        request_host.as_deref(),
+        external_host.as_deref(),
+        config.store.admin.cookie_domain.as_deref(),
+        &config.store.http.base_domain,
+    )
+}
 
-    match base_host {
-        Some(base) => origin_host == base || origin_host.ends_with(&format!(".{base}")),
-        None => false,
+/// Refuses a WebSocket upgrade that rides on a session cookie unless its
+/// `Origin` is trusted: browsers attach the cookie to cross-site handshakes.
+pub async fn ws_origin_guard(request: Request, next: Next) -> Response {
+    let is_upgrade = request
+        .headers()
+        .get(http::header::UPGRADE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("websocket"));
+    let is_session = matches!(
+        request.extensions().get::<RequestAuthorization>(),
+        Some(RequestAuthorization::Session(_))
+    );
+    if is_upgrade && is_session {
+        let Some(services) = request.extensions().get::<Services>().cloned() else {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        };
+        if !is_ws_origin_allowed(request.headers(), request.uri(), &services).await {
+            tracing::warn!(target: "audit", path = %request.uri().path(), "websocket_origin_rejected");
+            return (StatusCode::FORBIDDEN, "Invalid Origin").into_response();
+        }
     }
+    next.run(request).await
 }
 
 #[derive(Clone)]
@@ -191,4 +212,86 @@ pub async fn cookie_host_middleware(
         }
     }
     resp
+}
+
+#[cfg(test)]
+mod tests {
+    use super::origin_host_allowed;
+
+    #[test]
+    fn same_host_and_external_host_are_trusted() {
+        assert!(origin_host_allowed(
+            "gw.example.com",
+            Some("gw.example.com"),
+            None,
+            None,
+            ""
+        ));
+        assert!(origin_host_allowed(
+            "GW.example.com",
+            Some("10.0.0.1"),
+            Some("gw.example.com"),
+            None,
+            ""
+        ));
+        assert!(!origin_host_allowed(
+            "evil.example",
+            Some("gw.example.com"),
+            Some("gw.example.com"),
+            None,
+            ""
+        ));
+    }
+
+    #[test]
+    fn a_subdomain_is_trusted_only_under_a_configured_cookie_domain() {
+        let ext = Some("gw.example.com");
+        assert!(!origin_host_allowed(
+            "app.gw.example.com",
+            ext,
+            ext,
+            None,
+            ""
+        ));
+        assert!(origin_host_allowed(
+            "sso.example.com",
+            ext,
+            ext,
+            Some(".example.com"),
+            ""
+        ));
+        assert!(!origin_host_allowed(
+            "badexample.com",
+            ext,
+            ext,
+            Some(".example.com"),
+            ""
+        ));
+    }
+
+    #[test]
+    fn proxied_target_hosts_are_never_trusted() {
+        let ext = Some("gw.example.com");
+        for origin in ["app.proxy.example.com", "app.gw.example.com"] {
+            let base = origin
+                .split_once('.')
+                .map(|(_, base)| base)
+                .unwrap_or_default();
+            assert!(!origin_host_allowed(
+                origin,
+                ext,
+                ext,
+                Some(".example.com"),
+                base
+            ));
+            assert!(!origin_host_allowed(origin, Some(origin), ext, None, base));
+        }
+        assert!(origin_host_allowed(
+            "gw.example.com",
+            ext,
+            ext,
+            None,
+            "gw.example.com"
+        ));
+    }
 }

@@ -1,8 +1,8 @@
 # 20261111-1425-sql-console-connection-state-leak Reset pooled SQL console connections between requests
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

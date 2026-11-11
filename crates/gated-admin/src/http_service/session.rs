@@ -12,6 +12,7 @@ use cookie::Cookie;
 use gated_common::SessionId;
 use gated_common::helpers::rng::get_crypto_rng;
 use gated_common::web::ApiArgument;
+use gated_core::Services;
 use rand::Rng;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -30,6 +31,8 @@ enum SessionStatus {
 
 struct SessionInner {
     status: SessionStatus,
+    /// Move the session to a fresh identifier when the request completes.
+    renew: bool,
     entries: BTreeMap<String, Value>,
 }
 
@@ -45,6 +48,7 @@ impl Session {
         Self {
             inner: Arc::new(RwLock::new(SessionInner {
                 status: SessionStatus::Unchanged,
+                renew: false,
                 entries,
             })),
         }
@@ -91,9 +95,18 @@ impl Session {
         inner.status = SessionStatus::Purged;
     }
 
-    fn snapshot(&self) -> (SessionStatus, BTreeMap<String, Value>) {
+    /// Replaces the session identifier, so one known before sign-in cannot
+    /// be used afterwards.
+    pub fn renew(&self) {
+        self.inner
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .renew = true;
+    }
+
+    fn snapshot(&self) -> (SessionStatus, bool, BTreeMap<String, Value>) {
         let inner = self.inner.read().unwrap_or_else(PoisonError::into_inner);
-        (inner.status, inner.entries.clone())
+        (inner.status, inner.renew, inner.entries.clone())
     }
 }
 
@@ -299,7 +312,14 @@ pub async fn session_middleware(
 
     let mut response = next.run(request).await;
 
-    let cookie = match (session.snapshot(), session_id) {
+    let (status, renew, entries) = session.snapshot();
+    if renew
+        && status == SessionStatus::Changed
+        && let Some(id) = session_id.take()
+    {
+        layer.remove(&id);
+    }
+    let cookie = match ((status, entries), session_id) {
         ((SessionStatus::Changed, entries), Some(id)) => {
             layer.store(&id, entries);
             layer.refreshed_cookie(id)
@@ -427,7 +447,7 @@ impl SessionStore {
 
     pub async fn revoke_other_sessions(
         &mut self,
-        username: &str,
+        user_id: uuid::Uuid,
         keep: Option<SessionId>,
     ) -> usize {
         let mut ids = Vec::new();
@@ -438,7 +458,7 @@ impl SessionStore {
                     .await
                     .user_info
                     .as_ref()
-                    .is_some_and(|user| user.username == username)
+                    .is_some_and(|user| user.id == user_id)
             {
                 ids.push(*id);
             }
@@ -447,6 +467,14 @@ impl SessionStore {
             self.forget(*id);
         }
         ids.len()
+    }
+
+    /// The id of the browser session `session` belongs to.
+    pub async fn id_of(&self, session: &Session) -> Option<SessionId> {
+        match self.handle_for(session) {
+            Some(handle) => Some(handle.lock().await.id()),
+            None => None,
+        }
     }
 
     /// Snapshot of live authenticated browser sessions, oldest first.
@@ -501,11 +529,62 @@ impl SessionStore {
     }
 }
 
+/// Ends the browser sessions and closes the proxy sessions of a user, except
+/// `keep`. Returns how many were ended.
+pub async fn end_user_sessions(
+    services: &Services,
+    store: &Mutex<SessionStore>,
+    user_id: uuid::Uuid,
+    keep: Option<SessionId>,
+) -> usize {
+    let mut ended = store
+        .lock()
+        .await
+        .revoke_other_sessions(user_id, keep)
+        .await;
+    let state = services.state.write().await;
+    for (id, session_state) in state.sessions.iter() {
+        if Some(*id) == keep {
+            continue;
+        }
+        let mut session_state = session_state.lock().await;
+        if session_state
+            .user_info
+            .as_ref()
+            .is_some_and(|user| user.id == user_id)
+        {
+            session_state.handle.close();
+            ended += 1;
+        }
+    }
+    ended
+}
+
+/// Ends a user's sessions after one of their credentials changed. The
+/// session making the change is kept.
+pub async fn end_sessions_after_credential_change(
+    services: &Services,
+    store: &Mutex<SessionStore>,
+    acting: &Session,
+    user_id: uuid::Uuid,
+) {
+    let keep = store.lock().await.id_of(acting).await;
+    end_user_sessions(services, store, user_id, keep).await;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use gated_common::auth::AuthStateUserInfo;
     use uuid::Uuid;
+
+    fn user_id(username: &str) -> Uuid {
+        let mut bytes = [0; 16];
+        for (slot, byte) in bytes.iter_mut().zip(username.bytes()) {
+            *slot = byte;
+        }
+        Uuid::from_bytes(bytes)
+    }
 
     async fn add(store: &mut SessionStore, username: &str, at: Instant) -> SessionId {
         let id = Uuid::new_v4();
@@ -514,7 +593,7 @@ mod tests {
             Arc::new(Mutex::new(ManagementSessionHandle {
                 id,
                 user_info: Some(AuthStateUserInfo {
-                    id: Uuid::new_v4(),
+                    id: user_id(username),
                     username: username.into(),
                 }),
                 created: chrono::Utc::now(),
@@ -532,7 +611,12 @@ mod tests {
         let keep = add(&mut store, "alice", now).await;
         let other = add(&mut store, "alice", now).await;
         let bob = add(&mut store, "bob", now - Duration::from_secs(120)).await;
-        assert_eq!(store.revoke_other_sessions("alice", Some(keep)).await, 1);
+        assert_eq!(
+            store
+                .revoke_other_sessions(user_id("alice"), Some(keep))
+                .await,
+            1
+        );
         assert!(store.session_handles.contains_key(&keep));
         assert!(!store.session_handles.contains_key(&other));
         assert!(store.session_handles.contains_key(&bob));

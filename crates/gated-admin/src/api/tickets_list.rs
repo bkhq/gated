@@ -4,10 +4,10 @@ use gated_common::GatedError;
 use gated_common::helpers::hash::generate_ticket_secret;
 use gated_common::web::{Data, Json};
 use gated_common::{api_response, api_routes};
-use gated_core::SharedDatabaseConnection;
-use gated_db_entities::Ticket;
+use gated_core::{ConfigProvider, Services, SharedDatabaseConnection};
+use gated_db_entities::{Target, Ticket, User};
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ActiveModelTrait, EntityTrait};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
@@ -62,16 +62,52 @@ async fn api_get_all_tickets(
 #[utoipa::path(post, path = "/tickets", operation_id = "create_ticket")]
 async fn api_create_ticket(
     db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
     _sec_scheme: AnySecurityScheme,
     body: Json<CreateTicketRequest>,
 ) -> Result<CreateTicketResponse, GatedError> {
     use gated_db_entities::Ticket;
 
+    let bad_request = |reason: &str| Ok(CreateTicketResponse::BadRequest(Json(reason.into())));
     if body.username.is_empty() {
-        return Ok(CreateTicketResponse::BadRequest(Json("username".into())));
+        return bad_request("username");
     }
     if body.target_name.is_empty() {
-        return Ok(CreateTicketResponse::BadRequest(Json("target_name".into())));
+        return bad_request("target_name");
+    }
+    if body.expiry.is_some_and(|expiry| expiry <= Utc::now()) {
+        return bad_request("expiry must be in the future");
+    }
+    if body.number_of_uses.is_some_and(|uses| uses <= 0) {
+        return bad_request("number_of_uses must be positive");
+    }
+    {
+        let db = gated_core::db_required(&db).await?;
+        if User::Entity::find()
+            .filter(User::Column::Username.eq(&body.username))
+            .one(&db)
+            .await?
+            .is_none()
+        {
+            return bad_request("user not found");
+        }
+        if Target::Entity::find()
+            .filter(Target::Column::Name.eq(&body.target_name))
+            .one(&db)
+            .await?
+            .is_none()
+        {
+            return bad_request("target not found");
+        }
+    }
+    let authorized = services
+        .config_provider
+        .lock()
+        .await
+        .authorize_target(&body.username, &body.target_name)
+        .await?;
+    if !authorized {
+        return bad_request("user is not authorized for this target");
     }
 
     let db = gated_core::db_required(&db).await?;

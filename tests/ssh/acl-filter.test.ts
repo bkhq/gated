@@ -107,6 +107,49 @@ describe("SSH command-ACL exec filter", () => {
     expect(allowed.exitCode).toBe(0);
   });
 
+  test("deny rule blocks a matching line piped into a shell without a PTY", async () => {
+    const sshPort = processes.startSshServer({
+      trustedKeys: [readPubkey(wgClientEd25519PubkeyPath())],
+    });
+    await waitPort(sshPort);
+
+    const api = adminClient(`https://localhost:${wg.httpPort}`);
+    const { user, target } = await setupUserAndSshTarget(api, sshPort);
+    await api.createCommandAclRule({
+      name: `deny-nopty-${target.name}`,
+      priority: 10,
+      protocol: "ssh",
+      match_type: "keyword",
+      pattern: "whoami",
+      action: "deny",
+    });
+
+    const shell = (script: string) => {
+      const proc = processes.startSshClient(
+        `${user.username}:${target.name}@localhost`,
+        "-T",
+        "-p", String(wg.sshPort),
+        "-i", "/dev/null",
+        "-o", "PreferredAuthentications=password",
+        { password: "123" }
+      );
+      (proc.stdin as any).write(script);
+      (proc.stdin as any).end();
+      return proc;
+    };
+
+    const denied = shell("echo before\nwhoami\necho after\n");
+    const deniedOut = await new Response(denied.stdout).text();
+    await denied.exited;
+    expect(deniedOut).not.toContain("root");
+    expect(deniedOut).not.toContain("after");
+
+    const allowed = shell("echo before\necho after\n");
+    const allowedOut = await new Response(allowed.stdout).text();
+    await allowed.exited;
+    expect(allowedOut).toContain("after");
+  });
+
   test("role-scoped deny rule matches on SSH exec (role parity)", async () => {
     const sshPort = processes.startSshServer({
       trustedKeys: [readPubkey(wgClientEd25519PubkeyPath())],

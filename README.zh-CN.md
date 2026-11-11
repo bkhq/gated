@@ -10,7 +10,7 @@
 
 - SSH、HTTPS、MySQL、PostgreSQL、Kubernetes 代理
 - 面向 MySQL / PostgreSQL 目标的 Web SQL 控制台（只读安全、语句超时 30 秒、结果上限 5 MiB）
-- Web SSH / 数据库终端（xterm.js over WebSocket）
+- Web SSH 终端（xterm.js over WebSocket）
 - 管理员签发的用户 API 令牌（`X-Gated-Token`）
 - 集中认证，支持双因素（TOTP）和 SSO（OpenID Connect）
 - 基于角色的访问控制（RBAC）

@@ -9,9 +9,11 @@ use gated_common::auth::{
 };
 use gated_common::helpers::rng::get_crypto_rng;
 use gated_common::{Secret, TargetMySqlOptions, TargetOptions};
+use gated_core::auth_throttle::validate_credential_throttled;
 use gated_core::command_acl::AclAction;
 use gated_core::command_acl_loader::DbCommandAclEnforcer;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
+use gated_core::sql_validation::{SqlDialect, escapes_readonly_session};
 use gated_core::{ConfigProvider, GatedServerHandle, Services, authorize_ticket, consume_ticket};
 use gated_database_protocols::io::{BufExt, Decode};
 use gated_database_protocols::mysql::protocol::Capabilities;
@@ -280,8 +282,14 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                 let user_auth_result = {
                     let credential = AuthCredential::Password(password);
 
-                    let mut cp = self.services.config_provider.lock().await;
-                    if cp.validate_credential(&username, &credential).await? {
+                    if validate_credential_throttled(
+                        &self.services.config_provider,
+                        &username,
+                        &self.remote_address.ip().to_string(),
+                        &credential,
+                    )
+                    .await?
+                    {
                         state.add_valid_credential(credential);
                     }
 
@@ -364,15 +372,15 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                 .config_provider
                 .lock()
                 .await
-                .list_targets()
+                .get_target(&target_name)
                 .await?
-                .iter()
-                .filter_map(|t| match t.options {
-                    TargetOptions::MySql(ref options) => Some((t, options)),
+                .and_then(|t| match t.options {
+                    TargetOptions::MySql(ref options) => {
+                        let options = options.clone();
+                        Some((t, options))
+                    }
                     _ => None,
                 })
-                .find(|(t, _)| t.name == target_name)
-                .map(|(t, opt)| (t.clone(), opt.clone()))
         };
 
         let Some((target, mysql_options)) = target else {
@@ -493,6 +501,11 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             x => x,
         }?;
 
+        let readonly = options.readonly;
+        if readonly {
+            Self::make_upstream_readonly(&mut client).await?;
+        }
+
         self.server_handle
             .lock()
             .await
@@ -512,11 +525,35 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             // COM_QUERY
             if com == Some(&0x03) {
                 let query = Query::decode(payload)?;
-                info!(query=%query.0, "SQL");
+                info!(length = query.0.len(), "SQL");
+                debug!(query=%query.0, "SQL");
                 let started = Instant::now();
                 let statement_kind = classify_sql(&query.0);
                 let mut success = true;
                 let mut error_message = None;
+
+                if readonly && escapes_readonly_session(&query.0, SqlDialect::MySql) {
+                    warn!(session=%self.id, "SQL command blocked on a read-only target");
+                    let metadata = SqlAuditSessionMetadata::MySqlProxySession {
+                        target: target_name.clone(),
+                        database: self.database.clone(),
+                    };
+                    let item = SqlAuditRecordingItem::Query {
+                        timestamp: chrono::Utc::now(),
+                        target_kind: "mysql".to_string(),
+                        target: target_name.clone(),
+                        database: self.database.clone(),
+                        sql: query.0.clone(),
+                        statement_kind,
+                        readonly: Some(true),
+                        elapsed_ms: 0,
+                        success: false,
+                        error: Some("blocked: target is read-only".to_string()),
+                    };
+                    self.record_sql_audit(item, metadata).await;
+                    self.send_error(1792, "target is read-only").await?;
+                    continue;
+                }
 
                 // Command-ACL enforcement. An empty ruleset (or no match) yields
                 // Allow. Deny and Review both block: DB proxies have no interactive
@@ -693,6 +730,9 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                 client.stream.push(&&payload[..], ())?;
                 client.stream.flush().await?;
                 self.passthrough_until_result(&mut client).await?;
+                if readonly && com == Some(&0x1f) {
+                    Self::make_upstream_readonly(&mut client).await?;
+                }
             } else if let Some(com) = com {
                 warn!("Unknown packet type {com}");
                 self.send_error(1047, "Not implemented").await?;
@@ -701,6 +741,24 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             }
         }
 
+        Ok(())
+    }
+
+    /// Makes every later transaction of the upstream session read-only.
+    async fn make_upstream_readonly(client: &mut MySqlClient) -> Result<(), MySqlError> {
+        client.stream.reset_sequence_id();
+        client
+            .stream
+            .push(&Query("SET SESSION TRANSACTION READ ONLY".to_owned()), ())?;
+        client.stream.flush().await?;
+        let Some(response) = client.stream.recv().await? else {
+            return Err(MySqlError::Eof);
+        };
+        if response.first() != Some(&0) {
+            return Err(MySqlError::ProtocolError(
+                "upstream refused read-only mode".to_string(),
+            ));
+        }
         Ok(())
     }
 

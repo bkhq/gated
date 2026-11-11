@@ -17,7 +17,7 @@ use gated_common::helpers::otp::{
     OtpSecretKey, TotpCheck, check_totp, generate_key, generate_setup_url,
 };
 use gated_common::{GatedError, Secret, User, UserPasswordCredential};
-use gated_core::{ConfigProvider, Services};
+use gated_core::Services;
 use gated_db_entities::{
     self as entities, CertificateCredential, Parameters, PasswordCredential, PublicKeyCredential,
 };
@@ -30,9 +30,10 @@ use tracing::info;
 use uuid::Uuid;
 
 use super::common::{get_user, is_ticket_auth};
+use crate::api::{RevealConfirmation, StepUpFailure, verify_step_up};
 use crate::http_service::api::AnySecurityScheme;
-use crate::http_service::common::{RequestAuthorization, require_auth};
-use crate::http_service::session::SessionStore;
+use crate::http_service::common::{RequestAuthorization, forbid_ticket_sessions, require_auth};
+use crate::http_service::session::{SessionStore, end_user_sessions};
 
 /// How long a started OTP enrollment (a server-generated secret awaiting a
 /// proof-of-possession code) is retained before it is pruned.
@@ -117,6 +118,10 @@ api_response! {
 struct NewPublicKeyCredential {
     label: String,
     openssh_public_key: String,
+    /// Browser sessions confirm with the password when no OTP is enrolled.
+    password: Option<String>,
+    /// Browser sessions confirm with an OTP when one is enrolled.
+    otp: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -154,6 +159,8 @@ api_response! {
         Unauthorized(Json<String>),
         #[oai(status = 403)]
         Forbidden(Json<String>),
+        #[oai(status = 429)]
+        RateLimited,
     }
 }
 
@@ -309,33 +316,6 @@ async fn parameters_based_auth(request: Request, next: Next) -> Response {
     next.run(request).await
 }
 
-/// Close every live proxy session belonging to `username` except `keep`,
-/// immediately revoking any access the session still held. Returns how many
-/// sessions were closed.
-async fn invalidate_other_sessions(
-    services: &Services,
-    username: &str,
-    keep: Option<Uuid>,
-) -> usize {
-    let state = services.state.write().await;
-    let mut closed = 0;
-    for (id, session_state) in state.sessions.iter() {
-        if Some(*id) == keep {
-            continue;
-        }
-        let mut session_state = session_state.lock().await;
-        let belongs = session_state
-            .user_info
-            .as_ref()
-            .is_some_and(|u| u.username == username);
-        if belongs {
-            session_state.handle.close();
-            closed += 1;
-        }
-    }
-    closed
-}
-
 #[utoipa::path(
     get,
     path = "/profile/credentials",
@@ -399,6 +379,7 @@ async fn api_get_credentials_state(
     operation_id = "change_my_password"
 )]
 async fn api_change_password(
+    req: http::request::Parts,
     auth: Data<RequestAuthorization>,
     services: Data<Services>,
     session: Session,
@@ -424,11 +405,16 @@ async fn api_change_password(
     // session must not be sufficient to replace the password — that
     // would let a hijacked session take over the account outright.
     let old_cred = AuthCredential::Password(Secret::new(body.old_password.clone()));
-    let reauthenticated = {
-        let mut cp = services.config_provider.lock().await;
-        cp.validate_credential(&user_model.username, &old_cred)
-            .await?
-    };
+    let client_ip = gated_core::logging::http::get_client_ip(&req, Some(&services))
+        .await
+        .unwrap_or_else(|| "<unknown>".to_owned());
+    let reauthenticated = gated_core::auth_throttle::validate_credential_throttled(
+        &services.config_provider,
+        &user_model.username,
+        &client_ip,
+        &old_cred,
+    )
+    .await?;
     if !reauthenticated {
         info!(target: "audit",
             username = %user_model.username,
@@ -469,19 +455,9 @@ async fn api_change_password(
     // password change immediately cuts off access that older (possibly
     // attacker-held) sessions still carry. The current session is left
     // intact so the caller stays logged in.
-    let current_session_id = {
-        let store = session_store.lock().await;
-        match store.handle_for(&session) {
-            Some(handle) => Some(handle.lock().await.id()),
-            None => None,
-        }
-    };
-    let closed = session_store
-        .lock()
-        .await
-        .revoke_other_sessions(&user_model.username, current_session_id)
-        .await
-        + invalidate_other_sessions(&services, &user_model.username, current_session_id).await;
+    let current_session_id = session_store.lock().await.id_of(&session).await;
+    let closed =
+        end_user_sessions(&services, &session_store, user_model.id, current_session_id).await;
 
     info!(target: "audit",
         username = %user_model.username,
@@ -521,6 +497,49 @@ async fn api_create_pk(
             "not an OpenSSH public key".into(),
         )));
     };
+
+    // A key signs in to SSH on its own, so a browser session proves the
+    // strongest factor the user has before adding one.
+    if matches!(&*auth, RequestAuthorization::Session(_)) {
+        let has_otp = user_model
+            .find_related(entities::OtpCredential::Entity)
+            .count(&db)
+            .await?
+            > 0;
+        let has_password = user_model
+            .find_related(entities::PasswordCredential::Entity)
+            .count(&db)
+            .await?
+            > 0;
+        if has_otp || has_password {
+            let confirmation = RevealConfirmation {
+                reason: None,
+                password: body.password.clone().filter(|_| !has_otp),
+                otp: body.otp.clone().filter(|_| has_otp),
+            };
+            match verify_step_up(&services, &db, &user_model.username, 0, &confirmation).await? {
+                Ok(_) => {}
+                Err(StepUpFailure::BadRequest) => {
+                    return Ok(CreatePublicKeyCredentialResponse::BadRequest(Json(
+                        if has_otp {
+                            "confirmation required: otp"
+                        } else {
+                            "confirmation required: password"
+                        }
+                        .into(),
+                    )));
+                }
+                Err(StepUpFailure::Unauthorized) => {
+                    return Ok(CreatePublicKeyCredentialResponse::Unauthorized(Json(
+                        "confirmation rejected".into(),
+                    )));
+                }
+                Err(StepUpFailure::RateLimited) => {
+                    return Ok(CreatePublicKeyCredentialResponse::RateLimited);
+                }
+            }
+        }
+    }
 
     let object = PublicKeyCredential::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -901,6 +920,7 @@ pub fn router() -> OpenApiRouter {
         api_issue_certificate,
         api_revoke_certificate,
     )
+    .route_layer(from_fn(forbid_ticket_sessions))
     .route_layer(from_fn(require_auth))
     .route_layer(from_fn(parameters_based_auth))
 }

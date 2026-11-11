@@ -9,6 +9,7 @@ use bytes::{Bytes, BytesMut};
 use futures::{Stream, StreamExt, TryStreamExt};
 use gated_common::http_headers::{
     API_PROXY_MAX_BODY_SIZE, DONT_FORWARD_HEADERS, X_GATED_TARGET, X_GATED_TOKEN,
+    scrub_secret_query_params,
 };
 use gated_common::{GatedError, HttpProxyFlavor, TargetHttpOptions, UpstreamAuth};
 use gated_tls::TlsMode;
@@ -250,7 +251,8 @@ pub fn construct_target_url(
     }
 
     let normalized_path = path.trim_start_matches('/');
-    let query = req.uri.query().unwrap_or("");
+    let scrubbed = scrub_secret_query_params(&req.uri);
+    let query = scrubbed.query().unwrap_or("");
 
     let url_str = if query.is_empty() {
         format!("{}/{}", base_url.trim_end_matches('/'), normalized_path)
@@ -593,7 +595,7 @@ mod tests {
 
     use super::{
         FlavorHook, cap_body_stream, collect_capped_body, collect_forwarded_headers,
-        sanitize_location, sanitize_set_cookie,
+        construct_target_url, sanitize_location, sanitize_set_cookie,
     };
 
     fn parts(builder: http::request::Builder) -> Parts {
@@ -634,6 +636,20 @@ mod tests {
             );
         }
         assert_eq!(headers.get("x-custom").map(String::as_str), Some("keep-me"));
+    }
+
+    #[test]
+    fn gateway_credentials_are_not_forwarded_in_the_query() {
+        let req =
+            parts(http::Request::builder().uri("/a?x=1&gated-token=secret&gated-ticket=other&y=2"));
+        let url = construct_target_url(&req, "/a", "http://up.example/", FlavorHook::Generic)
+            .expect("url");
+        assert_eq!(url.as_str(), "http://up.example/a?x=1&y=2");
+
+        let only = parts(http::Request::builder().uri("/a?gated-token=secret"));
+        let url = construct_target_url(&only, "/a", "http://up.example/", FlavorHook::Generic)
+            .expect("url");
+        assert_eq!(url.as_str(), "http://up.example/a");
     }
 
     /// A `Domain=` widening to the shared parent domain

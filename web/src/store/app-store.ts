@@ -84,7 +84,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTerminalFullscreen: terminalFullscreen => set({ terminalFullscreen }),
   // A target has at most one SQL console and one file manager tab; terminals
   // always open a new session.
-  openTerminalTab: (tab) => {
+  openTerminalTab: (requested) => {
+    // Database targets have no terminal; they open in the SQL console.
+    const tab = requested.type === 'terminal' && requested.kind !== 'ssh'
+      ? { ...requested, type: 'sql' as const }
+      : requested
     const existing = tab.type !== 'terminal'
       ? get().terminalTabs.find(item => item.type === tab.type && item.targetName === tab.targetName)
       : undefined

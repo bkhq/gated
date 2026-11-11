@@ -9,7 +9,7 @@ use utoipa_axum::router::OpenApiRouter;
 
 use super::common::get_user;
 use crate::http_service::api::AnySecurityScheme;
-use crate::http_service::common::{RequestAuthorization, require_auth};
+use crate::http_service::common::{RequestAuthorization, forbid_ticket_sessions, require_auth};
 
 /// Upper bound on the rows returned by the self-service session list.
 const MAX_OWN_SESSIONS: u64 = 500;
@@ -53,5 +53,7 @@ async fn api_get_my_sessions(
 }
 
 pub fn router() -> OpenApiRouter {
-    api_routes!(api_get_my_sessions,).route_layer(from_fn(require_auth))
+    api_routes!(api_get_my_sessions,)
+        .route_layer(from_fn(forbid_ticket_sessions))
+        .route_layer(from_fn(require_auth))
 }

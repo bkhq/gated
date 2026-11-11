@@ -1,8 +1,8 @@
 # 20261111-1425-http-proxy-token-forwarded-upstream Strip the gateway token from proxied request URLs
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

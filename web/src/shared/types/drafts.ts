@@ -92,6 +92,7 @@ export interface ApiTokenCreation {
 export interface PublicKeyDraft {
   name: string
   material: string
+  confirmation?: { password?: string, otp?: string }
 }
 
 export interface OtpDeviceDraft {

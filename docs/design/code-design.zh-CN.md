@@ -164,7 +164,6 @@ HTTP 反向代理监听器是例外：它是自由函数 `gated_protocol_http::s
 | HTTP 代理，通用变体（每个请求） | `crates/gated-protocol-http/src/server.rs` | `"Http"` | `ApiSessionHandle` | 客户端 IP |
 | HTTP 代理，Kubernetes 变体（关联） | `crates/gated-protocol-http/src/kubernetes/correlator.rs` | `"Http"` | `KubernetesSessionHandle` | 客户端 IP |
 | Web SSH 终端 | `crates/gated-admin/src/http_service/api/ssh_terminal.rs` | `"WebSSH"` | `TerminalSessionHandle` | `None` |
-| Web 数据库终端 | `crates/gated-admin/src/http_service/api/db_terminal.rs` | `"WebMySQL"` / `"WebPostgreSQL"` | `TerminalSessionHandle` | `None` |
 | Web 文件管理器 | `crates/gated-admin/src/http_service/api/sftp.rs` | `"WebSFTP"` | `TerminalSessionHandle` | `None` |
 
 浏览器登录不在这里登记；它们在管理会话注册表中（3.1 节）。
@@ -197,7 +196,7 @@ Kubernetes 关联器以 `(username, target_name, client_ip)`（`correlator.rs`�
   `TerminalRecorder`；端口转发通道用 `TrafficRecorder` 记录原始流量。
 - MySQL/Postgres 代理：每条查询一个 `StructuredRecorder` SQL 审计条目（`crates/gated-protocol-mysql/src/session.rs`）。
 - HTTP 代理：通过 `crates/gated-protocol-http/src/recording.rs` 记录请求 / 响应。
-- 管理端 Web 终端：在 `ssh_terminal.rs` 和 `db_terminal.rs` 中启动 `TerminalRecorder`。
+- 管理端 Web 终端：在 `ssh_terminal.rs` 中启动 `TerminalRecorder`。
 
 所有路径都经过 `SessionRecordings::start`（`crates/gated-core/src/recordings/mod.rs`），它写入 `Recording` 行并创建
 磁盘文件。如果录制被关闭，调用返回 `Error::Disabled`，协议在不录制的情况下继续。
@@ -272,10 +271,10 @@ Kubernetes 关联器以 `(username, target_name, client_ip)`（`correlator.rs`�
 
 ### 3.2 Web 终端是代理会话
 
-浏览器内的 SSH 终端（`/api/ssh/terminal/:target_name`）和数据库终端（`/api/{mysql,postgres}/terminal/:target_name`）
-挂载在管理监听器上，但通过 `State::register_session` 以协议 `WebSSH`、`WebMySQL` 和 `WebPostgreSQL` 登记完整的会话，
+浏览器内的 SSH 终端（`/api/ssh/terminal/:target_name`）
+挂载在管理监听器上，但通过 `State::register_session` 以协议 `WebSSH` 登记完整的会话，
 在句柄上设置用户 / 目标，并启动 `TerminalRecorder` 录制。与原生代理会话的区别：`remote_address` 为 `None`，SSH 终端
-复用 `gated-protocol-ssh` 的 SSH 客户端，数据库终端启动本地 CLI 客户端进程，关闭会话即结束终端（2.5 节）。在
+复用 `gated-protocol-ssh` 的 SSH 客户端，关闭会话即结束终端（2.5 节）。在
 WebSocket 升级之前会检查每用户并发终端上限（`MAX_SESSIONS_PER_USER`）。
 
 ### 3.3 共享的内存注册表
@@ -337,7 +336,6 @@ browser history，因此深链接通过该回退解析。
 | `/admin/api/sessions/changes` | `crates/gated-admin/src/api/sessions_list.rs`（挂载于 `src/lib.rs`） | `web/src/features/sessions/hooks/use-sessions-stream.ts` | 每次变更一个空文本帧；客户端使其查询缓存失效 |
 | `/api/auth/web-auth-requests/stream` | `crates/gated-admin/src/http_service/api/auth.rs`（挂载于 `http_service/mod.rs`） | `web/src/features/auth-requests/` | 待处理网页认证请求通知 |
 | `/api/ssh/terminal/:target_name` | `http_service/api/ssh_terminal.rs` | `web/src/features/terminal/` | 二进制帧，首字节为类型：`0x00` 数据、`0x01` 尺寸 JSON、`0x02` 状态 JSON、`0x03` 主机密钥验证（`ssh_terminal.rs`） |
-| `/api/mysql/terminal/:t`、`/api/postgres/terminal/:t` | `http_service/api/db_terminal.rs` | 同一终端功能 | 相同分帧，基于 PTY 的 CLI 客户端 |
 
 共享的自动重连 WebSocket hook（`web/src/shared/hooks/use-websocket.ts`）处理协议切换（ws/wss）、指数退避和可插拔
 解码。

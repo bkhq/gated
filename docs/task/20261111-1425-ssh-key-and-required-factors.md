@@ -1,6 +1,6 @@
 # 20261111-1425-ssh-key-and-required-factors Decide how a self-registered SSH key relates to required factors
 
-- **status**: in_progress
+- **status**: completed
 - **priority**: P2
 - **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
@@ -26,3 +26,5 @@ Reviewing SSH key versus required factors
 ## Notes
 
 Source: full repository audit of `6ecc941` (2026-11-11). The behaviour was approved by the owner on 2026-11-11; this task asks only for the registration path and the empty-policy case to be settled.
+
+- complete: Decision (owner, 2026-11-11): keep the key-alone rule; adding a key from a browser session confirms identity (OTP when enrolled, else password; per request). Verified by tests/http/public-key-step-up.test.ts. The empty SSH policy case is not changed here; it moves to 20261111-1425-audit-minor-hardening.

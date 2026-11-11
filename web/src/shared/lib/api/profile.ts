@@ -113,6 +113,8 @@ export function ticketFromApi(api: ExistingProfileTicket, issuedBy: string): Tic
   }
 }
 
+export type PublicKeyConfirmationFactor = 'password' | 'otp'
+
 export const profileApi = {
   async changePassword(body: ChangePasswordRequest): Promise<void> {
     await userApi.post('/profile/credentials/password', body)
@@ -147,9 +149,17 @@ export const profileApi = {
       const body: NewPublicKeyCredential = {
         label: draft.name,
         openssh_public_key: draft.material,
+        ...draft.confirmation,
       }
       const created = await userApi.post<ExistingPublicKeyCredential>('/profile/credentials/public-keys', body, signal)
       return publicKeyFromApi(created)
+    },
+    // The factor the server asks for before it adds a key.
+    async confirmationFactor(signal?: AbortSignal): Promise<PublicKeyConfirmationFactor | null> {
+      const state = await userApi.get<CredentialsState>('/profile/credentials', signal)
+      if (state.otp.length > 0)
+        return 'otp'
+      return state.password === 'Unset' ? null : 'password'
     },
     async remove(id: string, signal?: AbortSignal): Promise<void> {
       await userApi.delete<void>(`/profile/credentials/public-keys/${id}`, signal)

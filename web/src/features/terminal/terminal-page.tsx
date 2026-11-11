@@ -1,5 +1,5 @@
-import type { StatusPayload, TerminalKind } from './codec'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import type { StatusPayload } from './codec'
+import { Navigate, useNavigate, useParams } from '@tanstack/react-router'
 import { ArrowLeft, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,12 +8,6 @@ import { EmptyState } from '@/shared/components/empty-state'
 import { Button } from '@/shared/ui/button'
 import { useAppStore } from '@/store/app-store'
 import { TerminalScreen } from './terminal-screen'
-
-const KINDS: readonly TerminalKind[] = ['ssh', 'mysql', 'postgres']
-
-function isTerminalKind(value: string): value is TerminalKind {
-  return (KINDS as readonly string[]).includes(value)
-}
 
 export function TerminalPage() {
   const { t } = useTranslation()
@@ -43,7 +37,10 @@ export function TerminalPage() {
     // (closed / error / rate_limited) and choose to retry or back out.
   }, [])
 
-  if (!isTerminalKind(kind)) {
+  if (kind === 'mysql' || kind === 'postgres')
+    return <Navigate to="/db/$targetName" params={{ targetName }} replace />
+
+  if (kind !== 'ssh') {
     return (
       <section
         aria-label={t('a11y.terminal.workspace')}
@@ -71,12 +68,6 @@ export function TerminalPage() {
         </div>
       </section>
     )
-  }
-
-  const titleByKind: Record<TerminalKind, string> = {
-    ssh: t('terminal.title.ssh', { name: targetName }),
-    mysql: t('terminal.title.mysql', { name: targetName }),
-    postgres: t('terminal.title.postgres', { name: targetName }),
   }
 
   const bannerLabels = {
@@ -141,7 +132,7 @@ export function TerminalPage() {
           <ArrowLeft size={16} />
         </Button>
         <h1 className="truncate text-sm font-semibold text-foreground">
-          {titleByKind[kind]}
+          {t('terminal.title.ssh', { name: targetName })}
         </h1>
         <div className="ml-auto">
           <Button

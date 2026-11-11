@@ -8,7 +8,7 @@ beforeEach(() => {
 
 it('opens a terminal tab and activates it', () => {
   useAppStore.getState().openTerminalTab({ type: 'terminal', kind: 'ssh', targetId: 't1', targetName: 'web-01' })
-  useAppStore.getState().openTerminalTab({ type: 'terminal', kind: 'mysql', targetId: 't2', targetName: 'db-01' })
+  useAppStore.getState().openTerminalTab({ type: 'terminal', kind: 'ssh', targetId: 't2', targetName: 'db-01' })
   const { terminalTabs, activeTerminalTabId } = useAppStore.getState()
   expect(terminalTabs.map(tab => tab.targetName)).toEqual(['web-01', 'db-01'])
   expect(new Set(terminalTabs.map(tab => tab.id)).size).toBe(2)
@@ -39,15 +39,14 @@ it('closing the active tab activates the last remaining tab', () => {
   expect(useAppStore.getState().activeTerminalTabId).toBeNull()
 })
 
-it('reuses an open SQL console tab for the same target', () => {
+it('opens database targets in the SQL console, one tab per target', () => {
   const store = useAppStore.getState()
   store.openTerminalTab({ type: 'sql', kind: 'mysql', targetId: 't2', targetName: 'db-01' })
-  store.openTerminalTab({ type: 'terminal', kind: 'mysql', targetId: 't2', targetName: 'db-01' })
   const [sql] = useAppStore.getState().terminalTabs as [TerminalTab]
-  store.openTerminalTab({ type: 'sql', kind: 'mysql', targetId: 't2', targetName: 'db-01' })
+  store.openTerminalTab({ type: 'terminal', kind: 'mysql', targetId: 't2', targetName: 'db-01' })
   const { terminalTabs, activeTerminalTabId } = useAppStore.getState()
-  expect(terminalTabs.map(tab => tab.type)).toEqual(['sql', 'terminal'])
+  expect(terminalTabs.map(tab => tab.type)).toEqual(['sql'])
   expect(activeTerminalTabId).toBe(sql.id)
-  store.openTerminalTab({ type: 'sql', kind: 'postgres', targetId: 't3', targetName: 'pg-01' })
-  expect(useAppStore.getState().terminalTabs).toHaveLength(3)
+  store.openTerminalTab({ type: 'terminal', kind: 'postgres', targetId: 't3', targetName: 'pg-01' })
+  expect(useAppStore.getState().terminalTabs.map(tab => tab.type)).toEqual(['sql', 'sql'])
 })

@@ -126,6 +126,11 @@ impl PostgresClient {
         startup
             .parameters
             .insert("user".to_owned(), target.username.clone());
+        if target.readonly {
+            // Appended last so it overrides the same setting sent by the client.
+            let options = startup.parameters.entry("options".to_owned()).or_default();
+            options.push_str(" -c default_transaction_read_only=on");
+        }
         startup.protocol_number_major = options.protocol_number_major;
         startup.protocol_number_minor = options.protocol_number_minor;
 

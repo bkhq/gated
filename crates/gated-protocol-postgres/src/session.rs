@@ -7,9 +7,11 @@ use gated_common::auth::{
     AuthCredential, AuthResult, AuthSelector, AuthStateUserInfo, CredentialKind,
 };
 use gated_common::{Secret, TargetOptions, TargetPostgresOptions};
+use gated_core::auth_throttle::validate_credential_throttled;
 use gated_core::command_acl::AclAction;
 use gated_core::command_acl_loader::DbCommandAclEnforcer;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
+use gated_core::sql_validation::{SqlDialect, escapes_readonly_session};
 use gated_core::{ConfigProvider, GatedServerHandle, Services, authorize_ticket, consume_ticket};
 use pgwire::error::ErrorInfo;
 use pgwire::messages::response::{ReadyForQuery, TransactionStatus};
@@ -288,13 +290,13 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
 
                                 let credential = AuthCredential::Password(password);
 
-                                if self
-                                    .services
-                                    .config_provider
-                                    .lock()
-                                    .await
-                                    .validate_credential(&username, &credential)
-                                    .await?
+                                if validate_credential_throttled(
+                                    &self.services.config_provider,
+                                    &username,
+                                    &self.remote_address.ip().to_string(),
+                                    &credential,
+                                )
+                                .await?
                                 {
                                     state.add_valid_credential(credential);
                                 } else {
@@ -402,15 +404,15 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                 .config_provider
                 .lock()
                 .await
-                .list_targets()
+                .get_target(&target_name)
                 .await?
-                .iter()
-                .filter_map(|t| match t.options {
-                    TargetOptions::Postgres(ref options) => Some((t, options)),
+                .and_then(|t| match t.options {
+                    TargetOptions::Postgres(ref options) => {
+                        let options = options.clone();
+                        Some((t, options))
+                    }
                     _ => None,
                 })
-                .find(|(t, _)| t.name == target_name)
-                .map(|(t, opt)| (t.clone(), opt.clone()))
         };
 
         let Some((target, postgres_options)) = target else {
@@ -592,6 +594,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
         options: TargetPostgresOptions,
         acl: DbCommandAclEnforcer,
     ) -> Result<(), PostgresError> {
+        let readonly = options.readonly;
         let mut client = match PostgresClient::connect(
             &options,
             ConnectionOptions {
@@ -710,6 +713,28 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                             };
 
                             if let Some(sql) = acl_sql {
+                                if readonly && escapes_readonly_session(&sql, SqlDialect::Postgres) {
+                                    warn!(session=%self.id, "SQL command blocked on a read-only target");
+                                    self.record_blocked_sql_audit(
+                                        &target_name,
+                                        &sql,
+                                        "blocked: target is read-only".to_string(),
+                                    )
+                                    .await;
+                                    self.stream.push(pgwire::messages::response::ErrorResponse::from(
+                                        ErrorInfo::new(
+                                            "ERROR".to_owned(),
+                                            "25006".to_owned(),
+                                            "target is read-only".to_owned(),
+                                        ),
+                                    ))?;
+                                    if is_simple {
+                                        self.stream
+                                            .push(ReadyForQuery::new(TransactionStatus::Idle))?;
+                                    }
+                                    self.stream.flush().await?;
+                                    continue;
+                                }
                                 // Command-ACL enforcement. An empty ruleset (or no match) yields
                                 // Allow. Deny and Review both block: DB proxies have no interactive
                                 // approval path. A rule-load failure fails open (forwards) so a
@@ -893,13 +918,13 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
         debug!(?msg, "C->S message");
         match msg {
             PgWireFrontendMessage::Parse(query) => {
-                info!(query_name=?query.name, query=query.query, "Preparing query");
+                info!(query_name=?query.name, length = query.query.len(), "Preparing query");
             }
             PgWireFrontendMessage::Execute(query) => {
                 info!(query_name=?query.name, "Executing prepared query");
             }
             PgWireFrontendMessage::Query(query) => {
-                info!(query=%query.query, "Query");
+                info!(length = query.query.len(), "Query");
             }
             _ => (),
         }

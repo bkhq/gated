@@ -89,9 +89,10 @@ pub struct TargetMySqlOptions {
     #[serde(default)]
     pub default_database_name: Option<String>,
 
-    /// When true, the SQL Console rejects anything not starting with
-    /// SELECT / SHOW / EXPLAIN / WITH. This is convenience-level only —
-    /// use a real read-only DB user for hard guarantees.
+    /// When true, the SQL console accepts only read statements and the
+    /// native proxy keeps the upstream session in read-only transaction
+    /// mode. Dynamic SQL and server-side functions can get around it — use a
+    /// read-only DB user for hard guarantees.
     #[serde(default)]
     pub readonly: bool,
 }

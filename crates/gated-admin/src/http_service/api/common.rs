@@ -87,6 +87,7 @@ mod tests {
         let ticket = RequestAuthorization::Session(SessionAuthorization::Ticket {
             username: "victim".to_owned(),
             target_name: "prod-db".to_owned(),
+            ticket_id: uuid::Uuid::nil(),
         });
         assert!(is_ticket_auth(&ticket));
 

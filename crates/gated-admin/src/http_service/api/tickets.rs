@@ -17,12 +17,14 @@ use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
-use super::auth::{LOGIN_RATE_LIMITER, login_rate_limit_key};
+use super::auth::{LOGIN_RATE_LIMITER, login_rate_limit_key, rate_limit_allows};
 use super::common::{get_user, is_ticket_auth};
 use crate::http_service::common::{
-    RequestAuthorization, SessionAuthorization, SessionExt, require_auth,
+    RequestAuthorization, authorize_ticket_session, forbid_ticket_sessions, require_auth,
 };
-use crate::http_service::session::Session;
+use crate::http_service::session::{Session, SessionStore};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Deserialize, ToSchema)]
 struct NewProfileTicket {
@@ -262,13 +264,13 @@ async fn api_claim_ticket(
     body: Json<ClaimTicketRequest>,
 ) -> Result<ClaimTicketResponse, GatedError> {
     let rate_key = login_rate_limit_key(&req, &services, "ticket").await;
-    if LOGIN_RATE_LIMITER.check_key(&rate_key).is_err() {
+    if !rate_limit_allows(&LOGIN_RATE_LIMITER, &rate_key) {
         warn!(target: "audit", protocol = "http", "ticket_claim_rate_limited");
         return Ok(ClaimTicketResponse::TooManyRequests);
     }
 
     let secret = Secret::new(body.secret.clone());
-    let Some((ticket, _user_info)) = authorize_ticket(&services.db, &secret).await? else {
+    let Some((ticket, user_info)) = authorize_ticket(&services.db, &secret).await? else {
         warn!(target: "audit", protocol = "http", "ticket_claim_rejected");
         return Ok(ClaimTicketResponse::NotFound(Json(
             "ticket not found, expired or used up".into(),
@@ -286,10 +288,11 @@ async fn api_claim_ticket(
     };
 
     consume_ticket(&services.db, &ticket.id).await?;
-    session.set_auth(SessionAuthorization::Ticket {
-        username: ticket.username.clone(),
-        target_name: ticket.target.clone(),
-    });
+    let store = req
+        .extensions
+        .get::<Arc<Mutex<SessionStore>>>()
+        .ok_or_else(|| GatedError::Other(anyhow::anyhow!("SessionStore not in request").into()))?;
+    authorize_ticket_session(store, &session, &ticket, user_info).await?;
     info!(target: "audit",
         username = %ticket.username,
         ticket_id = %ticket.id,
@@ -306,6 +309,7 @@ async fn api_claim_ticket(
 
 pub fn router() -> OpenApiRouter {
     api_routes!(api_get_tickets, api_create_ticket, api_delete_ticket,)
+        .route_layer(from_fn(forbid_ticket_sessions))
         .route_layer(from_fn(require_auth))
         .merge(api_routes!(api_claim_ticket,))
 }

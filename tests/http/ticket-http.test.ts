@@ -12,9 +12,8 @@ import { randomUUID } from "crypto";
 // establishes a ticket-scoped session. (The dedicated HTTP-proxy upstream
 // listener authenticates via Bearer/api-token/mTLS, not tickets.)
 //
-// GET /api/profile/tickets requires authentication and has no ticket-specific
-// guard, so a 200 proves the ticket authenticated, and an unauthenticated 401
-// is the control.
+// GET /api/profile/tickets answers 403 to a ticket session and 401 to an
+// unauthenticated request, so a 403 proves the ticket authenticated.
 // This host runs a large fleet of concurrent e2e suites that allocate listener
 // ports from the same low range, so gated's own bind can lose the race
 // ("Address already in use"). Retry the whole bring-up on fresh ports.
@@ -91,14 +90,14 @@ describe("HTTP Ticket Auth (HTTP / ?gated-ticket=)", () => {
       `${url}/api/profile/tickets?gated-ticket=${encodeURIComponent(ticket.secret)}`,
       { tls: { rejectUnauthorized: false } } as any
     );
-    expect(viaQuery.status).toBe(200);
+    expect(viaQuery.status).toBe(403);
 
     // The same ticket also authenticates via the Authorization header form.
     const viaHeader = await fetch(`${url}/api/profile/tickets`, {
       headers: { Authorization: `Gated ${ticket.secret}` },
       tls: { rejectUnauthorized: false },
     } as any);
-    expect(viaHeader.status).toBe(200);
+    expect(viaHeader.status).toBe(403);
 
     // The authenticating ticket is bound to the HTTP/Api
     // target created above.

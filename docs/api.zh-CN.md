@@ -173,6 +173,8 @@
 >
 > 指定用户角色未映射的账号会被拒绝。每次选择写一条 `Target account selected` 审计（`account`），被拒写 `Target account not selected`。限制：HTTP 目标始终使用默认登录；内联凭据登录无法按名指定，只有在它是用户唯一选择时才可用。
 
+> 所有 `/api/profile/*` 端点（§1.4–§1.7）对票据会话返回 `403`：票据只能访问其绑定的目标，不能操作背后的账户。
+
 ### 1.4 个人凭据 (`credentials.rs`)
 
 > 全部路径外层包了 `parameters_based_auth`：如果 `parameters.allow_own_credential_management = false`，**所有**这些端点直接返回 `403 Forbidden` plain text `"Credential management is disabled"`，而不是 OpenAPI 枚举的 `403` 变体。
@@ -188,8 +190,9 @@
 
 #### `POST /api/profile/credentials/public-keys` — `add_my_public_key` [OAS]
 
-- Body：`Json<NewPublicKeyCredential> { label: string, openssh_public_key: string }`。
-- Responses：`201 Created` `Json<ExistingPublicKeyCredential>` / `401` / `403`。返回完整的 `openssh_public_key` 及其 SHA256 `fingerprint`。
+- Body：`Json<NewPublicKeyCredential> { label: string, openssh_public_key: string, password?: string, otp?: string }`。
+- 浏览器会话需确认身份：已绑定 OTP 时用 `otp`，否则用 `password`；两者都没有的用户（仅 SSO）无需确认。API 令牌无需确认。每次请求都要确认，没有宽限窗口。
+- Responses：`201 Created` `Json<ExistingPublicKeyCredential>` / `400`（不是 OpenSSH 公钥，或 `confirmation required: otp|password`）/ `401`（确认被拒绝；OTP 码只能用一次）/ `403` / `429`。返回完整的 `openssh_public_key` 及其 SHA256 `fingerprint`。
 
 #### `DELETE /api/profile/credentials/public-keys/:id` — `delete_my_public_key` [OAS]
 
@@ -230,7 +233,7 @@
 #### `POST /api/profile/api-tokens` — `create_api_token` [OAS]
 
 - Body：`Json<NewApiToken> { label: string, expiry: date-time }`。
-- Responses：`201 Created` `Json<TokenAndSecret> { token, secret }`（`secret` — one-time reveal）/ `401`。
+- Responses：`201 Created` `Json<TokenAndSecret> { token, secret }`（`secret` — one-time reveal）/ `400`（`expiry` 不在未来）/ `401`。
 
 #### `DELETE /api/profile/api-tokens/:id` — `delete_my_api_token` [OAS]
 
@@ -305,19 +308,14 @@
   - `0x00 MSG_TERMINAL_DATA` — 双向：原始终端字节。
   - `0x01 MSG_RESIZE` — 客户端 → 服务端：JSON `{ cols: u32, rows: u32 }`。
   - `0x02 MSG_STATUS` — 服务端 → 客户端：JSON `{ status, message }`，`status` ∈ `"info" | "connected" | "closed" | "error" | "rate_limited"`。
-    `connected` 帧额外带 `details`：`{ session_id, address, username, host_key?: { algorithm, fingerprint } }`（SSH）；数据库终端为 `{ session_id, address, username, tls: { mode, verify }, client, database? }`。
+    `connected` 帧额外带 `details`：`{ session_id, address, username, host_key?: { algorithm, fingerprint } }`。
   - `0x03 MSG_HOST_KEY_VERIFY` — 仅当 `ssh.host_key_verification = prompt` 且远端 host key 未知：
     - 服务端 → 客户端：`{ status: "host_key_verify", algorithm, key_base64, fingerprint, host, port }`；`fingerprint` 为 OpenSSH 格式的 `SHA256:…`，`host`/`port` 为目标地址。
     - 客户端 → 服务端：`{ accepted: bool }`，必须 60 s 内到达。
 - Keepalive：服务端每 30 s `Ping`。无自定义 close code，错误用最后一帧 `MSG_STATUS` 反馈。
 - 主机密钥错误：已知主机密钥不一致时，`MSG_STATUS {status:"error"}` 的 message 以 `Host key mismatch` 开头并给出收到与已知的两个 `SHA256:` 指纹；`auto_reject` 拒绝未知密钥时提示由管理员在 Known hosts 中添加。
 
-#### `GET /api/mysql/terminal/:target_name` — `api_mysql_terminal` [raw]
-#### `GET /api/postgres/terminal/:target_name` — `api_postgres_terminal` [raw]
-
-- 服务端 fork 真实的 `mysql` / `psql` 二进制，把 PTY 桥接到 WS。账号、密码（`MYSQL_PWD`/`PGPASSWORD`）、TLS 模式、host/port/默认库均来自目标的存储配置。
-- 升级前 `400 / 401`；超过 `sql_console_rate_limiter` 时升级后立即发送 `MSG_STATUS {status:"rate_limited",...}` 并关闭。
-- 帧格式同 SSH，但 `MSG_RESIZE` 使用 `u16`，无 `0x03`。`MSG_STATUS.status` ∈ `"connected" | "error" | "rate_limited"`。
+数据库目标没有终端端点；Web UI 用 SQL 控制台（`/api/db/*`）打开它们。
 
 ### 1.9 文件管理 (`sftp.rs`)
 
@@ -664,7 +662,7 @@
 - Body：`CreateTicketRequest { username, target_name, expiry?: date-time, number_of_uses?: i16, description? }`。
 - Responses：
   - `201 Created` `TicketAndSecret { ticket: Ticket, secret: string }`（`secret` — one-time reveal）。
-  - `400` `Json<string>`：`"username"` 或 `"target_name"`。
+  - `400` `Json<string>`：`username` / `target_name` 为空或不存在、用户在该目标上没有角色、`expiry` 不在未来，或 `number_of_uses` 小于 1。
 
 #### `DELETE /admin/api/tickets/:id` — `delete_ticket` [OAS] — `204` / `404`。
 
@@ -1100,6 +1098,8 @@ ProfileTicketAndSecret { ticket: ExistingProfileTicket, secret: string }        
 - `http` — `TargetHttpOptions { url, tls: Tls, ca_certificate?: secret, upstream_auth: UpstreamAuth, flavor: "generic" | "kubernetes" }`
 - `mysql` — `TargetMySqlOptions { host, port: u16=3306, username="root", password?: secret, tls, default_database_name?, readonly: bool }`
 - `postgres` — `TargetPostgresOptions { host, port, username, password?: secret, tls, idle_timeout?, default_database_name?, readonly }`
+
+  `readonly` 在所有路径上生效。SQL 控制台只接受单条读语句（`validate_readonly_sql`，按目标引擎的引号与注释规则做词法分析），并在 `READ ONLY` 事务中执行。原生代理把上游会话置为只读事务模式（MySQL/MariaDB 使用 `SET SESSION TRANSACTION READ ONLY`，并在 `COM_RESET_CONNECTION` 后重新设置；PostgreSQL 在启动参数中加入 `default_transaction_read_only=on`），并拒绝会解除该模式或绕过它写入的语句：`READ WRITE`、各 `*_read_only` 变量、`set_config`、`RESET`、`DISCARD`、`DO`、`PREPARE`、`SET GLOBAL`/`PERSIST`、`INTO OUTFILE`/`DUMPFILE` 以及服务器管理语句（MySQL 错误码 `1792`，PostgreSQL SQLSTATE `25006`）。这只是防护栏：执行动态 SQL 的服务端函数，或 `dblink_exec` 这类带副作用的 PostgreSQL 函数不会被拦截。需要硬性保证时，请为上游账户只授予只读权限。
 
 ```
 Tls            { mode: TlsMode, verify: bool }

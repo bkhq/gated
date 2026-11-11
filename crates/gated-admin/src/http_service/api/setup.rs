@@ -89,7 +89,7 @@ async fn init(
 ) -> Response {
     let client_ip = client_ip(&req, &services).await;
     let key = client_ip.clone().unwrap_or_else(|| "<unknown>".to_owned());
-    if state.limiter.check_key(&key).is_err() {
+    if !super::auth::rate_limit_allows(&state.limiter, &key) {
         return error_response(
             StatusCode::TOO_MANY_REQUESTS,
             "rate_limited",

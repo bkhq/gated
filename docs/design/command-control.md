@@ -54,3 +54,27 @@ once at authentication time (`load_user_role_ids`, the same loader the DB proxie
 use) and stored on the session, then passed into `AclContext.role_ids` for both
 `exec` and best-effort PTY evaluation. If role resolution fails the
 set stays empty (best-effort) and global/protocol/target rules still apply.
+
+## Coverage by access path
+
+| Path | Enforced | Recorded | Notes |
+|---|---|---|---|
+| SSH `exec` | yes | yes (`origin: exec`) | Exact command line; `review` waits for an administrator. |
+| SSH shell with a PTY | best effort | yes (`origin: pty`) | Lines are rebuilt from keystrokes at Enter. |
+| SSH shell without a PTY (`ssh -T`, piped input) | best effort | yes (`origin: pty`) | Filtered like a PTY shell. |
+| Web SSH terminal | best effort | yes (`origin: web`) | Same reconstruction; `deny` and `review` both end the terminal, since a browser terminal cannot wait for a review. |
+| MySQL proxy (`COM_QUERY`) | yes | yes | Other commands that carry SQL are answered "Not implemented". |
+| PostgreSQL proxy (simple and extended query) | yes | yes | Checked at `Query` and at `Execute`. |
+| SQL console | yes | yes | `deny` and `review` both answer `403`. |
+
+Best effort means reconstruction from the byte stream: line editing, history
+recall, tab completion, pasted multi-line input, shell aliases and a nested
+interpreter (`bash`, `python`, an editor's shell escape) all produce commands
+the filter does not see as typed. Treat interactive rules as a guard-rail and
+use `exec`-only access or the upstream account's privileges when a rule must
+hold.
+
+The per-role file transfer permission gates the `sftp` subsystem (native SFTP
+and the web file manager). It does not stop `scp -O` (legacy protocol over
+`exec`), `cat file | ssh target 'cat > file'`, or port forwarding; restrict
+those with command rules on `exec` or on the upstream host.

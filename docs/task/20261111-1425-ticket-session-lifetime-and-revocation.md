@@ -1,8 +1,8 @@
 # 20261111-1425-ticket-session-lifetime-and-revocation Bind a claimed ticket session to its ticket and make it revocable
 
-- **status**: pending
+- **status**: completed
 - **priority**: P1
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

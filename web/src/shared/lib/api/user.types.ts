@@ -918,6 +918,10 @@ export interface components {
         NewPublicKeyCredential: {
             label: string;
             openssh_public_key: string;
+            /** @description Browser sessions confirm with an OTP when one is enrolled. */
+            otp?: string | null;
+            /** @description Browser sessions confirm with the password when no OTP is enrolled. */
+            password?: string | null;
         };
         OtpLoginRequest: {
             otp: string;
@@ -1937,6 +1941,14 @@ export interface operations {
                     "application/json; charset=utf-8": components["schemas"]["TokenAndSecret"];
                 };
             };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -2269,6 +2281,12 @@ export interface operations {
                 content: {
                     "application/json; charset=utf-8": string;
                 };
+            };
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

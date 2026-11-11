@@ -1,8 +1,8 @@
 # 20261111-1425-db-readonly-enforcement Enforce the read-only target flag on every database path
 
-- **status**: pending
+- **status**: completed
 - **priority**: P1
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

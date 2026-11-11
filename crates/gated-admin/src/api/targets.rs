@@ -11,8 +11,9 @@ use gated_core::Services;
 use gated_core::SharedDatabaseConnection;
 use gated_db_entities::Target::TargetKind;
 use gated_db_entities::{
-    Account, KnownHost, Role, Target, TargetAccount, TargetRoleAssignment, TargetStatus,
+    Account, KnownHost, Role, Target, TargetAccount, TargetRoleAssignment, TargetStatus, Ticket,
 };
+use sea_orm::sea_query::Expr;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait, QueryFilter,
     QueryOrder, Set, TransactionTrait,
@@ -340,6 +341,7 @@ async fn api_update_target(
     }
 
     let txn = db.begin().await?;
+    let old_name = target.name.clone();
     let mut model: Target::ActiveModel = target.into();
     model.name = Set(name);
     model.description = Set(body.description.clone().unwrap_or_default());
@@ -362,6 +364,14 @@ async fn api_update_target(
     };
     if let Some(accounts) = &body.accounts {
         replace_target_accounts(&txn, target.id, accounts).await?;
+    }
+    if target.name != old_name {
+        // Tickets name their target, so they follow the rename.
+        Ticket::Entity::update_many()
+            .col_expr(Ticket::Column::Target, Expr::value(target.name.clone()))
+            .filter(Ticket::Column::Target.eq(old_name))
+            .exec(&txn)
+            .await?;
     }
     txn.commit().await?;
     let target_id = target.id;
@@ -420,6 +430,11 @@ async fn api_delete_target(
     }
 
     TargetStatus::Entity::delete_by_id(target.id)
+        .exec(&db)
+        .await?;
+
+    Ticket::Entity::delete_many()
+        .filter(Ticket::Column::Target.eq(&target.name))
         .exec(&db)
         .await?;
 

@@ -8,7 +8,7 @@ use gated_common::helpers::pem::normalize_pem;
 use gated_common::web::{Data, Json};
 use gated_common::{AccountCredentials, GatedError, SshKeyAccountCredentials};
 use gated_common::{api_response, api_routes};
-use gated_core::{ConfigProvider, Services, SharedDatabaseConnection};
+use gated_core::{Services, SharedDatabaseConnection};
 use russh::keys::ssh_key::LineEnding;
 use russh::keys::{Algorithm, HashAlg, PrivateKey, decode_secret_key};
 use serde::{Deserialize, Serialize};
@@ -789,13 +789,13 @@ fn stored_credentials(account: &Account::Model) -> Result<AccountCredentials, St
 }
 
 /// A verified step-up confirmation, recorded in the audit log.
-pub(super) struct StepUp {
+pub(crate) struct StepUp {
     pub(super) username: String,
     pub(super) reason: String,
     pub(super) factor: &'static str,
 }
 
-pub(super) enum StepUpFailure {
+pub(crate) enum StepUpFailure {
     BadRequest,
     Unauthorized,
     RateLimited,
@@ -863,7 +863,7 @@ async fn confirm_step_up(
 
 /// Check a password/OTP confirmation with per-actor throttling and OTP
 /// single-use. `account_id` scopes the per-account limit (0 for creates).
-async fn verify_step_up(
+pub(crate) async fn verify_step_up(
     services: &Services,
     db: &impl ConnectionTrait,
     username: &str,
@@ -883,12 +883,12 @@ async fn verify_step_up(
             return Ok(Err(StepUpFailure::Unauthorized));
         }
     }
-    if !services
-        .config_provider
-        .lock()
-        .await
-        .validate_credential(username, &credential)
-        .await?
+    if !gated_core::auth_throttle::validate_credential(
+        &services.config_provider,
+        username,
+        &credential,
+    )
+    .await?
     {
         return Ok(Err(StepUpFailure::Unauthorized));
     }

@@ -87,13 +87,34 @@ audience 选项）。
 （`crates/gated-db-entities/src/Ticket.rs`）：`secret`（以哈希存储）、`username`、`target`、可选的
 `uses_left` 计数（null = 不限）以及可选的 `expiry`。
 
-- 创建（管理 API）时验证指定用户对该目标有权限，生成 32 字节随机数并十六进制编码
+- 票据把用户的访问收窄到单个目标，从不替代用户自身的授权：创建时要求用户已有该授权，每次使用都会重新检查，
+  用户失去授权时 `Services::revalidate_sessions` 会关闭票据会话。
+- 创建（管理 API）时验证用户和目标存在、用户对该目标有权限、`expiry` 在未来且 `number_of_uses` 为正，
+  生成 32 字节随机数并十六进制编码
   （`crates/gated-common/src/helpers/hash.rs`），密钥只返回一次。
 - 使用：`authorize_ticket`（`crates/gated-core/src/config_providers/mod.rs`）对提交的密钥求哈希、匹配摘要，
   并检查过期时间 / 使用次数；`consume_ticket` 原子地递减有限的 `uses_left`。
 - 协议入口：SSH/MySQL/PostgreSQL 使用 `ticket-<secret>` 形式的用户名；Web 门户接受 `gated-ticket` 查询参数，
   由 `ticket_middleware`（`crates/gated-admin/src/http_service/middleware/ticket.rs`）处理，建立仅限票据目标
   的会话。HTTP 反向代理监听器不接受票据。
+- 票据会话与浏览器会话一同列出并可在那里吊销；票据被删除或过期时会话随之结束，已打开的 Web 终端会在
+  10 秒内关闭。票据会话不能使用 `/api/profile/*`。
+- 票据记录的是用户名和目标名。删除用户或目标会删除其票据；重命名会把票据迁移到新名称，并结束以旧名称打开的
+  票据会话。
+
+## 登录失败节流
+
+`gated_core::auth_throttle` 在一张有上限的内存表中统计所有监听器（SSH、MySQL、PostgreSQL、Web 登录）的
+密码与 OTP 失败次数，窗口为 5 分钟。计数器满后，后续尝试不再校验，直接按凭据错误处理：
+
+| 计数器 | 每窗口上限 |
+|---|---|
+| 密码，按（用户，客户端地址） | 10 |
+| 密码，按客户端地址 | 60 |
+| 密码，按用户 | 100 |
+| OTP，按用户 | 10 |
+
+公钥、证书与 SSO 不计入。Web 登录另外保留自己的按次限流。计数器按进程保存，重启后清零。
 
 ## API 令牌与 Web 会话
 
@@ -103,7 +124,11 @@ audience 选项）。
 - **管理令牌**：`gated run --enable-admin-token` 把 `GATED_ADMIN_TOKEN` 环境变量的值映射到第一个管理员
   用户 —— 用于自动化和 e2e 测试框架。
 - **Web 会话**：cookie `gated-http-session`（`crates/gated-admin/src/http_service/common.rs`），服务端存储
-  会话，cookie max-age（默认 24 小时）和会话 max-age（默认 30 分钟）分开设置，并按主机校验 cookie。
+  会话，cookie max-age（默认 24 小时）和会话 max-age（默认 30 分钟）分开设置，并按主机校验 cookie。登录时
+  会更换会话标识。
+- **身份变更时吊销**（`end_user_sessions`，`crates/gated-admin/src/http_service/session.rs`）：管理员为用户
+  设置或移除密码，移除 OTP、公钥、SSO 或证书凭据，移除 `admin` 角色，重命名或删除用户时，该用户的浏览器会话
+  结束、代理会话被关闭。凭据变更会保留发起变更的那个会话。会话按用户 id 匹配。
 
 ## 认证失败的行为
 

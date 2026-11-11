@@ -21,7 +21,6 @@ hex = { workspace = true, features = ["alloc"] }
 http = { version = "1.0", default-features = false }
 metrics.workspace = true
 percent-encoding = { version = "2.1", default-features = false }
-portable-pty = "0.9"
 rand.workspace = true
 regex.workspace = true
 russh.workspace = true

@@ -25,8 +25,8 @@ describe('connectionCommand', () => {
 describe('claimDestination', () => {
   it('opens the terminal of the target, or the target list for HTTP', () => {
     expect(claimDestination('Ssh', 'web 01')).toBe('/ui/terminal/ssh/web%2001')
-    expect(claimDestination('MySql', 'db')).toBe('/ui/terminal/mysql/db')
-    expect(claimDestination('Postgres', 'db')).toBe('/ui/terminal/postgres/db')
+    expect(claimDestination('MySql', 'db')).toBe('/ui/db/db')
+    expect(claimDestination('Postgres', 'db')).toBe('/ui/db/db')
     expect(claimDestination('Http', 'site')).toBe('/ui/targets')
   })
 })

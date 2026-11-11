@@ -230,7 +230,6 @@ sites:
 | HTTP proxy, generic flavor (per request) | `crates/gated-protocol-http/src/server.rs` | `"Http"` | `ApiSessionHandle` | client IP |
 | HTTP proxy, Kubernetes flavor (correlated) | `crates/gated-protocol-http/src/kubernetes/correlator.rs` | `"Http"` | `KubernetesSessionHandle` | client IP |
 | Web SSH terminal | `crates/gated-admin/src/http_service/api/ssh_terminal.rs` | `"WebSSH"` | `TerminalSessionHandle` | `None` |
-| Web DB terminal | `crates/gated-admin/src/http_service/api/db_terminal.rs` | `"WebMySQL"` / `"WebPostgreSQL"` | `TerminalSessionHandle` | `None` |
 | Web file manager | `crates/gated-admin/src/http_service/api/sftp.rs` | `"WebSFTP"` | `TerminalSessionHandle` | `None` |
 
 Browser logins are not registered here; they live in the management
@@ -286,7 +285,7 @@ Recordings begin when a protocol has something to record:
 - HTTP proxy: request/response recording via
   `crates/gated-protocol-http/src/recording.rs`.
 - Admin web terminals: `TerminalRecorder` started at
-  `ssh_terminal.rs` and `db_terminal.rs`.
+  `ssh_terminal.rs`.
 
 All paths go through `SessionRecordings::start`
 (`crates/gated-core/src/recordings/mod.rs`), which writes the
@@ -404,14 +403,12 @@ The session list endpoints still exclude `protocol = "ManagementHTTP"`.
 
 ### 3.2 Web terminals are proxy sessions
 
-The in-browser SSH terminal (`/api/ssh/terminal/:target_name`) and DB
-terminals (`/api/{mysql,postgres}/terminal/:target_name`) are mounted on the
-management listener but register full sessions via
-`State::register_session` with protocols `WebSSH`, `WebMySQL` and
-`WebPostgreSQL`, set user/target on the handle, and start
-`TerminalRecorder` recordings. Differences from native proxy sessions:
+The in-browser SSH terminal (`/api/ssh/terminal/:target_name`) is mounted on
+the management listener but registers a full session via
+`State::register_session` with protocol `WebSSH`, sets user/target on the
+handle, and starts a `TerminalRecorder` recording. Differences from native proxy sessions:
 `remote_address` is `None`, the SSH terminal reuses the SSH client from
-`gated-protocol-ssh`, the DB terminal spawns a local CLI client process, and
+`gated-protocol-ssh`, and
 closing the session ends the terminal (section 2.5). A per-user concurrent terminal
 cap (`MAX_SESSIONS_PER_USER`) is enforced before the WebSocket upgrade.
 
@@ -501,7 +498,6 @@ basepath, so deep links resolve through that fallback.
 | `/admin/api/sessions/changes` | `crates/gated-admin/src/api/sessions_list.rs` (mounted at `src/lib.rs`) | `web/src/features/sessions/hooks/use-sessions-stream.ts` | empty text frame per change; client invalidates its query cache |
 | `/api/auth/web-auth-requests/stream` | `crates/gated-admin/src/http_service/api/auth.rs` (mounted at `http_service/mod.rs`) | `web/src/features/auth-requests/` | pending web-auth-request notifications |
 | `/api/ssh/terminal/:target_name` | `http_service/api/ssh_terminal.rs` | `web/src/features/terminal/` | binary frames, first byte = type: `0x00` data, `0x01` resize JSON, `0x02` status JSON, `0x03` host-key verification (`ssh_terminal.rs`) |
-| `/api/mysql/terminal/:t`, `/api/postgres/terminal/:t` | `http_service/api/db_terminal.rs` | same terminal feature | same framing, PTY-backed CLI client |
 
 A shared reconnecting WebSocket hook
 (`web/src/shared/hooks/use-websocket.ts`) handles scheme upgrade

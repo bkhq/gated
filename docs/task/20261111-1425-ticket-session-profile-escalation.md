@@ -1,8 +1,8 @@
 # 20261111-1425-ticket-session-profile-escalation Keep ticket sessions out of the profile API
 
-- **status**: pending
+- **status**: completed
 - **priority**: P1
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

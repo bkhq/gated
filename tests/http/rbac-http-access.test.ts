@@ -70,6 +70,7 @@ describe("RBAC HTTP-proxy access (allow/deny, revocation)", () => {
   let url: string;
   let proxyUrl: string;
   let upstream: Server;
+  const upstreamUrls: string[] = [];
 
   const timeout = Number(process.env.TIMEOUT || 20);
 
@@ -83,7 +84,8 @@ describe("RBAC HTTP-proxy access (allow/deny, revocation)", () => {
     // Self-contained HTTP echo upstream.
     upstream = Bun.serve({
       port: 0,
-      fetch() {
+      fetch(request) {
+        upstreamUrls.push(request.url);
         return new Response(UPSTREAM_BODY, { status: 200 });
       },
     });
@@ -129,6 +131,17 @@ describe("RBAC HTTP-proxy access (allow/deny, revocation)", () => {
     const res = await proxyGet(proxyUrl, targetName, allowedToken);
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(UPSTREAM_BODY);
+  }, 60_000);
+
+  test("a token passed in the query string is not forwarded upstream", async () => {
+    upstreamUrls.length = 0;
+    const res = await fetch(`${proxyUrl}/page?a=1&gated-token=${allowedToken}&b=2`, {
+      headers: { "X-Gated-Target": targetName }, tls: { rejectUnauthorized: false },
+    } as any);
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(upstreamUrls).toHaveLength(1);
+    expect(new URL(upstreamUrls[0]!).search).toBe("?a=1&b=2");
   }, 60_000);
 
   test("user WITHOUT the role is denied at the proxy", async () => {

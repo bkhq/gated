@@ -1,5 +1,6 @@
-//! Tokenizer-based readonly validation for SQL submitted to the SQL
-//! Console endpoint (`POST /api/db/query/:target`).
+//! Tokenizer-based readonly validation for SQL sent to a read-only database
+//! target: the allowlist used by the SQL console and the guard the native
+//! proxies apply on top of a read-only upstream session.
 //!
 //! This is strictly stricter than a `starts_with("SELECT")` check and
 //! catches the common bypass shapes we've seen in bug reports:
@@ -16,6 +17,14 @@
 //! small allow/deny lists.
 
 use std::fmt;
+
+/// Quoting and comment rules differ between the engines; lexing a statement
+/// with the wrong ones can hide code from the validator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SqlDialect {
+    MySql,
+    Postgres,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReadonlyViolation {
@@ -86,8 +95,8 @@ const DANGEROUS_FUNCTIONS: &[&str] = &[
 const ALLOWED_FIRST_KEYWORDS: &[&str] = &["SELECT", "SHOW", "EXPLAIN", "DESCRIBE", "DESC", "WITH"];
 
 /// Reject anything that is not an obviously safe read statement.
-pub fn validate_readonly_sql(sql: &str) -> Result<(), ReadonlyViolation> {
-    let stripped = strip_comments_and_strings(sql, false);
+pub fn validate_readonly_sql(sql: &str, dialect: SqlDialect) -> Result<(), ReadonlyViolation> {
+    let stripped = strip_comments_and_strings(sql, dialect, false);
     if stripped.trim().is_empty() {
         return Err(ReadonlyViolation::Empty);
     }
@@ -121,7 +130,7 @@ pub fn validate_readonly_sql(sql: &str) -> Result<(), ReadonlyViolation> {
         return Err(ReadonlyViolation::WriteKeyword("INTO".to_string()));
     }
 
-    let identifiers = tokenize(&strip_comments_and_strings(sql, true));
+    let identifiers = tokenize(&strip_comments_and_strings(sql, dialect, true));
     // Dangerous functions are matched case-insensitively. They are
     // lowercase in the blacklist; uppercase the token and compare.
     for t in &identifiers {
@@ -134,18 +143,75 @@ pub fn validate_readonly_sql(sql: &str) -> Result<(), ReadonlyViolation> {
     Ok(())
 }
 
+/// Statements a read-only native session may not run: the ones that switch the
+/// upstream session back to read-write, and the writes a read-only
+/// transaction does not stop. The upstream session mode is the enforcement;
+/// this only keeps it in place, and dynamic SQL can still get around it.
+const ESCAPE_TOKENS: &[&str] = &[
+    "TRANSACTION_READ_ONLY",
+    "DEFAULT_TRANSACTION_READ_ONLY",
+    "TX_READ_ONLY",
+    "SET_CONFIG",
+    "OUTFILE",
+    "DUMPFILE",
+];
+
+const ESCAPE_FIRST_KEYWORDS: &[&str] = &[
+    "DISCARD",
+    "DO",
+    "PREPARE",
+    "RESET",
+    "FLUSH",
+    "PURGE",
+    "SHUTDOWN",
+    "INSTALL",
+    "UNINSTALL",
+    "CHANGE",
+];
+
+/// Whether `sql` would take a read-only native session out of read-only mode
+/// or write despite it.
+pub fn escapes_readonly_session(sql: &str, dialect: SqlDialect) -> bool {
+    let raw = sql.to_ascii_lowercase();
+    if raw.contains("transaction_read_only") || raw.contains("tx_read_only") {
+        return true;
+    }
+    let stripped = strip_comments_and_strings(sql, dialect, true);
+    stripped.split(';').any(|statement| {
+        let tokens = tokenize(statement);
+        let Some(first) = tokens.first() else {
+            return false;
+        };
+        ESCAPE_FIRST_KEYWORDS.contains(&first.as_str())
+            || tokens
+                .iter()
+                .any(|token| ESCAPE_TOKENS.contains(&token.as_str()))
+            || tokens
+                .windows(2)
+                .any(|pair| matches!(pair, [a, b] if a == "READ" && b == "WRITE"))
+            || (first == "SET"
+                && tokens
+                    .iter()
+                    .any(|token| matches!(token.as_str(), "GLOBAL" | "PERSIST" | "PERSIST_ONLY")))
+    })
+}
+
 /// Replace every string literal, quoted identifier, and comment with
 /// a single space. This preserves statement structure (boundaries,
 /// keyword positions) so the tokeniser runs over sanitized input.
-fn strip_comments_and_strings(sql: &str, preserve_identifiers: bool) -> String {
+fn strip_comments_and_strings(
+    sql: &str,
+    dialect: SqlDialect,
+    preserve_identifiers: bool,
+) -> String {
     enum State {
         Normal,
-        Single,              // '...'
-        Double,              // "..."
-        Backtick,            // MySQL `...`
-        LineComment,         // -- ... \n
-        BlockComment,        // /* ... */
-        DollarQuote(String), // $tag$ ... $tag$
+        Single { backslash: bool }, // '...'
+        Double,                     // "..."
+        Backtick,                   // MySQL `...`
+        LineComment,                // -- ... \n
+        BlockComment,               // /* ... */
+        DollarQuote(String),        // $tag$ ... $tag$
     }
     let mut state = State::Normal;
     let mut out = String::with_capacity(sql.len());
@@ -160,11 +226,21 @@ fn strip_comments_and_strings(sql: &str, preserve_identifiers: bool) -> String {
                 if matches!(ch, 'U' | 'u') && bytes.get(i + 1..i + 3) == Some(b"&\"") {
                     out.push_str(" EXECUTE ");
                 }
-                // Line comment -- ...
-                if ch == '-' && bytes.get(i + 1) == Some(&b'-') {
+                // Line comment -- ... (MySQL needs whitespace after the dashes)
+                if ch == '-'
+                    && bytes.get(i + 1) == Some(&b'-')
+                    && (dialect == SqlDialect::Postgres
+                        || bytes.get(i + 2).is_none_or(|b| b.is_ascii_whitespace()))
+                {
                     state = State::LineComment;
                     out.push(' ');
                     i += 2;
+                    continue;
+                }
+                if ch == '#' && dialect == SqlDialect::MySql {
+                    state = State::LineComment;
+                    out.push(' ');
+                    i += 1;
                     continue;
                 }
                 // Block comment /* ... */
@@ -179,6 +255,7 @@ fn strip_comments_and_strings(sql: &str, preserve_identifiers: bool) -> String {
                 }
                 // Dollar-quoted string $tag$...$tag$
                 if ch == '$'
+                    && dialect == SqlDialect::Postgres
                     && let Some(tag) = parse_dollar_tag(&sql[i..])
                 {
                     out.push(' ');
@@ -188,14 +265,20 @@ fn strip_comments_and_strings(sql: &str, preserve_identifiers: bool) -> String {
                 }
                 match ch {
                     '\'' => {
-                        state = State::Single;
+                        // Backslash escapes: always in MySQL, only in E'...' in Postgres.
+                        let prefix = |back: usize| i.checked_sub(back).and_then(|j| bytes.get(j));
+                        let backslash = dialect == SqlDialect::MySql
+                            || (matches!(prefix(1), Some(b'E' | b'e'))
+                                && !prefix(2)
+                                    .is_some_and(|b| b.is_ascii_alphanumeric() || *b == b'_'));
+                        state = State::Single { backslash };
                         out.push(' ');
                     }
                     '"' => {
                         state = State::Double;
                         out.push(' ');
                     }
-                    '`' => {
+                    '`' if dialect == SqlDialect::MySql => {
                         state = State::Backtick;
                         out.push(' ');
                     }
@@ -203,14 +286,13 @@ fn strip_comments_and_strings(sql: &str, preserve_identifiers: bool) -> String {
                 }
                 i += 1;
             }
-            State::Single => {
-                // Postgres escape: '' inside '...' means literal '
-                if ch == '\'' && bytes.get(i + 1) == Some(&b'\'') {
+            State::Single { backslash } => {
+                if *backslash && ch == '\\' && bytes.get(i + 1).is_some() {
                     i += 2;
                     continue;
                 }
-                if ch == '\\' && bytes.get(i + 1).is_some() {
-                    // MySQL backslash escape; swallow next char
+                // '' inside '...' means literal '
+                if ch == '\'' && bytes.get(i + 1) == Some(&b'\'') {
                     i += 2;
                     continue;
                 }
@@ -221,6 +303,10 @@ fn strip_comments_and_strings(sql: &str, preserve_identifiers: bool) -> String {
                 i += 1;
             }
             State::Double => {
+                if dialect == SqlDialect::MySql && ch == '\\' && bytes.get(i + 1).is_some() {
+                    i += 2;
+                    continue;
+                }
                 if ch == '"' && bytes.get(i + 1) == Some(&b'"') {
                     i += 2;
                     continue;
@@ -318,12 +404,97 @@ fn tokenize(stripped: &str) -> Vec<String> {
 mod tests {
     use super::*;
 
+    const DIALECTS: [SqlDialect; 2] = [SqlDialect::MySql, SqlDialect::Postgres];
+
     fn ok(sql: &str) {
-        assert_eq!(validate_readonly_sql(sql), Ok(()), "should pass: {sql}");
+        for dialect in DIALECTS {
+            assert_eq!(
+                validate_readonly_sql(sql, dialect),
+                Ok(()),
+                "should pass: {sql}"
+            );
+        }
     }
     fn rejected(sql: &str, matcher: impl Fn(&ReadonlyViolation) -> bool) {
-        let r = validate_readonly_sql(sql).expect_err(&format!("should reject: {sql}"));
-        assert!(matcher(&r), "wrong violation {r:?} for: {sql}");
+        for dialect in DIALECTS {
+            let r =
+                validate_readonly_sql(sql, dialect).expect_err(&format!("should reject: {sql}"));
+            assert!(matcher(&r), "wrong violation {r:?} for: {sql}");
+        }
+    }
+
+    #[test]
+    fn strings_follow_the_engine_escape_rules() {
+        use SqlDialect::{MySql, Postgres};
+        // Postgres ends the string at the quote after the backslash; MySQL does not.
+        let sql = r"SELECT '\' ; DELETE FROM t; --'";
+        assert!(validate_readonly_sql(sql, Postgres).is_err());
+        assert_eq!(validate_readonly_sql(sql, MySql), Ok(()));
+        let sql = r"SELECT '\' , ' ; DELETE FROM t; -- '";
+        assert!(validate_readonly_sql(sql, MySql).is_err());
+        let sql = r"SELECT E'\' , ' ; DELETE FROM t; -- '";
+        assert!(validate_readonly_sql(sql, Postgres).is_err());
+        let sql = r#"SELECT "\" , " , sleep(9) , ""#;
+        assert!(validate_readonly_sql(sql, MySql).is_err());
+    }
+
+    #[test]
+    fn mysql_comment_and_identifier_rules() {
+        use SqlDialect::MySql;
+        assert_eq!(
+            validate_readonly_sql("SELECT 1 # DELETE FROM t", MySql),
+            Ok(())
+        );
+        assert!(validate_readonly_sql("SELECT 1 # x\n, sleep(9)", MySql).is_err());
+        assert!(validate_readonly_sql("SELECT 1 # x\n; DELETE FROM t", MySql).is_err());
+        // `--` without a following space is arithmetic in MySQL, not a comment.
+        assert!(validate_readonly_sql("SELECT 1 --sleep(9)", MySql).is_err());
+        // `$` is an identifier character in MySQL, not a quote.
+        assert!(validate_readonly_sql("SELECT 1 AS $a$ , sleep(9) AS $a$", MySql).is_err());
+    }
+
+    #[test]
+    fn detects_statements_that_leave_a_readonly_session() {
+        use SqlDialect::{MySql, Postgres};
+        for sql in [
+            "SET SESSION TRANSACTION READ WRITE",
+            "set session transaction read  write",
+            "START TRANSACTION READ WRITE",
+            "SET @@session.tx_read_only = 0",
+            "SET transaction_read_only = OFF",
+            "SELECT 1; SET SESSION TRANSACTION READ /* x */ WRITE",
+            "PREPARE s FROM @q",
+            "SET GLOBAL read_only = 0",
+            "SELECT 1 INTO OUTFILE '/tmp/x'",
+            "FLUSH PRIVILEGES",
+        ] {
+            assert!(escapes_readonly_session(sql, MySql), "accepted: {sql}");
+        }
+        for sql in [
+            "SET default_transaction_read_only = off",
+            "BEGIN READ WRITE",
+            "SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE",
+            "RESET ALL",
+            "DISCARD ALL",
+            "SELECT set_config('default_transaction_' || 'read_only', 'off', false)",
+            "DO $$ BEGIN EXECUTE 'SET x'; END $$",
+            "SELECT 'default_transaction_read_only'",
+        ] {
+            assert!(escapes_readonly_session(sql, Postgres), "accepted: {sql}");
+        }
+        for sql in [
+            "SELECT 1",
+            "SET NAMES utf8mb4",
+            "SET autocommit = 1",
+            "BEGIN",
+            "START TRANSACTION READ ONLY",
+            "SHOW TABLES",
+            "SELECT 'read write' AS note",
+            "INSERT INTO t VALUES (1)",
+        ] {
+            assert!(!escapes_readonly_session(sql, MySql), "rejected: {sql}");
+            assert!(!escapes_readonly_session(sql, Postgres), "rejected: {sql}");
+        }
     }
 
     #[test]
@@ -334,7 +505,12 @@ mod tests {
             "SELECT /*!50000 SLEEP(5) */ 1",
             r#"SELECT U&"pg_\0072ead_file"('/etc/hostname')"#,
         ] {
-            assert!(validate_readonly_sql(sql).is_err(), "accepted: {sql}");
+            assert!(
+                DIALECTS
+                    .iter()
+                    .all(|d| validate_readonly_sql(sql, *d).is_err()),
+                "accepted: {sql}"
+            );
         }
     }
 
@@ -437,9 +613,17 @@ mod tests {
         // Literal 'UPDATE' inside a string does not trip the check.
         ok("SELECT 'UPDATE t SET x=1' AS s");
         ok("SELECT \"UPDATE\" FROM t");
-        ok("SELECT `UPDATE` FROM t");
-        // dollar-quote
-        ok("SELECT $tag$ UPDATE t SET x=1 $tag$ AS doc");
+        assert_eq!(
+            validate_readonly_sql("SELECT `UPDATE` FROM t", SqlDialect::MySql),
+            Ok(())
+        );
+        assert_eq!(
+            validate_readonly_sql(
+                "SELECT $tag$ UPDATE t SET x=1 $tag$ AS doc",
+                SqlDialect::Postgres
+            ),
+            Ok(())
+        );
     }
 
     #[test]

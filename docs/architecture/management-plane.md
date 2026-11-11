@@ -19,9 +19,8 @@ Route layout (`crates/gated-admin/src/http_service/mod.rs`):
   Stoplight Elements playground.
 - `/api` — user portal API (axum + utoipa), available to any authenticated
   session; spec at `/api/openapi.json` (`mod.rs`).
-- `/api/ssh/terminal/:target_name`, `/api/mysql/terminal/:target_name`,
-  `/api/postgres/terminal/:target_name` — raw WebSocket endpoints for the
-  in-browser terminals, and `/api/sftp/:target_name/download` / `upload` for
+- `/api/ssh/terminal/:target_name` — raw WebSocket endpoint for the
+  in-browser terminal, and `/api/sftp/:target_name/download` / `upload` for
   streamed file transfer (not expressible in OpenAPI, mounted directly).
 - `/ui` — the embedded SPA (below); unauthenticated page loads redirect to
   the login route.
@@ -31,7 +30,7 @@ Middleware stack (`mod.rs`), outermost last:
 1. `TicketMiddleware` — turns a `gated-ticket` query parameter into a
    scoped session (`middleware/ticket.rs`).
 2. `DbLockMiddleware` — while an encrypted database is locked, only the
-   encryption-unlock endpoints respond; everything else returns 503.
+   encryption-unlock endpoints respond; everything else returns 423.
 3. `SessionLayer` — cookie sessions (cookie `gated-http-session`,
    secure flag when TLS is on, configurable max-age); server-side state in
    memory, vacuumed periodically. A login creates a `ManagementSessionHandle`
@@ -43,6 +42,12 @@ Middleware stack (`mod.rs`), outermost last:
    the user's other browser sessions and live proxy sessions).
 4. `CookieHostMiddleware` — binds cookies to the expected host to prevent
    cross-subdomain reuse.
+
+Inside these, `ws_origin_guard` (`middleware/cookie_host.rs`) answers `403`
+to every WebSocket upgrade that authenticates with a session cookie unless its
+`Origin` is the request host or the external host. Subdomains are trusted only
+under a configured `admin.cookie_domain`, and hosts under `http.base_domain`
+(proxied targets) never are. Token-authenticated upgrades need no `Origin`.
 
 Security headers (`X-Content-Type-Options: nosniff`,
 `X-Frame-Options: DENY`, `Referrer-Policy`, HSTS when TLS) are set globally.
@@ -78,8 +83,8 @@ update/restart through lode.
 `auth` (login/logout/OTP/SSO/auth-state approval), `info`, `targets_list`
 (only targets the user is authorized for), `credentials` (self-service
 password/keys/OTP/certificates), `api_tokens`, `tickets`, `sessions` (own
-sessions), `db_query` + `sql_validation` (SQL console), `ssh_terminal` /
-`db_terminal` (web terminals), `sftp` (web file manager),
+sessions), `db_query` + `sql_validation` (SQL console), `ssh_terminal`
+(web terminal), `sftp` (web file manager),
 `sso_provider_list` / `sso_provider_detail`, and `encryption` (pre-unlock
 bootstrap).
 

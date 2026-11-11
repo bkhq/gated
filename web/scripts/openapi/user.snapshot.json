@@ -824,6 +824,15 @@
               }
             }
           },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "401": {
             "content": {
               "application/json; charset=utf-8": {
@@ -1205,7 +1214,8 @@
                 }
               }
             }
-          }
+          },
+          "429": {}
         },
         "security": [
           {
@@ -2856,6 +2866,20 @@
           },
           "openssh_public_key": {
             "type": "string"
+          },
+          "otp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Browser sessions confirm with an OTP when one is enrolled."
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Browser sessions confirm with the password when no OTP is enrolled."
           }
         }
       },

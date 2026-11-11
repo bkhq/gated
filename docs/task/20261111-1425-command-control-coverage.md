@@ -1,8 +1,8 @@
 # 20261111-1425-command-control-coverage Apply command control and command audit on every access path
 
-- **status**: pending
+- **status**: completed
 - **priority**: P1
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description
@@ -33,3 +33,5 @@ Extending command control to all access paths
 ## Notes
 
 Source: full repository audit of `6ecc941` (2026-11-11). Confirmed by reading the code. Full tier: needs a plan in `docs/plan/`.
+
+- complete: SSH and web-terminal parts unverified locally (SSH e2e cannot run in station); enforcement point not yet a single shared function

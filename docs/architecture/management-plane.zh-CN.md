@@ -14,21 +14,24 @@
   既需要已认证的会话 / 令牌，*又*需要内置的 `admin` 角色（`mod.rs`）；OpenAPI 规范位于
   `/admin/api/openapi.json`，附带 Stoplight Elements playground。
 - `/api` —— 用户门户 API（axum + utoipa），任何已认证会话可用；规范位于 `/api/openapi.json`（`mod.rs`）。
-- `/api/ssh/terminal/:target_name`、`/api/mysql/terminal/:target_name`、
-  `/api/postgres/terminal/:target_name` —— 浏览器内终端的原始 WebSocket 端点，以及用于流式文件传输的
+- `/api/ssh/terminal/:target_name` —— 浏览器内终端的原始 WebSocket 端点，以及用于流式文件传输的
   `/api/sftp/:target_name/download` / `upload`（无法用 OpenAPI 表达，直接挂载）。
 - `/ui` —— 内嵌 SPA（见下文）；未认证的页面加载会重定向到登录路由。
 
 中间件栈（`mod.rs`），越靠后越外层：
 
 1. `TicketMiddleware` —— 把 `gated-ticket` 查询参数转换为受限会话（`middleware/ticket.rs`）。
-2. `DbLockMiddleware` —— 加密数据库锁定时，只有加密解锁端点响应；其余一律返回 503。
+2. `DbLockMiddleware` —— 加密数据库锁定时，只有加密解锁端点响应；其余一律返回 423。
 3. `SessionLayer` —— cookie 会话（cookie `gated-http-session`，TLS 开启时带 secure 标志，max-age 可配置）；
    服务端状态保存在内存中并定期清理。登录会在内存管理会话注册表中创建 `ManagementSessionHandle`
    （`http_service/session.rs`），而不是代理会话：浏览器登录没有 `sessions` 行，也不出现在会话列表中。它们在
    登出、空闲过期（用户选择的时长，默认 `admin.session_max_age`，从最近一次请求起算，`BACKGROUND_PATHS` 中的轮询接口除外）、重启、管理员撤销（`/admin/api/management-sessions`）或修改密码
    （会撤销该用户的其他浏览器会话和实时代理会话）时结束。
 4. `CookieHostMiddleware` —— 把 cookie 绑定到预期主机，防止跨子域复用。
+
+在这些中间件之内，`ws_origin_guard`（`middleware/cookie_host.rs`）对所有以会话 cookie 认证的 WebSocket 升级
+请求校验 `Origin`：只接受请求主机或外部主机，否则返回 `403`。仅在配置了 `admin.cookie_domain` 时信任其子域，
+`http.base_domain` 下的主机（被代理的目标）永不信任。以令牌认证的升级请求不需要 `Origin`。
 
 安全响应头（`X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy`，TLS 时加 HSTS）
 全局设置。请求也可以用 `X-Gated-Token` 头（管理令牌或 API 令牌）代替 cookie 认证（`http_service/common.rs`）。
@@ -52,7 +55,7 @@
 
 `auth`（登录 / 登出 / OTP / SSO / 认证状态批准）、`info`、`targets_list`（仅用户有权访问的目标）、
 `credentials`（自助管理密码 / 密钥 / OTP / 证书）、`api_tokens`、`tickets`、`sessions`（自己的会话）、
-`db_query` + `sql_validation`（SQL 控制台）、`ssh_terminal` / `db_terminal`（Web 终端）、`sftp`（Web 文件
+`db_query` + `sql_validation`（SQL 控制台）、`ssh_terminal`（Web 终端）、`sftp`（Web 文件
 管理器）、`sso_provider_list` / `sso_provider_detail`，以及 `encryption`（解锁前引导）。
 
 ### 登录流程
@@ -72,7 +75,7 @@ SPA（`web/`）基于 React 19 + TanStack Router + Tailwind 4，用 Vite（base 
 `web/scripts/generate-openapi-types.ts` 从 Rust 源码导出的 OpenAPI 规范生成；已提交的快照和类型在 CI 中校验。
 功能区：
 
-- **用户门户**：登录、带连接信息的目标列表、Web SSH 和数据库终端（xterm.js）、SQL 控制台、文件管理器、自助
+- **用户门户**：登录、带连接信息的目标列表、Web SSH 终端（xterm.js）、SQL 控制台、文件管理器、自助
   凭据管理（密码、SSH 密钥、带二维码的 TOTP 绑定、客户端证书）、API 令牌、票据、自己的会话。
 - **管理区**：用户 / 角色 / 目标分组 / 账户管理、目标配置（含 HTTP 变体标记）、带关闭操作的实时会话监控、
   录制回放（终端录制用 asciinema 播放器、HTTP 交互查看器、PCAP 下载）、审计日志浏览、命令管控、文件记录、

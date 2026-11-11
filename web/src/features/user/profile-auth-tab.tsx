@@ -17,7 +17,8 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOtpDevices, useRemoveOtpDevice } from '@/features/otp/hooks/use-otp-queries'
 import { OtpEnrollmentDrawer } from '@/features/otp/otp-enrollment-drawer'
-import { usePublicKeys, useRegisterPublicKey, useRemovePublicKey } from '@/features/public-keys/hooks/use-public-keys-queries'
+import { usePublicKeyRegistration } from '@/features/public-keys/components/public-key-confirm'
+import { usePublicKeys, useRemovePublicKey } from '@/features/public-keys/hooks/use-public-keys-queries'
 import { EmptyState } from '@/shared/components/empty-state'
 import { profileApi } from '@/shared/lib/api/profile'
 import { describeError } from '@/shared/lib/error-message'
@@ -395,7 +396,7 @@ function KeyDrawerBody({ state, onClose }: { state: KeyDrawerState, onClose: () 
   useReturnFocusOnClose()
   const { t } = useTranslation()
   const titleId = React.useId()
-  const registerMutation = useRegisterPublicKey()
+  const registration = usePublicKeyRegistration(onClose)
 
   const mode = state.mode
 
@@ -433,7 +434,8 @@ function KeyDrawerBody({ state, onClose }: { state: KeyDrawerState, onClose: () 
       return
     }
     if (mode === 'create') {
-      void registerMutation.mutateAsync({ name: draft.name.trim(), material: draft.material.trim() })
+      void registration.register({ name: draft.name.trim(), material: draft.material.trim() })
+      return
     }
     onClose()
   }
@@ -517,6 +519,7 @@ function KeyDrawerBody({ state, onClose }: { state: KeyDrawerState, onClose: () 
           </div>
         </div>
       </Drawer>
+      {registration.prompt}
       <ConfirmDialog
         open={discardOpen}
         title={t('profile.info.discardTitle')}

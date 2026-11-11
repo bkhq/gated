@@ -1,8 +1,8 @@
 # 20261111-1425-admin-ticket-validation Validate admin-issued tickets and keep their sessions alive
 
-- **status**: pending
+- **status**: completed
 - **priority**: P2
-- **owner**: (unassigned)
+- **owner**: lexuue
 - **createdAt**: 2026-11-11 14:25
 
 ## Description

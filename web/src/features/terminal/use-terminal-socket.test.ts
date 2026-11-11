@@ -117,18 +117,6 @@ describe('useTerminalSocket', () => {
     expect(ws.url.endsWith('/api/ssh/terminal/web-01')).toBe(true)
   })
 
-  it('uses the mysql endpoint for kind=mysql', async () => {
-    renderHook(() => useTerminalSocket({ kind: 'mysql', targetName: 'db-1' }))
-    await flush()
-    expect(FakeWebSocket.lastConstructorUrl?.endsWith('/api/mysql/terminal/db-1')).toBe(true)
-  })
-
-  it('uses the postgres endpoint for kind=postgres', async () => {
-    renderHook(() => useTerminalSocket({ kind: 'postgres', targetName: 'pg-1' }))
-    await flush()
-    expect(FakeWebSocket.lastConstructorUrl?.endsWith('/api/postgres/terminal/pg-1')).toBe(true)
-  })
-
   it('encodes special chars in the target name', async () => {
     renderHook(() => useTerminalSocket({ kind: 'ssh', targetName: 'web 01/extra' }))
     await flush()

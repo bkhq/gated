@@ -17,6 +17,8 @@ export interface StepUpDialogProps {
   title: string
   description: string
   confirmLabel: string
+  // Fixes the factor instead of letting the user choose.
+  factor?: Factor
   onCancel: () => void
   // Resolves when the guarded action succeeded; a rejection keeps the dialog
   // open and shows the error so the user can retry.
@@ -28,9 +30,9 @@ export function StepUpDialog(props: StepUpDialogProps) {
   return props.open ? <StepUpDialogBody {...props} /> : null
 }
 
-function StepUpDialogBody({ open, title, description, confirmLabel, onCancel, onConfirm }: StepUpDialogProps) {
+function StepUpDialogBody({ open, title, description, confirmLabel, factor: fixedFactor, onCancel, onConfirm }: StepUpDialogProps) {
   const { t } = useTranslation()
-  const [factor, setFactor] = React.useState<Factor>('password')
+  const [factor, setFactor] = React.useState<Factor>(fixedFactor ?? 'password')
   const [secret, setSecret] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const [pending, setPending] = React.useState(false)
@@ -70,21 +72,25 @@ function StepUpDialogBody({ open, title, description, confirmLabel, onCancel, on
           description={description}
         />
         <DialogBody className="flex flex-col gap-3">
-          <div>
-            <Label htmlFor="step-up-factor">{t('accounts.form.reveal.factor')}</Label>
-            <Select
-              id="step-up-factor"
-              value={factor}
-              onValueChange={(value) => {
-                setFactor(value as Factor)
-                setSecret('')
-              }}
-              options={[
-                { value: 'password', label: t('accounts.form.reveal.password') },
-                { value: 'otp', label: t('accounts.form.reveal.otp') },
-              ]}
-            />
-          </div>
+          {fixedFactor
+            ? null
+            : (
+                <div>
+                  <Label htmlFor="step-up-factor">{t('accounts.form.reveal.factor')}</Label>
+                  <Select
+                    id="step-up-factor"
+                    value={factor}
+                    onValueChange={(value) => {
+                      setFactor(value as Factor)
+                      setSecret('')
+                    }}
+                    options={[
+                      { value: 'password', label: t('accounts.form.reveal.password') },
+                      { value: 'otp', label: t('accounts.form.reveal.otp') },
+                    ]}
+                  />
+                </div>
+              )}
           <div>
             <Label htmlFor="step-up-secret">{t(`accounts.form.reveal.${factor}`)}</Label>
             <Input

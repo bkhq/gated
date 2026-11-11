@@ -204,16 +204,7 @@ impl AuthStateStore {
     ) -> Result<(Uuid, Arc<Mutex<AuthState>>), GatedError> {
         let id = Uuid::new_v4();
 
-        let Some(user) = self
-            .config_provider
-            .lock()
-            .await
-            .list_users()
-            .await?
-            .iter()
-            .find(|u| u.username == username)
-            .cloned()
-        else {
+        let Some(user) = self.config_provider.lock().await.get_user(username).await? else {
             return Err(GatedError::UserNotFound(username.into()));
         };
 

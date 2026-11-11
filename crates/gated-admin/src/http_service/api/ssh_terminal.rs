@@ -3,7 +3,6 @@ use super::terminal_details::{ConnectedDetails, HostKeyDetails};
 use crate::http_service::common::upgrade;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query};
-use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use gated_common::web::Data;
 use http::StatusCode;
@@ -16,7 +15,12 @@ use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use gated_common::auth::AuthStateUserInfo;
 use gated_common::{SshHostKeyVerificationMode, Target, TargetOptions, TargetSSHOptions};
-use gated_core::recordings::{TerminalRecorder, TerminalRecordingStreamId};
+use gated_core::command_acl::AclAction;
+use gated_core::command_acl_loader::DbCommandAclEnforcer;
+use gated_core::recordings::{
+    CommandAuditRecorder, ShellCommandRecordingItem, ShellCommandSessionMetadata, TerminalRecorder,
+    TerminalRecordingStreamId,
+};
 use gated_core::{ConfigProvider, Services, SessionStateInit, State};
 use gated_protocol_ssh::{
     ChannelOperation, ConnectionError, PtyRequest, RCCommand, RCEvent, RCState, RemoteClient,
@@ -48,6 +52,16 @@ const HOST_KEY_VERIFY_TIMEOUT: Duration = Duration::from_secs(60);
 /// 0x01 = resize JSON
 /// 0x02 = status JSON (server -> client)
 /// 0x03 = host key verification (bidirectional)
+const TICKET_RECHECK_INTERVAL: Duration = Duration::from_secs(10);
+
+struct AbortOnDrop(tokio::task::JoinHandle<()>);
+
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
 const MSG_TERMINAL_DATA: u8 = 0x00;
 const MSG_RESIZE: u8 = 0x01;
 const MSG_STATUS: u8 = 0x02;
@@ -278,14 +292,13 @@ pub(super) async fn resolve_and_authorize(
     use ResolveError::Denied;
     let mut config_provider = services.config_provider.lock().await;
 
-    let users = config_provider.list_users().await.map_err(|e| {
-        error!(%e, "Failed to list users");
-        Denied("Internal server error")
-    })?;
-
-    let user = users
-        .iter()
-        .find(|u| u.username == username)
+    let user = config_provider
+        .get_user(username)
+        .await
+        .map_err(|e| {
+            error!(%e, "Failed to load user");
+            Denied("Internal server error")
+        })?
         .ok_or(Denied("User not found"))?;
 
     let user_info = AuthStateUserInfo {
@@ -305,14 +318,13 @@ pub(super) async fn resolve_and_authorize(
         return Err(Denied("Access denied to target"));
     }
 
-    let targets = config_provider.list_targets().await.map_err(|e| {
-        error!(%e, "Failed to list targets");
-        Denied("Internal server error")
-    })?;
-
-    let target = targets
-        .into_iter()
-        .find(|t| t.name == target_name)
+    let target = config_provider
+        .get_target(target_name)
+        .await
+        .map_err(|e| {
+            error!(%e, "Failed to load target");
+            Denied("Internal server error")
+        })?
         .ok_or(Denied("Target not found"))?;
 
     if !matches!(target.options, TargetOptions::Ssh(_)) {
@@ -608,6 +620,88 @@ async fn wait_for_success(
     }
 }
 
+/// Command control for a web terminal: lines are rebuilt from the keystrokes
+/// and checked when Enter arrives, like the native PTY path.
+struct CommandFilter {
+    services: Services,
+    session_id: Uuid,
+    enforcer: DbCommandAclEnforcer,
+    target_id: Uuid,
+    target_name: String,
+    user_id: Uuid,
+    username: String,
+    line: Vec<u8>,
+}
+
+impl CommandFilter {
+    /// False when a line completed by `input` is denied or needs a review,
+    /// which a web terminal cannot wait for.
+    async fn accepts(&mut self, input: &[u8]) -> bool {
+        for &byte in input {
+            if byte != b'\n' && byte != b'\r' {
+                self.line.push(byte);
+                continue;
+            }
+            let line = std::mem::take(&mut self.line);
+            let command = String::from_utf8_lossy(&line);
+            let command = command.trim();
+            if command.is_empty() {
+                continue;
+            }
+            let decision = match self.enforcer.evaluate("ssh", command).await {
+                Ok(decision) => decision,
+                Err(error) => {
+                    warn!(%error, session = %self.session_id, "Command-ACL rule load failed; forwarding command");
+                    continue;
+                }
+            };
+            let (acl_action, outcome) = match decision.action {
+                AclAction::Allow => ("allow", "allowed"),
+                AclAction::Deny => ("deny", "blocked"),
+                AclAction::Review => ("review", "blocked-review-unsupported"),
+            };
+            let item = ShellCommandRecordingItem::Command {
+                timestamp: chrono::Utc::now(),
+                target: self.target_name.clone(),
+                target_id: Some(self.target_id),
+                user_id: Some(self.user_id),
+                username: Some(self.username.clone()),
+                origin: "web".to_string(),
+                command: command.to_string(),
+                acl_action: acl_action.to_string(),
+                acl_rule_id: decision.rule_id,
+                acl_rule_name: decision.rule_name.clone(),
+                outcome: outcome.to_string(),
+            };
+            let metadata = ShellCommandSessionMetadata::SshShellSession {
+                target: self.target_name.clone(),
+                target_id: Some(self.target_id),
+            };
+            let recorder = self
+                .services
+                .recordings
+                .lock()
+                .await
+                .start::<CommandAuditRecorder, _>(
+                    &self.session_id,
+                    Some("shell-commands".to_string()),
+                    metadata,
+                )
+                .await;
+            if let Ok(mut recorder) = recorder
+                && let Err(error) = recorder.write_item(&item).await
+            {
+                debug!(%error, session = %self.session_id, "Failed to append shell-command audit item");
+            }
+            if decision.action != AclAction::Allow {
+                warn!(session = %self.session_id, outcome, rule_id = ?decision.rule_id, "Web terminal command blocked by ACL policy");
+                return false;
+            }
+        }
+        true
+    }
+}
+
 /// Run the bidirectional bridge between WebSocket and SSH channel,
 /// with periodic WebSocket pings for keepalive.
 async fn bridge_websocket_ssh(
@@ -617,10 +711,15 @@ async fn bridge_websocket_ssh(
     channel_id: Uuid,
     recorder: Option<TerminalRecorder>,
     close: Arc<tokio::sync::Notify>,
-) {
+    mut command_filter: Option<CommandFilter>,
+) -> bool {
+    let had_input = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let input_seen = had_input.clone();
     let command_tx = handles.command_tx.clone();
     let close_command_tx = handles.command_tx.clone();
     let sink_clone = sink.clone();
+    let blocked_sink = sink.clone();
+    let blocked_close = close.clone();
     let recorder_ref = Arc::new(Mutex::new(recorder));
     let recorder_clone = recorder_ref.clone();
 
@@ -715,8 +814,30 @@ async fn bridge_websocket_ssh(
                     };
                     match msg_type {
                         MSG_TERMINAL_DATA => {
+                            input_seen.store(true, std::sync::atomic::Ordering::Relaxed);
                             if let Some(ref mut rec) = *recorder_ref.lock().await {
                                 let _ = rec.write(TerminalRecordingStreamId::Input, payload).await;
+                            }
+                            if let Some(filter) = command_filter.as_mut()
+                                && !filter.accepts(payload).await
+                            {
+                                // The denied line is not sent; Ctrl-C drops what the shell has of it.
+                                let _ = command_tx.send((
+                                    RCCommand::Channel(
+                                        channel_id,
+                                        ChannelOperation::Data(Bytes::from_static(b"\x03")),
+                                    ),
+                                    None,
+                                ));
+                                let mut frame = vec![MSG_TERMINAL_DATA];
+                                frame.extend_from_slice(b"\r\nCommand blocked by policy\r\n");
+                                let _ = blocked_sink
+                                    .lock()
+                                    .await
+                                    .send(Message::Binary(frame.into()))
+                                    .await;
+                                blocked_close.notify_one();
+                                break;
                             }
                             if command_tx
                                 .send((
@@ -777,10 +898,10 @@ async fn bridge_websocket_ssh(
             let _ = close_command_tx.send((RCCommand::Disconnect, None));
         }
     }
+    had_input.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 pub async fn api_ssh_terminal(
-    req: Parts,
     ws: WebSocketUpgrade,
     Path(target_name): Path<String>,
     Query(login): Query<LoginQuery>,
@@ -788,18 +909,6 @@ pub async fn api_ssh_terminal(
     auth: Option<Data<RequestAuthorization>>,
 ) -> Response {
     let services = services.0;
-
-    // Reject cross-site WebSocket hijacking (CSWSH) before doing any work.
-    if !crate::http_service::middleware::is_ws_origin_allowed(&req.headers, &req.uri, &services)
-        .await
-    {
-        warn!(
-            target = %target_name,
-            protocol = "ssh_terminal",
-            "ssh_terminal_origin_rejected"
-        );
-        return (StatusCode::FORBIDDEN, "Invalid Origin").into_response();
-    }
 
     // Validate target_name before WebSocket upgrade
     if !validate_target_name(&target_name) {
@@ -814,6 +923,12 @@ pub async fn api_ssh_terminal(
         return (StatusCode::FORBIDDEN, "Ticket does not permit this target").into_response();
     }
 
+    let ticket_id = match auth.as_deref() {
+        Some(RequestAuthorization::Session(SessionAuthorization::Ticket { ticket_id, .. })) => {
+            Some(*ticket_id)
+        }
+        _ => None,
+    };
     let username = match extract_username(auth) {
         Some(u) => u,
         None => {
@@ -872,6 +987,21 @@ pub async fn api_ssh_terminal(
 
         // Register session
         let close = Arc::new(tokio::sync::Notify::new());
+        // A terminal opened with a ticket closes when the ticket is deleted
+        // or expires.
+        let _ticket_watch = ticket_id.map(|ticket_id| {
+            let (services, close) = (services.clone(), close.clone());
+            AbortOnDrop(tokio::spawn(async move {
+                let mut interval = tokio::time::interval(TICKET_RECHECK_INTERVAL);
+                loop {
+                    interval.tick().await;
+                    if let Ok(false) = gated_core::ticket_is_live(&services.db, &ticket_id).await {
+                        close.notify_one();
+                        return;
+                    }
+                }
+            }))
+        });
         let session_handle = match State::register_session(
             &services.state,
             &"WebSSH",
@@ -891,6 +1021,7 @@ pub async fn api_ssh_terminal(
         };
 
         let session_id = session_handle.lock().await.id();
+        let (acl_user_id, acl_username) = (user_info.id, user_info.username.clone());
 
         if let Err(e) = session_handle.lock().await.set_user_info(user_info).await {
             error!(%e, "Failed to set user info");
@@ -946,9 +1077,6 @@ pub async fn api_ssh_terminal(
                     address,
                     username: upstream_user,
                     host_key,
-                    tls: None,
-                    client: None,
-                    database: None,
                 }),
             }))
             .await;
@@ -975,14 +1103,41 @@ pub async fn api_ssh_terminal(
         // Bidirectional bridge with ping/pong keepalive
         let started = std::time::Instant::now();
         let sink = Arc::new(Mutex::new(sink));
-        bridge_websocket_ssh(handles, sink, source, channel_id, recorder, close).await;
+        let command_filter = match services.db_required().await {
+            Ok(db) => DbCommandAclEnforcer::new(db, target.id, acl_user_id)
+                .await
+                .map_err(
+                    |error| error!(%error, "Failed to load the user's roles for command control"),
+                )
+                .ok(),
+            Err(_) => None,
+        }
+        .map(|enforcer| CommandFilter {
+            services: services.clone(),
+            session_id,
+            enforcer,
+            target_id: target.id,
+            target_name: target.name.clone(),
+            user_id: acl_user_id,
+            username: acl_username,
+            line: Vec::new(),
+        });
+        let had_input = bridge_websocket_ssh(
+            handles,
+            sink,
+            source,
+            channel_id,
+            recorder,
+            close,
+            command_filter,
+        )
+        .await;
 
         // Drop the empty session a short-lived socket leaves behind (StrictMode
         // double-mount in dev, reconnect churn) so the monitor isn't littered
-        // with 0-second entries. A real interactive session outlives this.
-        if started.elapsed() < std::time::Duration::from_secs(2) {
-            crate::http_service::api::db_terminal::cleanup_empty_session(&services, session_id)
-                .await;
+        // with 0-second entries. A session the user typed into is kept.
+        if !had_input && started.elapsed() < std::time::Duration::from_secs(2) {
+            cleanup_empty_session(&services, session_id).await;
         }
 
         info!(
@@ -995,6 +1150,33 @@ pub async fn api_ssh_terminal(
         );
     })
     .into_response()
+}
+
+/// Remove an empty terminal session (no output produced) together with its
+/// recording rows/files, so the session monitor isn't littered with the
+/// 0-second sessions a short-lived socket would otherwise leave behind.
+async fn cleanup_empty_session(services: &Services, session_id: uuid::Uuid) {
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let Ok(db) = gated_core::db_required(&services.db).await else {
+        return;
+    };
+    if let Ok(recs) = gated_db_entities::Recording::Entity::find()
+        .filter(gated_db_entities::Recording::Column::SessionId.eq(session_id))
+        .all(&db)
+        .await
+    {
+        let recordings = services.recordings.lock().await;
+        for r in &recs {
+            let _ = recordings.remove(&session_id, &r.name).await;
+        }
+    }
+    let _ = gated_db_entities::Recording::Entity::delete_many()
+        .filter(gated_db_entities::Recording::Column::SessionId.eq(session_id))
+        .exec(&db)
+        .await;
+    let _ = gated_db_entities::Session::Entity::delete_by_id(session_id)
+        .exec(&db)
+        .await;
 }
 
 #[cfg(test)]

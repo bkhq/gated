@@ -4,10 +4,9 @@ use axum::extract::Path;
 use axum::extract::ws::{Message, WebSocketUpgrade};
 use axum::http::request::Parts;
 use axum::middleware::from_fn;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use gated_common::web::{Data, Json};
 use gated_common::{api_response, api_routes};
-use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroU32;
 use std::ops::DerefMut;
@@ -19,8 +18,9 @@ use chrono::{DateTime, Utc};
 use futures::{SinkExt, StreamExt};
 use gated_common::auth::{AuthCredential, AuthResult, AuthState, CredentialKind};
 use gated_common::{GatedError, Secret};
+use gated_core::Services;
+use gated_core::auth_throttle::validate_credential_throttled;
 use gated_core::logging::http::get_client_ip;
-use gated_core::{ConfigProvider, Services};
 use governor::{DefaultKeyedRateLimiter, Quota};
 use tokio::sync::Mutex;
 use tracing::*;
@@ -51,6 +51,27 @@ pub(super) static LOGIN_RATE_LIMITER: LazyLock<DefaultKeyedRateLimiter<String>> 
         );
         DefaultKeyedRateLimiter::keyed(quota)
     });
+
+/// Longest username the login endpoint looks at; longer ones are rejected
+/// before they reach the limiter, the user lookup or the log.
+const MAX_USERNAME_LEN: usize = 256;
+
+/// Entries a keyed limiter may hold before stale ones are dropped.
+const RATE_LIMITER_MAX_KEYS: usize = 50_000;
+
+/// Whether `key` may make another attempt. Keeps the limiter's key map
+/// bounded: stale keys are dropped once it grows, and while it stays full
+/// every attempt is refused.
+pub(super) fn rate_limit_allows(limiter: &DefaultKeyedRateLimiter<String>, key: &String) -> bool {
+    if limiter.len() > RATE_LIMITER_MAX_KEYS {
+        limiter.retain_recent();
+        limiter.shrink_to_fit();
+        if limiter.len() > RATE_LIMITER_MAX_KEYS {
+            return false;
+        }
+    }
+    limiter.check_key(key).is_ok()
+}
 
 /// Build the limiter key from the username and the resolved client IP, so a
 /// single attacker IP cannot exhaust other users and a single targeted
@@ -201,10 +222,22 @@ async fn api_auth_login(
     services: Data<Services>,
     body: Json<LoginRequest>,
 ) -> Result<LoginResponse, GatedError> {
+    if body.username.len() > MAX_USERNAME_LEN {
+        warn!(target: "audit",
+            username_len = body.username.len(),
+            protocol = "http",
+            reason = "username_too_long",
+            "auth_login_rejected"
+        );
+        return Ok(LoginResponse::Failure(Json(LoginFailureResponse {
+            state: ApiAuthState::Failed,
+        })));
+    }
+
     // Throttle before any credential check so password
     // guessing is rate-limited regardless of whether the user exists.
     let rate_key = login_rate_limit_key(&req, &services, &body.username).await;
-    if LOGIN_RATE_LIMITER.check_key(&rate_key).is_err() {
+    if !rate_limit_allows(&LOGIN_RATE_LIMITER, &rate_key) {
         metrics::counter!(
             "gated_auth_attempts_total",
             "result" => "rate_limited",
@@ -243,12 +276,17 @@ async fn api_auth_login(
         }?;
     let mut state = state_arc.lock().await;
 
-    let mut cp = services.config_provider.lock().await;
-
+    let client_ip = get_client_ip(&req, Some(&services))
+        .await
+        .unwrap_or_else(|| "<unknown>".to_owned());
     let password_cred = AuthCredential::Password(Secret::new(body.password.clone()));
-    if cp
-        .validate_credential(&state.user_info().username, &password_cred)
-        .await?
+    if validate_credential_throttled(
+        &services.config_provider,
+        &state.user_info().username,
+        &client_ip,
+        &password_cred,
+    )
+    .await?
     {
         state.add_valid_credential(password_cred);
     }
@@ -315,7 +353,7 @@ async fn api_auth_otp_login(
     // Throttle TOTP guessing per username/IP before checking
     // the code, sharing the bucket with the password login endpoint.
     let rate_key = login_rate_limit_key(&req, &services, &username).await;
-    if LOGIN_RATE_LIMITER.check_key(&rate_key).is_err() {
+    if !rate_limit_allows(&LOGIN_RATE_LIMITER, &rate_key) {
         metrics::counter!(
             "gated_auth_attempts_total",
             "result" => "rate_limited",
@@ -326,10 +364,13 @@ async fn api_auth_otp_login(
         return Ok(LoginResponse::TooManyRequests);
     }
 
-    let mut cp = services.config_provider.lock().await;
-
+    let client_ip = get_client_ip(&req, Some(&services))
+        .await
+        .unwrap_or_else(|| "<unknown>".to_owned());
     let otp_cred = AuthCredential::Otp(body.otp.clone().into());
-    if cp.validate_credential(&username, &otp_cred).await? {
+    if validate_credential_throttled(&services.config_provider, &username, &client_ip, &otp_cred)
+        .await?
+    {
         state.add_valid_credential(otp_cred);
     } else {
         warn!(target: "audit",username = %username, protocol = "http", "auth_otp_invalid");
@@ -649,19 +690,10 @@ async fn api_report_activity(
 }
 
 pub async fn api_get_web_auth_requests_stream(
-    req: Parts,
     ws: WebSocketUpgrade,
     auth: Option<Data<RequestAuthorization>>,
     services: Data<Services>,
 ) -> Response {
-    // Reject cross-site WebSocket hijacking (CSWSH) before upgrading.
-    if !crate::http_service::middleware::is_ws_origin_allowed(&req.headers, &req.uri, &services)
-        .await
-    {
-        warn!(target: "audit",protocol = "web_auth_stream", "web_auth_stream_origin_rejected");
-        return (StatusCode::FORBIDDEN, "Invalid Origin").into_response();
-    }
-
     let auth_state_store = services.auth_state_store.clone();
 
     let username = match auth.map(|x| x.0.clone()) {
