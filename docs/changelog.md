@@ -328,3 +328,7 @@ Tickets are handed over from a dialog shown once after creation, on the user and
 ## 2026-11-11 14:30 [progress]
 
 The embedded SQLCipher moves to 4.20.0 on SQLite 3.54.1 (`libsqlite3-sys` 0.40), closing RUSTSEC-2026-0459 (CVE-2026-119375) without an advisory ignore. Every sqlx release caps `libsqlite3-sys` below 0.40, so sqlx 0.8.6 is vendored under `third/sqlx` with that one bound raised and applied through `[patch.crates-io]`; `third/README.md` records the origin and the condition for removing it. `deny.toml` allows the `blessing` and `WTFPL` licenses that `sqlcipher-src` declares.
+
+## 2026-11-11 17:30 [progress]
+
+`rustix` moves from 1.1.4 to 1.1.6 (via `tempfile` / `dialoguer`), closing RUSTSEC-2026-0486, which cargo-deny started rejecting in the `v0.0.11` build minutes after the tag was pushed. Lockfile-only change; the tag is moved to this commit.
