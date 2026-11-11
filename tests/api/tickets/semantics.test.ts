@@ -4,6 +4,8 @@ import { adminClient, type AdminClient } from "../../helpers/api-client";
 import { waitPort } from "../../helpers/util";
 import { HttpSession } from "../../helpers/session";
 import { randomUUID } from "crypto";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 const ADMIN_TOKEN = "token-value";
 
@@ -247,7 +249,8 @@ describe("API Tickets - Semantics", () => {
     expect(login.status).toBe(201);
     const ok = await session.post(`${url}/api/profile/credentials/public-keys`, {
       label: "k2",
-      openssh_public_key: "ssh-ed25519 AAAA test2",
+      // A real key: the endpoint now rejects unparsable keys with 400.
+      openssh_public_key: readFileSync(resolve(import.meta.dir, "../../ssh-keys/id_ed25519.pub"), "utf-8").trim(),
     });
     expect(ok.status).toBe(201);
   });

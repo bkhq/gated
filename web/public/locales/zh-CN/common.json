@@ -1063,7 +1063,6 @@
       "newTicket": "签发授权",
       "revoke": "吊销",
       "extend": "延期",
-      "copyLink": "复制领取链接",
       "revokeSelected": "吊销所选",
       "deleteSelected": "删除所选"
     },
@@ -1168,6 +1167,25 @@
       "unlimited": "不限次数",
       "left_one": "剩余 {{count}} 次",
       "left_other": "剩余 {{count}} 次"
+    },
+    "share": {
+      "title": "交接 {{target}} 的票据",
+      "oneTimeHint": "密钥只显示这一次，关闭前请把接收人需要的内容复制好。",
+      "link": "链接",
+      "linkHint": "无需登录，直接在浏览器中打开目标。密钥放在链接的 fragment 里，预览链接不会消耗票据。",
+      "command": "命令行",
+      "anyPassword": "以 ticket-<密钥> 登录，密码任意。",
+      "secret": "密钥",
+      "copy": "复制",
+      "copyLabel": "复制{{what}}",
+      "copied": "已复制{{what}}"
+    },
+    "claim": {
+      "connecting": "正在用票据登录…",
+      "missing": "链接不完整：缺少票据密钥。",
+      "invalid": "票据不存在、已过期或已用尽，请向签发人重新索取。",
+      "tooMany": "此地址尝试次数过多，请一分钟后再试。",
+      "failed": "暂时无法使用该票据，请稍后再试。"
     }
   },
   "user": {
@@ -1177,7 +1195,6 @@
       "searchPlaceholder": "搜索名称、范围、用途…",
       "rowMenu": "打开授权 {{name}} 菜单",
       "copiedId": "已复制票据 ID",
-      "copiedLink": "已复制领取链接",
       "actions": {
         "issue": "签发票据"
       },
@@ -1195,17 +1212,11 @@
         "apiTokensBody": "您自己的长期凭据，以您的身份调 API。请在 凭证 → API 令牌 中管理。"
       },
       "menu": {
-        "copyId": "复制票据 ID",
-        "copyLink": "复制领取链接"
+        "copyId": "复制票据 ID"
       },
       "empty": {
         "title": "尚未签发任何票据",
         "description": "当需要给同事或一次性任务一段窄范围的访问时，签发一张限时票据。"
-      },
-      "share": {
-        "title": "分享链接",
-        "oneTimeHint": "此链接包含一次性工单密钥,仅此一次显示——请在关闭前复制。",
-        "copy": "复制链接"
       }
     },
     "apiTokens": {

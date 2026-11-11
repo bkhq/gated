@@ -24,7 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuthRequests } from '@/features/auth-requests/hooks/use-auth-requests-queries'
 import { useMyLiveSessions } from '@/features/sessions/hooks/use-sessions-queries'
 import { GatedLogo } from '@/shared/components/gated-logo'
-import { useIsAdmin } from '@/shared/hooks/use-info'
+import { useInfo, useIsAdmin } from '@/shared/hooks/use-info'
 import { useSiteTitle } from '@/shared/hooks/use-site-title'
 import { cn } from '@/shared/lib/utils'
 import { Avatar } from '@/shared/ui/avatar'
@@ -63,6 +63,9 @@ const USER_NAV: NavItem[] = [
   { to: '/auth-requests', labelKey: 'nav.authRequests', icon: Inbox, badge: 'pending' },
   { to: '/sessions', labelKey: 'nav.sessions', icon: Terminal, badge: 'sessions' },
 ]
+
+// A ticket session can only reach its target; the other pages answer 403.
+const TICKET_NAV = new Set(['/overview', '/targets', '/sessions'])
 
 const ADMIN_GROUPS: NavGroup[] = [
   {
@@ -250,6 +253,8 @@ function UserMenuFooter({ pendingCount }: { pendingCount: number }) {
 export function AppSidebar() {
   const { t } = useTranslation()
   const isAdmin = useIsAdmin()
+  const viaTicket = useInfo().data?.authorized_via_ticket ?? false
+  const userNav = viaTicket ? USER_NAV.filter(item => TICKET_NAV.has(item.to)) : USER_NAV
   const pathname = useRouterState({ select: s => s.location.pathname })
   const authRequests = useAuthRequests().data ?? []
   const sessions = useMyLiveSessions().data ?? []
@@ -282,7 +287,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>{t('section.workspace')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {USER_NAV.map(item => (
+              {userNav.map(item => (
                 <NavItemRow
                   key={item.to}
                   item={item}

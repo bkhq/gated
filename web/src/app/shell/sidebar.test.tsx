@@ -9,7 +9,8 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 vi.mock('@/features/auth-requests/hooks/use-auth-requests-queries', () => ({ useAuthRequests: () => ({ data: [] }) }))
 vi.mock('@/features/sessions/hooks/use-sessions-queries', () => ({ useMyLiveSessions: () => ({ data: [] }) }))
-vi.mock('@/shared/hooks/use-info', () => ({ useIsAdmin: () => true }))
+const info = { admin: true, authorized_via_ticket: false }
+vi.mock('@/shared/hooks/use-info', () => ({ useIsAdmin: () => info.admin, useInfo: () => ({ data: info }) }))
 vi.mock('@/shared/hooks/use-site-title', () => ({ useSiteTitle: () => 'Gated' }))
 vi.mock('./user-menu', () => ({ UserMenu: () => null }))
 vi.mock('@/shared/ui/sidebar', async () => {
@@ -48,4 +49,14 @@ it('shows group labels without the standalone admin header', () => {
   render(<AppSidebar />)
   expect(screen.queryByText('section.admin')).toBeNull()
   expect(screen.getByText('section.adminResources')).toBeTruthy()
+})
+
+it('shows a ticket session only the pages it can use', () => {
+  info.admin = false
+  info.authorized_via_ticket = true
+  render(<AppSidebar />)
+  const hrefs = screen.getAllByRole('link').map(link => link.getAttribute('href'))
+  expect(hrefs).toEqual(['/overview', '/targets', '/sessions'])
+  info.admin = true
+  info.authorized_via_ticket = false
 })

@@ -1269,6 +1269,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/api/sftp/:target_name/remove` | `sftp_remove` |  |
 | POST | `/api/sftp/:target_name/rename` | `sftp_rename` |  |
 | POST | `/api/sso/return` | `return_to_sso_with_form_data` |  |
+| POST | `/api/tickets/claim` | `claim_ticket` | Signs the browser session in with a ticket. The recipient's link keeps |
 | PUT | `/api/auth/session-lifetime` | `set_session_lifetime` | Choose how long the caller's browser session stays signed in without |
 
 ### 管理面 `/admin/api`

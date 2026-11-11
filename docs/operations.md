@@ -90,6 +90,14 @@ TanStack route tree exists.
 
 - Add target roles and bind users to the required roles. API tokens retain the
   user's permissions; tickets additionally restrict access to one target.
+- Hand a ticket over with the dialog shown once after it is created: the link
+  `/ui/ticket#<secret>` opens the target in the browser without a login, and
+  the command line signs in as `ticket-<secret>` over SSH, MySQL or PostgreSQL
+  with any password. The secret cannot be shown again; issue a new ticket
+  instead.
+- Enrolling OTP in the web UI makes SSH require password and OTP, but a
+  registered public key still signs in on its own. Name `PublicKey` in the
+  user's SSH credential policy to require the key plus another factor.
 - SSH defaults to `auto_reject`. Enroll verified upstream host keys in the
   Known Hosts administration page before connecting. Confirm fingerprints by
   a separate trusted channel. `prompt` is an explicit interactive TOFU choice;

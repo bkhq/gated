@@ -30,6 +30,8 @@ export function AppLayout() {
   const admin = info.data?.admin ?? false
   const matchRoute = useMatchRoute()
   const isLoginRoute = matchRoute({ to: '/auth/login' })
+  // A ticket recipient has no account: the claim page shows no shell.
+  const isClaimRoute = matchRoute({ to: '/ticket' })
   const isSessionsRoute = Boolean(matchRoute({ to: '/sessions' }))
   const hasTerminalTabs = useAppStore(state => state.terminalTabs.length > 0)
   const identityUsername = useAppStore(state => state.identity.username)
@@ -87,7 +89,7 @@ export function AppLayout() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  if (isLoginRoute) {
+  if (isLoginRoute || isClaimRoute) {
     return <Outlet />
   }
 

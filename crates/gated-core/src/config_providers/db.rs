@@ -2,7 +2,7 @@ use chrono::Utc;
 use data_encoding::BASE64;
 use gated_common::auth::{
     AllCredentialsPolicy, AnySingleCredentialPolicy, AuthCredential, CredentialKind,
-    CredentialPolicy, PerProtocolCredentialPolicy,
+    CredentialPolicy, PerProtocolCredentialPolicy, PublicKeyOrPolicy,
 };
 use gated_common::helpers::hash::verify_password_hash;
 use gated_common::helpers::otp::verify_totp;
@@ -175,9 +175,12 @@ impl ConfigProvider for DatabaseConfigProvider {
             if let Some(p) = req.ssh {
                 policy.protocols.insert(
                     "SSH",
-                    Box::new(AllCredentialsPolicy {
+                    Box::new(PublicKeyOrPolicy {
+                        inner: AllCredentialsPolicy {
+                            supported_credential_types: supported_credential_types.clone(),
+                            required_credential_types: p.into_iter().collect(),
+                        },
                         supported_credential_types,
-                        required_credential_types: p.into_iter().collect(),
                     }),
                 );
             }
@@ -289,7 +292,7 @@ impl ConfigProvider for DatabaseConfigProvider {
                     .any(|credential| match credential {
                         UserAuthCredential::PublicKey(UserPublicKeyCredential {
                             key: user_key,
-                        }) => &openssh_public_key == user_key.expose_secret(),
+                        }) => openssh_public_key == normalized_public_key(user_key.expose_secret()),
                         _ => false,
                     }))
             }
@@ -568,6 +571,16 @@ impl ConfigProvider for DatabaseConfigProvider {
     }
 }
 
+/// `<type> <base64>` of a stored key: self-service registration used to keep
+/// the pasted comment and whitespace, which never matched the client's key.
+fn normalized_public_key(stored: &str) -> String {
+    stored
+        .split_whitespace()
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod tests {
@@ -643,6 +656,21 @@ mod tests {
             iss: iss.into(),
             sub: sub.into(),
         }
+    }
+
+    // Keys pasted with a comment or stray whitespace still match the key
+    // the client presents.
+    #[test]
+    fn stored_public_keys_match_without_their_comment() {
+        assert_eq!(
+            normalized_public_key("ssh-ed25519 AAAAC3 alice@laptop\n"),
+            "ssh-ed25519 AAAAC3"
+        );
+        assert_eq!(
+            normalized_public_key("  ssh-ed25519\tAAAAC3  "),
+            "ssh-ed25519 AAAAC3"
+        );
+        assert_eq!(normalized_public_key("garbage"), "garbage");
     }
 
     // The existing account is resolved by its (iss, sub) identity.

@@ -148,11 +148,21 @@ api_response! {
     enum CreatePublicKeyCredentialResponse {
         #[oai(status = 201)]
         Created(Json<ExistingPublicKeyCredential>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
         #[oai(status = 401)]
         Unauthorized(Json<String>),
         #[oai(status = 403)]
         Forbidden(Json<String>),
     }
+}
+
+/// The key as `<type> <base64>`, which is what SSH authentication compares
+/// against; the comment is dropped like the admin endpoint does.
+fn normalize_public_key(pasted: &str) -> Result<String, russh::keys::Error> {
+    let mut key = russh::keys::PublicKey::from_openssh(pasted)?;
+    key.set_comment("");
+    Ok(key.to_openssh()?)
 }
 
 api_response! {
@@ -506,13 +516,19 @@ async fn api_create_pk(
         )));
     };
 
+    let Ok(openssh_public_key) = normalize_public_key(&body.openssh_public_key) else {
+        return Ok(CreatePublicKeyCredentialResponse::BadRequest(Json(
+            "not an OpenSSH public key".into(),
+        )));
+    };
+
     let object = PublicKeyCredential::ActiveModel {
         id: Set(Uuid::new_v4()),
         user_id: Set(user_model.id),
         date_added: Set(Some(Utc::now())),
         last_used: Set(None),
         label: Set(body.label.clone()),
-        openssh_public_key: Set(body.openssh_public_key.clone()),
+        openssh_public_key: Set(openssh_public_key),
     }
     .insert(&db)
     .await
@@ -892,6 +908,18 @@ pub fn router() -> OpenApiRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // A pasted key is stored as `<type> <base64>`, without its comment,
+    // which is what SSH authentication compares against.
+    #[test]
+    fn registered_public_keys_are_stored_without_their_comment() {
+        let key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbuYd0ewTYUH9VEelpXA4JSEBpU9g4WFukYUQXNCPiD alice@laptop\n";
+        assert_eq!(
+            normalize_public_key(key).expect("test"),
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbuYd0ewTYUH9VEelpXA4JSEBpU9g4WFukYUQXNCPiD"
+        );
+        assert!(normalize_public_key("not a key").is_err());
+    }
 
     #[test]
     fn public_key_credentials_expose_the_full_key_and_its_fingerprint() {

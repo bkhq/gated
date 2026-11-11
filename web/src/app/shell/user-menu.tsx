@@ -30,6 +30,8 @@ export function UserMenu({ open, onClose, anchorRef, collapsed, pendingCount = 0
   const setLang = useAppStore(state => state.setLang)
   const logout = useLogout()
   const info = useInfo()
+  // A ticket session has no profile; its credential pages answer 403.
+  const viaTicket = info.data?.authorized_via_ticket ?? false
   const displayName = info.data?.username ?? ''
 
   const containerRef = React.useRef<HTMLDivElement>(null)
@@ -119,19 +121,25 @@ export function UserMenu({ open, onClose, anchorRef, collapsed, pendingCount = 0
         </div>
       </div>
 
-      <MenuRow
-        icon={User}
-        label={t('menu.profile')}
-        onClick={() => {
-          void navigate({ to: '/profile' })
-          onClose()
-        }}
-        right={pendingCount > 0
-          ? <Badge tone="info" className="h-[18px] px-1.5 py-0">{pendingCount}</Badge>
-          : null}
-      />
+      {viaTicket
+        ? null
+        : (
+            <>
+              <MenuRow
+                icon={User}
+                label={t('menu.profile')}
+                onClick={() => {
+                  void navigate({ to: '/profile' })
+                  onClose()
+                }}
+                right={pendingCount > 0
+                  ? <Badge tone="info" className="h-[18px] px-1.5 py-0">{pendingCount}</Badge>
+                  : null}
+              />
 
-      <div role="separator" className="mx-1.5 my-1 h-px bg-border" />
+              <div role="separator" className="mx-1.5 my-1 h-px bg-border" />
+            </>
+          )}
 
       <SubmenuRow label={t('menu.theme.title')} current={currentThemeLabel}>
         {themeOptions.map(option => (

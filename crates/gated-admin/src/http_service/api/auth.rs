@@ -43,18 +43,23 @@ const LOGIN_MAX_ATTEMPTS_PER_MIN: u32 = 10;
 /// Per-`(username, client-IP)` limiter guarding the unauthenticated login
 /// and OTP endpoints against brute-force / credential-stuffing. See
 /// `gated-core/src/sql_console_rate_limit.rs` for the governor pattern.
-static LOGIN_RATE_LIMITER: LazyLock<DefaultKeyedRateLimiter<String>> = LazyLock::new(|| {
-    let quota = Quota::per_minute(
-        NonZeroU32::new(LOGIN_MAX_ATTEMPTS_PER_MIN)
-            .unwrap_or_else(|| unreachable!("LOGIN_MAX_ATTEMPTS_PER_MIN is non-zero")),
-    );
-    DefaultKeyedRateLimiter::keyed(quota)
-});
+pub(super) static LOGIN_RATE_LIMITER: LazyLock<DefaultKeyedRateLimiter<String>> =
+    LazyLock::new(|| {
+        let quota = Quota::per_minute(
+            NonZeroU32::new(LOGIN_MAX_ATTEMPTS_PER_MIN)
+                .unwrap_or_else(|| unreachable!("LOGIN_MAX_ATTEMPTS_PER_MIN is non-zero")),
+        );
+        DefaultKeyedRateLimiter::keyed(quota)
+    });
 
 /// Build the limiter key from the username and the resolved client IP, so a
 /// single attacker IP cannot exhaust other users and a single targeted
 /// username cannot be hammered from one IP.
-async fn login_rate_limit_key(req: &Parts, services: &Services, username: &str) -> String {
+pub(super) async fn login_rate_limit_key(
+    req: &Parts,
+    services: &Services,
+    username: &str,
+) -> String {
     let ip = get_client_ip(req, Some(services))
         .await
         .unwrap_or_else(|| "<unknown>".to_owned());

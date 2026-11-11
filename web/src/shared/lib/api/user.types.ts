@@ -678,6 +678,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tickets/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signs the browser session in with a ticket. The recipient's link keeps
+         *     the secret in the URL fragment and posts it here, so nothing but this
+         *     call consumes a use; `?gated-ticket=` consumed one on any GET, including a
+         *     chat app's link preview.
+         */
+        post: operations["claim_ticket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -712,6 +734,13 @@ export interface components {
              */
             old_password: string;
             password: string;
+        };
+        ClaimTicketRequest: {
+            secret: string;
+        };
+        ClaimedTicket: {
+            kind: components["schemas"]["TargetKind"];
+            target_name: string;
         };
         ClientCertificateUpstreamAuth: {
             certificate: string;
@@ -2217,6 +2246,14 @@ export interface operations {
                     "application/json; charset=utf-8": components["schemas"]["ExistingPublicKeyCredential"];
                 };
             };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -2958,6 +2995,45 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    claim_ticket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["ClaimTicketRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["ClaimedTicket"];
+                };
+            };
+            /** @description Unknown, expired or used-up ticket, or its target is gone. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
+            /** @description Too many claims from this address. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

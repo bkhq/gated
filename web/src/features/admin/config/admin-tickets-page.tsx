@@ -1,10 +1,10 @@
 import type { SortDir } from '@/shared/components/sort'
 import type { Ticket } from '@/shared/types/domain'
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
-import { Clock, Copy, Filter, Hash, Inbox, Key, Plus, Search, Trash2, X as XIcon } from 'lucide-react'
+import { Clock, Filter, Hash, Inbox, Key, Plus, Search, Trash2, X as XIcon } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { TicketFormDialog } from '@/features/tickets/components'
+import { TicketFormDialog, TicketShareDialog } from '@/features/tickets/components'
 import { useDeleteTicket, useRevokeTicket, useTickets } from '@/features/tickets/hooks/use-tickets-queries'
 import { ticketDeleteWarning, ticketUsesLabel } from '@/features/tickets/lib/uses'
 import { BulkActionBar } from '@/shared/components/bulk-action-bar'
@@ -74,6 +74,8 @@ export function AdminTicketsPage() {
   const tickets = React.useMemo(() => ticketsData ?? [], [ticketsData])
 
   const [drawer, setDrawer] = React.useState<DrawerState | null>(null)
+  // The one-time secret of the ticket just created, shown until closed.
+  const [share, setShare] = React.useState<{ secret: string, target: string } | null>(null)
   const [pendingDelete, setPendingDelete] = React.useState<Ticket | null>(null)
   const [pendingRevoke, setPendingRevoke] = React.useState<Ticket | null>(null)
   const [pendingBulk, setPendingBulk] = React.useState<'revoke' | 'delete' | null>(null)
@@ -386,7 +388,12 @@ export function AdminTicketsPage() {
         mode={drawer?.mode ?? 'create'}
         ticket={drawer?.ticket ?? null}
         onClose={() => setDrawer(null)}
+        onSaved={(ticket, secret) => {
+          if (secret)
+            setShare({ secret, target: ticket.scope })
+        }}
       />
+      <TicketShareDialog secret={share?.secret ?? null} targetName={share?.target ?? null} onClose={() => setShare(null)} />
 
       <Dialog open={pendingRevoke !== null} onClose={() => setPendingRevoke(null)} width={440}>
         <div className="flex flex-col">
@@ -568,7 +575,6 @@ function TicketRow({ ticket, checked, onToggle, onOpen, onRevoke, onDelete }: {
         <RowActionsMenu
           items={[
             { label: t('tickets.form.details'), icon: Key, onClick: onOpen },
-            { label: t('tickets.actions.copyLink'), icon: Copy, onClick: () => { void navigator.clipboard?.writeText(`${window.location.origin}/claim/${ticket.id}`) } },
             ...(ticket.state === 'active'
               ? [
                   { label: t('tickets.actions.revoke'), icon: XIcon, onClick: onRevoke },

@@ -1,4 +1,6 @@
 # Tasks
+- [x] [**20261111-1125-ticket-handoff-and-claim-page Hand a ticket to its recipient without a login**](20261111-1125-ticket-handoff-and-claim-page.md) `P1`
+- [x] [**20261111-1122-ssh-public-key-satisfies-otp-policy SSH asks for password and OTP although the client key is registered**](20261111-1122-ssh-public-key-satisfies-otp-policy.md) `P1`
 - [x] [**20261108-1030-sftp-ui-like-filemanager Rework the web file manager after bkhq/filemanager**](20261108-1030-sftp-ui-like-filemanager.md) `P2`
 - [x] [**20261105-0030-target-list-paging-and-reachability Page the target lists, show counts and track target reachability**](20261105-0030-target-list-paging-and-reachability.md) `P2`
 - [x] [**20261104-2130-per-role-target-accounts Let one target sign in with a different account per role**](20261104-2130-per-role-target-accounts.md) `P2`

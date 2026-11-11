@@ -1,20 +1,28 @@
 use axum::extract::Path;
+use axum::http::request::Parts;
 use axum::middleware::from_fn;
 use chrono::{DateTime, Utc};
 use gated_common::GatedError;
+use gated_common::Secret;
 use gated_common::helpers::hash::generate_ticket_secret;
 use gated_common::web::{Data, Json};
 use gated_common::{api_response, api_routes};
-use gated_core::{ConfigProvider, Services};
+use gated_core::{ConfigProvider, Services, authorize_ticket, consume_ticket};
+use gated_db_entities::Target::{self, TargetKind};
 use gated_db_entities::Ticket;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
+use tracing::{info, warn};
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
+use super::auth::{LOGIN_RATE_LIMITER, login_rate_limit_key};
 use super::common::{get_user, is_ticket_auth};
-use crate::http_service::common::{RequestAuthorization, require_auth};
+use crate::http_service::common::{
+    RequestAuthorization, SessionAuthorization, SessionExt, require_auth,
+};
+use crate::http_service::session::Session;
 
 #[derive(Deserialize, ToSchema)]
 struct NewProfileTicket {
@@ -218,7 +226,86 @@ async fn api_delete_ticket(
     Ok(DeleteTicketResponse::Deleted)
 }
 
+#[derive(Deserialize, ToSchema)]
+struct ClaimTicketRequest {
+    secret: String,
+}
+
+#[derive(Serialize, ToSchema)]
+struct ClaimedTicket {
+    target_name: String,
+    kind: TargetKind,
+}
+
+api_response! {
+    enum ClaimTicketResponse {
+        #[oai(status = 200)]
+        Ok(Json<ClaimedTicket>),
+        /// Unknown, expired or used-up ticket, or its target is gone.
+        #[oai(status = 404)]
+        NotFound(Json<String>),
+        /// Too many claims from this address.
+        #[oai(status = 429)]
+        TooManyRequests,
+    }
+}
+
+/// Signs the browser session in with a ticket. The recipient's link keeps
+/// the secret in the URL fragment and posts it here, so nothing but this
+/// call consumes a use; `?gated-ticket=` consumed one on any GET, including a
+/// chat app's link preview.
+#[utoipa::path(post, path = "/tickets/claim", operation_id = "claim_ticket")]
+async fn api_claim_ticket(
+    req: Parts,
+    session: Session,
+    services: Data<Services>,
+    body: Json<ClaimTicketRequest>,
+) -> Result<ClaimTicketResponse, GatedError> {
+    let rate_key = login_rate_limit_key(&req, &services, "ticket").await;
+    if LOGIN_RATE_LIMITER.check_key(&rate_key).is_err() {
+        warn!(target: "audit", protocol = "http", "ticket_claim_rate_limited");
+        return Ok(ClaimTicketResponse::TooManyRequests);
+    }
+
+    let secret = Secret::new(body.secret.clone());
+    let Some((ticket, _user_info)) = authorize_ticket(&services.db, &secret).await? else {
+        warn!(target: "audit", protocol = "http", "ticket_claim_rejected");
+        return Ok(ClaimTicketResponse::NotFound(Json(
+            "ticket not found, expired or used up".into(),
+        )));
+    };
+    let db = services.db_required().await?;
+    let Some(target) = Target::Entity::find()
+        .filter(Target::Column::Name.eq(&ticket.target))
+        .one(&db)
+        .await?
+    else {
+        return Ok(ClaimTicketResponse::NotFound(Json(
+            "the ticket's target no longer exists".into(),
+        )));
+    };
+
+    consume_ticket(&services.db, &ticket.id).await?;
+    session.set_auth(SessionAuthorization::Ticket {
+        username: ticket.username.clone(),
+        target_name: ticket.target.clone(),
+    });
+    info!(target: "audit",
+        username = %ticket.username,
+        ticket_id = %ticket.id,
+        target = %ticket.target,
+        protocol = "http",
+        "ticket_claimed"
+    );
+
+    Ok(ClaimTicketResponse::Ok(Json(ClaimedTicket {
+        target_name: ticket.target,
+        kind: target.kind,
+    })))
+}
+
 pub fn router() -> OpenApiRouter {
     api_routes!(api_get_tickets, api_create_ticket, api_delete_ticket,)
         .route_layer(from_fn(require_auth))
+        .merge(api_routes!(api_claim_ticket,))
 }

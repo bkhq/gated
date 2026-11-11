@@ -1179,6 +1179,15 @@
               }
             }
           },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "401": {
             "content": {
               "application/json; charset=utf-8": {
@@ -2099,6 +2108,46 @@
           }
         ]
       }
+    },
+    "/tickets/claim": {
+      "post": {
+        "summary": "Signs the browser session in with a ticket. The recipient's link keeps\nthe secret in the URL fragment and posts it here, so nothing but this\ncall consumes a use; `?gated-ticket=` consumed one on any GET, including a\nchat app's link preview.",
+        "operationId": "claim_ticket",
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimedTicket"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, expired or used-up ticket, or its target is gone.",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many claims from this address."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2198,6 +2247,32 @@
             "description": "The caller's current password, re-verified before the\nchange is applied (a session alone must not be enough)."
           },
           "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ClaimTicketRequest": {
+        "type": "object",
+        "required": [
+          "secret"
+        ],
+        "properties": {
+          "secret": {
+            "type": "string"
+          }
+        }
+      },
+      "ClaimedTicket": {
+        "type": "object",
+        "required": [
+          "target_name",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TargetKind"
+          },
+          "target_name": {
             "type": "string"
           }
         }

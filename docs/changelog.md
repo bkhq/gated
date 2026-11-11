@@ -316,3 +316,11 @@ Target names and addresses kept surrounding whitespace, so a host pasted with a 
 ## 2026-11-08 11:30 [progress]
 
 Web file manager reworked after `bkhq/filemanager`: folder tree, sortable list with multi-select and keyboard control, filter, context menus, details panel, floating upload panel with per-file cancel, bulk download and delete. Text (up to 1 MiB) and image (up to 20 MiB) previews use the download endpoint, so each preview is audited as a download. No backend change.
+
+## 2026-11-11 12:40 [BUG-P1]
+
+A registered SSH public key was asked for a password and an OTP once the user enrolled OTP: `upgrade_to_otp` set the SSH policy to `[Password, Totp]`, which a key could never satisfy. A valid key now satisfies the SSH policy on its own unless the policy names `PublicKey`. Keys registered from the credentials page kept their comment and never matched; stored keys are compared as `<type> <base64>` and new ones are normalised.
+
+## 2026-11-11 12:40 [progress]
+
+Tickets are handed over from a dialog shown once after creation, on the user and the admin page: claim link, command line (`ticket-<secret>` user) and the secret. The link is `/ui/ticket#<secret>`; the page posts the secret to the new `POST /api/tickets/claim`, which signs the session in and consumes one use, so previewing the link no longer burns a ticket and a dead link explains itself instead of showing the login page. Ticket sessions see only the pages they can use. The admin row menu's "copy claim link" copied a link that never worked and is gone.

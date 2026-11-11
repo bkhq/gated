@@ -1063,7 +1063,6 @@
       "newTicket": "Issue grant",
       "revoke": "Revoke",
       "extend": "Extend",
-      "copyLink": "Copy claim link",
       "revokeSelected": "Revoke selected",
       "deleteSelected": "Delete selected"
     },
@@ -1168,6 +1167,25 @@
       "unlimited": "Unlimited",
       "left_one": "{{count}} use left",
       "left_other": "{{count}} uses left"
+    },
+    "share": {
+      "title": "Hand over the ticket for {{target}}",
+      "oneTimeHint": "The secret is shown only now. Copy what the recipient needs before closing.",
+      "link": "Link",
+      "linkHint": "Opens the target in the browser without a login. The secret stays in the link fragment, so previewing the link does not use the ticket.",
+      "command": "Command line",
+      "anyPassword": "Signs in as ticket-<secret>; any password is accepted.",
+      "secret": "Secret",
+      "copy": "Copy",
+      "copyLabel": "Copy {{what}}",
+      "copied": "{{what}} copied"
+    },
+    "claim": {
+      "connecting": "Signing in with the ticket…",
+      "missing": "This link is incomplete: the ticket secret is missing.",
+      "invalid": "This ticket does not exist, has expired or has been used up. Ask the person who issued it for a new one.",
+      "tooMany": "Too many attempts from this address. Try again in a minute.",
+      "failed": "The ticket could not be used right now. Try again later."
     }
   },
   "user": {
@@ -1177,7 +1195,6 @@
       "searchPlaceholder": "Search name, scope, purpose…",
       "rowMenu": "Open grant {{name}} menu",
       "copiedId": "Grant ID copied",
-      "copiedLink": "Claim link copied",
       "actions": {
         "issue": "Issue grant"
       },
@@ -1195,17 +1212,11 @@
         "apiTokensBody": "Long-lived credential that calls the API as you. Manage in Credentials → API tokens."
       },
       "menu": {
-        "copyId": "Copy grant ID",
-        "copyLink": "Copy claim link"
+        "copyId": "Copy grant ID"
       },
       "empty": {
         "title": "No grants issued yet",
         "description": "Issue a time-bounded grant when you need to give a teammate or one-off task narrow access."
-      },
-      "share": {
-        "title": "Share link",
-        "oneTimeHint": "This link contains the one-time ticket secret. It is shown only now — copy it before closing.",
-        "copy": "Copy link"
       }
     },
     "apiTokens": {

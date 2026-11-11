@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { TicketFormDialog } from '@/features/tickets/components'
+import { TicketFormDialog, TicketShareDialog } from '@/features/tickets/components'
 import { useDeleteTicket, useMyTickets, useRevokeTicket } from '@/features/tickets/hooks/use-tickets-queries'
 import { ticketDeleteWarning, ticketUsesLabel } from '@/features/tickets/lib/uses'
 import { EmptyState } from '@/shared/components/empty-state'
@@ -92,7 +92,8 @@ export function TicketsPage() {
   const [drawer, setDrawer] = React.useState<DrawerState | null>(null)
   const [pendingRevoke, setPendingRevoke] = React.useState<Ticket | null>(null)
   const [pendingDelete, setPendingDelete] = React.useState<Ticket | null>(null)
-  const [shareSecret, setShareSecret] = React.useState<string | null>(null)
+  // The one-time secret of the ticket just created, shown until closed.
+  const [share, setShare] = React.useState<{ secret: string, target: string } | null>(null)
   const [stateFilter, setStateFilter] = React.useState<StateFilter>('all')
   const [query, setQuery] = React.useState('')
   const [offset, setOffset] = React.useState(0)
@@ -158,21 +159,6 @@ export function TicketsPage() {
   const copyId = (id: string) => {
     void navigator.clipboard?.writeText(id)
     setLiveMsg(t('user.tickets.copiedId'))
-    window.setTimeout(setLiveMsg, 1500, '')
-  }
-
-  // The share link carries the one-time ticket secret as ?gated-ticket=…;
-  // TicketMiddleware authorizes the session from it on any URL, so the link
-  // works without a prior login. The secret only exists at creation time.
-  const shareLink = shareSecret
-    ? `${window.location.origin}/?gated-ticket=${encodeURIComponent(shareSecret)}`
-    : null
-
-  const copyShareLink = () => {
-    if (!shareLink)
-      return
-    void navigator.clipboard?.writeText(shareLink)
-    setLiveMsg(t('user.tickets.copiedLink'))
     window.setTimeout(setLiveMsg, 1500, '')
   }
 
@@ -349,31 +335,13 @@ export function TicketsPage() {
         mode={drawer?.mode ?? 'create'}
         ticket={drawer?.ticket ?? null}
         onClose={() => setDrawer(null)}
-        onSaved={(_, secret) => {
+        onSaved={(ticket, secret) => {
           if (secret)
-            setShareSecret(secret)
+            setShare({ secret, target: ticket.scope })
         }}
       />
 
-      <Dialog open={shareSecret !== null} onClose={() => setShareSecret(null)} width={560}>
-        <DialogHeader
-          title={t('user.tickets.share.title')}
-          description={t('user.tickets.share.oneTimeHint')}
-          onClose={() => setShareSecret(null)}
-        />
-        <DialogBody>
-          <div className="mono break-all rounded-md border border-border bg-[hsl(var(--muted)/0.4)] p-3 text-[12.5px]">
-            {shareLink}
-          </div>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShareSecret(null)}>{t('actions.close')}</Button>
-          <Button onClick={copyShareLink}>
-            <Copy size={13} />
-            <span>{t('user.tickets.share.copy')}</span>
-          </Button>
-        </DialogFooter>
-      </Dialog>
+      <TicketShareDialog secret={share?.secret ?? null} targetName={share?.target ?? null} onClose={() => setShare(null)} />
 
       <Dialog open={pendingRevoke !== null} onClose={() => setPendingRevoke(null)} width={460}>
         {pendingRevoke
