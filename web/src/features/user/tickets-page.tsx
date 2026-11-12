@@ -13,6 +13,7 @@ import {
   Key,
   MoreHorizontal,
   Plus,
+  RefreshCw,
   Search,
   Ticket as TicketIcon,
   Trash2,
@@ -21,7 +22,7 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { TicketFormDialog, TicketShareDialog } from '@/features/tickets/components'
+import { TicketFormDialog, TicketRotateDialog, TicketShareDialog } from '@/features/tickets/components'
 import { useDeleteTicket, useMyTickets, useRevokeTicket } from '@/features/tickets/hooks/use-tickets-queries'
 import { ticketDeleteWarning, ticketUsesLabel } from '@/features/tickets/lib/uses'
 import { EmptyState } from '@/shared/components/empty-state'
@@ -94,6 +95,7 @@ export function TicketsPage() {
   const [pendingDelete, setPendingDelete] = React.useState<Ticket | null>(null)
   // The one-time secret of the ticket just created, shown until closed.
   const [share, setShare] = React.useState<{ secret: string, target: string } | null>(null)
+  const [pendingRotate, setPendingRotate] = React.useState<Ticket | null>(null)
   const [stateFilter, setStateFilter] = React.useState<StateFilter>('all')
   const [query, setQuery] = React.useState('')
   const [offset, setOffset] = React.useState(0)
@@ -321,6 +323,7 @@ export function TicketsPage() {
                           onOpen={() => setDrawer({ mode: 'edit', ticket })}
                           onCopyId={() => copyId(ticket.id)}
                           onRevoke={() => setPendingRevoke(ticket)}
+                          onRotate={() => setPendingRotate(ticket)}
                           onDelete={() => setPendingDelete(ticket)}
                         />
                       ))}
@@ -342,6 +345,11 @@ export function TicketsPage() {
       />
 
       <TicketShareDialog secret={share?.secret ?? null} targetName={share?.target ?? null} onClose={() => setShare(null)} />
+      <TicketRotateDialog
+        ticket={pendingRotate}
+        onClose={() => setPendingRotate(null)}
+        onRotated={(ticket, secret) => setShare({ secret, target: ticket.scope })}
+      />
 
       <Dialog open={pendingRevoke !== null} onClose={() => setPendingRevoke(null)} width={460}>
         {pendingRevoke
@@ -456,11 +464,12 @@ function SortHeader({ label, active, dir, onClick }: {
   )
 }
 
-function TicketRow({ ticket, onOpen, onCopyId, onRevoke, onDelete }: {
+function TicketRow({ ticket, onOpen, onCopyId, onRevoke, onRotate, onDelete }: {
   ticket: Ticket
   onOpen: () => void
   onCopyId: () => void
   onRevoke: () => void
+  onRotate: () => void
   onDelete: () => void
 }) {
   const { t } = useTranslation()
@@ -513,7 +522,10 @@ function TicketRow({ ticket, onOpen, onCopyId, onRevoke, onDelete }: {
             { label: t('actions.open'), icon: Key, onClick: onOpen },
             { label: t('user.tickets.menu.copyId'), icon: Copy, onClick: onCopyId },
             ...(ticket.state === 'active'
-              ? [{ label: t('tickets.actions.revoke'), icon: XIcon, onClick: onRevoke }]
+              ? [
+                  { label: t('tickets.actions.rotate'), icon: RefreshCw, onClick: onRotate },
+                  { label: t('tickets.actions.revoke'), icon: XIcon, onClick: onRevoke },
+                ]
               : []),
             'separator' as const,
             { label: t('actions.delete'), icon: Trash2, danger: true, onClick: onDelete },

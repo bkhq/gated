@@ -76,6 +76,7 @@ impl GatedServerHandle {
                     protocol: Set(state.protocol.to_string()),
                     username: Set(Some(user_info.username)),
                     target_snapshot: Set(target_snapshot(state.target.as_ref())?),
+                    ticket_id: Set(state.ticket_id),
                     ..Default::default()
                 }
                 .insert(&db)
@@ -88,6 +89,12 @@ impl GatedServerHandle {
         self.update_rate_limiters().await?;
 
         Ok(())
+    }
+
+    /// Records the ticket the session is opened with. Call before
+    /// `set_user_info`, which writes the session row.
+    pub async fn set_ticket(&self, ticket_id: uuid::Uuid) {
+        self.session_state.lock().await.ticket_id = Some(ticket_id);
     }
 
     pub async fn set_target(&self, target: &Target) -> Result<(), GatedError> {

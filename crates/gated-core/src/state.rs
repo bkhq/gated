@@ -143,6 +143,8 @@ pub struct SessionState {
     /// The `sessions` row is written on authentication, so failed logins and
     /// port scans never show up as sessions.
     pub(crate) persisted: bool,
+    /// The ticket the session was opened with.
+    pub(crate) ticket_id: Option<Uuid>,
 }
 
 pub struct SessionStateInit {
@@ -167,6 +169,7 @@ impl SessionState {
             connected_targets: HashSet::new(),
             started: chrono::Utc::now(),
             persisted: false,
+            ticket_id: None,
         }
     }
 

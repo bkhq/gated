@@ -51,6 +51,8 @@ export interface LiveSession {
   started: string
   duration: string
   state: 'live' | 'closed'
+  /** The ticket the session was opened with, if any. */
+  ticketId?: string | null
 }
 
 export interface User {

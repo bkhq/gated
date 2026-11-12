@@ -12,7 +12,7 @@ pub mod setup;
 pub mod sso_provider_detail;
 pub mod sso_provider_list;
 pub mod targets_list;
-mod tickets;
+pub(crate) mod tickets;
 // Not part of OpenAPI — a WebSocket upgrade is not representable there.
 // These endpoints are mounted with raw `#[handler]` in `lib.rs`:
 //   /api/ssh/terminal/:target_name

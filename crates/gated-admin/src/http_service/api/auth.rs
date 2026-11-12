@@ -689,6 +689,25 @@ async fn api_report_activity(
     ActivityResponse::Recorded
 }
 
+api_response! {
+    enum SessionCheckResponse {
+        #[oai(status = 204)]
+        SignedIn,
+        #[oai(status = 401)]
+        SignedOut,
+    }
+}
+
+/// Whether the browser session is still signed in. Does not count as
+/// activity, so the web UI can poll it to notice an expired session.
+#[utoipa::path(get, path = "/auth/session", operation_id = "check_session")]
+async fn api_check_session(auth: Option<Data<RequestAuthorization>>) -> SessionCheckResponse {
+    match auth {
+        Some(_) => SessionCheckResponse::SignedIn,
+        None => SessionCheckResponse::SignedOut,
+    }
+}
+
 pub async fn api_get_web_auth_requests_stream(
     ws: WebSocketUpgrade,
     auth: Option<Data<RequestAuthorization>>,
@@ -740,6 +759,7 @@ pub fn router() -> OpenApiRouter {
             api_approve_auth,
             api_reject_auth,
             api_report_activity,
+            api_check_session,
         )
         .route_layer(from_fn(require_auth)),
     )

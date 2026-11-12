@@ -151,6 +151,7 @@ const BACKGROUND_PATHS: &[&str] = &[
     "/admin/api/command-reviews",
     "/admin/api/system/update",
     "/api/admin/encryption/lock-status",
+    "/api/auth/session",
     "/api/auth/state",
     "/api/auth/web-auth-requests",
     "/api/profile/sessions",
@@ -352,6 +353,7 @@ pub struct ManagementSessionSummary {
     pub id: SessionId,
     pub username: String,
     pub created: chrono::DateTime<chrono::Utc>,
+    pub ticket_id: Option<uuid::Uuid>,
     pub last_active: chrono::DateTime<chrono::Utc>,
     pub expires: chrono::DateTime<chrono::Utc>,
 }
@@ -415,6 +417,7 @@ impl SessionStore {
             id,
             user_info: None,
             created: chrono::Utc::now(),
+            ticket_id: None,
         }));
         self.session_handles.insert(id, server_handle.clone());
         session.set(SESSION_ID_SESSION_KEY, id);
@@ -469,6 +472,20 @@ impl SessionStore {
         ids.len()
     }
 
+    /// Ends the browser sessions opened with a ticket.
+    pub async fn revoke_ticket_sessions(&mut self, ticket_id: uuid::Uuid) -> usize {
+        let mut ids = Vec::new();
+        for (id, handle) in &self.session_handles {
+            if handle.lock().await.ticket_id == Some(ticket_id) {
+                ids.push(*id);
+            }
+        }
+        for id in &ids {
+            self.forget(*id);
+        }
+        ids.len()
+    }
+
     /// The id of the browser session `session` belongs to.
     pub async fn id_of(&self, session: &Session) -> Option<SessionId> {
         match self.handle_for(session) {
@@ -498,6 +515,7 @@ impl SessionStore {
                 id: *id,
                 username: user_info.username.clone(),
                 created: handle.created,
+                ticket_id: handle.ticket_id,
                 last_active,
                 expires: last_active + chrono::Duration::from_std(lifetime).unwrap_or_default(),
             });
@@ -597,6 +615,7 @@ mod tests {
                     username: username.into(),
                 }),
                 created: chrono::Utc::now(),
+                ticket_id: None,
             })),
         );
         store.session_timestamps.insert(id, at);
@@ -638,6 +657,7 @@ mod tests {
                 id: anonymous,
                 user_info: None,
                 created: chrono::Utc::now(),
+                ticket_id: None,
             })),
         );
         let listed = store.list(Duration::from_secs(60)).await;
@@ -750,6 +770,11 @@ mod tests {
         assert!(counts_as_activity(
             &Method::GET,
             "/admin/api/sessions-export"
+        ));
+        assert!(!counts_as_activity(&Method::GET, "/api/auth/session"));
+        assert!(counts_as_activity(
+            &Method::PUT,
+            "/api/auth/session-lifetime"
         ));
         assert!(counts_as_activity(&Method::GET, "/api/info"));
     }

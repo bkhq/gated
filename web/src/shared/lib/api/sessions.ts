@@ -15,6 +15,8 @@ export interface ListSessionsQuery {
   since?: string
   target_id?: string
   username?: string
+  ticket_id?: string
+  via_ticket?: boolean
 }
 
 function toQueryString(query: ListSessionsQuery | undefined): string {

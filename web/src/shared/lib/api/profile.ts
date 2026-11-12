@@ -195,6 +195,9 @@ export const profileApi = {
     async remove(id: string, signal?: AbortSignal): Promise<void> {
       await userApi.delete<void>(`/profile/tickets/${encodeURIComponent(id)}`, signal)
     },
+    async rotate(id: string, signal?: AbortSignal): Promise<ProfileTicketAndSecret> {
+      return userApi.post<ProfileTicketAndSecret>(`/profile/tickets/${encodeURIComponent(id)}/rotate`, undefined, signal)
+    },
   },
 
   sessions: {

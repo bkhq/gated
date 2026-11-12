@@ -32,6 +32,7 @@ function adaptSession(snapshot: SessionSnapshot): LiveSession {
     started: snapshot.started,
     duration: formatDuration(snapshot.started, snapshot.ended),
     state: isLive ? 'live' : 'closed',
+    ticketId: snapshot.ticket_id ?? null,
   }
 }
 
@@ -55,6 +56,8 @@ export interface PastSessionsQuery {
   since?: string
   targetId?: string
   username?: string
+  ticketId?: string
+  viaTicket?: boolean
 }
 
 export interface SessionPage {
@@ -76,6 +79,8 @@ export function usePastSessions(query: PastSessionsQuery, enabled = true) {
         since: query.since,
         target_id: query.targetId,
         username: query.username,
+        ticket_id: query.ticketId,
+        via_ticket: query.viaTicket,
       }, signal)
       return { items: response.items.map(adaptSession), total: response.total }
     },

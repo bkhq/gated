@@ -338,6 +338,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                         consume_ticket(&self.services.db, &ticket.id)
                             .await
                             .map_err(MySqlError::other)?;
+                        self.server_handle.lock().await.set_ticket(ticket.id).await;
 
                         self.run_authorized(handshake, user_info, ticket.target, None)
                             .await

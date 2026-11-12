@@ -9,6 +9,7 @@ import {
   createAdminTicket,
   deleteAdminTicket,
   listAdminTickets,
+  rotateAdminTicket,
 } from '@/shared/lib/api/tickets'
 import { formatTicketExpiresIn } from '@/shared/types/domain'
 
@@ -100,6 +101,19 @@ export function useDeleteTicket() {
       else
         await profileApi.tickets.remove(id)
       return { id }
+    },
+    onSuccess: async () => qc.invalidateQueries({ queryKey: ['tickets'] }),
+  })
+}
+
+/** Replaces a ticket's secret. The new secret is returned once. */
+export function useRotateTicket() {
+  const isAdmin = useIsAdmin()
+  const qc = useQueryClient()
+  return useMutation<{ secret: string }, ApiError, string>({
+    mutationFn: async (id) => {
+      const rotated = isAdmin ? await rotateAdminTicket(id) : await profileApi.tickets.rotate(id)
+      return { secret: rotated.secret }
     },
     onSuccess: async () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   })

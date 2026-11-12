@@ -49,7 +49,12 @@
 - Summary：设置调用者浏览器会话无操作时保持登录的时长。登录前（登录页设置）和登录后都可调用。
 - Body：`{ seconds: u64 }`，取值须为 `/api/info` 中 `session_lifetime_options` 之一。
 - Responses：`204 No Content`；值不在可选项内时 `400` `Json<String>`。
-- 超过该时长没有活动会话即结束。会话的每个请求都算活动，但对 Web 界面自动轮询或自动重新获取的接口发出的 `GET` 请求除外（`http_service/session.rs` 中的 `BACKGROUND_PATHS`：`/admin/api/sessions`、`/admin/api/management-sessions`、`/admin/api/command-reviews`、`/admin/api/system/update`、`/api/admin/encryption/lock-status`、`/api/auth/state`、`/api/auth/web-auth-requests`、`/api/profile/sessions` 及其子路径）。
+- 超过该时长没有活动会话即结束。会话的每个请求都算活动，但对 Web 界面自动轮询或自动重新获取的接口发出的 `GET` 请求除外（`http_service/session.rs` 中的 `BACKGROUND_PATHS`：`/admin/api/sessions`、`/admin/api/management-sessions`、`/admin/api/command-reviews`、`/admin/api/system/update`、`/api/admin/encryption/lock-status`、`/api/auth/session`、`/api/auth/state`、`/api/auth/web-auth-requests`、`/api/profile/sessions` 及其子路径）。
+
+#### `GET /api/auth/session` — `check_session` [OAS]
+
+- Summary：调用者的浏览器会话是否仍处于登录状态。不计为活动；SPA 每分钟以及标签页重新可见时查询一次，会话失效后回到登录页。
+- Responses：`204 No Content` / `401`。
 
 #### `POST /api/auth/activity` — `report_activity` [OAS]
 
@@ -256,6 +261,11 @@
   - `201 Created` — `Json<ProfileTicketAndSecret> { ticket, secret }`（`secret` — one-time reveal）。
   - `400 Bad Request` — `Json<string>`：`"target_name is required"` / `"expiry must be in the future"` / `"number_of_uses must be positive"`。
   - `401` / `403 Forbidden` — `Json<string> "not authorized for this target"`。
+
+#### `POST /api/profile/tickets/:id/rotate` — `rotate_my_ticket` [OAS]
+
+- Summary：替换调用者某个临时授权的密钥。旧密钥立即失效，用旧密钥打开的会话被结束；剩余次数和过期时间不变。
+- Responses：`200 OK` `ProfileTicketAndSecret`（新密钥只返回这一次）/ `401` / `404`。
 
 #### `DELETE /api/profile/tickets/:id` — `delete_my_ticket` [OAS]
 
@@ -665,6 +675,13 @@
   - `400` `Json<string>`：`username` / `target_name` 为空或不存在、用户在该目标上没有角色、`expiry` 不在未来，或 `number_of_uses` 小于 1。
 
 #### `DELETE /admin/api/tickets/:id` — `delete_ticket` [OAS] — `204` / `404`。
+
+#### `POST /admin/api/tickets/:id/rotate` — `rotate_ticket` [OAS]
+
+- Summary：替换任意临时授权的密钥，效果同 `rotate_my_ticket`。
+- Responses：`200 OK` `TicketAndSecret` / `404`。
+
+用临时授权打开的会话带有其 id：`SessionSnapshot.ticket_id` 和 `ManagementSession.ticket_id`。`GET /admin/api/sessions` 支持 `ticket_id=<uuid>`（某个临时授权的会话）和 `via_ticket=true|false`。删除临时授权会清空其历史会话上的 id。
 
 ### 2.10 SSH 主机密钥与探测 (`ssh_keys.rs`, `known_hosts_list.rs`, `known_hosts_detail.rs`, `ssh_connection_test.rs`)
 
@@ -1232,6 +1249,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | DELETE | `/api/profile/credentials/otp/:id` | `delete_my_otp` |  |
 | DELETE | `/api/profile/credentials/public-keys/:id` | `delete_my_public_key` |  |
 | DELETE | `/api/profile/tickets/:id` | `delete_my_ticket` |  |
+| GET | `/api/auth/session` | `check_session` | Whether the browser session is still signed in. Does not count as |
 | GET | `/api/auth/state/:id` | `get_auth_state` |  |
 | GET | `/api/auth/state` | `get_default_auth_state` |  |
 | GET | `/api/auth/web-auth-requests` | `get_web_auth_requests` |  |
@@ -1264,6 +1282,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/api/profile/credentials/otp` | `add_my_otp` | Confirm OTP enrollment. Requires a live code for the |
 | POST | `/api/profile/credentials/password` | `change_my_password` |  |
 | POST | `/api/profile/credentials/public-keys` | `add_my_public_key` |  |
+| POST | `/api/profile/tickets/:id/rotate` | `rotate_my_ticket` |  |
 | POST | `/api/profile/tickets` | `create_my_ticket` |  |
 | POST | `/api/sftp/:target_name/mkdir` | `sftp_mkdir` |  |
 | POST | `/api/sftp/:target_name/remove` | `sftp_remove` |  |
@@ -1363,6 +1382,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | POST | `/admin/api/targets/:id/roles/:role_id` | `add_target_role` |  |
 | POST | `/admin/api/targets/check` | `check_targets` | Opens a TCP connection to each target's service port (3 s timeout, 16 at |
 | POST | `/admin/api/targets` | `create_target` |  |
+| POST | `/admin/api/tickets/:id/rotate` | `rotate_ticket` |  |
 | POST | `/admin/api/tickets` | `create_ticket` |  |
 | POST | `/admin/api/tls/certificates/:listener/generate` | `generate_tls_certificate` | Replaces the listener's certificate with a new self-signed one and stops |
 | POST | `/admin/api/users/:id/roles/:role_id` | `add_user_role` |  |

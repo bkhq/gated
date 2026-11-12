@@ -428,3 +428,15 @@ A user's sessions survived an administrator resetting or removing their credenti
 ## 2026-11-11 23:00 [decision]
 
 Tickets keep naming their user and target instead of gaining id columns. Rename and delete update or remove the tickets in the same request, which closes the re-binding without a migration or a ticket API change.
+
+## 2026-11-12 13:00 [progress]
+
+Sessions opened with a ticket now record it: `sessions.ticket_id` was in the schema but never written. The SSH, MySQL and PostgreSQL ticket logins, the web terminal, the file manager and browser sessions set it; the admin sessions page marks these sessions, filters by sign-in kind (`via_ticket`) and can be scoped to one ticket (`ticket_id`, "View sessions" on a ticket). A ticket's secret can be rotated by its owner or an administrator (`POST .../tickets/{id}/rotate`): the old secret stops working, the sessions opened with it end, and the new secret is shown once. Plan: `20261112-1300-ticket-sessions-and-rotation`.
+
+## 2026-11-12 13:00 [BUG-P2]
+
+A web UI page left idle kept looking signed in after its session had expired on the gateway. The UI now asks `GET /api/auth/session` once a minute and when the tab becomes visible; the request does not count as activity, and the page returns to the login screen once the session is gone.
+
+## 2026-11-12 13:00 [progress]
+
+The SSH public key list shows the key type and fingerprint instead of the whole public key, and "Never used" instead of an untranslated placeholder.

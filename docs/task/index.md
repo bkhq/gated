@@ -1,4 +1,6 @@
 # Tasks
+- [x] [**20261112-1300-ticket-sessions-and-rotation Tell ticket sessions apart, list them per ticket and rotate ticket secrets**](20261112-1300-ticket-sessions-and-rotation.md) `P2`
+- [x] [**20261112-1300-idle-session-sign-out Sign the web UI out when its session expired while idle**](20261112-1300-idle-session-sign-out.md) `P2`
 - [x] [**20261111-1425-audit-minor-hardening Fix the small hardening items from the November audit**](20261111-1425-audit-minor-hardening.md) `P3`
 - [x] [**20261111-1425-ssh-key-and-required-factors Decide how a self-registered SSH key relates to required factors**](20261111-1425-ssh-key-and-required-factors.md) `P2`
 - [x] [**20261111-1425-audit-record-listing-scans Stop reading every recording file to list command and file records**](20261111-1425-audit-record-listing-scans.md) `P2`

@@ -1,4 +1,5 @@
 export { TicketFormDialog } from './ticket-form-dialog'
 export type { TicketFormDialogProps, TicketFormMode } from './ticket-form-dialog'
+export { TicketRotateDialog } from './ticket-rotate-dialog'
 export { TicketShareDialog } from './ticket-share-dialog'
 export type { TicketShareDialogProps } from './ticket-share-dialog'

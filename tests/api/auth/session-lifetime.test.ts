@@ -73,6 +73,8 @@ describe("API Auth - Session lifetime", () => {
     await Bun.sleep(1100);
     await session.get(`${url}/admin/api/system/update`);
     await session.get(`${url}/admin/api/command-reviews`);
+    expect((await session.get(`${url}/api/auth/session`)).status).toBe(204);
+    expect((await new HttpSession().get(`${url}/api/auth/session`)).status).toBe(401);
     // last_active is derived from a monotonic clock, so allow a little drift.
     expect(Math.abs(Date.parse(await lastActive()) - Date.parse(atLogin))).toBeLessThan(200);
 

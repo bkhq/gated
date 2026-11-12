@@ -312,6 +312,7 @@
       "thisDevice": "This device",
       "added": "Added {{when}}",
       "lastUsed": "Last used {{when}}",
+      "neverUsed": "Never used",
       "pwDrawer": {
         "title": "Change password",
         "description": "At least 12 characters with upper, lower and digit.",
@@ -1069,7 +1070,9 @@
       "revoke": "Revoke",
       "extend": "Extend",
       "revokeSelected": "Revoke selected",
-      "deleteSelected": "Delete selected"
+      "deleteSelected": "Delete selected",
+      "rotate": "Rotate",
+      "viewSessions": "View sessions"
     },
     "stats": {
       "total": "Total grants",
@@ -1191,6 +1194,10 @@
       "invalid": "This ticket does not exist, has expired or has been used up. Ask the person who issued it for a new one.",
       "tooMany": "Too many attempts from this address. Try again in a minute.",
       "failed": "The ticket could not be used right now. Try again later."
+    },
+    "rotate": {
+      "title": "Rotate temporary access",
+      "body": "A new secret is generated for \"{{name}}\". The old one stops working at once and sessions opened with it are ended."
     }
   },
   "user": {
@@ -1323,7 +1330,10 @@
         "anyTime": "Any time",
         "lastHour": "Last hour",
         "last24h": "Last 24h",
-        "last7d": "Last 7d"
+        "last7d": "Last 7d",
+        "allAuth": "All sign-ins",
+        "viaUser": "User sign-in",
+        "viaTicket": "Temporary access"
       },
       "fields": {
         "session": "Session"
@@ -1352,7 +1362,10 @@
         "confirmTitle": "Revoke browser session",
         "confirmBody": "Sign {{user}} out of this browser session? Their next request will require logging in again.",
         "expires": "Expires"
-      }
+      },
+      "viaTicket": "Temporary access",
+      "ticketScope": "Sessions opened with temporary access {{id}}",
+      "ticketScopeClear": "Show all"
     },
     "detail": {
       "breadcrumb": "Sessions",

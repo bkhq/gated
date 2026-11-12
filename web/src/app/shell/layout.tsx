@@ -4,6 +4,7 @@ import * as React from 'react'
 import { SessionsPage } from '@/features/session/sessions-page'
 import { GatedLogo } from '@/shared/components/gated-logo'
 import { useInfo } from '@/shared/hooks/use-info'
+import { useSessionWatch } from '@/shared/hooks/use-session-watch'
 import { useSiteTitle } from '@/shared/hooks/use-site-title'
 import { setOnUnauthorized } from '@/shared/lib/api/http'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/shared/ui/sidebar'
@@ -77,6 +78,8 @@ export function AppLayout() {
       void router.navigate({ to: '/auth/login' })
     })
   }, [router, queryClient])
+
+  useSessionWatch(username !== null)
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

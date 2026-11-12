@@ -377,6 +377,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                         consume_ticket(&self.services.db, &ticket.id)
                             .await
                             .map_err(PostgresError::other)?;
+                        self.server_handle.lock().await.set_ticket(ticket.id).await;
 
                         self.stream
                             .push(pgwire::messages::startup::Authentication::Ok)?;

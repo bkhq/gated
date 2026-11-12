@@ -2490,6 +2490,7 @@ impl ServerSession {
                     Some((ticket, user_info)) => {
                         info!("Authorized for {} with a ticket", ticket.target);
                         consume_ticket(&self.services.db, &ticket.id).await?;
+                        self.server_handle.lock().await.set_ticket(ticket.id).await;
                         self._auth_accept(user_info.clone(), &ticket.target, None)
                             .await?;
 

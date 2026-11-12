@@ -20,6 +20,11 @@ export async function setSessionLifetime(seconds: number, signal?: AbortSignal):
   await userApi.put<void>('/auth/session-lifetime', { seconds }, signal)
 }
 
+/** Rejects with a 401 once this browser session is no longer signed in. */
+export async function checkSession(signal?: AbortSignal): Promise<void> {
+  await userApi.get<void>('/auth/session', signal)
+}
+
 /** Mark the browser session as used now, extending it by its lifetime. */
 export async function reportActivity(signal?: AbortSignal): Promise<void> {
   await userApi.post<void>('/auth/activity', undefined, signal)

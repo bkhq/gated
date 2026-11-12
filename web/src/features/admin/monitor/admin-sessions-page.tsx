@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next'
 import type { ManagementSession } from '@/shared/lib/api/management-sessions'
 import type { LiveSession } from '@/shared/types/domain'
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { Activity, Download, Eye, FileText, MoreHorizontal, Play, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -46,6 +46,8 @@ const PAST_PAGE_SIZE = 50
 const RANGE_MS: Record<Exclude<RangeFilter, 'any'>, number> = { '1h': 3_600_000, '24h': 86_400_000, '7d': 604_800_000 }
 
 const PROTOCOL_PARAM = { ssh: 'ssh', mysql: 'mysql', pg: 'postgres', http: 'http' } as const
+
+type ViaFilter = 'all' | 'user' | 'ticket'
 
 function matchesProtocol(session: LiveSession, filter: ProtocolFilter) {
   if (filter === 'all') {
@@ -111,11 +113,13 @@ export function AdminSessionsPage() {
 
   const live = React.useMemo(() => liveQuery.data ?? [], [liveQuery.data])
 
-  const [tab, setTab] = React.useState<SessionTab>('live')
+  const { ticket: ticketScope } = useSearch({ from: '/admin/sessions/' })
+  const [tab, setTab] = React.useState<SessionTab>(ticketScope ? 'past' : 'live')
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
   const [query, setQuery] = React.useState('')
   const [protocol, setProtocol] = React.useState<ProtocolFilter>('all')
   const [range, setRange] = React.useState<RangeFilter>('any')
+  const [via, setVia] = React.useState<ViaFilter>('all')
   // Past sessions are filtered and paged on the server.
   const [since, setSince] = React.useState<string | undefined>(undefined)
   const [pastOffset, setPastOffset] = React.useState(0)
@@ -130,6 +134,8 @@ export function AdminSessionsPage() {
     protocol: protocol === 'all' ? undefined : PROTOCOL_PARAM[protocol],
     search: serverQuery,
     since,
+    ticketId: ticketScope,
+    viaTicket: via === 'all' ? undefined : via === 'ticket',
   })
   const past = pastQuery.data?.items ?? []
   const pastTotal = pastQuery.data?.total ?? 0
@@ -140,6 +146,10 @@ export function AdminSessionsPage() {
   }
   const changeProtocol = (value: ProtocolFilter) => {
     setProtocol(value)
+    setPastOffset(0)
+  }
+  const changeVia = (value: ViaFilter) => {
+    setVia(value)
     setPastOffset(0)
   }
   const changeRange = (value: RangeFilter) => {
@@ -171,6 +181,10 @@ export function AdminSessionsPage() {
   const filteredLive = React.useMemo(() => {
     const q = query.trim().toLowerCase()
     return live.filter((session) => {
+      if (ticketScope && session.ticketId !== ticketScope)
+        return false
+      if (via !== 'all' && (via === 'ticket') !== Boolean(session.ticketId))
+        return false
       if (!matchesProtocol(session, protocol)) {
         return false
       }
@@ -182,7 +196,7 @@ export function AdminSessionsPage() {
       }
       return true
     })
-  }, [live, protocol, query, range])
+  }, [live, protocol, query, range, via, ticketScope])
   const filteredRows = tab === 'live' ? filteredLive : tab === 'past' ? past : []
 
   const allSelected = filteredRows.length > 0 && filteredRows.every(session => selected.has(session.id))
@@ -416,6 +430,16 @@ export function AdminSessionsPage() {
 
       {tab === 'management' ? <ManagementSessionsPanel /> : null}
       <div hidden={tab === 'management'}>
+        {ticketScope
+          ? (
+              <div className="mx-6 mt-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-[hsl(var(--muted)/0.4)] px-3 py-2 text-[12.5px]">
+                <span>{t('monitor.sessions.ticketScope', { id: ticketScope.slice(0, 8) })}</span>
+                <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/admin/sessions', search: {} })}>
+                  {t('monitor.sessions.ticketScopeClear')}
+                </Button>
+              </div>
+            )
+          : null}
         <div className="grid grid-cols-1 gap-3 px-6 pt-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             icon={Activity}
@@ -459,7 +483,17 @@ export function AdminSessionsPage() {
               { value: '7d', label: t('monitor.sessions.filter.last7d') },
             ]}
           />
-          {(query || protocol !== 'all' || range !== 'any')
+          <Select
+            className="w-[160px]"
+            value={via}
+            onValueChange={value => changeVia(value as ViaFilter)}
+            options={[
+              { value: 'all', label: t('monitor.sessions.filter.allAuth') },
+              { value: 'user', label: t('monitor.sessions.filter.viaUser') },
+              { value: 'ticket', label: t('monitor.sessions.filter.viaTicket') },
+            ]}
+          />
+          {(query || protocol !== 'all' || range !== 'any' || via !== 'all')
             ? (
                 <Button
                   variant="ghost"
@@ -468,6 +502,7 @@ export function AdminSessionsPage() {
                     changeQuery('')
                     changeProtocol('all')
                     changeRange('any')
+                    changeVia('all')
                   }}
                 >
                   {t('actions.clearFilters')}
@@ -629,6 +664,9 @@ function ManagementSessionsPanel() {
                     <TR key={session.id}>
                       <TD className="pl-5">
                         <span className="font-medium">{session.username}</span>
+                        {session.ticket_id
+                          ? <Badge tone="warning" className="ml-2">{t('monitor.sessions.viaTicket')}</Badge>
+                          : null}
                         {session.current
                           ? <Badge className="ml-2">{t('monitor.sessions.management.current')}</Badge>
                           : null}
@@ -683,6 +721,7 @@ function SessionRow({ session, checked, onToggle, onOpen, onWatchLive, onForceCl
         <div className="flex items-center gap-2">
           <Avatar name={session.user} size={24} />
           <span>{session.user}</span>
+          {session.ticketId ? <Badge tone="warning">{t('monitor.sessions.viaTicket')}</Badge> : null}
         </div>
       </TD>
       <TD className="mono text-[12.5px]">{session.target}</TD>

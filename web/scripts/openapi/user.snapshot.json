@@ -87,6 +87,16 @@
         }
       }
     },
+    "/auth/session": {
+      "get": {
+        "summary": "Whether the browser session is still signed in. Does not count as\nactivity, so the web UI can poll it to notice an expired session.",
+        "operationId": "check_session",
+        "responses": {
+          "204": {},
+          "401": {}
+        }
+      }
+    },
     "/auth/session-lifetime": {
       "put": {
         "summary": "Choose how long the caller's browser session stays signed in without\nactivity. Allowed before sign-in so the login page can set it.",
@@ -1396,6 +1406,43 @@
         ],
         "responses": {
           "204": {},
+          "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {}
+        }
+      }
+    },
+    "/profile/tickets/{id}/rotate": {
+      "post": {
+        "operationId": "rotate_my_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileTicketAndSecret"
+                }
+              }
+            }
+          },
           "401": {
             "content": {
               "application/json; charset=utf-8": {

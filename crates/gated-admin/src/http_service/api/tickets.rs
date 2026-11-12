@@ -9,7 +9,7 @@ use gated_common::web::{Data, Json};
 use gated_common::{api_response, api_routes};
 use gated_core::{ConfigProvider, Services, authorize_ticket, consume_ticket};
 use gated_db_entities::Target::{self, TargetKind};
-use gated_db_entities::Ticket;
+use gated_db_entities::{Session as SessionRow, Ticket};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
@@ -228,6 +228,88 @@ async fn api_delete_ticket(
     Ok(DeleteTicketResponse::Deleted)
 }
 
+api_response! {
+    enum RotateTicketResponse {
+        #[oai(status = 200)]
+        Rotated(Json<ProfileTicketAndSecret>),
+        #[oai(status = 401)]
+        Unauthorized(Json<String>),
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
+
+/// Replaces the secret of a ticket and ends the sessions opened with the old
+/// one. Returns the new secret.
+pub(crate) async fn rotate_ticket(
+    services: &Services,
+    store: &Mutex<SessionStore>,
+    ticket: Ticket::Model,
+) -> Result<(Ticket::Model, Secret<String>), GatedError> {
+    let db = services.db_required().await?;
+    let secret = generate_ticket_secret();
+    let ticket_id = ticket.id;
+    let mut model: Ticket::ActiveModel = ticket.into();
+    model.secret = Set(gated_common::hash_secret(secret.expose_secret()));
+    let ticket = model.update(&db).await?;
+
+    let open: Vec<Uuid> = SessionRow::Entity::find()
+        .filter(SessionRow::Column::TicketId.eq(ticket_id))
+        .filter(SessionRow::Column::Ended.is_null())
+        .all(&db)
+        .await?
+        .into_iter()
+        .map(|session| session.id)
+        .collect();
+    drop(db);
+    let mut ended = store.lock().await.revoke_ticket_sessions(ticket_id).await;
+    {
+        let state = services.state.read().await;
+        for id in open {
+            if let Some(session) = state.sessions.get(&id) {
+                session.lock().await.handle.close();
+                ended += 1;
+            }
+        }
+    }
+    info!(target: "audit", %ticket_id, ended, "Ticket secret rotated");
+    Ok((ticket, secret))
+}
+
+#[utoipa::path(
+    post,
+    path = "/profile/tickets/{id}/rotate",
+    operation_id = "rotate_my_ticket"
+)]
+async fn api_rotate_ticket(
+    id: Path<Uuid>,
+    auth: Data<RequestAuthorization>,
+    services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
+) -> Result<RotateTicketResponse, GatedError> {
+    let db = services.db_required().await?;
+    let Some(user_model) = get_user(&auth, &db).await? else {
+        return Ok(RotateTicketResponse::Unauthorized(Json(
+            "not signed in".into(),
+        )));
+    };
+    let Some(ticket) = Ticket::Entity::find_by_id(id.0)
+        .filter(Ticket::Column::Username.eq(user_model.username))
+        .one(&db)
+        .await?
+    else {
+        return Ok(RotateTicketResponse::NotFound);
+    };
+    drop(db);
+    let (ticket, secret) = rotate_ticket(&services, &store, ticket).await?;
+    Ok(RotateTicketResponse::Rotated(Json(
+        ProfileTicketAndSecret {
+            ticket: ticket.into(),
+            secret: secret.expose_secret().to_string(),
+        },
+    )))
+}
+
 #[derive(Deserialize, ToSchema)]
 struct ClaimTicketRequest {
     secret: String,
@@ -308,8 +390,13 @@ async fn api_claim_ticket(
 }
 
 pub fn router() -> OpenApiRouter {
-    api_routes!(api_get_tickets, api_create_ticket, api_delete_ticket,)
-        .route_layer(from_fn(forbid_ticket_sessions))
-        .route_layer(from_fn(require_auth))
-        .merge(api_routes!(api_claim_ticket,))
+    api_routes!(
+        api_get_tickets,
+        api_create_ticket,
+        api_delete_ticket,
+        api_rotate_ticket,
+    )
+    .route_layer(from_fn(forbid_ticket_sessions))
+    .route_layer(from_fn(require_auth))
+    .merge(api_routes!(api_claim_ticket,))
 }

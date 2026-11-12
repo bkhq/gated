@@ -1603,6 +1603,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "ticket_id",
+            "in": "query",
+            "description": "Only sessions opened with this ticket.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "via_ticket",
+            "in": "query",
+            "description": "`true`: only sessions opened with a ticket; `false`: only the others.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -3068,6 +3087,42 @@
         ],
         "responses": {
           "204": {},
+          "404": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/tickets/{id}/rotate": {
+      "post": {
+        "operationId": "rotate_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketAndSecret"
+                }
+              }
+            }
+          },
           "404": {}
         },
         "security": [
@@ -6316,6 +6371,14 @@
           "last_active": {
             "type": "string",
             "format": "date-time"
+          },
+          "ticket_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The ticket the session was opened with, if any."
           },
           "username": {
             "type": "string"

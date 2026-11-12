@@ -28,6 +28,8 @@ struct ManagementSession {
     last_active: DateTime<Utc>,
     /// When the session ends unless it is used again.
     expires: DateTime<Utc>,
+    /// The ticket the session was opened with, if any.
+    ticket_id: Option<Uuid>,
     /// Whether this is the caller's own browser session.
     current: bool,
 }
@@ -74,6 +76,7 @@ async fn api_get_management_sessions(
             id: summary.id,
             username: summary.username,
             created: summary.created,
+            ticket_id: summary.ticket_id,
             last_active: summary.last_active,
             expires: summary.expires,
         })

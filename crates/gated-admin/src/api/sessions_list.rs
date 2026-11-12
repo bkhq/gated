@@ -60,6 +60,10 @@ struct GetAllSessionsQuery {
     since: Option<chrono::DateTime<chrono::Utc>>,
     target_id: Option<uuid::Uuid>,
     username: Option<String>,
+    /// Only sessions opened with this ticket.
+    ticket_id: Option<uuid::Uuid>,
+    /// `true`: only sessions opened with a ticket; `false`: only the others.
+    via_ticket: Option<bool>,
 }
 
 /// Session protocol names that belong to a protocol family filter.
@@ -95,6 +99,8 @@ async fn api_get_all_sessions(
         since,
         target_id,
         username,
+        ticket_id,
+        via_ticket,
     } = query;
     use gated_db_entities::Session;
 
@@ -135,6 +141,14 @@ async fn api_get_all_sessions(
     }
     if let Some(username) = username {
         q = q.filter(Session::Column::Username.eq(username));
+    }
+    if let Some(ticket_id) = ticket_id {
+        q = q.filter(Session::Column::TicketId.eq(ticket_id));
+    }
+    match via_ticket {
+        Some(true) => q = q.filter(Session::Column::TicketId.is_not_null()),
+        Some(false) => q = q.filter(Session::Column::TicketId.is_null()),
+        None => {}
     }
 
     Ok(GetSessionsResponse::Ok(Json(

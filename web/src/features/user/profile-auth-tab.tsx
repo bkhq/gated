@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { useOtpDevices, useRemoveOtpDevice } from '@/features/otp/hooks/use-otp-queries'
 import { OtpEnrollmentDrawer } from '@/features/otp/otp-enrollment-drawer'
 import { usePublicKeyRegistration } from '@/features/public-keys/components/public-key-confirm'
+import { PublicKeySummary } from '@/features/public-keys/components/public-key-summary'
 import { usePublicKeys, useRemovePublicKey } from '@/features/public-keys/hooks/use-public-keys-queries'
 import { EmptyState } from '@/shared/components/empty-state'
 import { profileApi } from '@/shared/lib/api/profile'
@@ -115,18 +116,7 @@ export function AuthTab() {
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground" aria-hidden="true">
                           <Key size={14} />
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[13.5px] font-medium">{key.name}</span>
-                          </div>
-                          <div className="mono text-[11px] break-all text-muted-foreground select-all">{key.publicKey}</div>
-                          <div className="mono truncate text-[11px] text-muted-foreground">{key.fingerprint}</div>
-                          <div className="mt-0.5 text-[11px] text-muted-foreground">
-                            {t('profile.auth.added', { when: key.added })}
-                            {' · '}
-                            {t('profile.auth.lastUsed', { when: key.lastUsed })}
-                          </div>
-                        </div>
+                        <PublicKeySummary publicKey={key} />
                         <RowMenu
                           items={[
                             { label: t('profile.actions.copy'), icon: Copy, onClick: () => void navigator.clipboard.writeText(key.publicKey) },

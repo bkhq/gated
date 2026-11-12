@@ -1023,6 +1023,9 @@ pub async fn api_ssh_terminal(
         let session_id = session_handle.lock().await.id();
         let (acl_user_id, acl_username) = (user_info.id, user_info.username.clone());
 
+        if let Some(ticket_id) = ticket_id {
+            session_handle.lock().await.set_ticket(ticket_id).await;
+        }
         if let Err(e) = session_handle.lock().await.set_user_info(user_info).await {
             error!(%e, "Failed to set user info");
         }

@@ -1,10 +1,11 @@
 import type { SortDir } from '@/shared/components/sort'
 import type { Ticket } from '@/shared/types/domain'
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
-import { Clock, Filter, Hash, Inbox, Key, Plus, Search, Trash2, X as XIcon } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { Activity, Clock, Filter, Hash, Inbox, Key, Plus, RefreshCw, Search, Trash2, X as XIcon } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { TicketFormDialog, TicketShareDialog } from '@/features/tickets/components'
+import { TicketFormDialog, TicketRotateDialog, TicketShareDialog } from '@/features/tickets/components'
 import { useDeleteTicket, useRevokeTicket, useTickets } from '@/features/tickets/hooks/use-tickets-queries'
 import { ticketDeleteWarning, ticketUsesLabel } from '@/features/tickets/lib/uses'
 import { BulkActionBar } from '@/shared/components/bulk-action-bar'
@@ -69,6 +70,7 @@ export function AdminTicketsPage() {
   const { t } = useTranslation()
   const ticketsQuery = useTickets()
   const revokeMutation = useRevokeTicket()
+  const navigate = useNavigate()
   const deleteMutation = useDeleteTicket()
   const ticketsData = ticketsQuery.data
   const tickets = React.useMemo(() => ticketsData ?? [], [ticketsData])
@@ -76,6 +78,7 @@ export function AdminTicketsPage() {
   const [drawer, setDrawer] = React.useState<DrawerState | null>(null)
   // The one-time secret of the ticket just created, shown until closed.
   const [share, setShare] = React.useState<{ secret: string, target: string } | null>(null)
+  const [pendingRotate, setPendingRotate] = React.useState<Ticket | null>(null)
   const [pendingDelete, setPendingDelete] = React.useState<Ticket | null>(null)
   const [pendingRevoke, setPendingRevoke] = React.useState<Ticket | null>(null)
   const [pendingBulk, setPendingBulk] = React.useState<'revoke' | 'delete' | null>(null)
@@ -374,6 +377,8 @@ export function AdminTicketsPage() {
                           onToggle={() => toggleOne(ticket.id)}
                           onOpen={() => setDrawer({ mode: 'edit', ticket })}
                           onRevoke={() => setPendingRevoke(ticket)}
+                          onRotate={() => setPendingRotate(ticket)}
+                          onSessions={() => void navigate({ to: '/admin/sessions', search: { ticket: ticket.id } })}
                           onDelete={() => setPendingDelete(ticket)}
                         />
                       ))}
@@ -394,6 +399,11 @@ export function AdminTicketsPage() {
         }}
       />
       <TicketShareDialog secret={share?.secret ?? null} targetName={share?.target ?? null} onClose={() => setShare(null)} />
+      <TicketRotateDialog
+        ticket={pendingRotate}
+        onClose={() => setPendingRotate(null)}
+        onRotated={(ticket, secret) => setShare({ secret, target: ticket.scope })}
+      />
 
       <Dialog open={pendingRevoke !== null} onClose={() => setPendingRevoke(null)} width={440}>
         <div className="flex flex-col">
@@ -517,12 +527,14 @@ export function AdminTicketsPage() {
   )
 }
 
-function TicketRow({ ticket, checked, onToggle, onOpen, onRevoke, onDelete }: {
+function TicketRow({ ticket, checked, onToggle, onOpen, onRevoke, onRotate, onSessions, onDelete }: {
   ticket: Ticket
   checked: boolean
   onToggle: () => void
   onOpen: () => void
   onRevoke: () => void
+  onRotate: () => void
+  onSessions: () => void
   onDelete: () => void
 }) {
   const { t } = useTranslation()
@@ -575,8 +587,10 @@ function TicketRow({ ticket, checked, onToggle, onOpen, onRevoke, onDelete }: {
         <RowActionsMenu
           items={[
             { label: t('tickets.form.details'), icon: Key, onClick: onOpen },
+            { label: t('tickets.actions.viewSessions'), icon: Activity, onClick: onSessions },
             ...(ticket.state === 'active'
               ? [
+                  { label: t('tickets.actions.rotate'), icon: RefreshCw, onClick: onRotate },
                   { label: t('tickets.actions.revoke'), icon: XIcon, onClick: onRevoke },
                 ]
               : []),

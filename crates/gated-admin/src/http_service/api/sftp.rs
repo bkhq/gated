@@ -241,7 +241,17 @@ async fn connection(
         }
     }
 
-    let conn = Arc::new(open_connection(services, target, ssh_options, user, key.clone()).await?);
+    let conn = Arc::new(
+        open_connection(
+            services,
+            target,
+            ssh_options,
+            user,
+            key.clone(),
+            auth.ticket_id(),
+        )
+        .await?,
+    );
     let mut connections = CONNECTIONS.lock().await;
     if let Some(existing) = connections.get(&key) {
         // Lost a race with a concurrent request; keep the first connection.
@@ -302,6 +312,7 @@ async fn open_connection(
     ssh_options: TargetSSHOptions,
     user: AuthStateUserInfo,
     key: ConnectionKey,
+    ticket_id: Option<Uuid>,
 ) -> Result<SftpConnection, SftpError> {
     let close = Arc::new(Notify::new());
     let session_handle = State::register_session(
@@ -318,6 +329,9 @@ async fn open_connection(
         SftpError::internal("Internal server error")
     })?;
     let session_id = session_handle.lock().await.id();
+    if let Some(ticket_id) = ticket_id {
+        session_handle.lock().await.set_ticket(ticket_id).await;
+    }
     if let Err(e) = session_handle
         .lock()
         .await

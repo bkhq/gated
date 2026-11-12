@@ -47,5 +47,16 @@ describe("SSH User Auth Ticket", () => {
     await proc.exited;
     expect(stdout).toBe("/bin/sh\n");
     expect(proc.exitCode).toBe(0);
+
+    // The session names its ticket and can be found by it.
+    const list = async (query: string) => (await (await fetch(`${url}/admin/api/sessions?${query}`, {
+      headers: { "X-Gated-Token": "token-value" }, tls: { rejectUnauthorized: false },
+    } as any)).json()).items as { ticket_id: string | null }[];
+    const ticketId = (ticket as any).ticket.id;
+    const byTicket = await list(`ticket_id=${ticketId}`);
+    expect(byTicket).toHaveLength(1);
+    expect(byTicket[0]!.ticket_id).toBe(ticketId);
+    expect((await list("via_ticket=true")).every(s => s.ticket_id !== null)).toBe(true);
+    expect((await list("via_ticket=false")).every(s => s.ticket_id === null)).toBe(true);
   });
 });

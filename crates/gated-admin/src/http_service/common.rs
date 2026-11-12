@@ -159,6 +159,14 @@ impl RequestAuthorization {
         }
     }
 
+    /// The ticket a ticket session was opened with.
+    pub fn ticket_id(&self) -> Option<Uuid> {
+        match self {
+            Self::Session(SessionAuthorization::Ticket { ticket_id, .. }) => Some(*ticket_id),
+            _ => None,
+        }
+    }
+
     pub fn username(&self) -> Option<&String> {
         match self {
             Self::Session(auth) => Some(auth.username()),
@@ -449,7 +457,11 @@ pub async fn authorize_ticket_session(
 ) -> Result<(), GatedError> {
     session.renew();
     let handle = store.lock().await.create_handle_for(session);
-    handle.lock().await.set_user_info(user_info).await?;
+    {
+        let mut handle = handle.lock().await;
+        handle.ticket_id = Some(ticket.id);
+        handle.set_user_info(user_info).await?;
+    }
     session.set_auth(SessionAuthorization::Ticket {
         username: ticket.username.clone(),
         target_name: ticket.target.clone(),

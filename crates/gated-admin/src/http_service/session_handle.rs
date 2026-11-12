@@ -14,6 +14,8 @@ pub struct ManagementSessionHandle {
     pub id: SessionId,
     pub user_info: Option<AuthStateUserInfo>,
     pub created: chrono::DateTime<chrono::Utc>,
+    /// Set when the session was opened with a ticket.
+    pub ticket_id: Option<uuid::Uuid>,
 }
 
 impl ManagementSessionHandle {

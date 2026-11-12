@@ -885,6 +885,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tickets/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rotate_ticket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tls/acme": {
         parameters: {
             query?: never;
@@ -1785,6 +1801,11 @@ export interface components {
             id: string;
             /** Format: date-time */
             last_active: string;
+            /**
+             * Format: uuid
+             * @description The ticket the session was opened with, if any.
+             */
+            ticket_id?: string | null;
             username: string;
         };
         NewApiToken: {
@@ -3324,6 +3345,10 @@ export interface operations {
                 since?: string;
                 target_id?: string;
                 username?: string;
+                /** @description Only sessions opened with this ticket. */
+                ticket_id?: string;
+                /** @description `true`: only sessions opened with a ticket; `false`: only the others. */
+                via_ticket?: boolean;
             };
             header?: never;
             path?: never;
@@ -4455,6 +4480,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rotate_ticket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["TicketAndSecret"];
+                };
             };
             404: {
                 headers: {

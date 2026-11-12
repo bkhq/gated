@@ -29,7 +29,12 @@ vi.mock('@/features/tickets/components', () => ({
   TicketShareDialog: ({ secret, targetName }: { secret: string | null, targetName: string | null }) => (
     secret ? <div>{`share:${secret}:${String(targetName)}`}</div> : null
   ),
+  // Confirming a rotation hands back the new one-time secret.
+  TicketRotateDialog: ({ ticket, onRotated }: { ticket: Ticket | null, onRotated: (ticket: Ticket, secret: string) => void }) => (
+    ticket ? <button type="button" onClick={() => onRotated(ticket, 'secret-2')}>confirm-rotate</button> : null
+  ),
 }))
+vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }))
 
 vi.mock('@/features/tickets/hooks/use-tickets-queries', () => {
   const mutation = { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }
@@ -57,4 +62,12 @@ it('shows the secret of a ticket it just created', () => {
   fireEvent.click(screen.getByRole('button', { name: /tickets.actions.newTicket/ }))
   fireEvent.click(screen.getByRole('button', { name: 'create' }))
   expect(screen.getByText('share:secret-1:web-01')).toBeTruthy()
+})
+
+it('shows the new secret after rotating a ticket', async () => {
+  render(<AdminTicketsPage />)
+  fireEvent.click(screen.getAllByRole('button', { name: 'actions.open' })[0]!)
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'tickets.actions.rotate' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-rotate' }))
+  expect(screen.getByText('share:secret-2:web-01')).toBeTruthy()
 })

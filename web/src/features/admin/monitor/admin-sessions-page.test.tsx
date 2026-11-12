@@ -11,10 +11,12 @@ const state = vi.hoisted(() => ({
   live: [] as LiveSession[],
   past: { items: [] as LiveSession[], total: 0 },
   pastQuery: vi.fn(),
+  search: {},
 }))
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
+  useSearch: () => state.search,
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }))
 vi.mock('@/shared/components/stat-card', () => ({
@@ -108,4 +110,19 @@ it('pages past sessions on the server', () => {
   fireEvent.click(screen.getByRole('button', { name: /下一页/ }))
   expect(state.pastQuery).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 50, limit: 50 }))
   state.past = { items: [], total: 0 }
+})
+
+it('marks sessions opened with a ticket and filters by sign-in kind on the server', () => {
+  state.past = { items: [{ ...session('p1', 'ssh'), state: 'closed' as const, ticketId: 't-1' }], total: 1 }
+  renderPage([{ ...session('a', 'ssh'), ticketId: 't-1' }, session('b', 'ssh')])
+  expect(screen.getAllByText('临时授权')).toHaveLength(1)
+  state.past = { items: [], total: 0 }
+})
+
+it('scopes the list to one ticket from the route', () => {
+  state.search = { ticket: 't-1' }
+  renderPage([{ ...session('a', 'ssh'), ticketId: 't-1' }, session('b', 'ssh')])
+  expect(state.pastQuery).toHaveBeenLastCalledWith(expect.objectContaining({ ticketId: 't-1' }))
+  expect(screen.getByText('仅显示临时授权 t-1 的会话')).toBeTruthy()
+  state.search = {}
 })

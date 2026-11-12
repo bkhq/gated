@@ -23,6 +23,11 @@ export async function claimTicket(secret: string, signal?: AbortSignal): Promise
   return userApi.post<ClaimedTicket>('/tickets/claim', { secret }, signal)
 }
 
+/** Replaces the secret; sessions opened with the old one end. */
+export async function rotateAdminTicket(id: string, signal?: AbortSignal): Promise<TicketAndSecret> {
+  return adminApi.post<TicketAndSecret>(`/tickets/${encodeURIComponent(id)}/rotate`, undefined, signal)
+}
+
 export async function deleteAdminTicket(id: string, signal?: AbortSignal): Promise<void> {
   return adminApi.delete<void>(`/tickets/${encodeURIComponent(id)}`, signal)
 }

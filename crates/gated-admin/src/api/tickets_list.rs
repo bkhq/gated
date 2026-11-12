@@ -32,9 +32,9 @@ struct CreateTicketRequest {
 }
 
 #[derive(Serialize, ToSchema)]
-struct TicketAndSecret {
-    ticket: Ticket::Model,
-    secret: String,
+pub(super) struct TicketAndSecret {
+    pub(super) ticket: Ticket::Model,
+    pub(super) secret: String,
 }
 
 api_response! {
