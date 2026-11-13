@@ -28,7 +28,8 @@ for (const surface of ['admin', 'user'] as const) {
     cwd: dirname(webDir),
     env: { ...process.env, CARGO_BUILD_TARGET: process.env.CARGO_BUILD_TARGET ?? 'x86_64-unknown-linux-gnu' },
     encoding: 'utf8',
-    timeout: 300_000,
+    // A cold build of the workspace takes longer than five minutes in CI.
+    timeout: 1_200_000,
     maxBuffer: 16 * 1024 * 1024,
   })
   if (result.error || result.status !== 0)

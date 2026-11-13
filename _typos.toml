@@ -17,3 +17,9 @@ extend-ignore-re = ["SHA256:[A-Za-z0-9+/]{43}"]
 # CVE Numbering Authority
 CNA = "CNA"
 unparseable = "unparseable"
+
+[default.extend-identifiers]
+# The `flate2` crate.
+flate2 = "flate2"
+# Field of `vnc-rs`' pointer event, spelled this way upstream.
+bottons = "bottons"
