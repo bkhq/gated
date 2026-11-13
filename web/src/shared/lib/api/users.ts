@@ -6,6 +6,7 @@ export type AdminUserListItem = AdminComponents['schemas']['UserListItem']
 export type AdminUserDataRequest = AdminComponents['schemas']['UserDataRequest']
 export type AdminCreateUserRequest = AdminComponents['schemas']['CreateUserRequest']
 export type AdminRole = AdminComponents['schemas']['Role']
+export type AdminUserRole = AdminComponents['schemas']['UserRole']
 export type AdminPaginatedSessions = AdminComponents['schemas']['PaginatedResponse_SessionSnapshot']
 
 export async function listAdminUsers(signal?: AbortSignal): Promise<AdminUserListItem[]> {
@@ -16,8 +17,8 @@ export async function getAdminUser(id: string, signal?: AbortSignal): Promise<Ad
   return adminApi.get<AdminUser>(`/users/${encodeURIComponent(id)}`, signal)
 }
 
-export async function getAdminUserRoles(id: string, signal?: AbortSignal): Promise<AdminRole[]> {
-  return adminApi.get<AdminRole[]>(`/users/${encodeURIComponent(id)}/roles`, signal)
+export async function getAdminUserRoles(id: string, signal?: AbortSignal): Promise<AdminUserRole[]> {
+  return adminApi.get<AdminUserRole[]>(`/users/${encodeURIComponent(id)}/roles`, signal)
 }
 
 export async function createAdminUser(body: AdminCreateUserRequest, signal?: AbortSignal): Promise<AdminUser> {
@@ -45,6 +46,11 @@ export async function listAdminSessions(params?: { active_only?: boolean, limit?
 // User-role bindings. Backend: crates/gated-admin/src/api/users.rs.
 export async function addUserRole(id: string, roleId: string, signal?: AbortSignal): Promise<void> {
   return adminApi.post<void>(`/users/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}`, {}, signal)
+}
+
+// `null` makes the assignment permanent.
+export async function setUserRoleExpiry(id: string, roleId: string, expiresAt: string | null, signal?: AbortSignal): Promise<void> {
+  await adminApi.put<AdminUserRole>(`/users/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}`, { expires_at: expiresAt }, signal)
 }
 
 export async function deleteUserRole(id: string, roleId: string, signal?: AbortSignal): Promise<void> {

@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/app-store'
 import { AppLayout } from './layout'
 
 const state = vi.hoisted(() => ({
-  info: { data: undefined as undefined | { username: string | null, admin: boolean }, isPending: false, isError: false },
+  info: { data: undefined as undefined | { username: string | null, admin: boolean, mfa_setup_required?: boolean }, isPending: false, isError: false },
   login: false,
   route: '/targets',
   navigate: vi.fn(),
@@ -26,6 +26,7 @@ vi.mock('./sidebar', () => ({
   AppSidebar: () => <aside>{useAppStore.getState().identity.name}</aside>,
 }))
 vi.mock('./spotlight-dialog', () => ({ SpotlightDialog: () => null }))
+vi.mock('@/features/otp/mfa-setup-page', () => ({ MfaSetupPage: () => <div>MFA setup</div> }))
 vi.mock('@/features/session/sessions-page', () => ({
   SessionsPage: ({ visible }: { visible: boolean }) => <div data-testid="terminal-workspace" hidden={!visible} />,
 }))
@@ -115,4 +116,13 @@ it('keeps open terminal tabs mounted but hidden on other routes', () => {
   render(view())
   expect(screen.getByTestId('terminal-workspace').hidden).toBe(true)
   expect(screen.getByText('Route content')).toBeTruthy()
+})
+
+it('shows nothing but the MFA setup while the user still has to enroll', () => {
+  state.info.data = { username: 'real-user', admin: false, mfa_setup_required: true }
+  useAppStore.getState().updateIdentity({ name: 'real-user', username: 'real-user', email: '', role: 'User' })
+  render(view())
+  expect(screen.getByText('MFA setup')).toBeTruthy()
+  expect(screen.queryByText('Route content')).toBeNull()
+  expect(screen.queryByRole('complementary')).toBeNull()
 })

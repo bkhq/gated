@@ -45,7 +45,7 @@ pub async fn load_enabled_rules(db: &DatabaseConnection) -> Result<Vec<CommandAc
     Ok(rows.iter().map(to_rule_view).collect())
 }
 
-/// Resolve the role UUIDs assigned to `user_id` (from the `user_roles` table).
+/// Resolve the role UUIDs `user_id` holds now (unexpired rows of `user_roles`).
 /// Used to match role-scoped ACL rules.
 pub async fn load_user_role_ids(
     db: &DatabaseConnection,
@@ -53,6 +53,7 @@ pub async fn load_user_role_ids(
 ) -> Result<Vec<Uuid>, DbErr> {
     let rows = UserRoleAssignment::Entity::find()
         .filter(UserRoleAssignment::Column::UserId.eq(user_id))
+        .filter(UserRoleAssignment::Entity::unexpired())
         .all(db)
         .await?;
     Ok(rows.into_iter().map(|r| r.role_id).collect())

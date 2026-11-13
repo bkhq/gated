@@ -29,6 +29,10 @@ export interface Info {
   session_lifetime: number
   // Lifetimes the user may choose, in seconds.
   session_lifetime_options: number[]
+  // Longest lifetime of an API token the user creates, in seconds; null = no limit.
+  max_api_token_duration_seconds?: number | null
+  // The user must enroll an OTP device before anything else is reachable.
+  mfa_setup_required?: boolean
 }
 
 export async function getInfo(signal?: AbortSignal): Promise<Info> {

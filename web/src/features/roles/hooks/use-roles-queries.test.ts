@@ -27,4 +27,16 @@ describe('useRoles', () => {
 
     expect(result.current.data?.map(role => [role.name, role.builtin])).toEqual([['admin', true], ['ops', false]])
   })
+
+  it('maps the clipboard switch from the API', async () => {
+    state.listRoles.mockResolvedValue([
+      { id: 'r1', name: 'ops', description: '', allow_file_transfer: true, allow_clipboard: true, builtin: false },
+      { id: 'r2', name: 'dev', description: '', allow_file_transfer: true, allow_clipboard: false, builtin: false },
+    ])
+
+    const { result } = renderHook(() => useRoles(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.map(role => role.allowClipboard)).toEqual([true, false])
+  })
 })

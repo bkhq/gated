@@ -1,5 +1,7 @@
 mod db;
 
+use std::net::IpAddr;
+
 pub use db::DatabaseConfigProvider;
 use enum_dispatch::enum_dispatch;
 use gated_common::auth::{AuthCredential, AuthStateUserInfo, CredentialKind, CredentialPolicy};
@@ -58,10 +60,22 @@ pub trait ConfigProvider {
         supported_credential_types: &[CredentialKind],
     ) -> Result<Option<Box<dyn CredentialPolicy + Sync + Send>>, GatedError>;
 
+    /// True while MFA is required and the user has no OTP device: the user
+    /// may sign in to the web interface to enroll one and do nothing else.
+    async fn mfa_setup_required(&mut self, username: &str) -> Result<bool, GatedError>;
+
     async fn authorize_target(&mut self, username: &str, target: &str) -> Result<bool, GatedError>;
 
     /// True when one of the user's roles that grants access to `target` allows file transfer.
     async fn authorize_file_transfer(
+        &mut self,
+        username: &str,
+        target: &str,
+    ) -> Result<bool, GatedError>;
+
+    /// True when one of the user's roles that grants access to `target` allows the clipboard
+    /// in desktop sessions.
+    async fn authorize_clipboard(
         &mut self,
         username: &str,
         target: &str,
@@ -75,9 +89,12 @@ pub trait ConfigProvider {
     async fn validate_api_token(&mut self, token: &str) -> Result<Option<User>, GatedError>;
 }
 
+/// The ticket with this secret and its user, when the ticket can still be
+/// used and the user may act from `remote_ip`.
 pub async fn authorize_ticket(
     db: &SharedDatabaseConnection,
     secret: &Secret<String>,
+    remote_ip: Option<IpAddr>,
 ) -> Result<Option<(e::Ticket::Model, AuthStateUserInfo)>, GatedError> {
     let db = crate::db_required(db).await?;
     // Ticket secrets are stored as a hash, never as plaintext. Hash
@@ -111,7 +128,13 @@ pub async fn authorize_ticket(
                 return Err(GatedError::UserNotFound(ticket.username.clone()));
             };
 
-            Ok(Some((ticket, (&User::try_from(ticket_user)?).into())))
+            let ticket_user = User::try_from(ticket_user)?;
+            if !ticket_user.allows_address(remote_ip) {
+                warn!(target: "audit", username = %ticket_user.username, client_ip = ?remote_ip, ticket = %ticket.id, "ticket_address_not_allowed");
+                return Ok(None);
+            }
+
+            Ok(Some((ticket, (&ticket_user).into())))
         }
         None => {
             warn!("Ticket not found");

@@ -131,6 +131,37 @@ ${opts.extraConfig || ""}
     return port;
   }
 
+  /** An 800x600 X display behind VNC. An empty password means no authentication. */
+  async startVncServer(password = "vnc-pass"): Promise<{ port: number; container: string }> {
+    const port = allocPort();
+    const container = `gated-e2e-vnc-server-${randomUUID()}`;
+    this.start([
+      "docker", "run", "--rm",
+      "--name", container,
+      "-p", `${port}:5900`,
+      "-e", `VNC_PASSWORD=${password}`,
+      "gated-e2e-vnc-server",
+    ]);
+    await waitPort(port, { timeout: this.timeout * 1000 });
+    return { port, container };
+  }
+
+  /** xrdp with the login `user` / `rdp-pass` and a self-signed certificate. */
+  async startRdpServer(): Promise<{ port: number; container: string }> {
+    const port = allocPort();
+    const container = `gated-e2e-rdp-server-${randomUUID()}`;
+    this.start([
+      "docker", "run", "--rm",
+      "--name", container,
+      "-p", `${port}:3389`,
+      "gated-e2e-rdp-server",
+    ]);
+    await waitPort(port, { recv: false, timeout: this.timeout * 1000 });
+    // xrdp listens before its session manager is ready to start a session.
+    await Bun.sleep(3000);
+    return { port, container };
+  }
+
   async startPostgresServer(): Promise<number> {
     const port = allocPort();
     const containerName = `gated-e2e-postgres-server-${randomUUID()}`;

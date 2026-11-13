@@ -1,7 +1,7 @@
 import type { TargetKind } from '@/shared/types/domain'
 
 /** Target kind as the claim endpoint reports it. */
-export type ClaimedKind = 'Ssh' | 'MySql' | 'Postgres' | 'Http'
+export type ClaimedKind = 'Ssh' | 'MySql' | 'Postgres' | 'Http' | 'Rdp' | 'Vnc'
 
 export interface Endpoint {
   host: string | null
@@ -45,6 +45,8 @@ export function connectionCommand(kind: TargetKind, endpoint: Endpoint, secret: 
     case 'postgres':
       return endpoint.ports.postgres === null ? null : `psql -h ${host} -p ${endpoint.ports.postgres} -U ${user}`
     case 'http':
+    case 'rdp':
+    case 'vnc':
       return null
   }
 }
@@ -56,6 +58,8 @@ export function claimDestination(kind: ClaimedKind, targetName: string): string 
     case 'Ssh': return `/ui/terminal/ssh/${name}`
     case 'MySql':
     case 'Postgres': return `/ui/db/${name}`
+    case 'Rdp':
+    case 'Vnc': return `/ui/desktop/${name}`
     case 'Http': return '/ui/targets'
   }
 }

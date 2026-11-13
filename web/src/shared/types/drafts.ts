@@ -34,7 +34,7 @@ export interface UserReferences {
   roles: string[]
 }
 
-export type RoleDraft = Pick<Role, 'name' | 'description' | 'allowFileTransfer'>
+export type RoleDraft = Pick<Role, 'name' | 'description' | 'allowFileTransfer' | 'allowClipboard'>
 
 export interface RoleReferences {
   userCount: number

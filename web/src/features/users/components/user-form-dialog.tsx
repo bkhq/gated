@@ -10,6 +10,7 @@ import { EmptyState } from '@/shared/components/empty-state'
 import { FormDialog, FormDialogDescription, FormDialogTitle } from '@/shared/components/form-dialog'
 import { Pager } from '@/shared/components/pager'
 import { StatusDot } from '@/shared/components/status-dot'
+import { toLocalInput } from '@/shared/lib/datetime-local'
 import { Avatar } from '@/shared/ui/avatar'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -18,6 +19,7 @@ import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Switch } from '@/shared/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+import { Textarea } from '@/shared/ui/textarea'
 
 const SESSIONS_PAGE_SIZE = 20
 
@@ -38,8 +40,12 @@ interface DraftState {
   username: string
   // Role IDs (synced via /admin/api/users/:id/roles/:role_id on save).
   roles: Set<string>
+  // Expiry per role id as a `datetime-local` value; '' or absent = never.
+  roleExpiry: Record<string, string>
   // Create mode only: initial password credential (optional).
   password: string
+  // Edit mode only: one address or CIDR range per line.
+  allowedIpRanges: string
 }
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]*$/
@@ -49,7 +55,9 @@ function emptyDraft(): DraftState {
     name: '',
     username: '',
     roles: new Set<string>(),
+    roleExpiry: {},
     password: '',
+    allowedIpRanges: '',
   }
 }
 
@@ -60,19 +68,21 @@ function draftFromUser(user: User): DraftState {
     // Persisted role bindings load async (useUserRoles) and are seeded
     // into both draft and original once available.
     roles: new Set<string>(),
+    roleExpiry: {},
     password: '',
+    allowedIpRanges: (user.allowed_ip_ranges ?? []).join('\n'),
   }
 }
 
 function draftsEqual(a: DraftState, b: DraftState) {
-  if (a.name !== b.name || a.username !== b.username || a.password !== b.password) {
+  if (a.name !== b.name || a.username !== b.username || a.password !== b.password || a.allowedIpRanges !== b.allowedIpRanges) {
     return false
   }
   if (a.roles.size !== b.roles.size) {
     return false
   }
   for (const role of a.roles) {
-    if (!b.roles.has(role)) {
+    if (!b.roles.has(role) || (a.roleExpiry[role] ?? '') !== (b.roleExpiry[role] ?? '')) {
       return false
     }
   }
@@ -141,8 +151,9 @@ function UserFormDialogBody({ open, mode, user, onClose, onSaved, onRequestDelet
   if (loadedRoles && loadedRoles !== seededFrom) {
     setSeededFrom(loadedRoles)
     const ids = loadedRoles.map(role => role.id)
-    setDraft(prev => ({ ...prev, roles: new Set(ids) }))
-    setOriginal(prev => ({ ...prev, roles: new Set(ids) }))
+    const roleExpiry = Object.fromEntries(loadedRoles.map(role => [role.id, role.expires_at ? toLocalInput(role.expires_at) : '']))
+    setDraft(prev => ({ ...prev, roles: new Set(ids), roleExpiry }))
+    setOriginal(prev => ({ ...prev, roles: new Set(ids), roleExpiry }))
   }
 
   React.useLayoutEffect(() => {
@@ -152,7 +163,15 @@ function UserFormDialogBody({ open, mode, user, onClose, onSaved, onRequestDelet
   }, [open])
 
   const errors = React.useMemo(() => validate(draft, t), [draft, t])
-  const hasErrors = Boolean(errors.name || errors.username)
+  // Expiries the administrator edited; the others are not sent again.
+  const editedExpiry = [...draft.roles].filter(id => (draft.roleExpiry[id] ?? '') !== (original.roles.has(id) ? original.roleExpiry[id] ?? '' : ''))
+  const pastExpiry = new Set(editedExpiry.filter((id) => {
+    const value = draft.roleExpiry[id]
+    return Boolean(value) && new Date(value as string).getTime() <= Date.now()
+  }))
+  // Stored expiries that have passed: the role is assigned and grants nothing.
+  const expiredRoles = new Set((loadedRoles ?? []).filter(role => role.expires_at && new Date(role.expires_at).getTime() <= Date.now()).map(role => role.id))
+  const hasErrors = Boolean(errors.name || errors.username) || pastExpiry.size > 0
   const isDirty = !draftsEqual(draft, original)
   const isPending = createMutation.isPending || updateMutation.isPending
 
@@ -179,6 +198,13 @@ function UserFormDialogBody({ open, mode, user, onClose, onSaved, onRequestDelet
     }
   }
 
+  function setRoleExpiry(roleId: string, value: string) {
+    setDraft(prev => ({ ...prev, roleExpiry: { ...prev.roleExpiry, [roleId]: value } }))
+    if (!touched) {
+      setTouched(true)
+    }
+  }
+
   const save = React.useCallback(async () => {
     setTouched(true)
     if (hasErrors || isPending) {
@@ -189,8 +215,13 @@ function UserFormDialogBody({ open, mode, user, onClose, onSaved, onRequestDelet
       username: draft.username.trim(),
     }
     const roleIds = [...draft.roles]
+    const roleExpiry = Object.fromEntries(editedExpiry.map((id) => {
+      const value = draft.roleExpiry[id]
+      return [id, value ? new Date(value).toISOString() : null]
+    }))
     if (mode === 'edit' && user) {
-      const updated = await updateMutation.mutateAsync({ id: user.id, patch: base, roleIds })
+      const allowed_ip_ranges = draft.allowedIpRanges.split(/[\s,]+/).filter(Boolean)
+      const updated = await updateMutation.mutateAsync({ id: user.id, patch: { ...base, allowed_ip_ranges }, roleIds, roleExpiry })
       if (updated) {
         onSaved?.(updated)
       }
@@ -199,12 +230,13 @@ function UserFormDialogBody({ open, mode, user, onClose, onSaved, onRequestDelet
       const created = await createMutation.mutateAsync({
         ...base,
         roleIds,
+        roleExpiry,
         password: draft.password || undefined,
       })
       onSaved?.(created)
     }
     onClose()
-  }, [draft, mode, user, hasErrors, isPending, createMutation, updateMutation, onSaved, onClose])
+  }, [draft, editedExpiry, mode, user, hasErrors, isPending, createMutation, updateMutation, onSaved, onClose])
 
   const onFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -350,7 +382,22 @@ function UserFormDialogBody({ open, mode, user, onClose, onSaved, onRequestDelet
                       <div className="mt-1.5 text-[12px] text-muted-foreground">{t('users.form.passwordHint')}</div>
                     </div>
                   )
-                : null}
+                : (
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="user-allowed-ip-ranges">{t('users.fields.allowedIpRanges')}</Label>
+                      <Textarea
+                        id="user-allowed-ip-ranges"
+                        rows={3}
+                        spellCheck={false}
+                        className="font-mono text-[12.5px]"
+                        value={draft.allowedIpRanges}
+                        onChange={event => patch('allowedIpRanges', event.target.value)}
+                        placeholder={t('users.form.allowedIpRangesPlaceholder')}
+                        aria-describedby="user-allowed-ip-ranges-hint"
+                      />
+                      <div id="user-allowed-ip-ranges-hint" className="mt-1.5 text-[12px] text-muted-foreground">{t('users.form.allowedIpRangesHint')}</div>
+                    </div>
+                  )}
             </div>
           </TabsContent>
 
@@ -368,24 +415,49 @@ function UserFormDialogBody({ open, mode, user, onClose, onSaved, onRequestDelet
                 : roles.map((role, index) => (
                     <div
                       key={role.id}
-                      className="flex items-center gap-2.5 p-3"
+                      className="p-3"
                       style={{ borderTop: index === 0 ? 'none' : '1px solid hsl(var(--border))' }}
                     >
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary">
-                        <ShieldCheck size={14} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[13.5px] font-medium">{role.name}</span>
-                          {role.builtin ? <Badge tone="info">built-in</Badge> : null}
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary">
+                          <ShieldCheck size={14} />
                         </div>
-                        <div className="text-[12px] text-muted-foreground">{role.description}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[13.5px] font-medium">{role.name}</span>
+                            {role.builtin ? <Badge tone="info">built-in</Badge> : null}
+                            {draft.roles.has(role.id) && expiredRoles.has(role.id) && !editedExpiry.includes(role.id)
+                              ? <Badge tone="warning">{t('users.form.roleExpired')}</Badge>
+                              : null}
+                          </div>
+                          <div className="text-[12px] text-muted-foreground">{role.description}</div>
+                        </div>
+                        <Switch
+                          checked={draft.roles.has(role.id)}
+                          onCheckedChange={checked => toggleRole(role.id, checked)}
+                          aria-label={role.name}
+                        />
                       </div>
-                      <Switch
-                        checked={draft.roles.has(role.id)}
-                        onCheckedChange={checked => toggleRole(role.id, checked)}
-                        aria-label={role.name}
-                      />
+                      {draft.roles.has(role.id)
+                        ? (
+                            <div className="mt-2 flex flex-wrap items-center gap-2 pl-[38px]">
+                              <Label htmlFor={`user-role-expiry-${role.id}`} className="text-[12px] text-muted-foreground">
+                                {t('users.form.roleExpires')}
+                              </Label>
+                              <Input
+                                id={`user-role-expiry-${role.id}`}
+                                type="datetime-local"
+                                value={draft.roleExpiry[role.id] ?? ''}
+                                onChange={event => setRoleExpiry(role.id, event.target.value)}
+                                aria-invalid={pastExpiry.has(role.id)}
+                                wrapperClassName="w-[220px]"
+                              />
+                              <span className="text-[12px] text-muted-foreground" role={pastExpiry.has(role.id) ? 'alert' : undefined}>
+                                {pastExpiry.has(role.id) ? t('users.form.roleExpiresPast') : t('users.form.roleExpiresHint')}
+                              </span>
+                            </div>
+                          )
+                        : null}
                     </div>
                   ))}
             </Card>

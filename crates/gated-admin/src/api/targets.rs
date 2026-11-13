@@ -3,8 +3,8 @@ use gated_common::web::{Data, Json};
 use gated_common::{
     GatedError, Role as RoleConfig, SSHTargetAuth, Secret, SshTargetPasswordAuth,
     SshTargetPublicKeyAuth, Target as TargetConfig, TargetAccountMetadata, TargetAccountRole,
-    TargetHttpOptions, TargetMySqlOptions, TargetOptions, TargetPostgresOptions, TargetSSHOptions,
-    UpstreamAuth,
+    TargetHttpOptions, TargetMySqlOptions, TargetOptions, TargetPostgresOptions, TargetRdpOptions,
+    TargetSSHOptions, TargetVncOptions, UpstreamAuth,
 };
 use gated_common::{api_response, api_routes};
 use gated_core::Services;
@@ -627,6 +627,7 @@ fn account_kind_matches_target(kind: &str, options: &TargetOptions) -> bool {
     match options {
         TargetOptions::Ssh(_) => matches!(kind, "ssh-password" | "ssh-key"),
         TargetOptions::MySql(_) | TargetOptions::Postgres(_) => kind == "db-password",
+        TargetOptions::Rdp(_) | TargetOptions::Vnc(_) => kind == "desktop-password",
         TargetOptions::Http(_) => {
             matches!(kind, "http-headers" | "k8s-token" | "k8s-client-cert")
         }
@@ -641,6 +642,8 @@ fn trim_target_address(options: &mut TargetOptions) {
         TargetOptions::Http(options) => &mut options.url,
         TargetOptions::MySql(options) => &mut options.host,
         TargetOptions::Postgres(options) => &mut options.host,
+        TargetOptions::Rdp(options) => &mut options.host,
+        TargetOptions::Vnc(options) => &mut options.host,
     };
     *address = address.trim().to_owned();
 }
@@ -674,6 +677,10 @@ fn has_inline_credentials(options: &TargetOptions) -> bool {
             .is_some_and(|password| !password.is_empty()),
         TargetOptions::Postgres(options) => options
             .password
+            .as_deref()
+            .is_some_and(|password| !password.is_empty()),
+        TargetOptions::Rdp(TargetRdpOptions { password, .. })
+        | TargetOptions::Vnc(TargetVncOptions { password, .. }) => password
             .as_deref()
             .is_some_and(|password| !password.is_empty()),
         TargetOptions::Http(options) => match &options.upstream_auth {
@@ -721,6 +728,19 @@ fn clear_inline_credentials(options: &mut TargetOptions) {
             username.clear();
             *password = None;
         }
+        TargetOptions::Rdp(TargetRdpOptions {
+            username,
+            domain,
+            password,
+            ..
+        }) => {
+            username.clear();
+            *domain = None;
+            *password = None;
+        }
+        TargetOptions::Vnc(TargetVncOptions { password, .. }) => {
+            *password = None;
+        }
         TargetOptions::Http(TargetHttpOptions {
             ca_certificate,
             upstream_auth,
@@ -747,7 +767,9 @@ fn redact_inline_secrets(options: &mut TargetOptions) {
             };
         }
         TargetOptions::MySql(TargetMySqlOptions { password, .. })
-        | TargetOptions::Postgres(TargetPostgresOptions { password, .. }) => {
+        | TargetOptions::Postgres(TargetPostgresOptions { password, .. })
+        | TargetOptions::Rdp(TargetRdpOptions { password, .. })
+        | TargetOptions::Vnc(TargetVncOptions { password, .. }) => {
             *password = None;
         }
         TargetOptions::Http(TargetHttpOptions { upstream_auth, .. }) => match upstream_auth {
@@ -801,6 +823,16 @@ fn keep_stored_secrets(options: &mut TargetOptions, stored: &TargetOptions) {
             TargetOptions::Postgres(TargetPostgresOptions { password, .. }),
             TargetOptions::Postgres(stored),
         ) if password.as_deref().is_none_or(str::is_empty) => {
+            password.clone_from(&stored.password);
+        }
+        (TargetOptions::Rdp(TargetRdpOptions { password, .. }), TargetOptions::Rdp(stored))
+            if password.as_deref().is_none_or(str::is_empty) =>
+        {
+            password.clone_from(&stored.password);
+        }
+        (TargetOptions::Vnc(TargetVncOptions { password, .. }), TargetOptions::Vnc(stored))
+            if password.as_deref().is_none_or(str::is_empty) =>
+        {
             password.clone_from(&stored.password);
         }
         (TargetOptions::Http(options), TargetOptions::Http(stored)) => {

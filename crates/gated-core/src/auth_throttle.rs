@@ -10,7 +10,7 @@ use gated_common::helpers::hash::verify_password_hash;
 use tokio::sync::Mutex;
 use tracing::warn;
 
-use crate::{ConfigProvider, ConfigProviderEnum};
+use crate::{ConfigProvider, ConfigProviderEnum, Services, login_protection};
 
 const WINDOW: Duration = Duration::from_secs(5 * 60);
 /// Failures allowed per window before further attempts are refused.
@@ -107,13 +107,28 @@ pub async fn validate_credential(
 
 /// Like [`validate_credential`], unless the user or the client address has
 /// failed too often; a refused attempt is reported as a wrong credential.
+/// Failures also count towards the address blocks and user lockouts of
+/// [`login_protection`].
 pub async fn validate_credential_throttled(
-    provider: &Mutex<ConfigProviderEnum>,
+    services: &Services,
     username: &str,
     client: &str,
     credential: &AuthCredential,
 ) -> Result<bool, GatedError> {
+    let provider = &services.config_provider;
     let keys = keys(username, client, credential);
+    // Only guessable secrets are counted; a locked database has no
+    // credentials to guess against.
+    let protection = match services.db_required().await {
+        Ok(db) if !keys.is_empty() => Some((db, login_protection::parse_client_ip(client))),
+        _ => None,
+    };
+    if let Some((db, ip)) = &protection
+        && let Some(refusal) = login_protection::refusal(db, *ip, username).await?
+    {
+        warn!(target: "audit", username = %username.chars().take(MAX_NAME_LEN).collect::<String>(), client_ip = %client, reason = ?refusal, "auth_refused");
+        return Ok(false);
+    }
     if THROTTLE
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -128,8 +143,26 @@ pub async fn validate_credential_throttled(
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .record(&keys, Instant::now());
+        if let Some((db, ip)) = &protection {
+            login_protection::record_failure(db, *ip, username).await?;
+        }
     }
     Ok(valid)
+}
+
+/// Counts a sign-in attempt under a name that does not exist towards the
+/// block of the client address. Other errors are not attempts.
+pub async fn report_unknown_user(services: &Services, error: &GatedError, client: &str) {
+    let GatedError::UserNotFound(username) = error else {
+        return;
+    };
+    let Ok(db) = services.db_required().await else {
+        return;
+    };
+    let ip = login_protection::parse_client_ip(client);
+    if let Err(error) = login_protection::record_failure(&db, ip, username).await {
+        warn!(%error, "Failed to record a sign-in attempt");
+    }
 }
 
 #[cfg(test)]

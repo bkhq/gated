@@ -27,21 +27,22 @@ interface DraftState {
   name: string
   description: string
   allowFileTransfer: boolean
+  allowClipboard: boolean
 }
 
 const NAME_MIN = 2
 const NAME_MAX = 64
 
 function emptyDraft(): DraftState {
-  return { name: '', description: '', allowFileTransfer: true }
+  return { name: '', description: '', allowFileTransfer: true, allowClipboard: false }
 }
 
 function draftFromRole(role: Role): DraftState {
-  return { name: role.name, description: role.description, allowFileTransfer: role.allowFileTransfer ?? true }
+  return { name: role.name, description: role.description, allowFileTransfer: role.allowFileTransfer ?? true, allowClipboard: role.allowClipboard ?? false }
 }
 
 function draftsEqual(a: DraftState, b: DraftState) {
-  return a.name === b.name && a.description === b.description && a.allowFileTransfer === b.allowFileTransfer
+  return a.name === b.name && a.description === b.description && a.allowFileTransfer === b.allowFileTransfer && a.allowClipboard === b.allowClipboard
 }
 
 function nameError(name: string, t: (key: string) => string): string | null {
@@ -111,6 +112,7 @@ function RoleFormDialogBody({ open, mode, role, onClose, onSaved, finalFocusRef 
       name: draft.name.trim(),
       description: draft.description.trim(),
       allowFileTransfer: draft.allowFileTransfer,
+      allowClipboard: draft.allowClipboard,
     }
     if (mode === 'edit' && role) {
       const updated = await updateMutation.mutateAsync({ id: role.id, patch: body })
@@ -228,6 +230,19 @@ function RoleFormDialogBody({ open, mode, role, onClose, onSaved, finalFocusRef 
             <span>
               <span className="block text-[13.5px]">{t('roles.form.allowFileTransfer')}</span>
               <span className="block text-[12px] text-muted-foreground">{t('roles.form.allowFileTransferHint')}</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-3 sm:col-span-2">
+            <Switch
+              checked={draft.allowClipboard}
+              onCheckedChange={value => patch('allowClipboard', Boolean(value))}
+              disabled={isBuiltin}
+              aria-label={t('roles.form.allowClipboard')}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block text-[13.5px]">{t('roles.form.allowClipboard')}</span>
+              <span className="block text-[12px] text-muted-foreground">{t('roles.form.allowClipboardHint')}</span>
             </span>
           </label>
           {isBuiltin

@@ -81,6 +81,13 @@ PostgreSQL 监听器各自的证书保存在数据库中：首次启动时自动
   `encryption_plaintext_backup_retained` 审计日志会报告其路径；验证加密网关后，连同所有
   `-wal`/`-shm` 附属文件一起删除。CLI 路径下 `gated encrypt-existing-db --auto-delete-plaintext`
   会自动删除它。
+- 登录保护（设置 > 安全，默认开启）：同一客户端地址 15 分钟内密码或 OTP 失败 20 次即被封禁，同一用户 1 小时内
+  失败 10 次即被锁定；封禁与锁定可在同一页面查看和解除。部署在反向代理之后时，需开启
+  `trust_x_forwarded_headers` 并让代理把客户端地址追加到 `X-Forwarded-For`，否则所有用户共享代理地址和同一个封禁。
+  管理员被挡在外面时，使用管理令牌或运行 `gated recover-access`。详见 `docs/architecture/auth.zh-CN.md`。
+- 强制 MFA（设置 > 安全，默认关闭）：要求每个用户绑定 OTP 设备，绑定前 Web 界面只提供绑定入口，SSH、数据库和
+  HTTP 代理访问会被拒绝。开启后立即生效，开启它的管理员本人也包括在内，因此以未绑定设备的用户身份登录的自动化会停止工作。
+  用户丢失设备时，由管理员删除该设备（`DELETE /admin/api/users/:user_id/credentials/otp/:id`，Web 界面暂无此入口），或在主机上运行 `gated recover-access`；用户下次登录时重新绑定。
 
 ## 备份与恢复
 

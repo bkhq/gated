@@ -161,6 +161,9 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 
 - Summary: instance and session information used by the SPA at startup.
 - Responses: `200 OK` `Json<Info>`. `site_title` (`null` when unset) is returned to unauthenticated requests too, for the login page. Without authentication `version` and `ports.*` are `null`; `setup_state` is returned only to admins and only while the user or target count is ≤ 1. `session_lifetime` is the idle lifetime of this session in seconds (default `admin.session_max_age`); `session_lifetime_options` lists the choices: 30 min, 1 h, 4 h, 8 h, 24 h up to `admin.cookie_max_age`, plus the default.
+- `max_api_token_duration_seconds` (`null` = no limit or not signed in) is the longest lifetime of an API token the user may create.
+- `mfa_setup_required` is `true` while MFA is required and the signed-in user has no OTP device. Every other call of that user is then answered `403` with the header `X-Gated-Mfa-Setup-Required: 1`, except sign-in and sign-out, `/api/info` and the two OTP enrollment calls (see `docs/architecture/auth.md`, "Required MFA").
+- A request authenticated by a user API token is answered `403` on every endpoint, this one included, that is not listed in `admin.user_api_token_allowed_endpoints` when that config list is set (entries `"<METHOD> <path>"`, a trailing `*` matches a prefix). Sessions and the admin token are not limited.
 
 #### `GET /api/targets` — `get_targets` [OAS]
 
@@ -187,12 +190,12 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 
 #### `GET /api/profile/credentials` — `get_my_credentials` [OAS]
 
-- Responses: `200 OK` `Json<CredentialsState>` / `401 Unauthorized` (the principal does not resolve to a `User`) / `403` (parameter switch).
+- Responses: `200 OK` `Json<CredentialsState>` / `401 Unauthorized` (the principal does not resolve to a `User`) / `403` (parameter switch). `password_policy` carries the rules a new password must satisfy.
 
 #### `POST /api/profile/credentials/password` — `change_my_password` [OAS]
 
-- Body: `{ password: string }` (secret — write-only).
-- Responses: `201 Created` `Json<PasswordState>` (the literal `"Set"`) / `401` / `403`.
+- Body: `{ old_password: string, password: string }` (secrets — write-only).
+- Responses: `201 Created` `Json<PasswordState>` (the literal `"Set"`) / `400` `Json<string>` when the new password breaks the password policy (the message names what is missing) / `401` / `403`.
 
 #### `POST /api/profile/credentials/public-keys` — `add_my_public_key` [OAS]
 
@@ -218,7 +221,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 #### `DELETE /api/profile/credentials/otp/:id` — `delete_my_otp` [OAS]
 
 - If the user has no OTP left afterwards, the `Totp` requirement is removed from the credential policy.
-- Responses: `204` / `401` / `404` / `403`.
+- Responses: `204` / `401` / `404` / `403` (parameter switch; or `Json<string>` when MFA is required and this is the user's last device).
 
 #### `POST /api/profile/credentials/certificates` — `issue_my_certificate` [OAS]
 
@@ -239,7 +242,7 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 #### `POST /api/profile/api-tokens` — `create_api_token` [OAS]
 
 - Body: `Json<NewApiToken> { label: string, expiry: date-time }`.
-- Responses: `201 Created` `Json<TokenAndSecret> { token, secret }` (`secret` — one-time reveal) / `400` when `expiry` is not in the future / `401`.
+- Responses: `201 Created` `Json<TokenAndSecret> { token, secret }` (`secret` — one-time reveal) / `400` when `expiry` is not in the future / `401` / `400` when `expiry` is further away than `max_api_token_duration_seconds` allows / `403` when the request itself is authenticated by an API token (a token cannot issue another token).
 
 #### `DELETE /api/profile/api-tokens/:id` — `delete_my_api_token` [OAS]
 
@@ -336,6 +339,20 @@ Error responses carry the reason as a JSON string (`Json<String>`), plain text (
 - Host key errors: when a known host key differs, the `MSG_STATUS {status:"error"}` message starts with `Host key mismatch` and gives both the received and the known `SHA256:` fingerprints; when `auto_reject` refuses an unknown key, the message asks an admin to add it under Known hosts.
 
 Database targets have no terminal endpoint; the web UI opens them in the SQL console (`/api/db/*`).
+
+#### `GET /api/desktop/:target_name` — `api_desktop` [raw]
+
+The browser desktop for `Rdp` and `Vnc` targets. See `docs/architecture/protocol-desktop.md` for the design.
+
+- Query: `account?: string` (see §1.3), `width?: u16`, `height?: u16` (the viewer's window; an RDP target is asked for a desktop of that size, VNC ignores it).
+- Checks before the upgrade: `target_name` must match the pattern, otherwise `400 "Invalid target name"`; a ticket for another target → `403`; unauthenticated → `401 "Not authenticated"`; more than 4 desktop sessions for the user or 32 in total → `429 "Too many concurrent desktop sessions"`.
+- Text frames are JSON with a `type`:
+  - gateway → viewer: `state { state: "connecting" | "connected" | "closed", message?, details?: { session_id, address, username, clipboard: bool } }`, `resize { width, height }`, `clipboard { text }`, `bell`, `error { message }`, `cursor_default`, `cursor_hidden`.
+  - viewer → gateway: `pointer_event { x, y, buttons }` (bit 0 left, 1 middle, 2 right), `key_event { keysym?: u32, scancode?: u8, extended?: bool, down: bool }`, `wheel_event { x, y, vertical: bool, delta: i16 }`, `clipboard { text }`, `refresh`, `resize { width, height }`.
+- Binary frames, gateway → viewer only: `[kind u8][x u16][y u16][width u16][height u16][data]`, little-endian; kind `1` raw RGBA, `2` JPEG, `3` cursor shape in RGBA with `x`, `y` as the hotspot.
+- Authorization failures after the upgrade (no role on the target, unknown account) arrive as `state closed` with a message. Target errors arrive as `error` with a fixed sentence, followed by `state closed`.
+- `clipboard` messages are dropped in both directions unless a role that grants the target has `allow_clipboard`; `details.clipboard` says which applies.
+- The session is listed as `WebRDP` / `WebVNC`. Viewer messages are limited to 4 MiB and clipboard text to 1 MiB.
 
 ### 1.9 File manager (`sftp.rs`)
 
@@ -445,6 +462,11 @@ Database targets have no terminal endpoint; the web UI opens them in the SQL con
 - `Content-Type: application/octet-stream`, raw pcap bytes.
 - `404` when the recording is missing or not `traffic`; `500` on file I/O errors.
 
+#### `GET /admin/api/recordings/:id/desktop` — `api_get_recording_desktop` [raw]
+
+- The stored desktop recording, streamed as it is: one JSON item per line, each with `type` and `time` (seconds). Types: `resize { width, height }`, `png_image { rect, keyframe?, data }`, `jpeg_image { rect, data }`, `copy_rect { dst, src_x, src_y }`, `pointer_input { x, y, buttons }`, `wheel_input { x, y, vertical, delta }` and, only for targets with `record_keystrokes`, `key_input { keysym, down }`, `scancode_input { code, extended, down }`, `clipboard_input { text }`. `rect` is `{ x, y, width, height }`; image `data` is base64.
+- `404` when the recording is missing or not `desktop`; `500` on file I/O errors.
+
 ### 2.3 Users (`users.rs`)
 
 #### `GET /admin/api/users` — `get_users` [OAS]
@@ -463,7 +485,8 @@ Database targets have no terminal endpoint; the web UI opens them in the SQL con
 
 #### `PUT /admin/api/users/:id` — `update_user` [OAS]
 
-- Body: `UserDataRequest { username, credential_policy?, description?, rate_limit_bytes_per_second? }`.
+- Body: `UserDataRequest { username, credential_policy?, description?, rate_limit_bytes_per_second?, allowed_ip_ranges?: string[] }`.
+- `allowed_ip_ranges`: IP addresses and CIDR ranges (IPv4 or IPv6) the user may sign in from, use API tokens from and use tickets from, on every listener. `null`, omitted or an empty list lifts the limit (the update replaces the stored list). A malformed entry is answered `400` naming it. The `User` objects of the user endpoints return the list (`null` = anywhere).
 - Responses: `200 OK` `User` / `404`.
 
 #### `DELETE /admin/api/users/:id` — `delete_user` [OAS]
@@ -472,10 +495,15 @@ Database targets have no terminal endpoint; the web UI opens them in the SQL con
 - Responses: `204` / `404`.
 
 #### `GET /admin/api/users/:id/roles` — `get_user_roles` [OAS]
-- `200 OK` `Role[]` / `404`.
+- `200 OK` `UserRole[]` / `404`. `UserRole` is a `Role` plus `expires_at?: datetime` (`null` = never). An expired assignment stays in this list until it is removed or extended; the `roles` names of `GET /admin/api/users` leave it out.
 
 #### `POST /admin/api/users/:id/roles/:role_id` — `add_user_role` [OAS]
-- `201 Created` empty body / `409` already bound.
+- `201 Created` empty body / `409` already bound (also when the existing assignment has expired; extend it with `PUT`). The new assignment never expires.
+
+#### `PUT /admin/api/users/:id/roles/:role_id` — `update_user_role` [OAS]
+- Body `UserRoleUpdate { expires_at: datetime | null }`: when the assignment ends; `null` makes it permanent. A future time or `null` revives an expired assignment.
+- From `expires_at` on the role grants the user nothing (target access, file transfer, role-scoped command rules, the `admin` role), and within about 15 seconds the sessions it admitted are closed.
+- Responses: `200 OK` `UserRole` / `400` `Json<string>` when `expires_at` is not in the future / `404` when the user does not hold the role.
 
 #### `DELETE /admin/api/users/:id/roles/:role_id` — `delete_user_role` [OAS]
 - `204` / `404`.
@@ -485,7 +513,7 @@ Database targets have no terminal endpoint; the web UI opens them in the SQL con
 #### Passwords (`password_credentials.rs`)
 
 - `GET /admin/api/users/:user_id/credentials/passwords` — `200 OK` `ExistingPasswordCredential[]` (only `{ id }`).
-- `POST /admin/api/users/:user_id/credentials/passwords` — Body `{ password: string }` (secret — write-only), `201 Created` `ExistingPasswordCredential`.
+- `POST /admin/api/users/:user_id/credentials/passwords` — Body `{ password: string }` (secret — write-only), `201 Created` `ExistingPasswordCredential`; `400` `Json<string>` when the password breaks the password policy.
 - `DELETE /admin/api/users/:user_id/credentials/passwords/:id` — `204` / `404`.
 
 #### Public keys (`public_key_credentials.rs`)
@@ -566,7 +594,8 @@ Database targets have no terminal endpoint; the web UI opens them in the SQL con
 #### `GET /admin/api/targets/:id/upstream-certificate` — `get_target_upstream_certificate` [OAS]
 
 - Performs one TLS handshake with an HTTP target's upstream (10 s timeout), returns its certificate chain and verifies it against the system roots plus the target's `ca_certificate`; untrusted chains are still returned.
-- Responses: `200 OK` `{ tls, verify, chain: CertificateInfo[], verify_error, error }` (`tls=false`, `chain=[]` for `http://` upstreams; `error` gives the reason when the connection fails) / `400` (not an HTTP target) / `404`.
+- For an RDP target the handshake follows the RDP negotiation (an X.224 connection request asking for TLS); nothing is sent after it, so no credentials leave the gateway. The chain is verified against the system roots and `verify` is the target's `verify_tls`.
+- Responses: `200 OK` `{ tls, verify, chain: CertificateInfo[], verify_error, error }` (`tls=false`, `chain=[]` for `http://` upstreams; `error` gives the reason when the connection fails) / `400` (neither an HTTP nor an RDP target) / `404`.
 - `CertificateInfo`: `{ subject, issuer, serial, not_before, not_after, subject_alt_names, sha256_fingerprint }`, leaf first.
 
 #### `GET /admin/api/targets/:id/roles` — `get_target_roles` [OAS] — `200` `Role[]` / `404`.
@@ -605,9 +634,9 @@ Database targets have no terminal endpoint; the web UI opens them in the SQL con
 ### 2.7 Roles (`roles.rs`)
 
 - `GET /admin/api/roles` — Query `search?`; `200` `Role[]`.
-- `POST /admin/api/roles` — Body `{ name, description?, allow_file_transfer? }` (`allow_file_transfer` defaults to `true`); `201` `Role` / `400 "name"`.
+- `POST /admin/api/roles` — Body `{ name, description?, allow_file_transfer?, allow_clipboard? }` (`allow_file_transfer` defaults to `true`, `allow_clipboard` to `false`); `201` `Role` / `400 "name"`.
 - `GET /admin/api/role/:id` — `200` / `404`.
-- `PUT /admin/api/role/:id` — same body as create; omitting `allow_file_transfer` keeps it unchanged; the built-in admin role cannot be changed; `200` / `403` / `404`.
+- `PUT /admin/api/role/:id` — same body as create; omitting `allow_file_transfer` or `allow_clipboard` keeps it unchanged; the built-in admin role cannot be changed; `200` / `403` / `404`.
 - `DELETE /admin/api/role/:id` — the built-in admin role cannot be deleted; `204` / `403` / `404`.
 - `GET /admin/api/role/:id/targets` — `200` `Target[]` / `404`.
 - `GET /admin/api/role/:id/users` — `200` `User[]` / `404`.
@@ -742,6 +771,10 @@ Sessions opened with a ticket carry its id: `SessionSnapshot.ticket_id` and `Man
   - `terminal_watermark_enabled: bool`
   - `site_title?: string` (`null` = the built-in title "Gated")
   - `target_check_interval_hours: u32` (hours between automatic target reachability checks, `0` = off; default 24)
+  - `max_api_token_duration_seconds?: u32` (`null` = no limit)
+  - `password_policy: PasswordPolicy` `{ min_length: u32, require_uppercase, require_lowercase, require_digits, require_special: bool }` (default: no requirement)
+  - `mfa_required: bool` (default `false`)
+  - `login_protection: LoginProtectionParameters` (durations in seconds): `enabled: bool` (default `true`), `ip_max_attempts: u32` (20), `ip_window_seconds: u32` (900), `ip_block_seconds: u32` (1800), `ip_max_block_seconds: u32` (86400), `user_max_attempts: u32` (10), `user_window_seconds: u32` (3600), `user_lockout_seconds: u32` (3600; `0` = until an administrator lifts the lockout)
 
 #### `PUT /admin/api/parameters` — `update_parameters` [OAS]
 
@@ -751,7 +784,18 @@ Sessions opened with a ticket carry its id: `SessionSnapshot.ticket_id` and `Man
   - Partial (omitted = keep the old value): `ssh_client_auth_publickey?`, `ssh_client_auth_password?`, `ssh_client_auth_keyboard_interactive?`, `minimize_password_login?`, `terminal_watermark_enabled?`
   - `site_title?: string`: omitted keeps the old value; empty after trimming clears it (back to "Gated"); at most 64 characters, no control characters.
   - `target_check_interval_hours?: u32`: 0 to 168; omitted keeps the old value.
-- Responses: `201 Created` (variant `Done`), empty body; `400` `Json<string>` (invalid `site_title` or `target_check_interval_hours`).
+  - `max_api_token_duration_seconds?: u32`: longest lifetime of a token a user creates through `POST /api/profile/api-tokens`; `0` lifts the limit, omitted keeps the old value. Tokens created through `/admin/api/users/:user_id/api-tokens` are not limited.
+  - `password_policy?: PasswordPolicy`: omitted keeps the old rules; `min_length` 0 to 128. The rules apply to passwords set afterwards through the admin and profile APIs; existing passwords are not checked again, and the host commands (`setup`, `create-user`, `recover-access`) are not bound by them.
+  - `mfa_required?: bool`: omitted keeps the old value. When on, every user must enroll an OTP device before using the gateway (see `docs/architecture/auth.md`, "Required MFA"). It applies to the administrator who turns it on as well.
+  - `login_protection?: LoginProtectionParameters`: omitted keeps the old values; when present every field is required. Attempts 1 to 1000; windows 60 to 86400; `ip_block_seconds` 60 to 2592000; `ip_max_block_seconds` from `ip_block_seconds` to 2592000; `user_lockout_seconds` 0 or 60 to 2592000.
+- Responses: `201 Created` (variant `Done`), empty body; `400` `Json<string>` (invalid `site_title`, `target_check_interval_hours` or `login_protection` value).
+
+#### Login protection (`login_protection.rs`) [OAS]
+
+- `GET /admin/api/login-protection/ip-blocks` — `200 OK` `Json<IpBlock[]>` `{ ip_address, block_count, blocked_at, expires_at }`: the address blocks in force, newest first.
+- `DELETE /admin/api/login-protection/ip-blocks/:ip` — lifts the block and clears the address's failed attempts; `204` / `404`.
+- `GET /admin/api/login-protection/user-lockouts` — `200 OK` `Json<UserLockout[]>` `{ username, locked_at, expires_at? }` (`expires_at: null` = until lifted).
+- `DELETE /admin/api/login-protection/user-lockouts/:username` — lifts the lockout and clears the user's failed attempts; `204` / `404`.
 
 ### 2.12 OpenAPI metadata
 
@@ -1050,7 +1094,7 @@ Every protocol field is `Option<Vec<CredentialKind>>` and absent when unset:
 
 #### `Role`
 
-`{ id: uuid, name: string, description: string, allow_file_transfer: bool }`. `allow_file_transfer` controls native SFTP and the web file manager on the targets the role grants; it does not affect terminals.
+`{ id: uuid, name: string, description: string, allow_file_transfer: bool, allow_clipboard: bool }`. `allow_file_transfer` controls native SFTP and the web file manager on the targets the role grants; it does not affect terminals. `allow_clipboard` (default `false`) opens the clipboard of RDP and VNC desktops, in both directions, on the targets the role grants.
 
 ### 6.4 Credentials
 
@@ -1125,6 +1169,10 @@ ProfileTicketAndSecret { ticket: ExistingProfileTicket, secret: string }        
 - `http` — `TargetHttpOptions { url, tls: Tls, ca_certificate?: secret, upstream_auth: UpstreamAuth, flavor: "generic" | "kubernetes" }`
 - `mysql` — `TargetMySqlOptions { host, port: u16=3306, username="root", password?: secret, tls, default_database_name?, readonly: bool }`
 - `postgres` — `TargetPostgresOptions { host, port, username, password?: secret, tls, idle_timeout?, default_database_name?, readonly }`
+- `rdp` — `TargetRdpOptions { host, port: u16=3389, username, domain?, password?: secret, verify_tls: bool=true, record_keystrokes: bool=false }`
+- `vnc` — `TargetVncOptions { host, port: u16=5900, password?: secret, record_keystrokes: bool=false }`
+
+  Desktop targets are opened in the browser only (`GET /api/desktop/:target_name`). `verify_tls` checks the RDP target's certificate against the system roots and its host name. `record_keystrokes` adds key presses and pasted text to the session recording; without it the recording holds the screen and the pointer only.
 
   `readonly` is enforced on every path. The SQL console accepts a single read statement (`validate_readonly_sql`, lexed with the target engine's quoting and comment rules) and runs it in a `READ ONLY` transaction. The native proxies put the upstream session in read-only transaction mode (`SET SESSION TRANSACTION READ ONLY`, re-applied after `COM_RESET_CONNECTION`, for MySQL/MariaDB; `default_transaction_read_only=on` in the startup options for PostgreSQL) and refuse the statements that would leave it or write despite it: `READ WRITE`, the `*_read_only` variables, `set_config`, `RESET`, `DISCARD`, `DO`, `PREPARE`, `SET GLOBAL`/`PERSIST`, `INTO OUTFILE`/`DUMPFILE`, and server administration statements (MySQL error `1792`, PostgreSQL SQLSTATE `25006`). This is a guard-rail: a server-side function that runs dynamic SQL, or a PostgreSQL function with side effects such as `dblink_exec`, is not stopped. Give the upstream account read-only privileges when a hard guarantee is needed.
 
@@ -1168,6 +1216,7 @@ AccountReveal           { credentials: AccountCredentials }
 - `ssh-password { username, password: secret }`
 - `ssh-key { username, private_key_pem: secret, passphrase?: secret }` — `username` may be empty (or omitted on write): the target's username is used then, falling back to the gated user's. On create/update, `generate: "ed25519" | "rsa"` instead of a key makes the server generate the private key (it never leaves the server); `private_key_pem` must decode with the passphrase (`422` otherwise); line breaks lost when pasting (joined with spaces, one line, indented, CR-only or literal `\n`) are repaired before decoding and storing. `credentials_public` adds the derived `public_key_openssh` and SHA256 `fingerprint`.
 - `db-password { engine: "mysql"|"postgres", username, password: secret }`
+- `desktop-password { username, domain?, password: secret }` — for `rdp` and `vnc` targets; VNC uses the password only, so `username` may be empty.
 - `k8s-token { token: secret, ca_pem?: secret, namespace? }`
 - `k8s-client-cert { client_certificate_pem, client_private_key_pem: secret, passphrase?: secret, ca_pem?: secret, namespace? }`
 - `http-headers { headers: { name, value: secret, sensitive?: bool }[] }`
@@ -1307,6 +1356,8 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 |---|---|---|---|
 | DELETE | `/admin/api/accounts/:id` | `delete_account` |  |
 | DELETE | `/admin/api/command-acl-rule/:id` | `delete_command_acl_rule` |  |
+| DELETE | `/admin/api/login-protection/ip-blocks/:ip` | `delete_ip_block` |  |
+| DELETE | `/admin/api/login-protection/user-lockouts/:username` | `delete_user_lockout` |  |
 | DELETE | `/admin/api/management-sessions/:id` | `revoke_management_session` |  |
 | DELETE | `/admin/api/role/:id` | `delete_role` |  |
 | DELETE | `/admin/api/sessions/:id` | `delete_session` | Delete a session record and everything attached to it: its recording |
@@ -1335,6 +1386,8 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | GET | `/admin/api/command-records` | `get_command_records` | List/search command records across the shell and SQL audit streams. |
 | GET | `/admin/api/command-reviews` | `get_command_reviews` |  |
 | GET | `/admin/api/file-records` | `get_file_records` | List/search file operations, newest first. Filters are AND-combined; |
+| GET | `/admin/api/login-protection/ip-blocks` | `get_ip_blocks` |  |
+| GET | `/admin/api/login-protection/user-lockouts` | `get_user_lockouts` |  |
 | GET | `/admin/api/management-sessions` | `get_management_sessions` |  |
 | GET | `/admin/api/parameters` | `get_parameters` |  |
 | GET | `/admin/api/recordings/:id/http-proxy` | `get_http_proxy_recording` |  |
@@ -1413,6 +1466,7 @@ Generated by `bun run openapi` from the OpenAPI contracts exported from the Rust
 | PUT | `/admin/api/tls/acme` | `update_acme_settings` | Saves the ACME account and DNS provider. Changing the directory or contact |
 | PUT | `/admin/api/tls/certificates/:listener/acme` | `enable_tls_acme` | Issues the listener's certificate through ACME now and renews it |
 | PUT | `/admin/api/tls/certificates/:listener` | `import_tls_certificate` | Stores a certificate and private key for the listener, replacing the |
+| PUT | `/admin/api/users/:id/roles/:role_id` | `update_user_role` | Sets or clears the expiry of a role assignment. Clearing it or moving it |
 | PUT | `/admin/api/users/:id` | `update_user` |  |
 | PUT | `/admin/api/users/:user_id/credentials/public-keys/:id` | `update_public_key_credential` |  |
 | PUT | `/admin/api/users/:user_id/credentials/sso/:id` | `update_sso_credential` |  |

@@ -1,12 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Navigate, Outlet, useMatchRoute, useRouter } from '@tanstack/react-router'
 import * as React from 'react'
+import { MfaSetupPage } from '@/features/otp/mfa-setup-page'
 import { SessionsPage } from '@/features/session/sessions-page'
 import { GatedLogo } from '@/shared/components/gated-logo'
 import { useInfo } from '@/shared/hooks/use-info'
 import { useSessionWatch } from '@/shared/hooks/use-session-watch'
 import { useSiteTitle } from '@/shared/hooks/use-site-title'
-import { setOnUnauthorized } from '@/shared/lib/api/http'
+import { setOnMfaSetupRequired, setOnUnauthorized } from '@/shared/lib/api/http'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/shared/ui/sidebar'
 import { useAppStore } from '@/store/app-store'
 import { AppSidebar } from './sidebar'
@@ -77,6 +78,10 @@ export function AppLayout() {
       queryClient.removeQueries()
       void router.navigate({ to: '/auth/login' })
     })
+    // Brings up the MFA setup when enforcement starts mid-session.
+    setOnMfaSetupRequired(() => {
+      void queryClient.invalidateQueries({ queryKey: ['info'] })
+    })
   }, [router, queryClient])
 
   useSessionWatch(username !== null)
@@ -106,6 +111,9 @@ export function AppLayout() {
 
   if (identityUsername !== username)
     return null
+
+  if (info.data?.mfa_setup_required)
+    return <MfaSetupPage />
 
   return (
     <SidebarProvider

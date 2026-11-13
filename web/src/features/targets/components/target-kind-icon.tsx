@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import type { TargetKind } from '@/shared/types/domain'
-import { Database, Globe, Network, Terminal } from 'lucide-react'
+import { Database, Globe, Monitor, Network, Terminal } from 'lucide-react'
 
 interface KindVisual {
   icon: LucideIcon
@@ -12,6 +12,8 @@ const KIND: Record<TargetKind, KindVisual> = {
   mysql: { icon: Database, hue: '36 85% 55%' },
   postgres: { icon: Database, hue: '198 78% 48%' },
   http: { icon: Globe, hue: '160 65% 45%' },
+  rdp: { icon: Monitor, hue: '262 60% 60%' },
+  vnc: { icon: Monitor, hue: '330 60% 55%' },
 }
 
 const FALLBACK: KindVisual = { icon: Network, hue: '210 12% 50%' }

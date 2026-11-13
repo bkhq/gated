@@ -103,6 +103,18 @@ the user and the target and grants access when the intersection is
 non-empty. Every protocol calls this after authentication and before
 connecting to the target.
 
+A user's role assignment can carry `expires_at` (`user_roles.expires_at`,
+set in the user dialog or with `PUT /admin/api/users/:id/roles/:role_id`).
+An expired assignment grants nothing: the user's roles are always read
+through `User::Model::active_roles` or the `UserRoleAssignment::unexpired`
+condition (target access, file transfer, account resolution, role-scoped
+command rules, the admin check). The row is kept, so the administrator sees
+it as expired and can extend or remove it. `watch_role_expiry`
+(`crates/gated/src/commands/run.rs`) looks for newly expired assignments
+every 15 seconds and triggers `Services::revalidate_sessions`, which closes
+the sessions the assignment admitted. Roles assigned by SSO role mappings
+are added without an expiry.
+
 The built-in `admin` role (`BUILTIN_ADMIN_ROLE_NAME`,
 `crates/gated-core/src/consts.rs`) is created at database bootstrap and
 gates the admin API: `require_admin`
@@ -159,6 +171,95 @@ answered as a wrong credential without being checked:
 Public keys, certificates and SSO are not counted. The web login keeps its own
 per-attempt limiter in addition. Counters are per process and reset on
 restart.
+
+### Login protection
+
+Behind those counters, `gated_core::login_protection` keeps failed password
+and OTP attempts in the database (`failed_login_attempts`) and turns them
+into address blocks (`ip_blocks`) and user lockouts (`user_lockouts`) that
+survive a restart and that an administrator can list and lift (Settings >
+Security, `/admin/api/login-protection/*`). Thresholds are in `parameters`
+(`login_protection` in the parameters API); it is on by default.
+
+- An address is blocked after `ip_max_attempts` failures (20) within
+  `ip_window_seconds` (15 minutes), whatever the user names. The first block
+  lasts `ip_block_seconds` (30 minutes); each further block within 24 hours
+  of the last one doubles, up to `ip_max_block_seconds` (24 hours).
+- A user is locked out after `user_max_attempts` failures (10) within
+  `user_window_seconds` (1 hour), from any address, for
+  `user_lockout_seconds` (1 hour; `0` = until lifted). Unknown names are not
+  locked. Users with the `admin` role are never locked out, since anyone who
+  knows the name could otherwise keep them out; address blocks and the
+  in-memory per-user limit still apply to them.
+- While blocked or locked, password and OTP attempts are answered as a wrong
+  credential without being checked. Public keys, certificates, SSO, tickets
+  and API tokens are not affected and not counted. Attempts under a name
+  that does not exist count towards the address (SSH: password attempts
+  only, not key offers).
+- A successful sign-in does not clear earlier failures; they leave the count
+  when the window passes.
+- The client address is the TCP peer. On the web login with
+  `trust_x_forwarded_headers`, it is the last entry of `X-Forwarded-For`,
+  the one the nearest proxy appended; earlier entries are client-supplied.
+  Behind two or more proxies that entry is the outer proxy, and all users
+  share one block: raise `ip_max_attempts` or switch the protection off in
+  that setup.
+- Ways back in when locked out: the admin token (not subject to blocks) or
+  `gated recover-access`, which lifts the chosen user's lockout and all
+  address blocks.
+- Audit events: `login_ip_blocked`, `login_user_locked`, `auth_refused`.
+
+### Allowed addresses of a user
+
+A user can be limited to IP addresses and CIDR ranges (`users.allowed_ip_ranges`,
+edited in the user dialog or with `PUT /admin/api/users/:id`). With a list set,
+the user is refused from any other address, and from an address that cannot be
+determined:
+
+| Path | Where it is checked | Answer outside the ranges |
+|---|---|---|
+| Interactive sign-in on SSH, MySQL, PostgreSQL, web login and SSO | `AuthStateStore::create` | as for an unknown user |
+| Tickets on every listener, `POST /api/tickets/claim`, `?gated-ticket=` | `authorize_ticket` | as for an unknown ticket |
+| API tokens on the management API and the HTTP proxy | after `validate_api_token` | as for an unknown token |
+
+The client address is derived as for login protection. A browser session
+that already exists is not ended when the list changes or the client moves
+to another address; end it from the sessions page if needed. Audit events:
+`auth_address_not_allowed`, `ticket_address_not_allowed`,
+`api_token_address_not_allowed`.
+
+### Required MFA
+
+`parameters.mfa_required` (Settings > Security, off by default) makes an OTP
+device mandatory for every user, including users who sign in through SSO. A
+user is "enrolled" once at least one OTP device is stored.
+
+| Path | Not enrolled | Enrolled |
+|---|---|---|
+| Web sign-in (password or SSO) | signs in with the stored policy, then reaches only the enrollment | must present an OTP code, whatever the stored credential policy says (`RequiredFactorPolicy`) |
+| Management API with a session or a user API token | `403` with the header `X-Gated-Mfa-Setup-Required: 1`, except the allow-list below | unchanged |
+| SSH, MySQL, PostgreSQL sign-in | refused in `AuthStateStore::create`, answered like an unknown user | the stored credential policy applies |
+| HTTP proxy with an API token or a client certificate | `401` | unchanged |
+
+Open to a user who still has to enroll (`mfa_setup_allows`): the pages under
+`/ui`, `GET /api/info`, the sign-in, sign-out, SSO and session endpoints
+under `/api/auth` and `/api/sso`, the boot gate endpoints, and
+`POST /api/profile/credentials/otp/begin` and `POST /api/profile/credentials/otp`.
+The two enrollment calls work even when users may not manage their own
+credentials. `/api/info` reports `mfa_setup_required`; the web interface then
+shows the enrollment instead of the application.
+
+Not covered: ticket sessions and the admin token are not user accounts and
+are not gated. After enrollment the second factor is enforced at web sign-in
+only; SSH follows the stored policy (enrollment puts `Totp` on it, and a
+registered public key still signs in alone), and the database protocols have
+no second factor. A user's last OTP device cannot be removed through
+`DELETE /api/profile/credentials/otp/:id` while MFA is required. An
+administrator can still remove it, and `gated recover-access` removes the
+devices of the user it recovers; either way the user enrolls again at the
+next web sign-in. Until then the account is protected by its first factor
+only, as is any account that has not enrolled yet. Audit event:
+`auth_mfa_setup_required`.
 
 ## API tokens and web sessions
 

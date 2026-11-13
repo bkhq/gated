@@ -71,6 +71,7 @@ ignore = [
     "RUSTSEC-2021-0139", # ansi-term is unmaintained
     "RUSTSEC-2025-0134", # rustls-pemfile is deprecated but tonic 0.12 is still using it
     "RUSTSEC-2026-0387", # crypto-bigint 0.5 timing: only via openidconnect (p256/p384) verifying IdP ID-token signatures with public keys; no fixed 0.5.x release
+    "RUSTSEC-2026-0441", # pin-utils is unmaintained: only via sspi -> async-dnssd, a macOS/iOS-only dependency that is never built into the Linux binaries (docs/decisions/20261112-rdp-vnc-dependencies.md)
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
@@ -208,6 +209,11 @@ allow = [
     "MPL-2.0",
     "CDLA-Permissive-2.0",
 ]
+
+# vnc-rs depends on it; a public-domain dedication. Allowed for this crate only.
+[[licenses.exceptions]]
+crate = "async_io_stream"
+allow = ["Unlicense"]
 
 [[licenses.clarify]]
 crate = "ring"

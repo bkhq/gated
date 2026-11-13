@@ -13,6 +13,9 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub description: String,
     pub allow_file_transfer: bool,
+    /// Desktop sessions (RDP, VNC) granted by the role may exchange
+    /// clipboard text with the browser.
+    pub allow_clipboard: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -47,6 +50,7 @@ impl From<Model> for Role {
             name: model.name,
             description: model.description,
             allow_file_transfer: model.allow_file_transfer,
+            allow_clipboard: model.allow_clipboard,
         }
     }
 }

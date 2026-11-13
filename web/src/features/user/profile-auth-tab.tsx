@@ -29,6 +29,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/shared/ui/dial
 import { Drawer } from '@/shared/ui/drawer'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/textarea'
+import { describePasswordPolicy, passwordPolicyError, usePasswordPolicy } from './password-policy'
 import { ConfirmDialog, FieldGroup, ListSkeleton, RowMenu } from './profile-shared'
 import { fieldAria, useReturnFocusOnClose } from './profile-utils'
 
@@ -44,6 +45,7 @@ interface OtpDrawerState {
 
 export function AuthTab() {
   const { t } = useTranslation()
+  const policy = usePasswordPolicy()
   const publicKeysQuery = usePublicKeys()
   const otpDevicesQuery = useOtpDevices()
   const removeKeyMutation = useRemovePublicKey()
@@ -66,7 +68,7 @@ export function AuthTab() {
         <CardHeader>
           <div>
             <CardTitle>{t('profile.auth.password')}</CardTitle>
-            <CardDescription>{t('profile.auth.passwordPolicy')}</CardDescription>
+            <CardDescription>{describePasswordPolicy(t, policy)}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => setPwOpen(true)}>
             <ShieldOff size={13} aria-hidden="true" />
@@ -245,6 +247,7 @@ export function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = React.useState<PasswordDraft>(() => ({ current: '', next: '', confirm: '' }))
   const [touched, setTouched] = React.useState<Partial<Record<keyof PasswordDraft, boolean>>>(() => ({}))
   const [reveal, setReveal] = React.useState(false)
+  const policy = usePasswordPolicy()
 
   const errors = React.useMemo<Partial<Record<keyof PasswordDraft, string>>>(() => {
     const e: Partial<Record<keyof PasswordDraft, string>> = {}
@@ -254,11 +257,8 @@ export function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
     if (!draft.next) {
       e.next = t('profile.auth.pwDrawer.validate.newRequired')
     }
-    else if (draft.next.length < 12) {
-      e.next = t('profile.auth.pwDrawer.validate.newTooShort')
-    }
-    else if (!/[a-z]/u.test(draft.next) || !/[A-Z]/u.test(draft.next) || !/\d/u.test(draft.next)) {
-      e.next = t('profile.auth.pwDrawer.validate.newWeak')
+    else if (passwordPolicyError(t, draft.next, policy)) {
+      e.next = passwordPolicyError(t, draft.next, policy)
     }
     else if (draft.next === draft.current && draft.current) {
       e.next = t('profile.auth.pwDrawer.validate.sameAsCurrent')
@@ -270,7 +270,7 @@ export function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
       e.confirm = t('profile.auth.pwDrawer.validate.confirmMismatch')
     }
     return e
-  }, [draft, t])
+  }, [draft, t, policy])
 
   const valid = Object.keys(errors).length === 0
 
@@ -334,7 +334,7 @@ export function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
               )}
             />
           </FieldGroup>
-          <FieldGroup label={t('profile.auth.pwDrawer.new')} error={showError('next')} htmlFor="pw-new" required>
+          <FieldGroup label={t('profile.auth.pwDrawer.new')} hint={policy ? describePasswordPolicy(t, policy) : undefined} error={showError('next')} htmlFor="pw-new" required>
             <Input
               id="pw-new"
               type={reveal ? 'text' : 'password'}

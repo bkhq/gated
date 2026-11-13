@@ -14,6 +14,7 @@ pub mod encryption;
 pub mod healthcheck;
 pub mod lode;
 pub mod logging;
+pub mod login_protection;
 pub mod metrics;
 mod protocols;
 pub mod rate_limiting;

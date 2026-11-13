@@ -3,8 +3,8 @@ use dialoguer::theme::ColorfulTheme;
 use gated_common::auth::CredentialKind;
 use gated_common::{GlobalParams, Secret, User as UserConfig, UserPasswordCredential};
 use gated_core::Services;
-use gated_db_entities::{PasswordCredential, User};
-use sea_orm::{ActiveModelTrait, EntityTrait, QueryOrder, Set};
+use gated_db_entities::{OtpCredential, Parameters, PasswordCredential, User};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use tracing::*;
 use uuid::Uuid;
 
@@ -54,7 +54,7 @@ pub(crate) async fn command(params: &GlobalParams, username: &Option<String>) ->
 
     if !dialoguer::Confirm::with_theme(&theme)
             .default(true)
-            .with_prompt("This tool will add a new password for the user and set their HTTP auth policy to only require a password. Continue?")
+            .with_prompt("This tool will add a new password for the user and set their HTTP auth policy to only require a password. If MFA is required, the user's OTP devices are removed. Continue?")
             .interact()? {
                 std::process::exit(0);
             }
@@ -67,6 +67,25 @@ pub(crate) async fn command(params: &GlobalParams, username: &Option<String>) ->
     .insert(&db)
     .await?;
 
+    // With MFA required no stored policy waives the OTP device, so a lost
+    // device is removed here and a new one is enrolled at the next sign-in.
+    if Parameters::Entity::get(&db).await?.mfa_required {
+        let removed = OtpCredential::Entity::delete_many()
+            .filter(OtpCredential::Column::UserId.eq(user.id))
+            .exec(&db)
+            .await?
+            .rows_affected;
+        if removed > 0 {
+            user.credential_policy = user
+                .credential_policy
+                .as_ref()
+                .and_then(|policy| policy.downgrade_from_otp());
+            info!(
+                "MFA is required: removed {removed} OTP device(s); a new one is enrolled at the next sign-in"
+            );
+        }
+    }
+
     user.credential_policy
         .get_or_insert_with(Default::default)
         .http = Some(vec![CredentialKind::Password]);
@@ -78,6 +97,12 @@ pub(crate) async fn command(params: &GlobalParams, username: &Option<String>) ->
     }
     .update(&db)
     .await?;
+
+    // Whoever runs this has the console: lift what would keep them out.
+    gated_core::login_protection::unlock_user(&db, &user.username).await?;
+    for block in gated_core::login_protection::list_ip_blocks(&db).await? {
+        gated_core::login_protection::unblock_ip(&db, &block.ip_address).await?;
+    }
 
     info!("All done. You can now log in");
 

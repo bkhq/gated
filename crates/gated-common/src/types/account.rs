@@ -24,6 +24,17 @@ pub struct DbPasswordAccountCredentials {
     pub password: String,
 }
 
+/// Login for an RDP or VNC target. VNC uses the password only.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
+pub struct DesktopPasswordAccountCredentials {
+    #[serde(default)]
+    #[schema(required = true)]
+    pub username: String,
+    pub password: String,
+    /// Windows domain for RDP; `None` for a local account.
+    pub domain: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum DbPasswordEngine {
@@ -68,6 +79,8 @@ pub enum AccountCredentials {
     SshKey(SshKeyAccountCredentials),
     #[serde(rename = "db-password")]
     DbPassword(DbPasswordAccountCredentials),
+    #[serde(rename = "desktop-password")]
+    DesktopPassword(DesktopPasswordAccountCredentials),
     #[serde(rename = "k8s-token")]
     K8sToken(K8sTokenAccountCredentials),
     #[serde(rename = "k8s-client-cert")]
@@ -83,6 +96,7 @@ impl AccountCredentials {
             Self::SshPassword(_) => "ssh-password",
             Self::SshKey(_) => "ssh-key",
             Self::DbPassword(_) => "db-password",
+            Self::DesktopPassword(_) => "desktop-password",
             Self::K8sToken(_) => "k8s-token",
             Self::K8sClientCert(_) => "k8s-client-cert",
             Self::HttpHeaders(_) => "http-headers",

@@ -979,6 +979,114 @@
         ]
       }
     },
+    "/login-protection/ip-blocks": {
+      "get": {
+        "operationId": "get_ip_blocks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IpBlock"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/login-protection/ip-blocks/{ip}": {
+      "delete": {
+        "operationId": "delete_ip_block",
+        "parameters": [
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/login-protection/user-lockouts": {
+      "get": {
+        "operationId": "get_user_lockouts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserLockout"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
+    "/login-protection/user-lockouts/{username}": {
+      "delete": {
+        "operationId": "delete_user_lockout",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      }
+    },
     "/logs": {
       "post": {
         "operationId": "get_logs",
@@ -3581,7 +3689,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Role"
+                    "$ref": "#/components/schemas/UserRole"
                   }
                 }
               }
@@ -3600,6 +3708,69 @@
       }
     },
     "/users/{id}/roles/{role_id}": {
+      "put": {
+        "summary": "Sets or clears the expiry of a role assignment. Clearing it or moving it\ninto the future also revives an expired assignment.",
+        "operationId": "update_user_role",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json; charset=utf-8": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRoleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRole"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {}
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          }
+        ]
+      },
       "post": {
         "operationId": "add_user_role",
         "parameters": [
@@ -4156,6 +4327,15 @@
                 }
               }
             }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4659,6 +4839,27 @@
                     "type": "string",
                     "enum": [
                       "db-password"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DesktopPasswordAccountCredentials"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "desktop-password"
                     ]
                   }
                 }
@@ -5709,6 +5910,29 @@
           "postgres"
         ]
       },
+      "DesktopPasswordAccountCredentials": {
+        "type": "object",
+        "description": "Login for an RDP or VNC target. VNC uses the password only.",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "domain": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Windows domain for RDP; `None` for a local account."
+          },
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
       "EnableAcmeRequest": {
         "type": "object",
         "required": [
@@ -6161,6 +6385,34 @@
           }
         }
       },
+      "IpBlock": {
+        "type": "object",
+        "description": "A client address refused at sign-in. The row outlives the block so a\nrepeat offender gets a longer one.",
+        "required": [
+          "ip_address",
+          "block_count",
+          "blocked_at",
+          "expires_at"
+        ],
+        "properties": {
+          "block_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many blocks in a row this address has earned."
+          },
+          "blocked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ip_address": {
+            "type": "string"
+          }
+        }
+      },
       "IssueCertificateCredentialRequest": {
         "type": "object",
         "required": [
@@ -6337,6 +6589,67 @@
           },
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "LoginProtectionParameters": {
+        "type": "object",
+        "description": "Thresholds for blocking client addresses and locking users out after\nfailed sign-ins. Durations are in seconds.",
+        "required": [
+          "enabled",
+          "ip_max_attempts",
+          "ip_window_seconds",
+          "ip_block_seconds",
+          "ip_max_block_seconds",
+          "user_max_attempts",
+          "user_window_seconds",
+          "user_lockout_seconds"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "ip_block_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Length of the first block, 60 to 2592000. Each repeat doubles it.",
+            "minimum": 0
+          },
+          "ip_max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Failed attempts from one address within `ip_window_seconds` that\nblock it, 1 to 1000.",
+            "minimum": 0
+          },
+          "ip_max_block_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Longest block, `ip_block_seconds` to 2592000.",
+            "minimum": 0
+          },
+          "ip_window_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "60 to 86400.",
+            "minimum": 0
+          },
+          "user_lockout_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "60 to 2592000, or 0 to keep the user locked until an administrator\nlifts the lockout.",
+            "minimum": 0
+          },
+          "user_max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Failed attempts for one user within `user_window_seconds` that lock\nthe user out, 1 to 1000. Administrators are not locked out.",
+            "minimum": 0
+          },
+          "user_window_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "60 to 86400.",
+            "minimum": 0
           }
         }
       },
@@ -6543,10 +6856,48 @@
           "allow_own_credential_management": {
             "type": "boolean"
           },
+          "login_protection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LoginProtectionParameters",
+                "description": "Omitted leaves the current values unchanged."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_api_token_duration_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Seconds; 0 lifts the limit. Omitted leaves the current value unchanged.",
+            "minimum": 0
+          },
+          "mfa_required": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Omitted leaves the current value unchanged."
+          },
           "minimize_password_login": {
             "type": [
               "boolean",
               "null"
+            ]
+          },
+          "password_policy": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PasswordPolicy",
+                "description": "Omitted leaves the current rules unchanged. Existing passwords are\nnot checked again."
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "rate_limit_bytes_per_second": {
@@ -6627,14 +6978,37 @@
           "ssh_client_auth_keyboard_interactive",
           "minimize_password_login",
           "terminal_watermark_enabled",
-          "target_check_interval_hours"
+          "target_check_interval_hours",
+          "login_protection",
+          "password_policy",
+          "mfa_required"
         ],
         "properties": {
           "allow_own_credential_management": {
             "type": "boolean"
           },
+          "login_protection": {
+            "$ref": "#/components/schemas/LoginProtectionParameters"
+          },
+          "max_api_token_duration_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Longest lifetime a user may give an API token they create, in\nseconds. `None`: no limit. Tokens an administrator creates for a user\nare not limited.",
+            "minimum": 0
+          },
+          "mfa_required": {
+            "type": "boolean",
+            "description": "Every user must enroll an OTP device before using the gateway."
+          },
           "minimize_password_login": {
             "type": "boolean"
+          },
+          "password_policy": {
+            "$ref": "#/components/schemas/PasswordPolicy",
+            "description": "Rules for passwords set through the admin and profile APIs."
           },
           "rate_limit_bytes_per_second": {
             "type": [
@@ -6690,6 +7064,38 @@
           }
         }
       },
+      "PasswordPolicy": {
+        "type": "object",
+        "description": "Rules a new password must satisfy.",
+        "required": [
+          "min_length",
+          "require_uppercase",
+          "require_lowercase",
+          "require_digits",
+          "require_special"
+        ],
+        "properties": {
+          "min_length": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minimum number of characters, 0 to 128 (0 = no requirement).",
+            "minimum": 0
+          },
+          "require_digits": {
+            "type": "boolean"
+          },
+          "require_lowercase": {
+            "type": "boolean"
+          },
+          "require_special": {
+            "type": "boolean",
+            "description": "An ASCII character that is neither a letter nor a digit."
+          },
+          "require_uppercase": {
+            "type": "boolean"
+          }
+        }
+      },
       "Recording": {
         "type": "object",
         "required": [
@@ -6739,7 +7145,8 @@
           "HttpProxy",
           "SqlAudit",
           "CommandAudit",
-          "FileAudit"
+          "FileAudit",
+          "Desktop"
         ]
       },
       "RevealConfirmation": {
@@ -6772,9 +7179,14 @@
           "id",
           "name",
           "description",
-          "allow_file_transfer"
+          "allow_file_transfer",
+          "allow_clipboard"
         ],
         "properties": {
+          "allow_clipboard": {
+            "type": "boolean",
+            "description": "Desktop sessions (RDP, VNC) granted by the role may exchange\nclipboard text with the browser."
+          },
           "allow_file_transfer": {
             "type": "boolean"
           },
@@ -6796,6 +7208,13 @@
           "name"
         ],
         "properties": {
+          "allow_clipboard": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Defaults to `false` on create; unchanged on update when omitted."
+          },
           "allow_file_transfer": {
             "type": [
               "boolean",
@@ -7454,6 +7873,48 @@
                 }
               }
             ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetRdpOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Rdp"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetVncOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Vnc"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         ]
       },
@@ -7502,6 +7963,50 @@
           },
           "username": {
             "type": "string"
+          }
+        }
+      },
+      "TargetRdpOptions": {
+        "type": "object",
+        "required": [
+          "host",
+          "port",
+          "username",
+          "verify_tls",
+          "record_keystrokes"
+        ],
+        "properties": {
+          "domain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "host": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Write-only: read endpoints return `null`. A blank value on update\nkeeps the stored password."
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "record_keystrokes": {
+            "type": "boolean",
+            "description": "Record key presses with the session; they include typed passwords."
+          },
+          "username": {
+            "type": "string"
+          },
+          "verify_tls": {
+            "type": "boolean",
+            "description": "Verify the server certificate against the system roots."
           }
         }
       },
@@ -7589,6 +8094,35 @@
           "target_id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "TargetVncOptions": {
+        "type": "object",
+        "required": [
+          "host",
+          "port",
+          "record_keystrokes"
+        ],
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Write-only, as for RDP. `null` with no stored password: the server\nasks for no authentication."
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "record_keystrokes": {
+            "type": "boolean",
+            "description": "Record key presses with the session; they include typed passwords."
           }
         }
       },
@@ -7953,7 +8487,7 @@
           },
           "verify": {
             "type": "boolean",
-            "description": "The target's `tls.verify` setting."
+            "description": "The target's `tls.verify` setting; `verify_tls` for an RDP target."
           },
           "verify_error": {
             "type": [
@@ -7972,6 +8506,16 @@
           "description"
         ],
         "properties": {
+          "allowed_ip_ranges": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Addresses and CIDR ranges the user is limited to; `null` = anywhere."
+          },
           "credential_policy": {
             "oneOf": [
               {
@@ -8007,6 +8551,16 @@
           "username"
         ],
         "properties": {
+          "allowed_ip_ranges": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Addresses and CIDR ranges the user may sign in from, use API tokens\nfrom and use tickets from. `null` or an empty list: anywhere."
+          },
           "credential_policy": {
             "oneOf": [
               {
@@ -8052,11 +8606,36 @@
                 "items": {
                   "type": "string"
                 },
-                "description": "Names of the roles assigned to the user, sorted."
+                "description": "Names of the roles the user holds now, sorted; expired assignments\nare left out."
               }
             }
           }
         ]
+      },
+      "UserLockout": {
+        "type": "object",
+        "description": "A user refused at sign-in after too many failed attempts.",
+        "required": [
+          "username",
+          "locked_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "`None`: locked until an administrator lifts it."
+          },
+          "locked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
       },
       "UserRequireCredentialsPolicy": {
         "type": "object",
@@ -8105,6 +8684,40 @@
             "items": {
               "$ref": "#/components/schemas/CredentialKind"
             }
+          }
+        }
+      },
+      "UserRole": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Role"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "expires_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "The assignment grants nothing from this time on; `null` = never.\nAn expired assignment stays listed until it is removed or extended."
+              }
+            }
+          }
+        ],
+        "description": "A role assigned to a user."
+      },
+      "UserRoleUpdate": {
+        "type": "object",
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the assignment ends; `null` makes it permanent."
           }
         }
       }

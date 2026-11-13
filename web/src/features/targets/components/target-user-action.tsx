@@ -1,5 +1,5 @@
 import type { Target } from '@/shared/types/domain'
-import { Info, Terminal } from 'lucide-react'
+import { Info, Monitor, Terminal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/shared/ui/button'
 
@@ -14,6 +14,7 @@ export function TargetUserAction({ target, variant, onOpen, onConnect }: {
 }) {
   const { t } = useTranslation()
   const http = target.kind === 'http'
+  const desktop = target.kind === 'rdp' || target.kind === 'vnc'
   return (
     <Button
       size="sm"
@@ -26,7 +27,7 @@ export function TargetUserAction({ target, variant, onOpen, onConnect }: {
           onConnect?.(target)
       }}
     >
-      {http ? <Info size={13} /> : <Terminal size={13} />}
+      {http ? <Info size={13} /> : desktop ? <Monitor size={13} /> : <Terminal size={13} />}
       <span>{http ? t('actions.details') : t('actions.connect')}</span>
     </Button>
   )

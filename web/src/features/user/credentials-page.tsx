@@ -44,6 +44,7 @@ import {
   RowMenu,
 } from './_credential-primitives'
 import { fieldAria, useReturnFocusOnClose } from './_credential-utils'
+import { describePasswordPolicy, passwordPolicyError, usePasswordPolicy } from './password-policy'
 
 interface KeyDrawerState {
   mode: 'create' | 'rename'
@@ -120,6 +121,7 @@ function IdentityCard({ identity }: { identity: UserIdentity }) {
 
 function PasswordCard({ className }: { className?: string }) {
   const { t } = useTranslation()
+  const policy = usePasswordPolicy()
   const [open, setOpen] = React.useState(false)
 
   return (
@@ -137,7 +139,7 @@ function PasswordCard({ className }: { className?: string }) {
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('user.credentials.password.lastChanged')} value="2026-02-19 · 87 days ago" />
-          <Field label={t('user.credentials.password.policy')} value={t('user.credentials.password.policyValue')} />
+          <Field label={t('user.credentials.password.policy')} value={describePasswordPolicy(t, policy)} />
         </div>
       </CardContent>
       <PasswordDrawer open={open} onClose={() => setOpen(false)} />
@@ -174,6 +176,7 @@ function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = React.useState<PasswordDraft>(() => ({ current: '', next: '', confirm: '' }))
   const [touched, setTouched] = React.useState<Partial<Record<keyof PasswordDraft, boolean>>>(() => ({}))
   const [reveal, setReveal] = React.useState(false)
+  const policy = usePasswordPolicy()
 
   const errors = React.useMemo<Partial<Record<keyof PasswordDraft, string>>>(() => {
     const e: Partial<Record<keyof PasswordDraft, string>> = {}
@@ -183,11 +186,8 @@ function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
     if (!draft.next) {
       e.next = t('profile.auth.pwDrawer.validate.newRequired')
     }
-    else if (draft.next.length < 12) {
-      e.next = t('profile.auth.pwDrawer.validate.newTooShort')
-    }
-    else if (!/[a-z]/u.test(draft.next) || !/[A-Z]/u.test(draft.next) || !/\d/u.test(draft.next)) {
-      e.next = t('profile.auth.pwDrawer.validate.newWeak')
+    else if (passwordPolicyError(t, draft.next, policy)) {
+      e.next = passwordPolicyError(t, draft.next, policy)
     }
     else if (draft.next === draft.current && draft.current) {
       e.next = t('profile.auth.pwDrawer.validate.sameAsCurrent')
@@ -199,7 +199,7 @@ function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
       e.confirm = t('profile.auth.pwDrawer.validate.confirmMismatch')
     }
     return e
-  }, [draft, t])
+  }, [draft, t, policy])
 
   const valid = Object.keys(errors).length === 0
 
@@ -263,7 +263,7 @@ function PasswordDrawerBody({ onClose }: { onClose: () => void }) {
               )}
             />
           </FieldGroup>
-          <FieldGroup label={t('profile.auth.pwDrawer.new')} error={showError('next')} htmlFor="ucr-pw-new" required>
+          <FieldGroup label={t('profile.auth.pwDrawer.new')} hint={policy ? describePasswordPolicy(t, policy) : undefined} error={showError('next')} htmlFor="ucr-pw-new" required>
             <Input
               id="ucr-pw-new"
               type={reveal ? 'text' : 'password'}

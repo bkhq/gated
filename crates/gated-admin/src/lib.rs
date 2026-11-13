@@ -2,7 +2,7 @@
 pub mod api;
 pub mod http_service;
 
-use axum::http::header::CONTENT_TYPE;
+use axum::http::header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE};
 use axum::response::Html;
 use axum::routing::get;
 use axum::{Extension, Router};
@@ -15,6 +15,17 @@ use utoipa_axum::router::OpenApiRouter;
 pub use http_service::HTTPProtocolServer;
 
 const PLAYGROUND_TEMPLATE: &str = include_str!("playground.html");
+/// The playground loads its viewer from unpkg.com and embeds the document in
+/// an inline script.
+const PLAYGROUND_CONTENT_SECURITY_POLICY: &str = "default-src 'self'; \
+script-src 'self' 'unsafe-inline' https://unpkg.com; \
+style-src 'self' 'unsafe-inline' https://unpkg.com; \
+img-src 'self' data: https:; \
+font-src 'self' data: https://unpkg.com; \
+connect-src 'self'; \
+frame-ancestors 'none'; \
+base-uri 'self'; \
+object-src 'none'";
 
 /// Document skeleton shared by the admin and user API.
 fn openapi_document(title: &str, version: &str, server: &str) -> OpenApi {
@@ -57,7 +68,12 @@ pub(crate) fn with_openapi_routes(router: OpenApiRouter) -> Router {
             "/playground",
             get(move || {
                 let playground = playground.clone();
-                async move { Html(playground) }
+                async move {
+                    (
+                        [(CONTENT_SECURITY_POLICY, PLAYGROUND_CONTENT_SECURITY_POLICY)],
+                        Html(playground),
+                    )
+                }
             }),
         )
 }
@@ -75,6 +91,10 @@ pub fn admin_api_app(services: &Services) -> Router {
         .route(
             "/recordings/{id}/tcpdump",
             get(crate::api::recordings_detail::api_get_recording_tcpdump),
+        )
+        .route(
+            "/recordings/{id}/desktop",
+            get(crate::api::recordings_detail::api_get_recording_desktop),
         )
         .route(
             "/sessions/changes",

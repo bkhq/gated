@@ -956,6 +956,13 @@ fn merge_credentials(
             new.password = keep(new.password, &old.password);
             AccountCredentials::DbPassword(new)
         }
+        (
+            AccountCredentials::DesktopPassword(old),
+            AccountCredentials::DesktopPassword(mut new),
+        ) => {
+            new.password = keep(new.password, &old.password);
+            AccountCredentials::DesktopPassword(new)
+        }
         (AccountCredentials::K8sToken(old), AccountCredentials::K8sToken(mut new)) => {
             new.token = keep(new.token, &old.token);
             AccountCredentials::K8sToken(new)
@@ -1010,6 +1017,8 @@ fn validate_required_credentials(credentials: &AccountCredentials) -> Result<(),
             require(&c.username, "username")?;
             require(&c.password, "password")
         }
+        // VNC has no user name, so only the password is required.
+        AccountCredentials::DesktopPassword(c) => require(&c.password, "password"),
         AccountCredentials::K8sToken(c) => require(&c.token, "token"),
         AccountCredentials::K8sClientCert(c) => {
             require(&c.client_certificate_pem, "client_certificate_pem")?;
@@ -1148,6 +1157,8 @@ fn target_kind(kind: &gated_db_entities::Target::TargetKind) -> &'static str {
         gated_db_entities::Target::TargetKind::MySql => "mysql",
         gated_db_entities::Target::TargetKind::Ssh => "ssh",
         gated_db_entities::Target::TargetKind::Postgres => "postgres",
+        gated_db_entities::Target::TargetKind::Rdp => "rdp",
+        gated_db_entities::Target::TargetKind::Vnc => "vnc",
     }
 }
 

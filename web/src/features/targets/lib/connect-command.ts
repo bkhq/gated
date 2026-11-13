@@ -53,6 +53,10 @@ export function buildConnectCommand(
       const port = info?.ports.postgres
       return port ? `psql -h ${host} -p ${port} -U '${user}#${target.name}' <database>` : null
     }
+    // Browser only: there is no native RDP or VNC listener.
+    case 'rdp':
+    case 'vnc':
+      return null
     case 'http': {
       // HTTP targets are served by the dedicated proxy listener and require
       // per-request auth — a Bearer API token (or mTLS client cert); without

@@ -19,6 +19,7 @@ futures.workspace = true
 governor.workspace = true
 hex = { workspace = true, features = ["alloc"] }
 http = { version = "1.0", default-features = false }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 metrics.workspace = true
 percent-encoding = { version = "2.1", default-features = false }
 rand.workspace = true
@@ -54,6 +55,8 @@ gated-core = { version = "*", path = "../gated-core" }
 gated-db-entities = { version = "*", path = "../gated-db-entities" }
 gated-protocol-http = { version = "*", path = "../gated-protocol-http" }
 gated-protocol-ssh = { version = "*", path = "../gated-protocol-ssh" }
+gated-protocol-rdp = { version = "*", path = "../gated-protocol-rdp" }
+gated-protocol-vnc = { version = "*", path = "../gated-protocol-vnc" }
 gated-sso = { version = "*", path = "../gated-sso" }
 gated-web = { version = "*", path = "../gated-web" }
 

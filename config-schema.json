@@ -15,7 +15,8 @@
         "session_max_age": "30m",
         "sni_certificates": [],
         "tls": true,
-        "trust_x_forwarded_headers": false
+        "trust_x_forwarded_headers": false,
+        "user_api_token_allowed_endpoints": null
       }
     },
     "database_url": {
@@ -173,6 +174,17 @@
         "trust_x_forwarded_headers": {
           "type": "boolean",
           "default": false
+        },
+        "user_api_token_allowed_endpoints": {
+          "description": "What a user API token may call on this listener. Each entry is\n `\"<METHOD> <path>\"`, for example `\"GET /api/targets\"`; a path ending\n in `*` matches every path that starts with what precedes it. Not set:\n a token reaches whatever its user reaches. Sessions and the admin\n token are not limited.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

@@ -19,6 +19,7 @@ as-built reference, not a design proposal.
 | [protocol-ssh.md](protocol-ssh.md) | SSH proxy: listener, auth handshake, channel model, recording |
 | [protocol-http.md](protocol-http.md) | HTTP reverse proxy, including the Kubernetes flavor and mTLS |
 | [protocol-database.md](protocol-database.md) | MySQL and PostgreSQL proxies, shared wire-protocol crate |
+| [protocol-desktop.md](protocol-desktop.md) | RDP and VNC desktops in the browser: bridge, protocol clients, recording |
 | [auth.md](auth.md) | Credential types, auth state machine, SSO/OIDC, RBAC, tickets |
 | [management-plane.md](management-plane.md) | Admin API, embedded web UI, user portal, CLI, config schema |
 | [sessions-recordings-audit.md](sessions-recordings-audit.md) | Session registry, recordings, log entries, database layer, metrics |

@@ -20,6 +20,23 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub description: String,
     pub rate_limit_bytes_per_second: Option<i64>,
+    /// JSON list of addresses and CIDR ranges; `None` = anywhere.
+    #[schema(value_type = Option<Vec<String>>)]
+    pub allowed_ip_ranges: Option<serde_json::Value>,
+}
+
+impl Model {
+    /// The roles the user holds now. Every authorization decision reads
+    /// them here: an expired assignment grants nothing.
+    pub async fn active_roles<C: ConnectionTrait>(
+        &self,
+        db: &C,
+    ) -> Result<Vec<super::Role::Model>, DbErr> {
+        self.find_related(super::Role::Entity)
+            .filter(super::UserRoleAssignment::Entity::unexpired())
+            .all(db)
+            .await
+    }
 }
 
 impl Related<super::Role::Entity> for Entity {
@@ -133,6 +150,10 @@ impl TryFrom<Model> for User {
             credential_policy: serde_json::from_value(model.credential_policy)?,
             description: model.description,
             rate_limit_bytes_per_second: model.rate_limit_bytes_per_second,
+            allowed_ip_ranges: model
+                .allowed_ip_ranges
+                .map(serde_json::from_value)
+                .transpose()?,
         })
     }
 }
@@ -203,6 +224,10 @@ impl TryFrom<User> for ActiveModel {
             credential_policy: Set(serde_json::to_value(&user.credential_policy)?),
             description: Set(user.description),
             rate_limit_bytes_per_second: Set(user.rate_limit_bytes_per_second),
+            allowed_ip_ranges: Set(user
+                .allowed_ip_ranges
+                .map(serde_json::to_value)
+                .transpose()?),
         })
     }
 }

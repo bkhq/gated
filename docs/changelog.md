@@ -440,3 +440,187 @@ A web UI page left idle kept looking signed in after its session had expired on 
 ## 2026-11-12 13:00 [progress]
 
 The SSH public key list shows the key type and fingerprint instead of the whole public key, and "Never used" instead of an untranslated placeholder.
+
+## 2026-11-12 13:20 [BUG-P1]
+
+An SSH target that presented a host key of another type than its trusted key was treated as an unknown host instead of a mismatch: `KnownHosts::validate` looked up trusted keys by key type. The lookup now uses host and port only, so any untrusted key on a host with a trusted key fails the connection. Task `20261112-1254-known-host-key-type-switch`; test `known_hosts::tests::key_of_another_type_is_a_mismatch`.
+
+## 2026-11-12 15:30 [decision]
+
+Plan `20261112-1301-rdp-vnc-web-desktop` approved with three owner decisions: browser access only (no native RDP/VNC listeners), keystroke recording off by default and enabled per target, and a separate role switch `allow_clipboard` for the desktop clipboard.
+
+## 2026-11-12 15:30 [progress]
+
+RDP/VNC step 1: the IronRDP client crates and `vnc-rs` build on the pinned toolchain without `openssl`, `native-tls`, `ring` or a vendored crate. Two `deny.toml` exceptions are needed before they join the workspace (`Unlicense` for `async_io_stream`, RUSTSEC-2026-0441 for `pin-utils`); see `docs/decisions/20261112-rdp-vnc-dependencies.md`. Step 2, first half: `gated-core` gains `protocols/desktop.rs` (protocol-neutral desktop events and input, size cap, connect and handshake deadlines, user-facing error reasons) and `protocols/framebuffer.rs` (bounds-checked compositing, PNG snapshots), ported from upstream without the interactive-logon state. The desktop recorder is not ported yet.
+
+## 2026-11-12 15:30 [pitfall]
+
+`cargo deny check advisories` fails on `main` on RUSTSEC-2026-0495 (`russh` 0.63.3, fixed in 0.65.0). Tracked as `20261112-1530-russh-agent-confirm-advisory`. Resolving the new `png` / `zune-jpeg` dependencies also rewrote the `windows-sys` references of nine existing packages in `Cargo.lock` to 0.61.2.
+
+## 2026-11-12 16:30 [decision]
+
+Owner accepted the two `deny.toml` exceptions for the RDP/VNC crates (`Unlicense` for `async_io_stream`, RUSTSEC-2026-0441 for `pin-utils`). Writing our own replacement for the `pin-utils` path was rejected: the crate is reached only through `sspi` on macOS/iOS and is never built into the Linux binaries; see `docs/decisions/20261112-rdp-vnc-dependencies.md`.
+
+## 2026-11-12 16:30 [progress]
+
+RDP/VNC step 2 done: `RecordingKind::Desktop` and `gated-core/src/recordings/desktop.rs`. A desktop recording is one NDJSON file (resizes, PNG/JPEG rectangles, copy operations, viewer input) with a sidecar `<name>.index` that lists keyframe byte offsets, resizes, input timestamps and the end time, opened by `SessionRecordings::start_desktop` and deleted with the recording. Raw frames are composited and encoded at most 30 times a second; a full-frame keyframe is written every 10 seconds or 2 MB. Keystrokes are recorded only after `set_record_keyboard(true)`. Tests: `recordings::desktop::tests`. The OpenAPI snapshots do not yet list the new recording kind; they are regenerated with the target API change in step 3.
+
+## 2026-11-12 17:00 [progress]
+
+`russh` 0.63.3 -> 0.65.1 for RUSTSEC-2026-0495 (the agent server signed with confirm-constrained keys without asking). Gated does not use the russh agent server, so it was not exposed; the upgrade clears `cargo deny check advisories`. API change: `auth_publickey_offered` and `auth_publickey` receive `PublicKeyOffer` / `VerifiedPublicKey` instead of a key reference; the handler passes on their `public_key`, so behaviour is unchanged. Verified with the workspace unit tests, clippy and `cargo deny check`; the SSH integration suite was not run (the SSH test server is unreachable from the `station` container). Task `20261112-1530-russh-agent-confirm-advisory`.
+
+## 2026-11-12 19:00 [progress]
+
+Security plan `20261112-1411-port-upstream-security-measures`, stage A done (six fixes ported from upstream):
+
+- A1: `POST /api/profile/api-tokens` answers `403` to a request authenticated by an API token, so a leaked token cannot mint its replacement. Test `tests/http/api-tokens.test.ts`.
+- A2: `PostgresStream::upgrade` fails when plaintext bytes are already buffered, in both directions; they were decoded after the handshake as if they had arrived through TLS.
+- A3: the MySQL handshake trace logs only `database` and `auth_plugin`, not the username (possibly a ticket secret) or the auth response.
+- A4: `gated-sso` rejects discovery documents whose endpoints are not `http` or `https` (`SsoError::UnsupportedEndpointScheme`).
+- A5: the SSH Ctrl-C abort of a connecting session applies only to channels with a PTY, not to forwarded data that starts with `0x03`.
+- A6: `Content-Security-Policy` on the management plane (`default-src 'self'`, no inline script, `frame-ancestors 'none'`). The SSO redirect page uses a `refresh` meta tag instead of an inline script; the API playground has its own relaxed policy. Checked in a browser: 23 pages of the built UI load signed in without a violation. Not exercised in that check: a live terminal, the SQL console, file previews, recording playback, the SSO redirect page, the playground.
+
+The OpenAPI snapshots and generated types were regenerated; they now include the `Desktop` recording kind, and `admin-session-detail-page.tsx` handles it in its two `switch` statements.
+
+## 2026-11-12 20:30 [progress]
+
+Security plan stage B, B1 login protection done. Failed password and OTP attempts from every listener are stored in the database (`failed_login_attempts`) and lead to address blocks (`ip_blocks`, doubling for repeat offenders) and user lockouts (`user_lockouts`); migration `m00019_login_protection`, logic in `gated-core/src/login_protection.rs`, called from `auth_throttle::validate_credential_throttled`, which now takes `&Services`. Thresholds are in `parameters` (`login_protection` in the parameters API), on by default. Admin API `/admin/api/login-protection/{ip-blocks,user-lockouts}` and Settings > Security list and lift them; `gated recover-access` lifts the chosen user's lockout and all address blocks. Tests: `login_protection::tests`, `tests/http/login-protection.test.ts`, `login-protection-card.test.tsx`; the settings tab was exercised in a browser.
+
+## 2026-11-12 20:30 [decision]
+
+B1 differs from upstream in these points:
+
+- The in-memory limits of `auth_throttle` stay in front of the database layer instead of being replaced: they bound the work per attempt and still limit administrators, who are exempt from lockout.
+- An address is blocked after 20 failures, not upstream's 5: every user behind one NAT address shares the count.
+- A successful sign-in does not clear earlier failures. Clearing on a valid password would let someone who holds the password reset the count between OTP guesses.
+- Public key offers are not counted; SSH clients offer several keys before they ask for a password.
+- No in-memory cache of blocks; a sign-in attempt reads two indexed rows.
+- With trusted `X-Forwarded-For`, the block key is the last entry of the header, the one the nearest proxy appended. `get_client_ip` still logs the whole header.
+
+## 2026-11-12 20:30 [pitfall]
+
+The web login answers an unknown user name before any credential is validated, and the native listeners fail in `AuthStateStore::create`, so those attempts never reached `validate_credential_throttled`. Each listener now reports them through `auth_throttle::report_unknown_user`. Found by the integration test, not by the unit tests.
+
+## 2026-11-12 21:00 [progress]
+
+Security plan stage B, B5 token limits done. `parameters.max_api_token_duration_seconds` (migration `m00020_max_api_token_duration`; `null` = no limit) bounds the expiry of tokens users create through `POST /api/profile/api-tokens`; `/api/info` reports it and the create dialogs offer only lifetimes within it; Settings > General edits it in days. The config list `admin.user_api_token_allowed_endpoints` (`"<METHOD> <path>"`, trailing `*` = prefix) limits what a user API token may call on the management listener; other calls get `403` and an `api_token_endpoint_denied` audit event. `config-schema.json` regenerated. Tests: `tests/http/api-tokens.test.ts`, `tests/http/api-token-endpoints.test.ts`, `config::user_api_token_endpoint_tests`, `expiry-options.test.ts`.
+
+## 2026-11-12 21:00 [decision]
+
+B5 differs from the plan and upstream in two points: the list is `admin.user_api_token_allowed_endpoints`, not `http.…`, because in Gated the `http` section is the reverse-proxy listener and the API is served by `admin`; and an entry may end in `*` to match a path prefix, since exact matching cannot name endpoints with an id in the path. As upstream, the lifetime limit does not apply to tokens an administrator creates for a user.
+
+## 2026-11-12 21:40 [progress]
+
+Security plan stage B, B2 password policy done. `parameters` holds a minimum length and four required character classes (migration `m00021_password_policy`; default: no requirement). `PasswordPolicy::violation` (`gated-common/src/helpers/password_policy.rs`) is applied by `POST /admin/api/users/:id/credentials/passwords` and `POST /api/profile/credentials/password`, which answer `400` naming what is missing. `GET /api/profile/credentials` returns the policy; the password drawers check against it and show it, the admin reset dialog shows it, and Settings > Security edits it. Tests: `password_policy::tests`, `tests/http/password-policy.test.ts`, `password-policy.test.ts`, `profile-password.test.tsx`.
+
+## 2026-11-12 21:40 [pitfall]
+
+The profile password drawers enforced a hardcoded rule in the browser only (12 characters, upper, lower, digit) and the UI described it as the policy, while the server accepted any password. The drawers now apply the server's policy; with the default (no requirement) they accept what the server accepts.
+
+## 2026-11-12 21:40 [decision]
+
+B2: the policy binds passwords set through the admin and profile APIs. The host commands `setup`, `create-user` and `recover-access` are not bound: at first setup no policy exists yet, and the other two are run by someone who already controls the host. Existing passwords are not rechecked.
+
+## 2026-11-12 22:30 [progress]
+
+Security plan stage B, B4 allowed address ranges done. `users.allowed_ip_ranges` (migration `m00022_user_allowed_ip_ranges`, JSON list, `null` = anywhere) limits a user to IP addresses and CIDR ranges. It is checked in `AuthStateStore::create` (interactive sign-in on every listener, web login, SSO), in `authorize_ticket` (tickets on every listener) and after `validate_api_token` (management API and HTTP proxy); each of these now receives the client address. A refusal is answered like an unknown user, ticket or token. `PUT /admin/api/users/:id` validates and stores the list, the user dialog edits it. Tests: `helpers::ip_ranges::tests`, `tests/http/allowed-ip-ranges.test.ts`, `use-users-queries.test.ts`.
+
+## 2026-11-12 22:30 [decision]
+
+B4: with a list set, a request whose client address cannot be determined is refused. Upstream allows it; refusing is the safer reading of a restriction. An existing browser session is not rechecked on later requests.
+
+## 2026-11-12 22:30 [pitfall]
+
+`PUT /admin/api/users/:id` replaces the whole user record, and the web hook rebuilds the body from the stored user. A new user column that the hook does not copy is wiped by the next save from the UI; `userPatchToDataRequest` now sends `allowed_ip_ranges` back, with a test.
+
+## 2026-11-12 22:40 [progress]
+
+Security plan stage B, B3 required MFA done. `parameters.mfa_required` (migration `m00023_mfa_required`, off by default) makes an OTP device mandatory for every user, SSO users included. `ConfigProvider::mfa_setup_required` (switch on, no device) drives four checks: `inject_request_authorization` answers `403` + `X-Gated-Mfa-Setup-Required: 1` to sessions and user API tokens outside the allow-list `mfa_setup_allows`; `AuthStateStore::create` refuses every protocol but the web sign-in; the HTTP proxy refuses tokens and certificates; `/api/info` reports `mfa_setup_required`. For an enrolled user `get_credential_policy` wraps the stored policy in `RequiredFactorPolicy` so the web sign-in always needs a code. The two enrollment calls work with self-service credential management off; the last device cannot be removed by the user. Web: `MfaSetupPage` replaces the shell while enrollment is due, Settings > Security has the switch. Tests: `auth_state_store::mfa_tests`, `policy::tests::required_factor_*`, `mfa_setup_opens_only_pages_sign_in_and_enrollment`, `tests/http/mfa-enforcement.test.ts`, `tests/ssh/mfa-enforcement.test.ts`, `mfa-setup-page.test.tsx`, `layout.test.tsx`, `http.test.ts`; flow checked in a browser.
+
+## 2026-11-12 22:40 [decision]
+
+B3 is one switch, not upstream's `off / enroll / require`. Upstream's `require` forces in-browser approval on the database protocols; Gated's MySQL listener has no in-browser approval, so that mode would close it. After enrollment the second factor is therefore enforced at web sign-in only: SSH follows the stored policy (a registered public key still signs in alone) and the database protocols have none. User API tokens are gated like sessions; ticket sessions and the admin token are not. `gated recover-access` removes the OTP devices of the recovered user when the switch is on, because no stored policy can waive the device any more.
+
+## 2026-11-12 22:40 [pitfall]
+
+The SSH integration tests cannot run in the `station` sandbox: `startSshServer` publishes the test sshd with `docker run -p`, which binds on the host, not where the test process looks for it. `tests/ssh/mfa-enforcement.test.ts` is therefore unverified here; the refusal is covered by `auth_state_store::mfa_tests`. A request that carries both a session cookie and the admin token is authorized as the session, so it is gated like the session.
+
+## 2026-11-12 22:50 [progress]
+
+Security plan stage B, B6 role assignment expiry done; stage B is complete. `user_roles.expires_at` (migration `m00024_user_role_expiry`, `null` = never). Every read of a user's roles goes through `User::Model::active_roles` or `UserRoleAssignment::unexpired`: `authorize_target`, `authorize_file_transfer`, account resolution, `load_user_role_ids`, `is_user_admin`, the login-protection admin check and the role names of the user list. `PUT /admin/api/users/:id/roles/:role_id` sets or clears the expiry; `GET /admin/api/users/:id/roles` returns `UserRole` (`Role` + `expires_at`). `watch_role_expiry` checks every 15 seconds and triggers `Services::revalidate_sessions`. The user dialog has an expiry input per assigned role and marks expired ones. Tests: `services::revalidation_tests`, `tests/http/role-expiry.test.ts`, `use-users-queries.test.ts`, `user-form-dialog.test.tsx`; dialog and watcher checked against a running gateway.
+
+## 2026-11-12 22:50 [decision]
+
+B6 keeps to the expiry: upstream's soft revocation (`revoked_at`), assignment history and expiry presets are not ported. An expired row is kept and shown as expired rather than deleted, so `POST` on it still answers `409` and `PUT` extends it. Only expiries the administrator edited are sent on save: the `datetime-local` input has minute precision and would otherwise rewrite, or fail on, untouched values.
+
+## 2026-11-12 23:20 [progress]
+
+RDP/VNC step 3: `TargetOptions::Rdp` / `::Vnc` with `TargetKind::Rdp` / `Vnc` (RDP verifies the upstream certificate by default; keystroke recording is off by default on both), account kind `desktop-password` (username optional so one kind serves VNC), `roles.allow_clipboard` (migration `m00025`, default off), reachability probe arms, inline-secret keep/redact/clear handling. Web: both kinds in the target form (domain, certificate verification, keystroke switch), the account form and the role form; no connect action yet. Sessions cannot be opened until the bridge lands (steps 4 to 6).
+
+## 2026-11-12 23:20 [BUG-P2]
+
+First-install `POST /api/admin/setup/init` could fail with `database is locked` when a startup task wrote at the same moment: the transaction reads before it writes, and SQLite refuses that lock upgrade at once instead of waiting for the busy timeout. Admin creation now retries up to five times. Seen in about one of eight single-file integration runs; no deterministic reproduction, so there is no regression test.
+
+## 2026-11-12 23:50 [progress]
+
+RDP/VNC step 4: crate `gated-protocol-vnc` (client only, `vnc-rs` 0.6). `connect(VncClientOptions)` runs the target connection on its own task and returns `DesktopClientHandles`; connect and handshake run under the shared desktop deadlines, events and inputs travel over bounded channels, update requests are paced at 25 per second, clipboard text is dropped in both directions unless `allow_clipboard` is set and is capped at 1 MiB, and errors reach the viewer as a fixed reason. `vnc-rs` enforces the desktop size (8192 per edge, 8,294,400 pixels), compressed-length and string limits itself and implements VNC authentication only, so there are no DH parameters to check. `deny.toml` gains the `Unlicense` exception for `async_io_stream`. Tests use an in-process RFB 3.8 server.
+
+## 2026-11-12 23:50 [decision]
+
+RDP/VNC step order: the bridge (step 6) and the web client (step 7) are built on VNC first, then `gated-protocol-rdp` (step 5) is added behind the same handles. The plan already notes VNC is usable end to end without RDP, and this gets the shared path under a real browser test before the larger client lands.
+
+## 2026-11-12 23:55 [progress]
+
+RDP/VNC step 6 (bridge), on VNC: `GET /api/desktop/{target}` upgrades to a WebSocket (`gated-admin/src/http_service/api/desktop`). Same gate as the web terminal: login session, API token or ticket (target-scoped, rechecked every 10 s), `Origin` guard, role grant; sessions register as `WebVNC` / `WebRDP`, so the monitor lists them, an administrator can close them and authorization changes end them. Limits: 4 sessions per user, 32 in total, 4 MiB per viewer message, clipboard text cut to 1 MiB. The backend writes into a gateway-side framebuffer and marks 64 px tiles; the sender takes the marked area when the socket is ready (JPEG quality 90 without chroma subsampling, raw RGBA under 4 KiB), so a slow viewer gets fewer and larger updates and nothing queues. Control messages are JSON text, pixels are binary frames. Clipboard needs `allow_clipboard` on a role that grants the target (`ConfigProvider::authorize_clipboard`), is filtered in the bridge and in the protocol client, and a role that loses the switch loses it in running sessions within 10 s. Recording uses `start_desktop`; keystrokes and pasted text are recorded only with the target's `record_keystrokes`. Credentials: `account_credentials::desktop_login` (selected `desktop-password` account, else the inline ones). RDP targets answer "cannot be opened yet" until step 5. Tests: unit tests in the bridge and `tests/desktop/vnc.test.ts` against an `x11vnc` container (`tests/images/vnc-server`).
+
+## 2026-11-12 23:55 [decision]
+
+Desktop bridge choices that differ from upstream: one viewer per session (no shared sessions, no keyframe hand-off); lossy tiles are not refined with PNG later, the JPEG settings are chosen for readable text instead; no empty-session cleanup, because the recorder is still flushing when the socket closes; pasted clipboard text is treated like keystrokes for recording.
+
+## 2026-11-12 23:55 [pitfall]
+
+`vnc-rs` reports a rejected password on RFB 3.8 as `VncError::General(<server text>)`, not `WrongPassword`. The client records whether the target asked for the password and classifies a later handshake failure as rejected credentials. Also: its `poll_event` is non-blocking, so a `select!` over it spins; the client uses `recv_event` and paces update requests with a timer.
+
+## 2026-11-12 23:55 [pitfall]
+
+Integration suites that need upstream containers do run in the `station` sandbox with `E2E_DOCKER_PUBLISHED_HOST=172.18.0.1` (the `traefik` gateway). `tests/ssh/mfa-enforcement.test.ts`, written earlier without a run, passes.
+
+## 2026-11-12 22:21 [progress]
+
+RDP/VNC step 7 (web client and playback), on VNC: the desktop page at `/ui/desktop/<target>` (canvas, pointer, wheel, keys as keysym plus set-1 scancode, held keys released on blur, Ctrl+Alt+Del, clipboard only when the session shares it, reconnect after close), reached from the asset list, the target page and ticket handoff. Recording playback: `GET /admin/api/recordings/{id}/desktop` streams the stored recording (one JSON item per line), and the recording page plays it on a canvas with play/pause, seek, 1x to 8x speed, a marker at the recorded pointer and the recorded keys and pastes; seeking draws from the last keyframe. The session page offers the recording as a `.jsonl` download. Checked in a headless browser against the `x11vnc` container.
+
+## 2026-11-12 22:21 [BUG-P1]
+
+The content security policy added in the security work (not released) had `script-src 'self'`, which stops the terminal recording player: its emulator is WebAssembly, and compiling it needs `'wasm-unsafe-eval'`. The browser reported `CompileError ... violates Content Security Policy` on every recording page. The policy now carries `'wasm-unsafe-eval'`, which permits WebAssembly compilation only, not evaluating script text. Found by the browser check of desktop playback; the unit test asserts the directive.
+
+## 2026-11-12 22:21 [pitfall]
+
+The playback component first restarted from time zero on every render: its seek callback depended on `t` from `useTranslation`, and an effect keyed on that callback reran. Callbacks that drive playback now depend on the recording only and translation happens at render. Also: the player holds the whole recording in memory (base64 images), so a long session costs several times its file size in the browser tab.
+
+## 2026-11-12 22:21 [pitfall]
+
+The timestamps of the changelog entries dated 2026-11-12 from 13:20 on were estimates and run ahead of the clock (by up to about two hours). Entries from here on use the system time, so this one is earlier than its predecessors; the file order is the real order.
+
+## 2026-11-12 22:48 [progress]
+
+RDP/VNC step 5: crate `gated-protocol-rdp` (client only, stock IronRDP 0.12/0.13 from crates.io, nothing vendored). TLS always, CredSSP/NTLM when the target offers it, no plain RDP security, no Kerberos (the client refuses authentication steps that need a network request). Automatic logon with the account's user name, domain and password; bitmap and RemoteFX graphics; scancode input with a US-layout and Unicode fallback for viewers that send characters only; dynamic resize over the display control channel with a keyframe that keeps the old screen across the reactivation; text clipboard, with the channel not opened at all unless the role allows it. The bridge passes the viewer's window size (`width`/`height` query), so the desktop opens at that size. `deny.toml` ignores RUSTSEC-2026-0441 (`pin-utils`, macOS-only path), as decided. Tests: 23 unit tests, `tests/desktop/rdp.test.ts` against an `xrdp` container (`tests/images/rdp-server`), browser check.
+
+## 2026-11-12 22:48 [decision]
+
+RDP choices: the graphics pipeline channel (EGFX) is not enabled, the same default as upstream, which drops `ironrdp-egfx` from the tree; a target without NLA is accepted over TLS (xrdp needs it), with the certificate check as the protection; the clipboard limit is 1 MiB like VNC and the bridge.
+
+## 2026-11-12 22:48 [decision]
+
+Tile JPEGs are encoded with the `image` crate instead of `jpeg-encoder`. `jpeg-encoder` is licensed `(MIT OR Apache-2.0) AND IJG` and IJG is not in the allow list of `deny.toml`; the check after step 6 was not rerun, so this went unnoticed until now. `image` (MIT OR Apache-2.0, no default features, `jpeg` only) passes without an exception and also encodes without chroma subsampling. It has no SIMD path, so encoding is slower; allowing IJG for `jpeg-encoder` would be the faster option and is the owner's call.
+
+## 2026-11-12 22:48 [BUG-P1]
+
+`generate_keys` in `gated-protocol-ssh` held a write transaction while it generated the RSA host key, which takes seconds. A listener storing its first TLS certificate at the same moment ran into the 5 s busy timeout, and that error ends the process: `Fatal error: protocol server: PostgreSQL ... database is locked`, seen once right after first-run setup in an integration run. The keys are now generated before the transaction opens. No deterministic reproduction, so no regression test.
+
+## 2026-11-12 22:48 [pitfall]
+
+In the RDP session loop a channel receiver whose sender had been dropped (the clipboard channel when the clipboard is off) returned `None` at once, which the loop takes as the end of the session: the connection closed right after connecting, without an error. The sender is now kept for the whole session. In a `select!` over several receivers, a closed one fires immediately every time.
+
+## 2026-11-12 22:57 [progress]
+
+RDP/VNC step 8 (hardening and documentation), which closes the plan. The upstream certificate endpoint and the Security tab of a target now cover RDP: `gated-protocol-rdp::inspect_certificate` sends the X.224 connection request and reads the chain over the upgraded stream (`gated-tls::inspect_peer_chain_over`); the tab shows RDP as TLS required with `verify_tls`, and VNC as unencrypted. The RDP client rejects a desktop size reported by the target that is empty, wider or taller than 8192 pixels, or above 64 MiB of RGBA, at connect and at every reactivation. The target form says under a VNC target that the connection to the target is not encrypted. New: `docs/architecture/protocol-desktop.md` (and zh-CN), desktop sections in `docs/api.md`. Verified: clippy clean, 447 Rust tests, cargo-deny ok, web lint/typecheck/i18n/build and 595 tests, `tests/desktop/rdp.test.ts` (3), `tests/desktop/vnc.test.ts` (8), `tests/api/targets/desktop.test.ts` (4). Not verified: NLA and dynamic resize, which need a Windows target (xrdp supports neither).

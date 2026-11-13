@@ -7,7 +7,7 @@ use gated_common::auth::{
     AuthCredential, AuthResult, AuthSelector, AuthStateUserInfo, CredentialKind,
 };
 use gated_common::{Secret, TargetOptions, TargetPostgresOptions};
-use gated_core::auth_throttle::validate_credential_throttled;
+use gated_core::auth_throttle::{report_unknown_user, validate_credential_throttled};
 use gated_core::command_acl::AclAction;
 use gated_core::command_acl_loader::DbCommandAclEnforcer;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
@@ -216,7 +216,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                 target_name,
                 account,
             } => {
-                let state_arc = self
+                let created = self
                     .services
                     .auth_state_store
                     .lock()
@@ -226,9 +226,14 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                         &username,
                         crate::common::PROTOCOL_NAME,
                         &[CredentialKind::Password],
+                        Some(self.remote_address.ip()),
                     )
-                    .await?
-                    .1;
+                    .await;
+                if let Err(error) = &created {
+                    let client_ip = self.remote_address.ip().to_string();
+                    report_unknown_user(&self.services, error, &client_ip).await;
+                }
+                let state_arc = created?.1;
 
                 let mut auth_ok_sent = false;
 
@@ -291,7 +296,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                                 let credential = AuthCredential::Password(password);
 
                                 if validate_credential_throttled(
-                                    &self.services.config_provider,
+                                    &self.services,
                                     &username,
                                     &self.remote_address.ip().to_string(),
                                     &credential,
@@ -368,7 +373,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> PostgresSession<S> {
                 }
             }
             AuthSelector::Ticket { secret } => {
-                match authorize_ticket(&self.services.db, &secret)
+                match authorize_ticket(&self.services.db, &secret, Some(self.remote_address.ip()))
                     .await
                     .map_err(PostgresError::other)?
                 {

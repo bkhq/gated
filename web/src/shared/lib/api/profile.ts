@@ -56,6 +56,11 @@ function humanizeExpiryFromIso(iso?: string | null): string {
 function parseExpiresInToIso(value: string): string {
   if (value === 'never')
     return FAR_FUTURE
+  // The longest lifetime the gateway allows, from `allowedExpiryValues`.
+  const seconds = /^max:(\d+)s$/.exec(value)
+  if (seconds) {
+    return new Date(Date.now() + Number.parseInt(seconds[1]!, 10) * 1000).toISOString()
+  }
   const match = /^(\d+)d$/.exec(value)
   if (match) {
     const days = Number.parseInt(match[1]!, 10)
@@ -131,7 +136,9 @@ export const profileApi = {
       }
       const response = await userApi.post<TokenAndSecret>('/profile/api-tokens', body, signal)
       return {
-        token: { ...tokenFromApi(response.token), expiresIn: draft.expiresIn },
+        token: draft.expiresIn.startsWith('max:')
+          ? tokenFromApi(response.token)
+          : { ...tokenFromApi(response.token), expiresIn: draft.expiresIn },
         fullSecret: response.secret,
       }
     },

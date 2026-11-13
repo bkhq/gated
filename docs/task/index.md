@@ -1,4 +1,8 @@
 # Tasks
+- [x] [**20261112-1530-russh-agent-confirm-advisory Upgrade russh for RUSTSEC-2026-0495**](20261112-1530-russh-agent-confirm-advisory.md) `P1`
+- [x] [**20261112-1411-port-upstream-security-measures Port the security fixes and controls upstream added since the fork**](20261112-1411-port-upstream-security-measures.md) `P1`
+- [x] [**20261112-1301-rdp-vnc-web-desktop Add RDP and VNC targets with a browser desktop client**](20261112-1301-rdp-vnc-web-desktop.md) `P1`
+- [x] [**20261112-1254-known-host-key-type-switch Reject an SSH host key of a different type than the trusted one**](20261112-1254-known-host-key-type-switch.md) `P1`
 - [x] [**20261112-1300-ticket-sessions-and-rotation Tell ticket sessions apart, list them per ticket and rotate ticket secrets**](20261112-1300-ticket-sessions-and-rotation.md) `P2`
 - [x] [**20261112-1300-idle-session-sign-out Sign the web UI out when its session expired while idle**](20261112-1300-idle-session-sign-out.md) `P2`
 - [x] [**20261111-1425-audit-minor-hardening Fix the small hardening items from the November audit**](20261111-1425-audit-minor-hardening.md) `P3`

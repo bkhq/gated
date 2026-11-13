@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+use sea_orm::Condition;
 use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
@@ -10,6 +12,30 @@ pub struct Model {
     pub id: i32,
     pub user_id: Uuid,
     pub role_id: Uuid,
+    /// The assignment grants nothing from this time on; `None` = never.
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+impl Entity {
+    /// Selects the assignments that have not expired.
+    pub fn unexpired() -> Condition {
+        Condition::any()
+            .add(Column::ExpiresAt.is_null())
+            .add(Column::ExpiresAt.gt(Utc::now()))
+    }
+
+    /// How many assignments expired after `since` and up to `until`.
+    pub async fn expired_between<C: ConnectionTrait>(
+        db: &C,
+        since: DateTime<Utc>,
+        until: DateTime<Utc>,
+    ) -> Result<u64, DbErr> {
+        Self::find()
+            .filter(Column::ExpiresAt.gt(since))
+            .filter(Column::ExpiresAt.lte(until))
+            .count(db)
+            .await
+    }
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -30,6 +56,12 @@ impl RelationTrait for Relation {
                 .to(super::Role::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::Role::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Role.def()
     }
 }
 

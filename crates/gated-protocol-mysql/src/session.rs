@@ -9,7 +9,7 @@ use gated_common::auth::{
 };
 use gated_common::helpers::rng::get_crypto_rng;
 use gated_common::{Secret, TargetMySqlOptions, TargetOptions};
-use gated_core::auth_throttle::validate_credential_throttled;
+use gated_core::auth_throttle::{report_unknown_user, validate_credential_throttled};
 use gated_core::command_acl::AclAction;
 use gated_core::command_acl_loader::DbCommandAclEnforcer;
 use gated_core::recordings::{SqlAuditRecordingItem, SqlAuditSessionMetadata, StructuredRecorder};
@@ -141,7 +141,9 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
             let resp = HandshakeResponse::decode_with(payload, &mut self.capabilities)
                 .map_err(MySqlError::decode)?;
 
-            trace!(?resp, "Handshake response");
+            // The username can be a ticket secret and the auth response a
+            // cleartext password.
+            trace!(database=?resp.database, auth_plugin=?resp.auth_plugin, "Handshake response");
             info!(capabilities=?self.capabilities, username=%resp.username, "User handshake");
 
             if self.capabilities.contains(Capabilities::SSL) {
@@ -264,7 +266,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                 target_name,
                 account,
             } => {
-                let state_arc = self
+                let created = self
                     .services
                     .auth_state_store
                     .lock()
@@ -274,16 +276,21 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                         &username,
                         crate::common::PROTOCOL_NAME,
                         &[CredentialKind::Password],
+                        Some(self.remote_address.ip()),
                     )
-                    .await?
-                    .1;
+                    .await;
+                if let Err(error) = &created {
+                    let client_ip = self.remote_address.ip().to_string();
+                    report_unknown_user(&self.services, error, &client_ip).await;
+                }
+                let state_arc = created?.1;
                 let mut state = state_arc.lock().await;
 
                 let user_auth_result = {
                     let credential = AuthCredential::Password(password);
 
                     if validate_credential_throttled(
-                        &self.services.config_provider,
+                        &self.services,
                         &username,
                         &self.remote_address.ip().to_string(),
                         &credential,
@@ -329,7 +336,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin> MySqlSession<S> {
                 }
             }
             AuthSelector::Ticket { secret } => {
-                match authorize_ticket(&self.services.db, &secret)
+                match authorize_ticket(&self.services.db, &secret, Some(self.remote_address.ip()))
                     .await
                     .map_err(MySqlError::other)?
                 {

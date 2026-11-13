@@ -145,7 +145,67 @@ where
         mut self,
         config: <S as UpgradableStream<TS>>::UpgradeConfig,
     ) -> Result<Self, MaybeTlsStreamError> {
+        self.ensure_nothing_buffered()?;
         self.stream = self.stream.upgrade(config).await?;
         Ok(self)
+    }
+
+    /// Bytes that arrived before the TLS handshake were not protected by it
+    /// and must not be read as part of the encrypted session.
+    fn ensure_nothing_buffered(&self) -> Result<(), MaybeTlsStreamError> {
+        if self.inbound_buffer.is_empty() {
+            return Ok(());
+        }
+        Err(MaybeTlsStreamError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "unencrypted data received before the TLS handshake",
+        )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::io::AsyncWriteExt;
+    use tokio_rustls::server::TlsStream;
+
+    use super::*;
+
+    const SSL_REQUEST: [u8; 8] = [0, 0, 0, 8, 4, 210, 22, 47];
+
+    #[tokio::test]
+    async fn plaintext_behind_the_ssl_request_blocks_the_upgrade() {
+        let (mut client, server) = tokio::io::duplex(4096);
+        let mut stream = PostgresStream::<_, TlsStream<_>>::new(server);
+
+        let mut injected = SSL_REQUEST.to_vec();
+        injected.extend_from_slice(b"Q\0\0\0\x0dSELECT 1\0");
+        client.write_all(&injected).await.expect("write");
+
+        let first = stream
+            .recv::<PgWireStartupOrSslRequest>()
+            .await
+            .expect("recv");
+        assert!(matches!(
+            first,
+            Some(PgWireStartupOrSslRequest::SslRequest(_))
+        ));
+        assert!(stream.ensure_nothing_buffered().is_err());
+    }
+
+    #[tokio::test]
+    async fn a_lone_ssl_request_allows_the_upgrade() {
+        let (mut client, server) = tokio::io::duplex(4096);
+        let mut stream = PostgresStream::<_, TlsStream<_>>::new(server);
+        client.write_all(&SSL_REQUEST).await.expect("write");
+
+        let first = stream
+            .recv::<PgWireStartupOrSslRequest>()
+            .await
+            .expect("recv");
+        assert!(matches!(
+            first,
+            Some(PgWireStartupOrSslRequest::SslRequest(_))
+        ));
+        assert!(stream.ensure_nothing_buffered().is_ok());
     }
 }

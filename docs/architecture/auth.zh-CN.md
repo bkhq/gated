@@ -78,6 +78,13 @@ audience 选项）。
 `TargetRoleAssignment`。`ConfigProvider::authorize_target`（`crates/gated-core/src/config_providers/db.rs`）
 加载用户和目标的角色集合，交集非空时授予访问。每个协议在认证之后、连接目标之前调用它。
 
+用户的角色分配可以带 `expires_at`（`user_roles.expires_at`，在用户对话框或通过
+`PUT /admin/api/users/:id/roles/:role_id` 设置）。已过期的分配不授予任何权限：读取用户角色一律经过
+`User::Model::active_roles` 或 `UserRoleAssignment::unexpired` 条件（目标访问、文件传输、账号解析、
+按角色生效的命令规则、管理员检查）。记录本身保留，管理员可以看到它已过期，并延期或删除。`watch_role_expiry`
+（`crates/gated/src/commands/run.rs`）每 15 秒查找新过期的分配并触发 `Services::revalidate_sessions`，
+关闭由该分配准入的会话。SSO 角色映射添加的角色不带到期时间。
+
 内置的 `admin` 角色（`BUILTIN_ADMIN_ROLE_NAME`，`crates/gated-core/src/consts.rs`）在数据库引导时创建，
 用于把守管理 API：`require_admin`（`crates/gated-admin/src/http_service/common.rs`）检查会话用户是否拥有它。
 
@@ -115,6 +122,63 @@ audience 选项）。
 | OTP，按用户 | 10 |
 
 公钥、证书与 SSO 不计入。Web 登录另外保留自己的按次限流。计数器按进程保存，重启后清零。
+
+### 登录保护
+
+在上述计数器之后，`gated_core::login_protection` 把密码与 OTP 的失败记录保存在数据库（`failed_login_attempts`），
+并据此生成地址封禁（`ip_blocks`）和用户锁定（`user_lockouts`）。它们在重启后仍然有效，管理员可以查看并解除
+（设置 > 安全，`/admin/api/login-protection/*`）。阈值保存在 `parameters`（参数 API 中的 `login_protection`），默认开启。
+
+- 同一地址在 `ip_window_seconds`（15 分钟）内失败 `ip_max_attempts` 次（20）即被封禁，不区分用户名。首次封禁
+  `ip_block_seconds`（30 分钟）；距上次封禁结束 24 小时内再次被封禁则时长翻倍，直到 `ip_max_block_seconds`（24 小时）。
+- 同一用户在 `user_window_seconds`（1 小时）内从任意地址失败 `user_max_attempts` 次（10）即被锁定
+  `user_lockout_seconds`（1 小时；`0` 表示直到手动解除）。不存在的用户名不会被锁定。拥有 `admin` 角色的用户不会被锁定，
+  否则任何知道用户名的人都能把管理员挡在外面；地址封禁和内存中的按用户限额对其仍然有效。
+- 封禁或锁定期间，密码与 OTP 尝试不再校验，直接按凭据错误处理。公钥、证书、SSO、票据与 API 令牌不受影响，也不计数。
+  使用不存在的用户名登录会计入地址（SSH 只计密码尝试，不计公钥试探）。
+- 登录成功不会清除之前的失败记录；它们在统计周期过后自然失效。
+- 客户端地址取 TCP 对端地址。Web 登录在开启 `trust_x_forwarded_headers` 时取 `X-Forwarded-For` 的最后一项，
+  即最近一层代理追加的地址；之前的项由客户端自行填写。经过两层及以上代理时，该项是外层代理的地址，所有用户共享
+  同一个封禁：这种部署应调高 `ip_max_attempts` 或关闭登录保护。
+- 被挡在外面时的恢复途径：管理令牌（不受封禁影响），或 `gated recover-access`（解除所选用户的锁定和全部地址封禁）。
+- 审计事件：`login_ip_blocked`、`login_user_locked`、`auth_refused`。
+
+### 用户允许的来源地址
+
+可以把用户限制在若干 IP 地址和 CIDR 网段内（`users.allowed_ip_ranges`，在用户对话框或通过
+`PUT /admin/api/users/:id` 编辑）。设置列表后，来自其他地址或无法确定地址的请求都会被拒绝：
+
+| 路径 | 检查位置 | 范围之外的应答 |
+|---|---|---|
+| SSH、MySQL、PostgreSQL、Web 登录与 SSO 的交互式登录 | `AuthStateStore::create` | 与用户不存在相同 |
+| 所有监听端口上的工单、`POST /api/tickets/claim`、`?gated-ticket=` | `authorize_ticket` | 与工单不存在相同 |
+| 管理 API 与 HTTP 代理上的 API 令牌 | `validate_api_token` 之后 | 与令牌不存在相同 |
+
+客户端地址的取法与登录保护相同。已存在的浏览器会话不会因为列表变更或客户端换了地址而结束，需要时可在会话页面手动结束。
+审计事件：`auth_address_not_allowed`、`ticket_address_not_allowed`、`api_token_address_not_allowed`。
+
+### 强制 MFA
+
+`parameters.mfa_required`（设置 > 安全，默认关闭）要求每个用户都绑定 OTP 设备，通过 SSO 登录的用户也不例外。
+至少保存了一个 OTP 设备的用户视为“已绑定”。
+
+| 路径 | 未绑定 | 已绑定 |
+|---|---|---|
+| Web 登录（密码或 SSO） | 按已保存的策略登录，之后只能访问绑定入口 | 必须提交 OTP 验证码，无论已保存的凭据策略如何（`RequiredFactorPolicy`） |
+| 使用会话或用户 API 令牌访问管理 API | `403`，带响应头 `X-Gated-Mfa-Setup-Required: 1`，下述放行列表除外 | 不变 |
+| SSH、MySQL、PostgreSQL 登录 | 在 `AuthStateStore::create` 中拒绝，应答与用户不存在相同 | 按已保存的凭据策略 |
+| 使用 API 令牌或客户端证书访问 HTTP 代理 | `401` | 不变 |
+
+未绑定用户可访问的内容（`mfa_setup_allows`）：`/ui` 下的页面、`GET /api/info`、`/api/auth` 与 `/api/sso`
+下的登录、登出、SSO 和会话端点、启动门禁端点，以及 `POST /api/profile/credentials/otp/begin` 和
+`POST /api/profile/credentials/otp`。即使不允许用户自行管理凭据，这两个绑定调用也可用。`/api/info` 返回
+`mfa_setup_required`，Web 界面据此只显示绑定页面。
+
+不在范围内：工单会话和管理令牌不是用户账号，不受限制。绑定之后，第二因素只在 Web 登录时强制；SSH 按已保存的策略
+（绑定时会把 `Totp` 加入策略，已登记的公钥仍可单独登录），数据库协议没有第二因素。强制 MFA 期间，用户不能通过
+`DELETE /api/profile/credentials/otp/:id` 删除最后一个 OTP 设备。管理员仍可删除，`gated recover-access`
+也会删除被恢复用户的设备；之后用户在下次 Web 登录时重新绑定。在此之前，该账号与其他尚未绑定的账号一样，只受第一因素保护。
+审计事件：`auth_mfa_setup_required`。
 
 ## API 令牌与 Web 会话
 

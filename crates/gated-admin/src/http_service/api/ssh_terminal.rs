@@ -1158,7 +1158,7 @@ pub async fn api_ssh_terminal(
 /// Remove an empty terminal session (no output produced) together with its
 /// recording rows/files, so the session monitor isn't littered with the
 /// 0-second sessions a short-lived socket would otherwise leave behind.
-async fn cleanup_empty_session(services: &Services, session_id: uuid::Uuid) {
+pub(super) async fn cleanup_empty_session(services: &Services, session_id: uuid::Uuid) {
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     let Ok(db) = gated_core::db_required(&services.db).await else {
         return;

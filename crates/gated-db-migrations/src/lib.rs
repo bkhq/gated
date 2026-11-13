@@ -21,6 +21,13 @@ mod m00015_acme;
 mod m00016_drop_ssh_client_keys;
 mod m00017_target_role_accounts;
 mod m00018_target_status;
+mod m00019_login_protection;
+mod m00020_max_api_token_duration;
+mod m00021_password_policy;
+mod m00022_user_allowed_ip_ranges;
+mod m00023_mfa_required;
+mod m00024_user_role_expiry;
+mod m00025_role_allow_clipboard;
 
 pub struct Migrator;
 
@@ -50,6 +57,13 @@ impl MigratorTrait for Migrator {
             Box::new(m00016_drop_ssh_client_keys::Migration),
             Box::new(m00017_target_role_accounts::Migration),
             Box::new(m00018_target_status::Migration),
+            Box::new(m00019_login_protection::Migration),
+            Box::new(m00020_max_api_token_duration::Migration),
+            Box::new(m00021_password_policy::Migration),
+            Box::new(m00022_user_allowed_ip_ranges::Migration),
+            Box::new(m00023_mfa_required::Migration),
+            Box::new(m00024_user_role_expiry::Migration),
+            Box::new(m00025_role_allow_clipboard::Migration),
         ]
     }
 }
@@ -124,7 +138,7 @@ mod tests {
         // A desynced database that has m00001..m00003 recorded as applied
         // also has the schema those migrations created. Reproduce the tables the
         // later migrations alter (m00004 → credentials_sso, m00005 → parameters,
-        // m00012 → roles, m00017 → target_roles) so `up` exercises the genuine ALTER paths rather than
+        // m00012 → roles, m00017 → target_roles, m00022 → users, m00024 → user_roles) so `up` exercises the genuine ALTER paths rather than
         // tripping over a table the synthetic seed never created.
         db.execute(Statement::from_string(
             backend,
@@ -168,6 +182,27 @@ mod tests {
         ))
         .await
         .expect("create target_roles table");
+        db.execute(Statement::from_string(
+            backend,
+            "CREATE TABLE users (\
+                id BLOB NOT NULL PRIMARY KEY, \
+                username TEXT NOT NULL\
+             )"
+            .to_owned(),
+        ))
+        .await
+        .expect("create users table");
+        db.execute(Statement::from_string(
+            backend,
+            "CREATE TABLE user_roles (\
+                id INTEGER NOT NULL PRIMARY KEY, \
+                user_id BLOB NOT NULL, \
+                role_id BLOB NOT NULL\
+             )"
+            .to_owned(),
+        ))
+        .await
+        .expect("create user_roles table");
 
         // The whole point of the carriers: with pre-existing rows for names
         // no longer carried by code, `up` would fail the consistency check.

@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import type { Target, User } from '@/shared/types/domain'
 import { useNavigate } from '@tanstack/react-router'
-import { Activity, Database, FileText, Home, Inbox, Key, Search, Server, ShieldCheck, SlidersHorizontal, Terminal, Ticket, User as UserIcon, Users } from 'lucide-react'
+import { Activity, Database, FileText, Home, Inbox, Key, Monitor, Search, Server, ShieldCheck, SlidersHorizontal, Terminal, Ticket, User as UserIcon, Users } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMyTargets } from '@/features/targets/hooks/use-targets-queries'
@@ -49,6 +49,8 @@ const KIND_ICON: Record<Target['kind'], LucideIcon> = {
   mysql: Database,
   postgres: Database,
   http: Server,
+  rdp: Monitor,
+  vnc: Monitor,
 }
 
 const TITLE_ID = 'spotlight-dialog-title'

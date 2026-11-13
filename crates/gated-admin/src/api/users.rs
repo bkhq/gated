@@ -1,4 +1,5 @@
 use axum::extract::{Path, Query};
+use chrono::{DateTime, Utc};
 use gated_common::web::{Data, Json};
 use gated_common::{
     GatedError, Role as RoleConfig, User as UserConfig, UserRequireCredentialsPolicy,
@@ -10,12 +11,13 @@ use gated_core::consts::BUILTIN_ADMIN_ROLE_NAME;
 use gated_db_entities::{Role, Ticket, User, UserRoleAssignment};
 use sea_orm::sea_query::Expr;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, JoinType, ModelTrait,
-    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, JoinType,
+    ModelTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::info;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
@@ -37,13 +39,17 @@ struct UserDataRequest {
     credential_policy: Option<api_types::UserRequireCredentialsPolicy>,
     description: Option<String>,
     rate_limit_bytes_per_second: Option<u32>,
+    /// Addresses and CIDR ranges the user may sign in from, use API tokens
+    /// from and use tickets from. `null` or an empty list: anywhere.
+    allowed_ip_ranges: Option<Vec<String>>,
 }
 
 #[derive(Serialize, ToSchema)]
 struct UserListItem {
     #[serde(flatten)]
     user: api_types::User,
-    /// Names of the roles assigned to the user, sorted.
+    /// Names of the roles the user holds now, sorted; expired assignments
+    /// are left out.
     roles: Vec<String>,
 }
 
@@ -109,6 +115,7 @@ async fn list_users(
             JoinType::InnerJoin,
             UserRoleAssignment::Relation::Role.def(),
         )
+        .filter(UserRoleAssignment::Entity::unexpired())
         .all(db)
         .await
         .map_err(GatedError::from)?
@@ -161,6 +168,7 @@ async fn api_create_user(
         ),
         description: Set(body.description.clone().unwrap_or_default()),
         rate_limit_bytes_per_second: Set(None),
+        allowed_ip_ranges: Set(None),
     };
 
     let user = match values.insert(&db).await {
@@ -271,8 +279,23 @@ async fn api_update_user(
         )));
     }
 
+    let allowed_ip_ranges = match body
+        .allowed_ip_ranges
+        .as_deref()
+        .map(gated_common::helpers::ip_ranges::normalize_ip_ranges)
+    {
+        Some(Err(message)) => {
+            return Ok(UpdateUserResponse::BadRequest(Json(format!(
+                "allowed_ip_ranges: {message}"
+            ))));
+        }
+        Some(Ok(ranges)) if !ranges.is_empty() => Some(serde_json::json!(ranges)),
+        _ => None,
+    };
+
     let old_username = user.username.clone();
     let mut model: User::ActiveModel = user.into();
+    model.allowed_ip_ranges = Set(allowed_ip_ranges);
     model.username = Set(body.username.clone());
     model.description = Set(body.description.clone().unwrap_or_default());
     model.credential_policy = Set(serde_json::to_value(
@@ -357,10 +380,37 @@ async fn api_delete_user(
     Ok(DeleteUserResponse::Deleted)
 }
 
+/// A role assigned to a user.
+#[derive(Serialize, ToSchema)]
+struct UserRole {
+    #[serde(flatten)]
+    role: RoleConfig,
+    /// The assignment grants nothing from this time on; `null` = never.
+    /// An expired assignment stays listed until it is removed or extended.
+    expires_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct UserRoleUpdate {
+    /// When the assignment ends; `null` makes it permanent.
+    expires_at: Option<DateTime<Utc>>,
+}
+
 api_response! {
     enum GetUserRolesResponse {
         #[oai(status = 200)]
-        Ok(Json<Vec<RoleConfig>>),
+        Ok(Json<Vec<UserRole>>),
+        #[oai(status = 404)]
+        NotFound,
+    }
+}
+
+api_response! {
+    enum UpdateUserRoleResponse {
+        #[oai(status = 200)]
+        Ok(Json<UserRole>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -392,19 +442,69 @@ async fn api_get_user_roles(
 ) -> Result<GetUserRolesResponse, GatedError> {
     let db = gated_core::db_required(&db).await?;
 
-    let Some((_, roles)) = User::Entity::find_by_id(*id)
-        .find_with_related(Role::Entity)
-        .all(&db)
-        .await
-        .map(|x| x.into_iter().next())
-        .map_err(GatedError::from)?
-    else {
+    if User::Entity::find_by_id(*id).one(&db).await?.is_none() {
         return Ok(GetUserRolesResponse::NotFound);
+    }
+
+    let roles = UserRoleAssignment::Entity::find()
+        .filter(UserRoleAssignment::Column::UserId.eq(*id))
+        .find_also_related(Role::Entity)
+        .all(&db)
+        .await?
+        .into_iter()
+        .filter_map(|(assignment, role)| {
+            Some(UserRole {
+                role: role?.into(),
+                expires_at: assignment.expires_at,
+            })
+        })
+        .collect();
+
+    Ok(GetUserRolesResponse::Ok(Json(roles)))
+}
+
+/// Sets or clears the expiry of a role assignment. Clearing it or moving it
+/// into the future also revives an expired assignment.
+#[utoipa::path(
+    put,
+    path = "/users/{id}/roles/{role_id}",
+    operation_id = "update_user_role"
+)]
+async fn api_update_user_role(
+    Path((id, role_id)): Path<(Uuid, Uuid)>,
+    db: Data<SharedDatabaseConnection>,
+    services: Data<Services>,
+    _sec_scheme: AnySecurityScheme,
+    body: Json<UserRoleUpdate>,
+) -> Result<UpdateUserRoleResponse, GatedError> {
+    if body.expires_at.is_some_and(|at| at <= Utc::now()) {
+        return Ok(UpdateUserRoleResponse::BadRequest(Json(
+            "expires_at must be in the future".into(),
+        )));
+    }
+
+    let db = gated_core::db_required(&db).await?;
+    let Some((assignment, Some(role))) = UserRoleAssignment::Entity::find()
+        .filter(UserRoleAssignment::Column::UserId.eq(id))
+        .filter(UserRoleAssignment::Column::RoleId.eq(role_id))
+        .find_also_related(Role::Entity)
+        .one(&db)
+        .await?
+    else {
+        return Ok(UpdateUserRoleResponse::NotFound);
     };
 
-    Ok(GetUserRolesResponse::Ok(Json(
-        roles.into_iter().map(|x| x.into()).collect(),
-    )))
+    let mut assignment = assignment.into_active_model();
+    assignment.expires_at = Set(body.expires_at);
+    let assignment = assignment.update(&db).await?;
+    drop(db);
+    info!(target: "audit", user_id = %id, role = %role.name, expires_at = ?assignment.expires_at, "user_role_expiry_set");
+    services.notify_authorization_changed();
+
+    Ok(UpdateUserRoleResponse::Ok(Json(UserRole {
+        role: role.into(),
+        expires_at: assignment.expires_at,
+    })))
 }
 
 #[utoipa::path(
@@ -491,6 +591,7 @@ pub fn router() -> OpenApiRouter {
         api_update_user,
         api_delete_user,
         api_get_user_roles,
+        api_update_user_role,
         api_add_user_role,
         api_delete_user_role,
     )
@@ -512,18 +613,21 @@ mod tests {
                 username TEXT NOT NULL,
                 credential_policy TEXT NOT NULL,
                 description TEXT NOT NULL,
-                rate_limit_bytes_per_second INTEGER
+                rate_limit_bytes_per_second INTEGER,
+                allowed_ip_ranges TEXT
             )"#,
             r#"CREATE TABLE roles (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 description TEXT NOT NULL,
-                allow_file_transfer BOOLEAN NOT NULL
+                allow_file_transfer BOOLEAN NOT NULL,
+                allow_clipboard BOOLEAN NOT NULL DEFAULT FALSE
             )"#,
             r#"CREATE TABLE user_roles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT NOT NULL,
-                role_id TEXT NOT NULL
+                role_id TEXT NOT NULL,
+                expires_at TEXT
             )"#,
         ] {
             db.execute(Statement::from_string(DbBackend::Sqlite, sql))
@@ -543,6 +647,7 @@ mod tests {
             ),
             description: Set(String::new()),
             rate_limit_bytes_per_second: Set(None),
+            allowed_ip_ranges: Set(None),
         }
         .insert(db)
         .await
@@ -557,6 +662,7 @@ mod tests {
             name: Set(name.into()),
             description: Set(String::new()),
             allow_file_transfer: Set(true),
+            allow_clipboard: Set(false),
         }
         .insert(db)
         .await

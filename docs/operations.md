@@ -123,6 +123,22 @@ TanStack route tree exists.
   after verifying the encrypted gateway, delete it together with any
   `-wal`/`-shm` sidecars. `gated encrypt-existing-db --auto-delete-plaintext`
   deletes it automatically on the CLI path.
+- Login protection (Settings > Security, on by default) blocks a client
+  address after 20 failed password or OTP attempts in 15 minutes and locks a
+  user out after 10 in an hour; blocks and lockouts are listed and lifted on
+  the same page. Behind a reverse proxy set `trust_x_forwarded_headers` and
+  have the proxy append the client address to `X-Forwarded-For`, or every
+  user shares the proxy's address and one block. If an administrator is shut
+  out, use the admin token or run `gated recover-access`. Details:
+  `docs/architecture/auth.md`.
+- Required MFA (Settings > Security, off by default) makes every user enroll
+  an OTP device: until then the web interface offers only the enrollment and
+  SSH, database and HTTP proxy access is refused. It takes effect at once and
+  includes the administrator who turns it on, so automation that signs in as
+  a user without a device stops working. A user who lost the device needs an
+  administrator to remove it (`DELETE /admin/api/users/:user_id/credentials/otp/:id`;
+  the web interface has no control for it), or `gated recover-access` on the
+  host; the user then enrolls again at the next sign-in.
 
 ## Backup and restore
 

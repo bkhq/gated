@@ -33,7 +33,7 @@ chacha20poly1305 = "0.10"
 data-encoding = { version = "2.3", default-features = false, features = ["alloc", "std"] }
 serde = { version = "1.0", features = ["derive"], default-features = false }
 serde_json = { version = "1.0", default-features = false }
-russh = { version = "0.63.3", features = ["des", "rsa", "aws-lc-rs"], default-features = false }
+russh = { version = "0.65.1", features = ["des", "rsa", "aws-lc-rs"], default-features = false }
 russh-sftp = { version = "3.0.1", default-features = false }
 futures = { version = "0.3", default-features = false }
 tokio-stream = { version = "0.1.17", features = ["net"], default-features = false }

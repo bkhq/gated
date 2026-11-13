@@ -126,8 +126,18 @@ function HostKeyRow({ algo, keyBase64 }: { algo: string, keyBase64: string }) {
   )
 }
 
+/** How the gateway reaches the target: RDP is always TLS, VNC never is. */
+function transportTls(target: Target): Target['tls'] {
+  if (target.kind === 'rdp')
+    return { mode: 'Required', verify: target.verifyTls ?? true }
+  if (target.kind === 'vnc')
+    return { mode: 'Disabled', verify: false }
+  return target.tls
+}
+
 function TlsSettingsCard({ target }: { target: Target }) {
   const { t } = useTranslation()
+  const tls = transportTls(target)
   return (
     <Card>
       <CardHeader>
@@ -139,11 +149,11 @@ function TlsSettingsCard({ target }: { target: Target }) {
       <CardContent>
         <dl className="m-0 grid grid-cols-[140px_1fr] gap-x-4 gap-y-2.5 text-[13px]">
           <dt className="text-muted-foreground">{t('targets.detail.security.tlsMode')}</dt>
-          <dd className="m-0">{target.tls ? t(`targets.detail.security.tlsModes.${target.tls.mode}`) : '—'}</dd>
+          <dd className="m-0">{tls ? t(`targets.detail.security.tlsModes.${tls.mode}`) : '—'}</dd>
           <dt className="text-muted-foreground">{t('targets.detail.security.verify')}</dt>
           <dd className="m-0">
-            {target.tls
-              ? t(target.tls.verify ? 'targets.detail.security.verifyOn' : 'targets.detail.security.verifyOff')
+            {tls && tls.mode !== 'Disabled'
+              ? t(tls.verify ? 'targets.detail.security.verifyOn' : 'targets.detail.security.verifyOff')
               : '—'}
           </dd>
         </dl>
@@ -507,7 +517,7 @@ export function TargetDetailTabsBody({ target, mode, mySessions, tabsValue, onTa
             ? (
                 <div className="flex flex-col gap-4">
                   <TlsSettingsCard target={target} />
-                  {target.kind === 'http' ? <UpstreamCertificateCard targetId={target.id} /> : null}
+                  {target.kind === 'http' || target.kind === 'rdp' ? <UpstreamCertificateCard targetId={target.id} /> : null}
                 </div>
               )
             : null}

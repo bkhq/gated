@@ -8,6 +8,8 @@ pub mod ApiToken;
 pub mod CertificateCredential;
 pub mod CertificateRevocation;
 pub mod CommandAclRule;
+pub mod FailedLoginAttempt;
+pub mod IpBlock;
 pub mod KnownHost;
 pub mod LogEntry;
 pub mod OtpCredential;
@@ -27,6 +29,7 @@ pub mod TargetStatus;
 pub mod Ticket;
 pub mod TlsCertificate;
 pub mod User;
+pub mod UserLockout;
 pub mod UserRoleAssignment;
 
 #[allow(non_snake_case)]

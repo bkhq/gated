@@ -805,6 +805,8 @@ export interface components {
             credential_policy: components["schemas"]["UserRequireCredentialsPolicy"];
             otp: components["schemas"]["ExistingOtpCredential"][];
             password: components["schemas"]["PasswordState"];
+            /** @description Rules a new password must satisfy. */
+            password_policy: components["schemas"]["PasswordPolicy"];
             public_keys: components["schemas"]["ExistingPublicKeyCredential"][];
             sso: components["schemas"]["ExistingSsoCredential"][];
         };
@@ -889,6 +891,14 @@ export interface components {
              *     has no base domain.
              */
             http_proxy_base_domain?: string | null;
+            /**
+             * Format: int64
+             * @description Longest lifetime of an API token the user creates, in seconds.
+             *     `None`: no limit, or not signed in.
+             */
+            max_api_token_duration_seconds?: number | null;
+            /** @description The signed-in user must enroll an OTP device before anything else. */
+            mfa_setup_required: boolean;
             minimize_password_login: boolean;
             own_credential_management_allowed: boolean;
             ports: components["schemas"]["PortsInfo"];
@@ -961,6 +971,19 @@ export interface components {
         };
         OtpLoginRequest: {
             otp: string;
+        };
+        /** @description Rules a new password must satisfy. */
+        PasswordPolicy: {
+            /**
+             * Format: int32
+             * @description Minimum number of characters, 0 to 128 (0 = no requirement).
+             */
+            min_length: number;
+            require_digits: boolean;
+            require_lowercase: boolean;
+            /** @description An ASCII character that is neither a letter nor a digit. */
+            require_special: boolean;
+            require_uppercase: boolean;
         };
         /** @enum {string} */
         PasswordState: "Unset" | "Set" | "MultipleSet";
@@ -1160,7 +1183,7 @@ export interface components {
             url: string;
         };
         /** @enum {string} */
-        TargetKind: "Http" | "MySql" | "Ssh" | "Postgres";
+        TargetKind: "Http" | "MySql" | "Ssh" | "Postgres" | "Rdp" | "Vnc";
         TargetMySqlOptions: {
             default_database_name?: string | null;
             host: string;
@@ -1188,6 +1211,12 @@ export interface components {
         }) | (components["schemas"]["TargetPostgresOptions"] & {
             /** @enum {string} */
             kind: "Postgres";
+        }) | (components["schemas"]["TargetRdpOptions"] & {
+            /** @enum {string} */
+            kind: "Rdp";
+        }) | (components["schemas"]["TargetVncOptions"] & {
+            /** @enum {string} */
+            kind: "Vnc";
         });
         TargetPostgresOptions: {
             default_database_name?: string | null;
@@ -1200,6 +1229,22 @@ export interface components {
             readonly: boolean;
             tls: components["schemas"]["Tls"];
             username: string;
+        };
+        TargetRdpOptions: {
+            domain?: string | null;
+            host: string;
+            /**
+             * @description Write-only: read endpoints return `null`. A blank value on update
+             *     keeps the stored password.
+             */
+            password?: string | null;
+            /** Format: int32 */
+            port: number;
+            /** @description Record key presses with the session; they include typed passwords. */
+            record_keystrokes: boolean;
+            username: string;
+            /** @description Verify the server certificate against the system roots. */
+            verify_tls: boolean;
         };
         TargetSSHOptions: {
             allow_insecure_algos?: boolean | null;
@@ -1227,6 +1272,18 @@ export interface components {
             reachable: boolean;
             /** Format: uuid */
             target_id: string;
+        };
+        TargetVncOptions: {
+            host: string;
+            /**
+             * @description Write-only, as for RDP. `null` with no stored password: the server
+             *     asks for no authentication.
+             */
+            password?: string | null;
+            /** Format: int32 */
+            port: number;
+            /** @description Record key presses with the session; they include typed passwords. */
+            record_keystrokes: boolean;
         };
         Tls: {
             mode: components["schemas"]["TlsMode"];
@@ -2016,6 +2073,14 @@ export interface operations {
                     "application/json; charset=utf-8": string;
                 };
             };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
         };
     };
     delete_my_api_token: {
@@ -2249,6 +2314,14 @@ export interface operations {
                     "application/json; charset=utf-8": string;
                 };
             };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2276,6 +2349,14 @@ export interface operations {
                 };
                 content: {
                     "application/json; charset=utf-8": components["schemas"]["PasswordState"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
                 };
             };
             401: {
@@ -2367,6 +2448,14 @@ export interface operations {
                 content?: never;
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
+                };
+            };
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

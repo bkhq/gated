@@ -284,12 +284,90 @@ impl From<TargetHttpOptions> for stored::TargetHttpOptions {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
+pub struct TargetRdpOptions {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub domain: Option<String>,
+    /// Write-only: read endpoints return `null`. A blank value on update
+    /// keeps the stored password.
+    pub password: Option<String>,
+    /// Verify the server certificate against the system roots.
+    pub verify_tls: bool,
+    /// Record key presses with the session; they include typed passwords.
+    pub record_keystrokes: bool,
+}
+
+impl From<stored::TargetRdpOptions> for TargetRdpOptions {
+    fn from(options: stored::TargetRdpOptions) -> Self {
+        Self {
+            host: options.host,
+            port: options.port,
+            username: options.username,
+            domain: options.domain,
+            password: options.password,
+            verify_tls: options.verify_tls,
+            record_keystrokes: options.record_keystrokes,
+        }
+    }
+}
+
+impl From<TargetRdpOptions> for stored::TargetRdpOptions {
+    fn from(options: TargetRdpOptions) -> Self {
+        Self {
+            host: options.host,
+            port: options.port,
+            username: options.username,
+            domain: options.domain,
+            password: options.password,
+            verify_tls: options.verify_tls,
+            record_keystrokes: options.record_keystrokes,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
+pub struct TargetVncOptions {
+    pub host: String,
+    pub port: u16,
+    /// Write-only, as for RDP. `null` with no stored password: the server
+    /// asks for no authentication.
+    pub password: Option<String>,
+    /// Record key presses with the session; they include typed passwords.
+    pub record_keystrokes: bool,
+}
+
+impl From<stored::TargetVncOptions> for TargetVncOptions {
+    fn from(options: stored::TargetVncOptions) -> Self {
+        Self {
+            host: options.host,
+            port: options.port,
+            password: options.password,
+            record_keystrokes: options.record_keystrokes,
+        }
+    }
+}
+
+impl From<TargetVncOptions> for stored::TargetVncOptions {
+    fn from(options: TargetVncOptions) -> Self {
+        Self {
+            host: options.host,
+            port: options.port,
+            password: options.password,
+            record_keystrokes: options.record_keystrokes,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde(tag = "kind")]
 pub enum TargetOptions {
     Ssh(TargetSSHOptions),
     Http(TargetHttpOptions),
     MySql(TargetMySqlOptions),
     Postgres(TargetPostgresOptions),
+    Rdp(TargetRdpOptions),
+    Vnc(TargetVncOptions),
 }
 
 impl From<stored::TargetOptions> for TargetOptions {
@@ -299,6 +377,8 @@ impl From<stored::TargetOptions> for TargetOptions {
             stored::TargetOptions::Http(options) => Self::Http(options.into()),
             stored::TargetOptions::MySql(options) => Self::MySql(options.into()),
             stored::TargetOptions::Postgres(options) => Self::Postgres(options.into()),
+            stored::TargetOptions::Rdp(options) => Self::Rdp(options.into()),
+            stored::TargetOptions::Vnc(options) => Self::Vnc(options.into()),
         }
     }
 }
@@ -310,6 +390,8 @@ impl From<TargetOptions> for stored::TargetOptions {
             TargetOptions::Http(options) => Self::Http(options.into()),
             TargetOptions::MySql(options) => Self::MySql(options.into()),
             TargetOptions::Postgres(options) => Self::Postgres(options.into()),
+            TargetOptions::Rdp(options) => Self::Rdp(options.into()),
+            TargetOptions::Vnc(options) => Self::Vnc(options.into()),
         }
     }
 }
@@ -425,6 +507,8 @@ pub struct User {
     pub description: String,
     pub credential_policy: Option<UserRequireCredentialsPolicy>,
     pub rate_limit_bytes_per_second: Option<i64>,
+    /// Addresses and CIDR ranges the user is limited to; `null` = anywhere.
+    pub allowed_ip_ranges: Option<Vec<String>>,
 }
 
 impl From<stored::User> for User {
@@ -435,6 +519,7 @@ impl From<stored::User> for User {
             description: user.description,
             credential_policy: user.credential_policy.map(Into::into),
             rate_limit_bytes_per_second: user.rate_limit_bytes_per_second,
+            allowed_ip_ranges: user.allowed_ip_ranges,
         }
     }
 }

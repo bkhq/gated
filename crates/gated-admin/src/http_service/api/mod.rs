@@ -22,6 +22,7 @@ pub(crate) mod tickets;
 // at `/admin/api/sessions/:id/monitor`, inheriting the admin-only nest gate:
 pub(crate) mod session_monitor;
 // Raw download/upload routes are mounted in `http_service/mod.rs`.
+pub(crate) mod desktop;
 pub(crate) mod sftp;
 pub(crate) mod ssh_terminal;
 pub(crate) mod terminal_details;

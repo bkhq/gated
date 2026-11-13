@@ -352,7 +352,13 @@ async fn api_claim_ticket(
     }
 
     let secret = Secret::new(body.secret.clone());
-    let Some((ticket, user_info)) = authorize_ticket(&services.db, &secret).await? else {
+    let Some((ticket, user_info)) = authorize_ticket(
+        &services.db,
+        &secret,
+        gated_core::logging::http::client_ip_addr(&req.headers, &req.extensions, &services).await,
+    )
+    .await?
+    else {
         warn!(target: "audit", protocol = "http", "ticket_claim_rejected");
         return Ok(ClaimTicketResponse::NotFound(Json(
             "ticket not found, expired or used up".into(),

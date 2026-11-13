@@ -11,6 +11,7 @@ const MASK = '••••••••'
 const FIELDS: Record<string, { label: string, secret?: boolean, block?: boolean, copy?: boolean }> = {
   engine: { label: 'accounts.form.cred.engine' },
   username: { label: 'accounts.form.cred.username' },
+  domain: { label: 'accounts.form.cred.domain' },
   password: { label: 'accounts.form.cred.password', secret: true },
   private_key_pem: { label: 'accounts.form.cred.privateKeyPem', secret: true, block: true },
   token: { label: 'accounts.form.cred.token', secret: true, block: true },

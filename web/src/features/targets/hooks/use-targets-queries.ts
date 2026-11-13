@@ -38,6 +38,8 @@ function apiKindToDomainKind(kind: AdminTargetOptions['kind'] | UserTargetKind):
     case 'MySql': return 'mysql'
     case 'Postgres': return 'postgres'
     case 'Http': return 'http'
+    case 'Rdp': return 'rdp'
+    case 'Vnc': return 'vnc'
     default: return 'ssh'
   }
 }
@@ -47,7 +49,10 @@ function extractEndpoint(options: AdminTargetOptions): { host: string, port: num
     case 'Ssh':
     case 'MySql':
     case 'Postgres':
+    case 'Rdp':
       return { host: options.host, port: options.port, user: options.username }
+    case 'Vnc':
+      return { host: options.host, port: options.port, user: '' }
     case 'Http':
       return { host: options.url, port: 0, user: '' }
     default:
@@ -78,7 +83,12 @@ function adminTargetToDomain(target: AdminTarget, groupNames = new Map<string, s
     description: target.description,
     readonly,
     flavor: target.options.kind === 'Http' ? target.options.flavor : undefined,
-    tls: target.options.kind === 'Ssh' ? undefined : target.options.tls,
+    tls: 'tls' in target.options ? target.options.tls : undefined,
+    domain: target.options.kind === 'Rdp' ? target.options.domain ?? '' : undefined,
+    verifyTls: target.options.kind === 'Rdp' ? target.options.verify_tls : undefined,
+    recordKeystrokes: target.options.kind === 'Rdp' || target.options.kind === 'Vnc'
+      ? target.options.record_keystrokes
+      : undefined,
     accounts: target.accounts,
     inlineAuth: inlineAuthFromOptions(target.options),
   }
@@ -98,6 +108,8 @@ function inlineAuthFromOptions(options: AdminTargetOptions): InlineAuth {
         : { method: 'none' }
     case 'MySql':
     case 'Postgres':
+    case 'Rdp':
+    case 'Vnc':
       return { method: 'password', password: '' }
   }
 }
@@ -129,7 +141,7 @@ function userSnapshotToDomain(snapshot: UserTargetSnapshot): Target {
   }
 }
 
-function domainKindToOptions(draft: Pick<TargetDraft, 'kind' | 'host' | 'port' | 'user' | 'flavor' | 'readonly' | 'inlineAuth'>): AdminTargetOptions {
+function domainKindToOptions(draft: Pick<TargetDraft, 'kind' | 'host' | 'port' | 'user' | 'flavor' | 'readonly' | 'inlineAuth' | 'domain' | 'verifyTls' | 'recordKeystrokes'>): AdminTargetOptions {
   const auth = draft.inlineAuth
   const password = auth?.method === 'password' && auth.password ? auth.password : undefined
   switch (draft.kind) {
@@ -179,6 +191,25 @@ function domainKindToOptions(draft: Pick<TargetDraft, 'kind' | 'host' | 'port' |
         flavor: draft.flavor ?? 'generic',
       }
     }
+    case 'rdp':
+      return {
+        kind: 'Rdp',
+        host: draft.host,
+        port: draft.port,
+        username: draft.user,
+        domain: draft.domain || undefined,
+        password,
+        verify_tls: draft.verifyTls ?? true,
+        record_keystrokes: !!draft.recordKeystrokes,
+      }
+    case 'vnc':
+      return {
+        kind: 'Vnc',
+        host: draft.host,
+        port: draft.port,
+        password,
+        record_keystrokes: !!draft.recordKeystrokes,
+      }
     default:
       throw new ApiError(400, `Unsupported target kind: ${String(draft.kind)}`, null)
   }

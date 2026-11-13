@@ -51,6 +51,10 @@ export function missingCredentialFields(creds: AccountCredentials, allowBlankSec
       need(creds.client_certificate_pem, 'accounts.form.cred.clientCertPem')
       need(creds.client_private_key_pem, 'accounts.form.cred.clientKeyPem', true)
       break
+    case 'desktop-password':
+      // A VNC password has no username.
+      need(creds.password, 'accounts.form.cred.password', true)
+      break
     case 'http-headers':
       if (creds.headers.length === 0 || creds.headers.some(h => h.name.trim() === ''))
         missing.push('accounts.form.cred.headerName')

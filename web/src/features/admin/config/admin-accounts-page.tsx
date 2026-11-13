@@ -68,7 +68,7 @@ export function AdminAccountsPage() {
     if (kind === 'ssh-key' || kind === 'k8s-token') {
       return <Key size={12} />
     }
-    if (kind === 'ssh-password' || kind === 'db-password') {
+    if (kind === 'ssh-password' || kind === 'db-password' || kind === 'desktop-password') {
       return <Lock size={12} />
     }
     if (kind === 'k8s-client-cert') {

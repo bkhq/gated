@@ -3,7 +3,7 @@ use gated_common::web::{Data, Json};
 use gated_common::{GatedError, Secret, UserPasswordCredential};
 use gated_common::{api_response, api_routes};
 use gated_core::SharedDatabaseConnection;
-use gated_db_entities::PasswordCredential;
+use gated_db_entities::{Parameters, PasswordCredential};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -44,6 +44,8 @@ api_response! {
     enum CreatePasswordCredentialResponse {
         #[oai(status = 201)]
         Created(Json<ExistingPasswordCredential>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
     }
 }
 
@@ -84,6 +86,16 @@ async fn api_create(
     body: Json<NewPasswordCredential>,
 ) -> Result<CreatePasswordCredentialResponse, GatedError> {
     let db = gated_core::db_required(&db).await?;
+
+    if let Some(violation) = Parameters::Entity::get(&db)
+        .await?
+        .password_policy()
+        .violation(body.password.expose_secret())
+    {
+        return Ok(CreatePasswordCredentialResponse::BadRequest(Json(
+            violation,
+        )));
+    }
 
     let object = PasswordCredential::ActiveModel {
         id: Set(Uuid::new_v4()),

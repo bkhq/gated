@@ -209,6 +209,17 @@ pub struct User {
     #[serde(skip_serializing_if = "Option::is_none", rename = "require")]
     pub credential_policy: Option<UserRequireCredentialsPolicy>,
     pub rate_limit_bytes_per_second: Option<i64>,
+    /// Address ranges the user may sign in from, use API tokens from and
+    /// use tickets from. `None`: anywhere.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_ip_ranges: Option<Vec<String>>,
+}
+
+impl User {
+    /// Whether the user may act from `ip`.
+    pub fn allows_address(&self, ip: Option<std::net::IpAddr>) -> bool {
+        crate::helpers::ip_ranges::ip_allowed(self.allowed_ip_ranges.as_deref(), ip)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -236,6 +247,11 @@ pub struct Role {
     #[serde(default = "_default_true")]
     #[schema(required)]
     pub allow_file_transfer: bool,
+    /// Desktop sessions (RDP, VNC) granted by the role may exchange
+    /// clipboard text with the browser.
+    #[serde(default)]
+    #[schema(required)]
+    pub allow_clipboard: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq, Copy, JsonSchema)]
@@ -339,6 +355,34 @@ pub struct AdminConfig {
 
     #[serde(default)]
     pub sni_certificates: Vec<SniCertificateConfig>,
+
+    /// What a user API token may call on this listener. Each entry is
+    /// `"<METHOD> <path>"`, for example `"GET /api/targets"`; a path ending
+    /// in `*` matches every path that starts with what precedes it. Not set:
+    /// a token reaches whatever its user reaches. Sessions and the admin
+    /// token are not limited.
+    #[serde(default)]
+    pub user_api_token_allowed_endpoints: Option<Vec<String>>,
+}
+
+impl AdminConfig {
+    /// Whether a user API token may call `method path`.
+    pub fn allows_user_api_token(&self, method: &str, path: &str) -> bool {
+        let Some(allowed) = &self.user_api_token_allowed_endpoints else {
+            return true;
+        };
+        allowed.iter().any(|entry| {
+            let Some((entry_method, entry_path)) = entry.trim().split_once(' ') else {
+                return false;
+            };
+            let entry_path = entry_path.trim();
+            entry_method.eq_ignore_ascii_case(method)
+                && match entry_path.strip_suffix('*') {
+                    Some(prefix) => path.starts_with(prefix),
+                    None => path == entry_path,
+                }
+        })
+    }
 }
 
 impl Default for AdminConfig {
@@ -354,6 +398,7 @@ impl Default for AdminConfig {
             cookie_max_age: _default_cookie_max_age(),
             cookie_domain: None,
             sni_certificates: vec![],
+            user_api_token_allowed_endpoints: None,
         }
     }
 }
@@ -867,5 +912,41 @@ mod host_key_default_tests {
             super::SshHostKeyVerificationMode::default(),
             super::SshHostKeyVerificationMode::AutoReject
         );
+    }
+}
+
+#[cfg(test)]
+mod user_api_token_endpoint_tests {
+    use super::AdminConfig;
+
+    #[test]
+    fn without_a_list_every_endpoint_is_allowed() {
+        assert!(AdminConfig::default().allows_user_api_token("DELETE", "/admin/api/users/1"));
+    }
+
+    #[test]
+    fn a_list_allows_exact_entries_and_prefixes_only() {
+        let config = AdminConfig {
+            user_api_token_allowed_endpoints: Some(vec![
+                "GET /api/targets".into(),
+                "post /api/profile/*".into(),
+                "malformed".into(),
+            ]),
+            ..Default::default()
+        };
+        assert!(config.allows_user_api_token("GET", "/api/targets"));
+        assert!(config.allows_user_api_token("get", "/api/targets"));
+        assert!(!config.allows_user_api_token("POST", "/api/targets"));
+        assert!(!config.allows_user_api_token("GET", "/api/targets/"));
+        assert!(!config.allows_user_api_token("GET", "/API/targets"));
+        assert!(config.allows_user_api_token("POST", "/api/profile/credentials/otp"));
+        assert!(!config.allows_user_api_token("GET", "/api/profile/credentials"));
+        assert!(!config.allows_user_api_token("malformed", ""));
+
+        let nothing = AdminConfig {
+            user_api_token_allowed_endpoints: Some(vec![]),
+            ..Default::default()
+        };
+        assert!(!nothing.allows_user_api_token("GET", "/api/info"));
     }
 }

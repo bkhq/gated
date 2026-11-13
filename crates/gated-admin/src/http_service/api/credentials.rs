@@ -17,11 +17,11 @@ use gated_common::helpers::otp::{
     OtpSecretKey, TotpCheck, check_totp, generate_key, generate_setup_url,
 };
 use gated_common::{GatedError, Secret, User, UserPasswordCredential};
-use gated_core::Services;
+use gated_core::{ConfigProvider, Services};
 use gated_db_entities::{
     self as entities, CertificateCredential, Parameters, PasswordCredential, PublicKeyCredential,
 };
-use http::StatusCode;
+use http::{Method, StatusCode};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Set,
 };
@@ -87,6 +87,8 @@ api_response! {
     enum ChangePasswordResponse {
         #[oai(status = 201)]
         Done(Json<PasswordState>),
+        #[oai(status = 400)]
+        BadRequest(Json<String>),
         #[oai(status = 401)]
         Unauthorized(Json<String>),
         #[oai(status = 403)]
@@ -102,6 +104,8 @@ pub struct CredentialsState {
     certificates: Vec<ExistingCertificateCredential>,
     sso: Vec<ExistingSsoCredential>,
     credential_policy: gated_common::api::types::UserRequireCredentialsPolicy,
+    /// Rules a new password must satisfy.
+    password_policy: gated_common::helpers::password_policy::PasswordPolicy,
 }
 
 api_response! {
@@ -178,6 +182,8 @@ api_response! {
         Deleted,
         #[oai(status = 401)]
         Unauthorized(Json<String>),
+        #[oai(status = 403)]
+        Forbidden(Json<String>),
         #[oai(status = 404)]
         NotFound,
     }
@@ -311,7 +317,33 @@ async fn parameters_based_auth(request: Request, next: Next) -> Response {
     };
     drop(db);
     if !parameters.allow_own_credential_management {
-        return (StatusCode::FORBIDDEN, "Credential management is disabled").into_response();
+        // Enrolling the OTP device MFA requires is always possible.
+        let path = request.uri().path();
+        let enrolling = request.method() == Method::POST
+            && (path.ends_with("/credentials/otp/begin") || path.ends_with("/credentials/otp"));
+        let username = request
+            .extensions()
+            .get::<RequestAuthorization>()
+            .and_then(RequestAuthorization::account_username);
+        let setup_required = match username {
+            Some(username) if enrolling => {
+                services
+                    .config_provider
+                    .lock()
+                    .await
+                    .mfa_setup_required(username)
+                    .await
+            }
+            _ => Ok(false),
+        };
+        match setup_required {
+            Ok(true) => {}
+            Ok(false) => {
+                return (StatusCode::FORBIDDEN, "Credential management is disabled")
+                    .into_response();
+            }
+            Err(error) => return error.into_response(),
+        }
     }
     next.run(request).await
 }
@@ -370,6 +402,9 @@ async fn api_get_credentials_state(
         certificates: cert_creds.into_iter().map(Into::into).collect(),
         sso: sso_creds.into_iter().map(Into::into).collect(),
         credential_policy: user.credential_policy.unwrap_or_default().into(),
+        password_policy: entities::Parameters::Entity::get(&db)
+            .await?
+            .password_policy(),
     })))
 }
 
@@ -409,7 +444,7 @@ async fn api_change_password(
         .await
         .unwrap_or_else(|| "<unknown>".to_owned());
     let reauthenticated = gated_core::auth_throttle::validate_credential_throttled(
-        &services.config_provider,
+        &services,
         &user_model.username,
         &client_ip,
         &old_cred,
@@ -423,6 +458,14 @@ async fn api_change_password(
         return Ok(ChangePasswordResponse::Unauthorized(Json(
             "the current password is wrong".into(),
         )));
+    }
+
+    if let Some(violation) = entities::Parameters::Entity::get(&db)
+        .await?
+        .password_policy()
+        .violation(&body.password)
+    {
+        return Ok(ChangePasswordResponse::BadRequest(Json(violation)));
     }
 
     entities::PasswordCredential::Entity::delete_many()
@@ -766,13 +809,20 @@ async fn api_delete_otp(
         return Ok(DeleteCredentialResponse::NotFound);
     };
 
-    model.delete(&db).await?;
-
-    // If no OTP credentials remain, remove OTP from the user's credential policy
-    let remaining = entities::OtpCredential::Entity::find()
+    let devices = entities::OtpCredential::Entity::find()
         .filter(entities::OtpCredential::Column::UserId.eq(user_model.id))
         .count(&db)
         .await?;
+    if devices <= 1 && Parameters::Entity::get(&db).await?.mfa_required {
+        return Ok(DeleteCredentialResponse::Forbidden(Json(
+            "MFA is required; add another device before removing the last one".into(),
+        )));
+    }
+
+    model.delete(&db).await?;
+
+    // If no OTP credentials remain, remove OTP from the user's credential policy
+    let remaining = devices.saturating_sub(1);
 
     let username = user_model.username.clone();
     if remaining == 0 {

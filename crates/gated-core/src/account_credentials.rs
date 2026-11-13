@@ -4,10 +4,8 @@ use gated_common::{
     HeadersUpstreamAuth, SSHTargetAuth, Secret, SshTargetPasswordAuth, SshTargetPublicKeyAuth,
     Target, TargetHttpOptions, TargetOptions, TargetSSHOptions, UpstreamAuth,
 };
-use gated_db_entities::{Account, Role, TargetAccount, TargetRoleAssignment, User};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set,
-};
+use gated_db_entities::{Account, TargetAccount, TargetRoleAssignment, User};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -84,8 +82,7 @@ pub async fn login_choices(
         return Ok(vec![]);
     };
     let role_ids: Vec<Uuid> = user
-        .find_related(Role::Entity)
-        .all(db)
+        .active_roles(db)
         .await
         .map_err(query_err)?
         .into_iter()
@@ -241,6 +238,65 @@ pub async fn update_account_last_used_at(
     Ok(())
 }
 
+/// The login a desktop session presents to an RDP or VNC target. No `Debug`:
+/// it holds the password.
+#[derive(Clone)]
+pub struct DesktopLogin {
+    /// `None`: the target's inline credentials.
+    pub account_id: Option<i32>,
+    /// Empty for VNC.
+    pub username: String,
+    pub domain: Option<String>,
+    pub password: Option<String>,
+}
+
+/// Credentials for a desktop target: the selected account, else the inline ones.
+pub async fn desktop_login(
+    db: &DatabaseConnection,
+    target: &Target,
+    login: TargetLogin,
+) -> Result<DesktopLogin, String> {
+    let account = login_account_credentials(db, target.id, login).await?;
+    desktop_login_from(&target.options, account)
+}
+
+fn desktop_login_from(
+    options: &TargetOptions,
+    account: Option<(i32, AccountCredentials)>,
+) -> Result<DesktopLogin, String> {
+    let mut login = match options {
+        TargetOptions::Rdp(options) => DesktopLogin {
+            account_id: None,
+            username: options.username.clone(),
+            domain: options.domain.clone(),
+            password: options.password.clone(),
+        },
+        TargetOptions::Vnc(options) => DesktopLogin {
+            account_id: None,
+            username: String::new(),
+            domain: None,
+            password: options.password.clone(),
+        },
+        _ => return Err("target is not RDP/VNC".into()),
+    };
+    if let Some((account_id, credentials)) = account {
+        let AccountCredentials::DesktopPassword(credentials) = credentials else {
+            return Err(format!("account {account_id} is not desktop-password"));
+        };
+        login.account_id = Some(account_id);
+        login.password = Some(credentials.password);
+        if matches!(options, TargetOptions::Rdp(_)) {
+            if !credentials.username.is_empty() {
+                login.username = credentials.username;
+            }
+            login.domain = credentials.domain;
+        }
+    }
+    login.domain = login.domain.filter(|domain| !domain.is_empty());
+    login.password = login.password.filter(|password| !password.is_empty());
+    Ok(login)
+}
+
 pub async fn resolve_db_account(
     db: &DatabaseConnection,
     target: &Target,
@@ -392,6 +448,92 @@ mod tests {
         })
     }
 
+    fn desktop_account(username: &str, domain: Option<&str>) -> Option<(i32, AccountCredentials)> {
+        Some((
+            7,
+            AccountCredentials::DesktopPassword(gated_common::DesktopPasswordAccountCredentials {
+                username: username.into(),
+                password: "account-pw".into(),
+                domain: domain.map(Into::into),
+            }),
+        ))
+    }
+
+    fn rdp_target() -> TargetOptions {
+        TargetOptions::Rdp(gated_common::TargetRdpOptions {
+            host: "10.0.0.2".into(),
+            port: 3389,
+            username: "inline".into(),
+            domain: Some("INLINE".into()),
+            password: Some("inline-pw".into()),
+            verify_tls: true,
+            record_keystrokes: false,
+        })
+    }
+
+    fn vnc_target(password: Option<&str>) -> TargetOptions {
+        TargetOptions::Vnc(gated_common::TargetVncOptions {
+            host: "10.0.0.3".into(),
+            port: 5900,
+            password: password.map(Into::into),
+            record_keystrokes: false,
+        })
+    }
+
+    #[test]
+    fn a_desktop_account_replaces_the_inline_login() {
+        let login =
+            desktop_login_from(&rdp_target(), desktop_account("svc", Some("CORP"))).expect("login");
+        assert_eq!(login.account_id, Some(7));
+        assert_eq!(login.username, "svc");
+        assert_eq!(login.domain.as_deref(), Some("CORP"));
+        assert_eq!(login.password.as_deref(), Some("account-pw"));
+
+        // The account's domain is its own: the inline one is not mixed in.
+        let login = desktop_login_from(&rdp_target(), desktop_account("svc", None)).expect("login");
+        assert_eq!(login.domain, None);
+    }
+
+    #[test]
+    fn a_desktop_account_without_a_username_keeps_the_target_username() {
+        let login = desktop_login_from(&rdp_target(), desktop_account("", None)).expect("login");
+        assert_eq!(login.username, "inline");
+        assert_eq!(login.password.as_deref(), Some("account-pw"));
+    }
+
+    #[test]
+    fn without_an_account_the_inline_login_is_used() {
+        let login = desktop_login_from(&rdp_target(), None).expect("login");
+        assert_eq!(login.account_id, None);
+        assert_eq!(login.username, "inline");
+        assert_eq!(login.domain.as_deref(), Some("INLINE"));
+        assert_eq!(login.password.as_deref(), Some("inline-pw"));
+
+        let login = desktop_login_from(&vnc_target(None), None).expect("login");
+        assert_eq!(login.password, None);
+        let login = desktop_login_from(&vnc_target(Some("")), None).expect("login");
+        assert_eq!(login.password, None, "a blank password is no password");
+    }
+
+    #[test]
+    fn vnc_takes_only_the_password_of_an_account() {
+        let login =
+            desktop_login_from(&vnc_target(Some("inline-pw")), desktop_account("svc", None))
+                .expect("login");
+        assert_eq!(login.username, "");
+        assert_eq!(login.password.as_deref(), Some("account-pw"));
+    }
+
+    #[test]
+    fn a_desktop_login_needs_a_desktop_account_and_target() {
+        let other = Some((3, key_account("deploy")));
+        assert!(
+            desktop_login_from(&rdp_target(), other).is_err_and(|e| e.contains("desktop-password"))
+        );
+        let ssh = TargetOptions::Ssh(target_options());
+        assert!(desktop_login_from(&ssh, None).is_err());
+    }
+
     mod login {
         use gated_db_entities::{Role, Target as DbTarget, UserRoleAssignment};
         use sea_orm::Database;
@@ -428,6 +570,7 @@ mod tests {
                     description: Set(String::new()),
                     credential_policy: Set(serde_json::json!({})),
                     rate_limit_bytes_per_second: Set(None),
+                    allowed_ip_ranges: Set(None),
                 }
                 .insert(&db)
                 .await
@@ -473,6 +616,7 @@ mod tests {
                     name: Set(role.into()),
                     description: Set(String::new()),
                     allow_file_transfer: Set(true),
+                    allow_clipboard: Set(false),
                 }
                 .insert(&self.db)
                 .await

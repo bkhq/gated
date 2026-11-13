@@ -15,6 +15,7 @@ import {
   listAdminSessions,
   listAdminUsers,
   listUserPasswordCredentials,
+  setUserRoleExpiry,
   updateAdminUser,
 } from '@/shared/lib/api/users'
 
@@ -28,6 +29,8 @@ function adminUserToDomain(user: AdminUser | AdminUserListItem): User {
   }
   if (user.rate_limit_bytes_per_second != null)
     result.rate_limit_bytes_per_second = user.rate_limit_bytes_per_second
+  if (user.allowed_ip_ranges != null)
+    result.allowed_ip_ranges = user.allowed_ip_ranges
   return result
 }
 
@@ -48,6 +51,8 @@ function userPatchToDataRequest(existing: AdminUser, patch: Partial<User>): Admi
     body.credential_policy = existing.credential_policy
   if (existing.rate_limit_bytes_per_second !== undefined)
     body.rate_limit_bytes_per_second = existing.rate_limit_bytes_per_second
+  // The update replaces the list, so an untouched one is sent back as it is.
+  body.allowed_ip_ranges = patch.allowed_ip_ranges ?? existing.allowed_ip_ranges
   return body
 }
 
@@ -61,15 +66,26 @@ export function useUsers() {
   })
 }
 
-// Reconcile user-role bindings to the desired set (role ids).
-async function syncUserRoles(userId: string, desiredRoleIds: string[]): Promise<void> {
+/** Expiry per role id, as an ISO time; `null` = never. A role left out keeps its expiry. */
+export type RoleExpiry = Record<string, string | null>
+
+function sameInstant(a: string | null, b: string | null): boolean {
+  return a === null || b === null ? a === b : new Date(a).getTime() === new Date(b).getTime()
+}
+
+// Reconcile user-role bindings to the desired set (role ids), then the
+// expiries that differ from what is stored.
+async function syncUserRoles(userId: string, desiredRoleIds: string[], roleExpiry: RoleExpiry = {}): Promise<void> {
   const current = await getAdminUserRoles(userId)
-  const currentIds = new Set(current.map(role => role.id))
+  const stored = new Map(current.map(role => [role.id, role.expires_at ?? null]))
   const desired = new Set(desiredRoleIds)
   await Promise.all([
-    ...desiredRoleIds.filter(id => !currentIds.has(id)).map(async id => addUserRole(userId, id)),
+    ...desiredRoleIds.filter(id => !stored.has(id)).map(async id => addUserRole(userId, id)),
     ...current.filter(role => !desired.has(role.id)).map(async role => deleteUserRole(userId, role.id)),
   ])
+  // A new assignment is permanent until told otherwise.
+  const changed = desiredRoleIds.filter(id => id in roleExpiry && !sameInstant(roleExpiry[id] ?? null, stored.get(id) ?? null))
+  await Promise.all(changed.map(async id => setUserRoleExpiry(userId, id, roleExpiry[id] ?? null)))
 }
 
 export function useUserRoles(userId: string | undefined) {
@@ -82,14 +98,14 @@ export function useUserRoles(userId: string | undefined) {
 
 export function useCreateUser() {
   const qc = useQueryClient()
-  return useMutation<User, ApiError, UserDraft & { roleIds?: string[], password?: string }>({
-    mutationFn: async ({ roleIds, password, ...draft }) => {
+  return useMutation<User, ApiError, UserDraft & { roleIds?: string[], roleExpiry?: RoleExpiry, password?: string }>({
+    mutationFn: async ({ roleIds, roleExpiry, password, ...draft }) => {
       const body = userDraftToCreateRequest(draft)
       const created = await createAdminUser(body)
       if (password)
         await createUserPasswordCredential(created.id, password)
       if (roleIds && roleIds.length > 0)
-        await syncUserRoles(created.id, roleIds)
+        await syncUserRoles(created.id, roleIds, roleExpiry)
       return adminUserToDomain(created)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['users'] }) },
@@ -98,13 +114,13 @@ export function useCreateUser() {
 
 export function useUpdateUser() {
   const qc = useQueryClient()
-  return useMutation<User | null, ApiError, { id: string, patch: Partial<User>, roleIds?: string[] }>({
-    mutationFn: async ({ id, patch, roleIds }) => {
+  return useMutation<User | null, ApiError, { id: string, patch: Partial<User>, roleIds?: string[], roleExpiry?: RoleExpiry }>({
+    mutationFn: async ({ id, patch, roleIds, roleExpiry }) => {
       const existing = await getAdminUser(id)
       const body = userPatchToDataRequest(existing, patch)
       const updated = await updateAdminUser(id, body)
       if (roleIds)
-        await syncUserRoles(id, roleIds)
+        await syncUserRoles(id, roleIds, roleExpiry)
       return adminUserToDomain(updated)
     },
     onSuccess: async () => { void qc.invalidateQueries({ queryKey: ['users'] }) },

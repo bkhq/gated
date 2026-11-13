@@ -38,6 +38,8 @@ const COMPATIBLE: Record<TargetKind, AccountKind[]> = {
   mysql: ['db-password'],
   postgres: ['db-password'],
   http: ['http-headers', 'k8s-token', 'k8s-client-cert'],
+  rdp: ['desktop-password'],
+  vnc: ['desktop-password'],
 }
 
 function compatibleKinds(kind: TargetKind): AccountKind[] {
@@ -59,6 +61,11 @@ interface DraftState {
   user: string
   readonly: boolean
   flavor: HttpFlavor
+  // RDP only.
+  domain: string
+  verifyTls: boolean
+  // RDP and VNC.
+  recordKeystrokes: boolean
   // Credentials come from a bound account or are typed in on the target.
   authSource: 'account' | 'manual'
   authMethod: InlineAuth['method']
@@ -66,6 +73,10 @@ interface DraftState {
   privateKey: string
   passphrase: string
   token: string
+}
+
+function isDesktop(kind: TargetKind): boolean {
+  return kind === 'rdp' || kind === 'vnc'
 }
 
 function defaultAuthMethod(kind: TargetKind): InlineAuth['method'] {
@@ -92,6 +103,8 @@ const DEFAULT_PORTS: Record<TargetKind, number> = {
   mysql: 3306,
   postgres: 5432,
   http: 443,
+  rdp: 3389,
+  vnc: 5900,
 }
 
 function emptyDraft(): DraftState {
@@ -105,6 +118,9 @@ function emptyDraft(): DraftState {
     user: '',
     readonly: false,
     flavor: 'generic',
+    domain: '',
+    verifyTls: true,
+    recordKeystrokes: false,
     authSource: 'account',
     authMethod: defaultAuthMethod('ssh'),
     ...BLANK_SECRETS,
@@ -122,6 +138,9 @@ function draftFromTarget(target: TargetWithAccounts): DraftState {
     user: target.user,
     readonly: !!target.readonly,
     flavor: target.flavor ?? 'generic',
+    domain: target.domain ?? '',
+    verifyTls: target.verifyTls ?? true,
+    recordKeystrokes: !!target.recordKeystrokes,
     authSource: target.accounts?.length ? 'account' : 'manual',
     authMethod: target.inlineAuth?.method ?? defaultAuthMethod(target.kind),
     ...BLANK_SECRETS,
@@ -265,6 +284,9 @@ function TargetFormDrawerBody({ mode, target, onClose, onDeleted, onSaved }: Tar
       description: draft.description,
       readonly: draft.readonly,
       flavor: draft.kind === 'http' ? draft.flavor : undefined,
+      domain: draft.kind === 'rdp' && manual ? draft.domain : undefined,
+      verifyTls: draft.kind === 'rdp' ? draft.verifyTls : undefined,
+      recordKeystrokes: isDesktop(draft.kind) ? draft.recordKeystrokes : undefined,
       accounts,
       inlineAuth: manual ? inlineAuthFromDraft(draft) : undefined,
     }
@@ -330,6 +352,8 @@ function TargetFormDrawerBody({ mode, target, onClose, onDeleted, onSaved }: Tar
                     { value: 'mysql', label: 'MySQL' },
                     { value: 'postgres', label: 'PostgreSQL' },
                     { value: 'http', label: 'HTTP' },
+                    { value: 'rdp', label: 'RDP' },
+                    { value: 'vnc', label: 'VNC' },
                   ]}
                 />
               </div>
@@ -443,8 +467,24 @@ function TargetFormDrawerBody({ mode, target, onClose, onDeleted, onSaved }: Tar
                 <Switch checked={draft.readonly} onCheckedChange={value => patch('readonly', value)} aria-label={t('targets.form.policy.readOnly')} />
               </Row2>
             </Card>
-            {draft.kind === 'ssh' || draft.kind === 'http'
+            {draft.kind !== 'mysql' && draft.kind !== 'postgres'
               ? <p className="m-0 text-[12px] text-muted-foreground">{t('targets.form.policy.readOnlyDbOnly')}</p>
+              : null}
+            {isDesktop(draft.kind)
+              ? (
+                  <Card className="flex flex-col gap-3 p-3.5">
+                    <Row2 label={t('targets.form.policy.recordKeystrokes')} hint={t('targets.form.policy.recordKeystrokesHint')}>
+                      <Switch checked={draft.recordKeystrokes} onCheckedChange={value => patch('recordKeystrokes', value)} aria-label={t('targets.form.policy.recordKeystrokes')} />
+                    </Row2>
+                    {draft.kind === 'rdp'
+                      ? (
+                          <Row2 label={t('targets.form.policy.verifyTls')} hint={t('targets.form.policy.verifyTlsHint')}>
+                            <Switch checked={draft.verifyTls} onCheckedChange={value => patch('verifyTls', value)} aria-label={t('targets.form.policy.verifyTls')} />
+                          </Row2>
+                        )
+                      : <p className="m-0 text-[12px] text-muted-foreground">{t('targets.form.policy.vncUnencrypted')}</p>}
+                  </Card>
+                )
               : null}
           </div>
         </FormSection>
@@ -547,7 +587,7 @@ function ManualAuthFields({ draft, patch, invalid, canKeepSecret }: ManualAuthFi
 
   return (
     <div className="flex flex-col gap-4">
-      {draft.kind !== 'http'
+      {draft.kind !== 'http' && draft.kind !== 'vnc'
         ? (
             <div>
               <Label htmlFor="target-user">{t('targets.form.auth.username')}</Label>
@@ -555,6 +595,14 @@ function ManualAuthFields({ draft, patch, invalid, canKeepSecret }: ManualAuthFi
               {draft.kind === 'ssh'
                 ? <div className="mt-1.5 text-[12px] text-muted-foreground">{t('targets.form.auth.usernameSshHint')}</div>
                 : null}
+            </div>
+          )
+        : null}
+      {draft.kind === 'rdp'
+        ? (
+            <div>
+              <Label htmlFor="target-domain">{t('targets.form.auth.domain')}</Label>
+              <Input id="target-domain" value={draft.domain} onChange={event => patch('domain', event.target.value)} />
             </div>
           )
         : null}

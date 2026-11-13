@@ -108,6 +108,30 @@ export function CredentialsEditor({ credentials, onChange }: CredentialsEditorPr
           </div>
         </div>
       )
+    case 'desktop-password':
+      return (
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <FieldText
+            label={t('accounts.form.cred.username')}
+            value={credentials.username}
+            onChange={username => onChange({ ...credentials, username })}
+            autoComplete="username"
+            placeholder={t('accounts.form.cred.desktopUsernameHint')}
+          />
+          <FieldText
+            label={t('accounts.form.cred.domain')}
+            value={credentials.domain ?? ''}
+            onChange={domain => onChange({ ...credentials, domain })}
+          />
+          <div className="sm:col-span-2">
+            <FieldPassword
+              label={t('accounts.form.cred.password')}
+              value={credentials.password}
+              onChange={password => onChange({ ...credentials, password })}
+            />
+          </div>
+        </div>
+      )
     case 'k8s-token':
       return (
         <div className="flex flex-col gap-4">

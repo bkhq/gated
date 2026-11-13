@@ -1,3 +1,4 @@
+use gated_common::helpers::password_policy::PasswordPolicy;
 use sea_orm::Set;
 use sea_orm::entity::prelude::*;
 use uuid::Uuid;
@@ -32,6 +33,42 @@ pub struct Model {
     pub site_title: Option<String>,
     /// Hours between automatic target reachability checks; 0 turns them off.
     pub target_check_interval_hours: i32,
+    /// Blocks client addresses and locks users out after repeated failed
+    /// sign-ins. The `lp_*` columns are its thresholds, durations in seconds.
+    pub login_protection_enabled: bool,
+    pub lp_ip_max_attempts: i32,
+    pub lp_ip_window_seconds: i32,
+    /// Length of the first block; each repeat doubles it up to
+    /// `lp_ip_max_block_seconds`.
+    pub lp_ip_block_seconds: i32,
+    pub lp_ip_max_block_seconds: i32,
+    pub lp_user_max_attempts: i32,
+    pub lp_user_window_seconds: i32,
+    /// 0 keeps a user locked until an administrator lifts the lockout.
+    pub lp_user_lockout_seconds: i32,
+    /// Longest lifetime a user may give an API token. `None`: no limit.
+    pub max_api_token_duration_seconds: Option<i64>,
+    /// Rules for new passwords, see [`Model::password_policy`].
+    pub password_min_length: i32,
+    pub password_require_uppercase: bool,
+    pub password_require_lowercase: bool,
+    pub password_require_digits: bool,
+    pub password_require_special: bool,
+    /// Every user must enroll an OTP device: the web interface offers
+    /// nothing but enrollment until then, and other protocols refuse.
+    pub mfa_required: bool,
+}
+
+impl Model {
+    pub fn password_policy(&self) -> PasswordPolicy {
+        PasswordPolicy {
+            min_length: u32::try_from(self.password_min_length).unwrap_or(0),
+            require_uppercase: self.password_require_uppercase,
+            require_lowercase: self.password_require_lowercase,
+            require_digits: self.password_require_digits,
+            require_special: self.password_require_special,
+        }
+    }
 }
 
 impl ActiveModelBehavior for ActiveModel {}
@@ -59,6 +96,21 @@ impl Entity {
                     terminal_watermark_enabled: Set(false),
                     site_title: Set(None),
                     target_check_interval_hours: Set(24),
+                    login_protection_enabled: Set(true),
+                    lp_ip_max_attempts: Set(20),
+                    lp_ip_window_seconds: Set(900),
+                    lp_ip_block_seconds: Set(1800),
+                    lp_ip_max_block_seconds: Set(86400),
+                    lp_user_max_attempts: Set(10),
+                    lp_user_window_seconds: Set(3600),
+                    lp_user_lockout_seconds: Set(3600),
+                    max_api_token_duration_seconds: Set(None),
+                    password_min_length: Set(0),
+                    password_require_uppercase: Set(false),
+                    password_require_lowercase: Set(false),
+                    password_require_digits: Set(false),
+                    password_require_special: Set(false),
+                    mfa_required: Set(false),
                 }
                 .insert(db)
                 .await

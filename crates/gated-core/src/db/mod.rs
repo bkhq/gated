@@ -161,6 +161,7 @@ pub async fn populate_db(
             description: Set("Built-in admin role".into()),
             name: Set(BUILTIN_ADMIN_ROLE_NAME.to_owned()),
             allow_file_transfer: Set(true),
+            allow_clipboard: Set(false),
         };
         values.insert(&*db).await.map_err(GatedError::from)?;
     }
@@ -248,6 +249,7 @@ pub async fn create_user(
                 description: Set("".into()),
                 credential_policy: Set(serde_json::to_value(None::<UserRequireCredentialsPolicy>)?),
                 rate_limit_bytes_per_second: Set(None),
+                allowed_ip_ranges: Set(None),
             }
             .insert(db)
             .await?

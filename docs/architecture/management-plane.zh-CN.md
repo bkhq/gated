@@ -34,7 +34,7 @@
 `http.base_domain` 下的主机（被代理的目标）永不信任。以令牌认证的升级请求不需要 `Origin`。
 
 安全响应头（`X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy`，TLS 时加 HSTS）
-全局设置。请求也可以用 `X-Gated-Token` 头（管理令牌或 API 令牌）代替 cookie 认证（`http_service/common.rs`）。
+全局设置。响应还带有 `Content-Security-Policy`（`default-src 'self'`、禁止内联脚本、`frame-ancestors 'none'`、`object-src 'none'`），处理器自行设置时除外；只有 API playground 放宽。被代理目标的响应不受影响。请求也可以用 `X-Gated-Token` 头（管理令牌或 API 令牌）代替 cookie 认证（`http_service/common.rs`）。
 
 ### 管理审计
 
@@ -110,7 +110,7 @@ SPA（`web/`）基于 React 19 + TanStack Router + Tailwind 4，用 Vite（base 
 | `external_host` | 用于 URL / SSO 重定向的公开主机名 |
 | `database_url` | 密钥；默认 `sqlite:data/db` |
 | `ssh` | enable、listen、主机密钥验证模式、空闲超时、keepalive |
-| `admin` | 管理 / 门户监听器：listen、TLS 证书 / 密钥（或 `tls: false`）、SNI 证书、cookie 域、会话 / cookie max-age、`trust_x_forwarded_headers` |
+| `admin` | 管理 / 门户监听器：listen、TLS 证书 / 密钥（或 `tls: false`）、SNI 证书、cookie 域、会话 / cookie max-age、`trust_x_forwarded_headers`、`user_api_token_allowed_endpoints`（用户 API 令牌可调用的端点：`"<METHOD> <path>"` 条目，结尾 `*` 表示前缀；未设置则不限制） |
 | `http` | 反向代理监听器：enable、listen、`tls`、用于按主机路由的 `base_domain`、`behind_proxy`、会话 max-age |
 | `mysql` / `postgres` | enable、listen（这两个监听器和 HTTP 代理的 TLS 证书保存在数据库中） |
 | `metrics` | 为 `/metrics`、`/healthz`、`/readyz` 设置 enable + listen |

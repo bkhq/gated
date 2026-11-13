@@ -1,4 +1,5 @@
 use core::str;
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -6,7 +7,7 @@ use axum::extract::Request;
 use axum::extract::ws::{WebSocket, WebSocketUpgrade};
 use axum::http::header::HOST;
 use axum::http::request::Parts;
-use axum::http::{HeaderMap, HeaderName, StatusCode, Uri};
+use axum::http::{HeaderMap, HeaderName, Method, StatusCode, Uri};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use gated_common::auth::{AuthState, AuthStateUserInfo, CredentialKind};
@@ -15,7 +16,7 @@ use gated_core::consts::BUILTIN_ADMIN_ROLE_NAME;
 use gated_core::{AuthStateStore, ConfigProvider, Services};
 use gated_sso::CoreIdToken;
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
-use sea_orm::{ColumnTrait, EntityTrait, ModelTrait, QueryFilter};
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -159,6 +160,17 @@ impl RequestAuthorization {
         }
     }
 
+    /// The user account a session or API token acts as. Ticket sessions
+    /// reach one target and never the account; the admin token is no user.
+    pub fn account_username(&self) -> Option<&str> {
+        match self {
+            Self::Session(SessionAuthorization::User(username)) | Self::UserToken { username } => {
+                Some(username)
+            }
+            Self::Session(SessionAuthorization::Ticket { .. }) | Self::AdminToken => None,
+        }
+    }
+
     /// The ticket a ticket session was opened with.
     pub fn ticket_id(&self) -> Option<Uuid> {
         match self {
@@ -195,10 +207,7 @@ pub async fn is_user_admin(
     else {
         return Ok(false);
     };
-    let roles = user
-        .find_related(gated_db_entities::Role::Entity)
-        .all(&db)
-        .await?;
+    let roles = user.active_roles(&db).await?;
     Ok(roles.iter().any(|r| r.name == BUILTIN_ADMIN_ROLE_NAME))
 }
 
@@ -325,9 +334,37 @@ pub(crate) async fn inject_request_authorization(mut request: Request, next: Nex
                         .validate_api_token(token_from_header)
                         .await;
                     match user {
-                        Ok(Some(user)) => Some(RequestAuthorization::UserToken {
-                            username: user.username,
-                        }),
+                        Ok(Some(user))
+                            if !user.allows_address(
+                                gated_core::logging::http::client_ip_addr(
+                                    request.headers(),
+                                    request.extensions(),
+                                    &services,
+                                )
+                                .await,
+                            ) =>
+                        {
+                            tracing::warn!(target: "audit", username = %user.username, "api_token_address_not_allowed");
+                            None
+                        }
+                        Ok(Some(user)) => {
+                            let path = request.uri().path();
+                            let method = request.method().as_str();
+                            if !services
+                                .config
+                                .read()
+                                .await
+                                .store
+                                .admin
+                                .allows_user_api_token(method, path)
+                            {
+                                tracing::warn!(target: "audit", username = %user.username, %method, %path, "api_token_endpoint_denied");
+                                return StatusCode::FORBIDDEN.into_response();
+                            }
+                            Some(RequestAuthorization::UserToken {
+                                username: user.username,
+                            })
+                        }
                         Ok(None) => None,
                         Err(error) => return error.into_response(),
                     }
@@ -337,10 +374,86 @@ pub(crate) async fn inject_request_authorization(mut request: Request, next: Nex
         },
     };
 
+    if let Some(username) = auth
+        .as_ref()
+        .and_then(RequestAuthorization::account_username)
+        && !mfa_setup_allows(request.method(), request.uri().path())
+    {
+        let required = services
+            .config_provider
+            .lock()
+            .await
+            .mfa_setup_required(username)
+            .await;
+        match required {
+            Ok(false) => {}
+            Ok(true) => {
+                return (
+                    StatusCode::FORBIDDEN,
+                    [(MFA_SETUP_REQUIRED_HEADER.clone(), "1")],
+                    "MFA setup required",
+                )
+                    .into_response();
+            }
+            Err(error) => return error.into_response(),
+        }
+    }
+
     if let Some(auth) = auth {
         request.extensions_mut().insert(auth);
     }
     next.run(request).await
+}
+
+/// Set on the 403 a user gets while an OTP device still has to be enrolled.
+pub static MFA_SETUP_REQUIRED_HEADER: HeaderName =
+    HeaderName::from_static("x-gated-mfa-setup-required");
+
+/// Whether a request is open to a user who still has to enroll an OTP
+/// device: the pages themselves, the boot gate, signing in and out, and the
+/// enrollment.
+fn mfa_setup_allows(method: &Method, path: &str) -> bool {
+    if !path.starts_with("/api/") && !path.starts_with("/admin/api/") {
+        return true;
+    }
+    // The boot gate runs before sign-in; its endpoints carry their own proof.
+    if matches!(
+        path,
+        "/api/auth/state"
+            | "/api/admin/encryption/lock-status"
+            | "/api/admin/encryption/status"
+            | "/api/admin/encryption/init"
+            | "/api/admin/encryption/unlock"
+            | "/api/admin/setup/status"
+            | "/api/admin/setup/init"
+    ) {
+        return true;
+    }
+    if method == Method::GET {
+        return matches!(
+            path,
+            "/api/info"
+                | "/api/auth/session"
+                | "/api/auth/session-lifetime"
+                | "/api/sso/providers"
+                | "/api/sso/return"
+                | "/api/sso/logout"
+        ) || path
+            .strip_prefix("/api/sso/providers/")
+            .and_then(|rest| rest.strip_suffix("/start"))
+            .is_some_and(|name| !name.contains('/'));
+    }
+    method == Method::POST
+        && matches!(
+            path,
+            "/api/auth/login"
+                | "/api/auth/otp"
+                | "/api/auth/logout"
+                | "/api/auth/activity"
+                | "/api/sso/return"
+                | "/api/profile/credentials/otp/begin"
+                | "/api/profile/credentials/otp"
+        )
 }
 
 /// Host the request was addressed to, without the port.
@@ -415,6 +528,7 @@ pub async fn get_auth_state_for_request(
     username: &str,
     session: &Session,
     store: &mut AuthStateStore,
+    remote_ip: Option<IpAddr>,
 ) -> Result<Arc<Mutex<AuthState>>, GatedError> {
     if let Some(id) = session.get_auth_state_id()
         && !store.contains_key(&id.0)
@@ -441,6 +555,7 @@ pub async fn get_auth_state_for_request(
                 CredentialKind::Sso,
                 CredentialKind::Totp,
             ],
+            remote_ip,
         )
         .await?;
     session.set(AUTH_STATE_ID_SESSION_KEY, AuthStateId(id));
@@ -519,6 +634,44 @@ pub async fn authorize_session(
 #[cfg(test)]
 mod audit_regression_tests {
     use super::*;
+
+    #[test]
+    fn mfa_setup_opens_only_pages_sign_in_and_enrollment() {
+        for (method, path, allowed) in [
+            (Method::GET, "/ui/", true),
+            (Method::GET, "/ui/assets/index.js", true),
+            (Method::GET, "/api/info", true),
+            (Method::GET, "/api/auth/state", true),
+            (Method::DELETE, "/api/auth/state", true),
+            (Method::POST, "/api/auth/login", true),
+            (Method::POST, "/api/auth/otp", true),
+            (Method::POST, "/api/auth/logout", true),
+            (Method::GET, "/api/sso/providers", true),
+            (Method::GET, "/api/sso/providers/google/start", true),
+            (Method::GET, "/api/sso/return", true),
+            (Method::POST, "/api/sso/return", true),
+            (Method::POST, "/api/profile/credentials/otp/begin", true),
+            (Method::POST, "/api/profile/credentials/otp", true),
+            (Method::GET, "/api/profile/credentials", false),
+            (Method::DELETE, "/api/profile/credentials/otp", false),
+            (Method::POST, "/api/profile/credentials/password", false),
+            (Method::POST, "/api/info", false),
+            (Method::GET, "/api/targets", false),
+            (Method::GET, "/api/ssh/terminal/target", false),
+            (Method::POST, "/api/profile/api-tokens", false),
+            (Method::POST, "/api/auth/state/some-id/approve", false),
+            (Method::GET, "/api/sso/providers/google/start/more", false),
+            (Method::GET, "/api/sso/providers/a/b/start", false),
+            (Method::GET, "/admin/api/users", false),
+            (Method::GET, "/api/admin/setup/status", true),
+            (Method::GET, "/api/admin/encryption/lock-status", true),
+            (Method::POST, "/api/admin/encryption/unlock", true),
+            (Method::POST, "/api/admin/encryption/lock", false),
+            (Method::POST, "/api/admin/encryption/rekey-master", false),
+        ] {
+            assert_eq!(mfa_setup_allows(&method, path), allowed, "{method} {path}");
+        }
+    }
 
     #[test]
     fn host_parsing_keeps_ipv6_literals_intact() {

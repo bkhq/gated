@@ -51,6 +51,10 @@ under a configured `admin.cookie_domain`, and hosts under `http.base_domain`
 
 Security headers (`X-Content-Type-Options: nosniff`,
 `X-Frame-Options: DENY`, `Referrer-Policy`, HSTS when TLS) are set globally.
+Responses also carry a `Content-Security-Policy` (`default-src 'self'`, no
+inline script, `frame-ancestors 'none'`, `object-src 'none'`) unless the
+handler set its own; only the API playground relaxes it. Responses of
+proxied targets are not touched.
 Requests can also authenticate with the `X-Gated-Token` header (admin token
 or API token) instead of a cookie
 (`http_service/common.rs`).
@@ -154,7 +158,7 @@ root:
 | `external_host` | public hostname used for URLs/SSO redirects |
 | `database_url` | secret; default `sqlite:data/db` |
 | `ssh` | enable, listen, host-key verification mode, inactivity timeout, keepalive |
-| `admin` | management/portal listener: listen, TLS cert/key (or `tls: false`), SNI certificates, cookie domain, session/cookie max-age, `trust_x_forwarded_headers` |
+| `admin` | management/portal listener: listen, TLS cert/key (or `tls: false`), SNI certificates, cookie domain, session/cookie max-age, `trust_x_forwarded_headers`, `user_api_token_allowed_endpoints` (what a user API token may call: `"<METHOD> <path>"` entries, trailing `*` = prefix; unset = no limit) |
 | `http` | reverse-proxy listener: enable, listen, `tls`, `base_domain` for host-based routing, `behind_proxy`, session max-age |
 | `mysql` / `postgres` | enable, listen (TLS certificates of these listeners and the HTTP proxy live in the database) |
 | `metrics` | enable + listen for `/metrics`, `/healthz`, `/readyz` |

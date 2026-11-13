@@ -160,6 +160,9 @@
 
 - Summary：用于 SPA 启动的实例 / 会话信息。
 - Responses：`200 OK` `Json<Info>`。`site_title`（未设置为 `null`）对未鉴权请求同样返回，供登录页显示。未鉴权时 `version`、`ports.*` 均为 `null`；`setup_state` 仅对 admin 且 users 或 targets 计数 ≤ 1 时返回。`session_lifetime` 为当前会话的空闲时长（秒，默认 `admin.session_max_age`）；`session_lifetime_options` 为可选项：30 分钟、1 小时、4 小时、8 小时、24 小时中不超过 `admin.cookie_max_age` 的值，外加默认值。
+- `max_api_token_duration_seconds`（`null` 表示不限制或未登录）是用户可创建的 API 令牌的最长有效期。
+- `mfa_setup_required`：强制 MFA 开启且当前登录用户没有 OTP 设备时为 `true`。此时该用户的其他调用一律返回 `403`，并带响应头 `X-Gated-Mfa-Setup-Required: 1`；登录、登出、`/api/info` 和两个 OTP 绑定调用除外（见 `docs/architecture/auth.zh-CN.md`“强制 MFA”）。
+- 配置了 `admin.user_api_token_allowed_endpoints` 时，用用户 API 令牌认证的请求访问不在列表中的端点（包括本端点）一律返回 `403`（条目格式 `"<METHOD> <path>"`，路径以 `*` 结尾表示前缀匹配）。会话与管理令牌不受限制。
 
 #### `GET /api/targets` — `get_targets` [OAS]
 
@@ -190,8 +193,8 @@
 
 #### `POST /api/profile/credentials/password` — `change_my_password` [OAS]
 
-- Body：`{ password: string }`（secret — write-only）。
-- Responses：`201 Created` `Json<PasswordState>`（字面量 `"Set"`）/ `401` / `403`。
+- Body：`{ old_password: string, password: string }`（secret — write-only）。
+- Responses：`201 Created` `Json<PasswordState>`（字面量 `"Set"`）/ `400` `Json<string>`（新密码不符合密码策略，消息说明缺少什么）/ `401` / `403`。
 
 #### `POST /api/profile/credentials/public-keys` — `add_my_public_key` [OAS]
 
@@ -217,7 +220,7 @@
 #### `DELETE /api/profile/credentials/otp/:id` — `delete_my_otp` [OAS]
 
 - 如果删除后用户已无 OTP，自动从凭据策略移除 `Totp` 要求。
-- Responses：`204` / `401` / `404` / `403`。
+- Responses：`204` / `401` / `404` / `403`（参数开关；或强制 MFA 期间删除用户最后一个设备时返回 `Json<string>`）。
 
 #### `POST /api/profile/credentials/certificates` — `issue_my_certificate` [OAS]
 
@@ -238,7 +241,7 @@
 #### `POST /api/profile/api-tokens` — `create_api_token` [OAS]
 
 - Body：`Json<NewApiToken> { label: string, expiry: date-time }`。
-- Responses：`201 Created` `Json<TokenAndSecret> { token, secret }`（`secret` — one-time reveal）/ `400`（`expiry` 不在未来）/ `401`。
+- Responses：`201 Created` `Json<TokenAndSecret> { token, secret }`（`secret` — one-time reveal）/ `400`（`expiry` 不在未来）/ `401` / `400`（`expiry` 超出 `max_api_token_duration_seconds` 允许的范围）/ `403`（请求本身用 API 令牌认证时；令牌不能签发新令牌）。
 
 #### `DELETE /api/profile/api-tokens/:id` — `delete_my_api_token` [OAS]
 
@@ -453,7 +456,8 @@
 
 #### `PUT /admin/api/users/:id` — `update_user` [OAS]
 
-- Body：`UserDataRequest { username, credential_policy?, description?, rate_limit_bytes_per_second? }`。
+- Body：`UserDataRequest { username, credential_policy?, description?, rate_limit_bytes_per_second?, allowed_ip_ranges?: string[] }`。
+- `allowed_ip_ranges`：该用户可以登录、使用 API 令牌和工单的 IP 地址与 CIDR 网段（IPv4 或 IPv6），对所有监听端口生效。`null`、缺省或空列表表示不限制（更新会整体替换已存的列表）。格式错误的条目返回 `400` 并指出该条目。用户相关端点返回的 `User` 对象包含该列表（`null` 表示不限制）。
 - Responses：`200 OK` `User` / `404`。
 
 #### `DELETE /admin/api/users/:id` — `delete_user` [OAS]
@@ -462,10 +466,15 @@
 - Responses：`204` / `404`。
 
 #### `GET /admin/api/users/:id/roles` — `get_user_roles` [OAS]
-- `200 OK` `Role[]` / `404`。
+- `200 OK` `UserRole[]` / `404`。`UserRole` 是 `Role` 加上 `expires_at?: datetime`（`null` 表示永不过期）。已过期的分配在被删除或延期之前仍会列出；`GET /admin/api/users` 的 `roles` 名称列表不包含它。
 
 #### `POST /admin/api/users/:id/roles/:role_id` — `add_user_role` [OAS]
-- `201 Created` 空 body / `409` 已存在。
+- `201 Created` 空 body / `409` 已存在（已有分配已过期时同样返回 `409`，请用 `PUT` 延期）。新建的分配永不过期。
+
+#### `PUT /admin/api/users/:id/roles/:role_id` — `update_user_role` [OAS]
+- Body `UserRoleUpdate { expires_at: datetime | null }`：分配的结束时间；`null` 表示永久。设置为将来的时间或 `null` 可恢复已过期的分配。
+- 到达 `expires_at` 之后，该角色不再授予用户任何权限（目标访问、文件传输、按角色生效的命令规则、`admin` 角色），由它准入的会话会在约 15 秒内被关闭。
+- Responses：`200 OK` `UserRole` / `400` `Json<string>`（`expires_at` 不在将来）/ `404`（用户没有该角色）。
 
 #### `DELETE /admin/api/users/:id/roles/:role_id` — `delete_user_role` [OAS]
 - `204` / `404`。
@@ -475,7 +484,7 @@
 #### 密码 (`password_credentials.rs`)
 
 - `GET /admin/api/users/:user_id/credentials/passwords` — `200 OK` `ExistingPasswordCredential[]`（只有 `{ id }`）。
-- `POST /admin/api/users/:user_id/credentials/passwords` — Body `{ password: string }`（secret — write-only），`201 Created` `ExistingPasswordCredential`。
+- `POST /admin/api/users/:user_id/credentials/passwords` — Body `{ password: string }`（secret — write-only），`201 Created` `ExistingPasswordCredential`；密码不符合密码策略时返回 `400` `Json<string>`。
 - `DELETE /admin/api/users/:user_id/credentials/passwords/:id` — `204` / `404`。
 
 #### 公钥 (`public_key_credentials.rs`)
@@ -732,6 +741,10 @@
   - `terminal_watermark_enabled: bool`
   - `site_title?: string`（`null` 表示使用内置标题 “Gated”）
   - `target_check_interval_hours: u32`（自动存活检测间隔小时数，`0` 关闭；默认 24）
+  - `max_api_token_duration_seconds?: u32`（`null` 表示不限制）
+  - `password_policy: PasswordPolicy` `{ min_length: u32, require_uppercase, require_lowercase, require_digits, require_special: bool }`（默认无要求）
+  - `mfa_required: bool`（默认 `false`）
+  - `login_protection: LoginProtectionParameters`（时长单位为秒）：`enabled: bool`（默认 `true`）、`ip_max_attempts: u32`（20）、`ip_window_seconds: u32`（900）、`ip_block_seconds: u32`（1800）、`ip_max_block_seconds: u32`（86400）、`user_max_attempts: u32`（10）、`user_window_seconds: u32`（3600）、`user_lockout_seconds: u32`（3600；`0` 表示直到管理员解除）
 
 #### `PUT /admin/api/parameters` — `update_parameters` [OAS]
 
@@ -741,7 +754,18 @@
   - 部分字段（缺省 = 保留旧值）：`ssh_client_auth_publickey?`、`ssh_client_auth_password?`、`ssh_client_auth_keyboard_interactive?`、`minimize_password_login?`、`terminal_watermark_enabled?`
   - `site_title?: string`：缺省保留旧值；去除首尾空白后为空则清除（恢复 “Gated”）；最多 64 个字符，不能包含控制字符。
   - `target_check_interval_hours?: u32`：0 到 168；缺省保留旧值。
-- Responses：`201 Created`（变体 `Done`），空 body；`400` `Json<string>`（`site_title` 或 `target_check_interval_hours` 不合法）。
+  - `max_api_token_duration_seconds?: u32`：用户通过 `POST /api/profile/api-tokens` 自行创建的令牌的最长有效期；`0` 取消限制，缺省保留旧值。通过 `/admin/api/users/:user_id/api-tokens` 创建的令牌不受限制。
+  - `password_policy?: PasswordPolicy`：缺省保留旧规则；`min_length` 为 0 到 128。规则对此后通过管理 API 与个人资料 API 设置的密码生效；已有密码不会重新检查，主机上的命令（`setup`、`create-user`、`recover-access`）不受其约束。
+  - `mfa_required?: bool`：缺省保留旧值。开启后，每个用户都必须先绑定 OTP 设备才能使用网关（见 `docs/architecture/auth.zh-CN.md`“强制 MFA”），开启它的管理员本人也不例外。
+  - `login_protection?: LoginProtectionParameters`：缺省保留旧值；提供时所有字段必填。次数 1 到 1000；统计周期 60 到 86400；`ip_block_seconds` 60 到 2592000；`ip_max_block_seconds` 从 `ip_block_seconds` 到 2592000；`user_lockout_seconds` 为 0 或 60 到 2592000。
+- Responses：`201 Created`（变体 `Done`），空 body；`400` `Json<string>`（`site_title`、`target_check_interval_hours` 或 `login_protection` 的值不合法）。
+
+#### 登录保护（`login_protection.rs`）[OAS]
+
+- `GET /admin/api/login-protection/ip-blocks` — `200 OK` `Json<IpBlock[]>` `{ ip_address, block_count, blocked_at, expires_at }`：当前生效的地址封禁，最新的在前。
+- `DELETE /admin/api/login-protection/ip-blocks/:ip` — 解除封禁并清除该地址的失败记录；`204` / `404`。
+- `GET /admin/api/login-protection/user-lockouts` — `200 OK` `Json<UserLockout[]>` `{ username, locked_at, expires_at? }`（`expires_at: null` 表示直到手动解除）。
+- `DELETE /admin/api/login-protection/user-lockouts/:username` — 解除锁定并清除该用户的失败记录；`204` / `404`。
 
 ### 2.12 OpenAPI 元数据
 
@@ -1297,6 +1321,8 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 |---|---|---|---|
 | DELETE | `/admin/api/accounts/:id` | `delete_account` |  |
 | DELETE | `/admin/api/command-acl-rule/:id` | `delete_command_acl_rule` |  |
+| DELETE | `/admin/api/login-protection/ip-blocks/:ip` | `delete_ip_block` |  |
+| DELETE | `/admin/api/login-protection/user-lockouts/:username` | `delete_user_lockout` |  |
 | DELETE | `/admin/api/management-sessions/:id` | `revoke_management_session` |  |
 | DELETE | `/admin/api/role/:id` | `delete_role` |  |
 | DELETE | `/admin/api/sessions/:id` | `delete_session` | Delete a session record and everything attached to it: its recording |
@@ -1325,6 +1351,8 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | GET | `/admin/api/command-records` | `get_command_records` | List/search command records across the shell and SQL audit streams. |
 | GET | `/admin/api/command-reviews` | `get_command_reviews` |  |
 | GET | `/admin/api/file-records` | `get_file_records` | List/search file operations, newest first. Filters are AND-combined; |
+| GET | `/admin/api/login-protection/ip-blocks` | `get_ip_blocks` |  |
+| GET | `/admin/api/login-protection/user-lockouts` | `get_user_lockouts` |  |
 | GET | `/admin/api/management-sessions` | `get_management_sessions` |  |
 | GET | `/admin/api/parameters` | `get_parameters` |  |
 | GET | `/admin/api/recordings/:id/http-proxy` | `get_http_proxy_recording` |  |
@@ -1403,6 +1431,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | PUT | `/admin/api/tls/acme` | `update_acme_settings` | Saves the ACME account and DNS provider. Changing the directory or contact |
 | PUT | `/admin/api/tls/certificates/:listener/acme` | `enable_tls_acme` | Issues the listener's certificate through ACME now and renews it |
 | PUT | `/admin/api/tls/certificates/:listener` | `import_tls_certificate` | Stores a certificate and private key for the listener, replacing the |
+| PUT | `/admin/api/users/:id/roles/:role_id` | `update_user_role` | Sets or clears the expiry of a role assignment. Clearing it or moving it |
 | PUT | `/admin/api/users/:id` | `update_user` |  |
 | PUT | `/admin/api/users/:user_id/credentials/public-keys/:id` | `update_public_key_credential` |  |
 | PUT | `/admin/api/users/:user_id/credentials/sso/:id` | `update_sso_credential` |  |

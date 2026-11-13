@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { adminApi, setOnUnauthorized, userApi } from './http'
+import { adminApi, setOnMfaSetupRequired, setOnUnauthorized, userApi } from './http'
 
 const originalFetch = globalThis.fetch
 
@@ -105,5 +105,31 @@ describe('error messages', () => {
   it('marks a 401 that ended the session', async () => {
     mockFetch(401, '')
     await expect(adminApi.get('/x')).rejects.toMatchObject({ sessionExpired: true })
+  })
+})
+
+describe('http MFA setup callback', () => {
+  afterEach(() => {
+    setOnMfaSetupRequired(null)
+    globalThis.fetch = originalFetch
+  })
+
+  it('fires when a response says the user still has to enroll', async () => {
+    globalThis.fetch = vi.fn(async () => new Response('MFA setup required', {
+      status: 403,
+      headers: { 'x-gated-mfa-setup-required': '1' },
+    }))
+    const cb = vi.fn()
+    setOnMfaSetupRequired(cb)
+    await expect(userApi.get('/targets')).rejects.toThrow()
+    expect(cb).toHaveBeenCalledOnce()
+  })
+
+  it('stays quiet on any other 403', async () => {
+    mockFetch(403, 'forbidden')
+    const cb = vi.fn()
+    setOnMfaSetupRequired(cb)
+    await expect(userApi.get('/targets')).rejects.toThrow()
+    expect(cb).not.toHaveBeenCalled()
   })
 })

@@ -33,6 +33,7 @@ reqwest-websocket.workspace = true
 russh.workspace = true
 rustls.workspace = true
 schemars.workspace = true
+ipnet = "2"
 sea-orm.workspace = true
 serde_json.workspace = true
 serde.workspace = true

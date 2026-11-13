@@ -157,15 +157,17 @@ pub async fn api_get_recording_cast(
     Ok(response.join("\n"))
 }
 
-pub async fn api_get_recording_tcpdump(
-    db: Data<SharedDatabaseConnection>,
-    recordings: Data<Arc<Mutex<SessionRecordings>>>,
-    id: Path<Uuid>,
+/// The stored file of a recording of `kind`, streamed as it is.
+async fn recording_file(
+    db: &SharedDatabaseConnection,
+    recordings: &Mutex<SessionRecordings>,
+    id: Uuid,
+    kind: RecordingKind,
 ) -> Result<Body, GatedError> {
-    let db = gated_core::db_required(&db).await?;
+    let db = gated_core::db_required(db).await?;
 
-    let recording = Recording::Entity::find_by_id(id.0)
-        .filter(Recording::Column::Kind.eq(RecordingKind::Traffic))
+    let recording = Recording::Entity::find_by_id(id)
+        .filter(Recording::Column::Kind.eq(kind))
         .one(&db)
         .await
         .map_err(GatedError::other)?;
@@ -184,6 +186,23 @@ pub async fn api_get_recording_tcpdump(
     let file = File::open(path).await.map_err(GatedError::other)?;
 
     Ok(Body::from_stream(ReaderStream::new(file)))
+}
+
+pub async fn api_get_recording_tcpdump(
+    db: Data<SharedDatabaseConnection>,
+    recordings: Data<Arc<Mutex<SessionRecordings>>>,
+    id: Path<Uuid>,
+) -> Result<Body, GatedError> {
+    recording_file(&db, &recordings, id.0, RecordingKind::Traffic).await
+}
+
+/// A desktop recording: one JSON item per line (`DesktopRecordingItem`).
+pub async fn api_get_recording_desktop(
+    db: Data<SharedDatabaseConnection>,
+    recordings: Data<Arc<Mutex<SessionRecordings>>>,
+    id: Path<Uuid>,
+) -> Result<Body, GatedError> {
+    recording_file(&db, &recordings, id.0, RecordingKind::Desktop).await
 }
 
 pub async fn api_get_recording_stream(

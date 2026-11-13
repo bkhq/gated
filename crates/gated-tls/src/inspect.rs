@@ -10,6 +10,7 @@ use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, Server
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{ClientConfig, DigitallySignedStruct, Error as TlsError, SignatureScheme};
 use rustls_pki_types::pem::PemObject;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio_rustls::TlsConnector;
 
@@ -105,6 +106,26 @@ pub async fn inspect_peer_chain(
     root_cert: Option<&[u8]>,
     timeout: Duration,
 ) -> Result<PeerChain, InspectError> {
+    let handshake = async {
+        let stream = TcpStream::connect((host, port)).await?;
+        inspect_peer_chain_over(stream, host, root_cert).await
+    };
+    tokio::time::timeout(timeout, handshake)
+        .await
+        .map_err(|_| InspectError::Timeout)?
+}
+
+/// The TLS part of [`inspect_peer_chain`], on a connection that is already
+/// open: for protocols that negotiate before TLS starts. The caller sets the
+/// timeout.
+pub async fn inspect_peer_chain_over<S>(
+    stream: S,
+    host: &str,
+    root_cert: Option<&[u8]>,
+) -> Result<PeerChain, InspectError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let mut cert_store = ROOT_CERT_STORE.clone();
     if let Some(data) = root_cert {
         for cert in CertificateDer::pem_reader_iter(&mut Cursor::new(data)) {
@@ -130,15 +151,9 @@ pub async fn inspect_peer_chain(
 
     let server_name = ServerName::try_from(host.to_owned())
         .map_err(|_| InspectError::ServerName(host.to_owned()))?;
-    let handshake = async {
-        let stream = TcpStream::connect((host, port)).await?;
-        TlsConnector::from(Arc::new(config))
-            .connect(server_name, stream)
-            .await
-    };
-    tokio::time::timeout(timeout, handshake)
-        .await
-        .map_err(|_| InspectError::Timeout)??;
+    TlsConnector::from(Arc::new(config))
+        .connect(server_name, stream)
+        .await?;
 
     verifier
         .seen

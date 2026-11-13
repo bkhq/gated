@@ -15,6 +15,8 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRoles } from '@/features/roles/hooks/use-roles-queries'
 import { useLiveSessions } from '@/features/sessions/hooks/use-sessions-queries'
+import { useBackendParameters } from '@/features/system-settings/hooks/use-system-settings-queries'
+import { describePasswordPolicy } from '@/features/user/password-policy'
 import { UserFormDialog } from '@/features/users/components'
 import { useBulkDeleteUsers, useDeleteUser, useSetUserPassword, useUserReferences, useUsers } from '@/features/users/hooks/use-users-queries'
 import { BulkActionBar } from '@/shared/components/bulk-action-bar'
@@ -388,6 +390,17 @@ export function AdminUsersPage() {
   )
 }
 
+/** What the gateway asks of a new password. */
+function PasswordPolicyHint({ id }: { id: string }) {
+  const { t } = useTranslation()
+  const parameters = useBackendParameters().data
+  return (
+    <div id={id} className="mt-1 text-[12px] text-muted-foreground">
+      {describePasswordPolicy(t, parameters?.password_policy)}
+    </div>
+  )
+}
+
 function ResetPasswordDialog({ user, onClose }: { user: User | null, onClose: () => void }) {
   const { t } = useTranslation()
   const [password, setPassword] = React.useState('')
@@ -420,7 +433,9 @@ function ResetPasswordDialog({ user, onClose }: { user: User | null, onClose: ()
             value={password}
             onChange={event => setPassword(event.target.value)}
             placeholder={t('users.form.passwordPlaceholder')}
+            aria-describedby="reset-password-policy"
           />
+          {user ? <PasswordPolicyHint id="reset-password-policy" /> : null}
         </div>
       </DialogBody>
       <DialogFooter>

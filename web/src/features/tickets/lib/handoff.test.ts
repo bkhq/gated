@@ -28,5 +28,7 @@ describe('claimDestination', () => {
     expect(claimDestination('MySql', 'db')).toBe('/ui/db/db')
     expect(claimDestination('Postgres', 'db')).toBe('/ui/db/db')
     expect(claimDestination('Http', 'site')).toBe('/ui/targets')
+    expect(claimDestination('Rdp', 'win 01')).toBe('/ui/desktop/win%2001')
+    expect(claimDestination('Vnc', 'desk')).toBe('/ui/desktop/desk')
   })
 })

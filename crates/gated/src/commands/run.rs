@@ -438,6 +438,7 @@ pub(crate) async fn command(
     gated_core::lode::mark_ready();
 
     tokio::spawn(watch_config_and_reload(services.clone()));
+    tokio::spawn(watch_role_expiry(services.clone()));
 
     let mut sigint = tokio::signal::unix::signal(SignalKind::interrupt())?;
 
@@ -474,6 +475,41 @@ pub(crate) async fn command(
     wait_for_pending_logs(tokio::time::Instant::now() + LOG_FLUSH_TIMEOUT).await;
     services.close_db().await;
     result
+}
+
+/// How often expired role assignments are looked for.
+const ROLE_EXPIRY_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Ends the sessions an expired role assignment admitted: an expired
+/// assignment already grants nothing new, this closes what it opened.
+pub async fn watch_role_expiry(services: Services) {
+    let mut checked_until = chrono::Utc::now();
+    loop {
+        tokio::time::sleep(ROLE_EXPIRY_CHECK_INTERVAL).await;
+        let Ok(db) = services.db_required().await else {
+            continue;
+        };
+        let now = chrono::Utc::now();
+        match gated_db_entities::UserRoleAssignment::Entity::expired_between(
+            &db,
+            checked_until,
+            now,
+        )
+        .await
+        {
+            Ok(0) => {}
+            Ok(expired) => {
+                info!(expired, "Role assignments expired, revalidating sessions");
+                services.notify_authorization_changed();
+            }
+            Err(error) => {
+                // Keep `checked_until`, so the next round covers this one.
+                warn!(?error, "Failed to look for expired role assignments");
+                continue;
+            }
+        }
+        checked_until = now;
+    }
 }
 
 /// Re-authorize live sessions after a config-file reload or an

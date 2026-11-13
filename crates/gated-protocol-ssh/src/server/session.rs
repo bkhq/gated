@@ -21,7 +21,7 @@ use gated_common::{
     GatedError, Secret, SessionId, SshHostKeyVerificationMode, Target, TargetOptions,
     TargetSSHOptions,
 };
-use gated_core::auth_throttle::validate_credential_throttled;
+use gated_core::auth_throttle::{report_unknown_user, validate_credential_throttled};
 use gated_core::command_acl::{AclAction, AclContext, AclDecision, CommandAclRuleView, evaluate};
 use gated_core::recordings::{
     self, CommandAuditRecorder, ConnectionRecorder, FileAuditRecorder, FileAuditRecordingItem,
@@ -392,6 +392,7 @@ impl ServerSession {
                         CredentialKind::Totp,
                         CredentialKind::WebUserApproval,
                     ],
+                    Some(self.remote_address.ip()),
                 )
                 .await?
                 .1;
@@ -1937,7 +1938,11 @@ impl ServerSession {
         // Raw client->target bytes are keystrokes/passwords/tokens —
         // log only the byte length, never the content.
         debug!(channel=%server_channel_id.0, data_len = data.len(), "Data");
-        if self.rc_state == RCState::Connecting && data.first() == Some(&3) {
+        if is_connect_abort(
+            self.rc_state == RCState::Connecting,
+            self.pty_channels.contains(&channel_id),
+            &data,
+        ) {
             info!(channel=%channel_id, "User requested connection abort (Ctrl-C)");
             self.request_disconnect().await;
             return Ok(());
@@ -2436,14 +2441,25 @@ impl ServerSession {
                 target_name,
                 account,
             } => {
-                let cp = self.services.config_provider.clone();
-
-                let state_arc = self.get_auth_state(username).await?;
+                let state_arc = match self.get_auth_state(username).await {
+                    Ok(state_arc) => state_arc,
+                    Err(error) => {
+                        // Key offers under an unknown name are not counted:
+                        // clients send several before asking for a password.
+                        if let (Some(AuthCredential::Password(_)), Some(error)) =
+                            (&credential, error.downcast_ref::<GatedError>())
+                        {
+                            let client_ip = self.remote_address.ip().to_string();
+                            report_unknown_user(&self.services, error, &client_ip).await;
+                        }
+                        return Err(error);
+                    }
+                };
                 let mut state = state_arc.lock().await;
 
                 if let Some(credential) = credential
                     && validate_credential_throttled(
-                        &cp,
+                        &self.services,
                         username,
                         &self.remote_address.ip().to_string(),
                         &credential,
@@ -2486,7 +2502,9 @@ impl ServerSession {
                 }
             }
             AuthSelector::Ticket { secret } => {
-                match authorize_ticket(&self.services.db, secret).await? {
+                match authorize_ticket(&self.services.db, secret, Some(self.remote_address.ip()))
+                    .await?
+                {
                     Some((ticket, user_info)) => {
                         info!("Authorized for {} with a ticket", ticket.target);
                         consume_ticket(&self.services.db, &ticket.id).await?;
@@ -2755,6 +2773,12 @@ impl Future for PendingCommand {
     }
 }
 
+/// Ctrl-C while the target is still connecting. Only a terminal sends it as a
+/// `0x03` byte; on any other channel the byte is payload.
+fn is_connect_abort(connecting: bool, has_pty: bool, data: &[u8]) -> bool {
+    connecting && has_pty && data.first() == Some(&3)
+}
+
 #[cfg(test)]
 mod tests {
     use super::sanitize_username;
@@ -2775,5 +2799,16 @@ mod tests {
     #[test]
     fn sanitize_username_leaves_plain_value_untouched() {
         assert_eq!(sanitize_username("alice:target"), "alice:target");
+    }
+
+    #[test]
+    fn only_a_terminal_can_abort_the_connection_with_ctrl_c() {
+        use super::is_connect_abort;
+
+        assert!(is_connect_abort(true, true, &[3]));
+        // Forwarded TCP data, e.g. the first packet of an RDP connection.
+        assert!(!is_connect_abort(true, false, &[3, 0, 0, 19]));
+        assert!(!is_connect_abort(false, true, &[3]));
+        assert!(!is_connect_abort(true, true, b"ls"));
     }
 }

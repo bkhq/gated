@@ -16,6 +16,10 @@ pub enum SsoError {
     ConfigError(String),
     #[error("provider discovery error: {0}")]
     Discovery(String),
+    #[error(
+        "the OIDC provider advertised a {endpoint} of `{url}`: only http and https endpoints are accepted"
+    )]
+    UnsupportedEndpointScheme { endpoint: String, url: String },
     #[error("code verification error: {0}")]
     Verification(String),
     #[error("claims verification error: {0}")]

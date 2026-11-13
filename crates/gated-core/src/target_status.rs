@@ -24,6 +24,8 @@ pub fn target_address(options: &TargetOptions) -> Option<(String, u16)> {
         TargetOptions::Ssh(o) => Some((o.host.clone(), o.port)),
         TargetOptions::MySql(o) => Some((o.host.clone(), o.port)),
         TargetOptions::Postgres(o) => Some((o.host.clone(), o.port)),
+        TargetOptions::Rdp(o) => Some((o.host.clone(), o.port)),
+        TargetOptions::Vnc(o) => Some((o.host.clone(), o.port)),
         TargetOptions::Http(o) => {
             let url = url::Url::parse(&o.url).ok()?;
             Some((url.host_str()?.to_owned(), url.port_or_known_default()?))

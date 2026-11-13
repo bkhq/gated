@@ -52,7 +52,18 @@ pub async fn ticket_middleware(request: Request, next: Next) -> Response {
             };
 
             let ticket_secret = Secret::new(ticket);
-            let authorized = match authorize_ticket(&services.db, &ticket_secret).await {
+            let authorized = match authorize_ticket(
+                &services.db,
+                &ticket_secret,
+                gated_core::logging::http::client_ip_addr(
+                    request.headers(),
+                    request.extensions(),
+                    &services,
+                )
+                .await,
+            )
+            .await
+            {
                 Ok(authorized) => authorized,
                 Err(error) => return error.into_response(),
             };

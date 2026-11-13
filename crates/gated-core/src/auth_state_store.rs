@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -7,6 +8,7 @@ use gated_common::auth::{AuthResult, AuthState, CredentialKind};
 use gated_common::{GatedError, SessionId};
 use std::sync::LazyLock;
 use tokio::sync::{Mutex, broadcast};
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::{ConfigProvider, ConfigProviderEnum};
@@ -201,12 +203,33 @@ impl AuthStateStore {
         username: &str,
         protocol: &str,
         supported_credential_types: &[CredentialKind],
+        remote_ip: Option<IpAddr>,
     ) -> Result<(Uuid, Arc<Mutex<AuthState>>), GatedError> {
         let id = Uuid::new_v4();
 
         let Some(user) = self.config_provider.lock().await.get_user(username).await? else {
             return Err(GatedError::UserNotFound(username.into()));
         };
+        // Answered like an unknown user: the caller learns nothing about
+        // the account from where it is not allowed to be used.
+        if !user.allows_address(remote_ip) {
+            warn!(target: "audit", %username, client_ip = ?remote_ip, %protocol, "auth_address_not_allowed");
+            return Err(GatedError::UserNotFound(username.into()));
+        }
+
+        // Enrollment happens in the web interface; nothing else is open
+        // to a user who still has to enroll.
+        if protocol != "HTTP"
+            && self
+                .config_provider
+                .lock()
+                .await
+                .mfa_setup_required(username)
+                .await?
+        {
+            warn!(target: "audit", %username, %protocol, "auth_mfa_setup_required");
+            return Err(GatedError::UserNotFound(username.into()));
+        }
 
         let policy = self
             .config_provider
@@ -334,5 +357,110 @@ mod command_review_tests {
     fn complete_unknown_id_is_false() {
         let mut store = CommandReviewStore::new();
         assert!(!store.complete(&Uuid::new_v4(), CommandReviewDecision::Approved));
+    }
+}
+
+#[cfg(test)]
+mod mfa_tests {
+    use gated_common::Secret;
+    use gated_common::auth::AuthCredential;
+    use gated_db_entities::{OtpCredential, Parameters, User};
+    use sea_orm::{ActiveModelTrait, Database, IntoActiveModel, Set};
+    use tokio::sync::RwLock;
+
+    use super::*;
+    use crate::DatabaseConfigProvider;
+
+    const KINDS: [CredentialKind; 2] = [CredentialKind::Password, CredentialKind::Totp];
+
+    /// A store over a fresh database with MFA required and one user.
+    async fn store(enrolled: bool) -> AuthStateStore {
+        let db = Database::connect("sqlite::memory:").await.expect("test");
+        gated_db_migrations::migrate_database(&db)
+            .await
+            .expect("test");
+        let mut params = Parameters::Entity::get(&db)
+            .await
+            .expect("test")
+            .into_active_model();
+        params.mfa_required = Set(true);
+        params.update(&db).await.expect("test");
+
+        let user_id = Uuid::new_v4();
+        User::ActiveModel {
+            id: Set(user_id),
+            username: Set("alice".into()),
+            description: Set(String::new()),
+            credential_policy: Set(serde_json::Value::Null),
+            rate_limit_bytes_per_second: Set(None),
+            allowed_ip_ranges: Set(None),
+        }
+        .insert(&db)
+        .await
+        .expect("test");
+        if enrolled {
+            OtpCredential::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                user_id: Set(user_id),
+                secret_key: Set(vec![0; 32]),
+            }
+            .insert(&db)
+            .await
+            .expect("test");
+        }
+
+        let db = Arc::new(RwLock::new(Some(db)));
+        AuthStateStore::new(Arc::new(Mutex::new(ConfigProviderEnum::Database(
+            DatabaseConfigProvider::new(&db).await,
+        ))))
+    }
+
+    #[tokio::test]
+    async fn other_protocols_refuse_a_user_who_still_has_to_enroll() {
+        let mut store = store(false).await;
+        for protocol in ["SSH", "MySQL", "PostgreSQL"] {
+            assert!(matches!(
+                store.create(None, "alice", protocol, &KINDS, None).await,
+                Err(GatedError::UserNotFound(_))
+            ));
+        }
+    }
+
+    #[tokio::test]
+    async fn the_web_interface_lets_a_user_in_to_enroll() {
+        let mut store = store(false).await;
+        let (_, state) = store
+            .create(None, "alice", "HTTP", &KINDS, None)
+            .await
+            .expect("test");
+        let mut state = state.lock().await;
+        state.add_valid_credential(AuthCredential::Password(Secret::new("pw".into())));
+        assert!(matches!(state.verify(), AuthResult::Accepted { .. }));
+    }
+
+    #[tokio::test]
+    async fn an_enrolled_user_proves_the_device_at_web_sign_in() {
+        let mut store = store(true).await;
+        let (_, state) = store
+            .create(None, "alice", "HTTP", &KINDS, None)
+            .await
+            .expect("test");
+        let mut state = state.lock().await;
+        state.add_valid_credential(AuthCredential::Password(Secret::new("pw".into())));
+        let AuthResult::Need(needed) = state.verify() else {
+            panic!("expected Need");
+        };
+        assert!(needed.contains(&CredentialKind::Totp));
+    }
+
+    #[tokio::test]
+    async fn an_enrolled_user_reaches_other_protocols() {
+        let mut store = store(true).await;
+        assert!(
+            store
+                .create(None, "alice", "SSH", &KINDS, None)
+                .await
+                .is_ok()
+        );
     }
 }

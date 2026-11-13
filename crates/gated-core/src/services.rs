@@ -418,6 +418,7 @@ mod revalidation_tests {
             name: Set("ops".into()),
             description: Set(String::new()),
             allow_file_transfer: Set(true),
+            allow_clipboard: Set(false),
         }
         .insert(&conn)
         .await
@@ -443,7 +444,14 @@ mod revalidation_tests {
         .insert(&conn)
         .await
         .expect("target role");
-        for (name, with_role) in [("alice", true), ("bob", false)] {
+        // Hours until the assignment expires; `None` = no assignment.
+        let now = chrono::Utc::now();
+        for (name, assignment) in [
+            ("alice", Some(None)),
+            ("bob", None),
+            ("carol", Some(Some(-1))),
+            ("dave", Some(Some(1))),
+        ] {
             let user_id = Uuid::new_v4();
             entities::User::ActiveModel {
                 id: Set(user_id),
@@ -451,14 +459,18 @@ mod revalidation_tests {
                 description: Set(String::new()),
                 credential_policy: Set(serde_json::json!({})),
                 rate_limit_bytes_per_second: Set(None),
+                allowed_ip_ranges: Set(None),
             }
             .insert(&conn)
             .await
             .expect("user");
-            if with_role {
+            if let Some(expires_in_hours) = assignment {
                 entities::UserRoleAssignment::ActiveModel {
                     user_id: Set(user_id),
                     role_id: Set(role_id),
+                    expires_at: Set(
+                        expires_in_hours.map(|hours| now + chrono::Duration::hours(hours))
+                    ),
                     ..Default::default()
                 }
                 .insert(&conn)
@@ -466,14 +478,29 @@ mod revalidation_tests {
                 .expect("user role");
             }
         }
+        let expired = |since_hours: i64| {
+            entities::UserRoleAssignment::Entity::expired_between(
+                &conn,
+                now - chrono::Duration::hours(since_hours),
+                now,
+            )
+        };
+        assert_eq!(expired(2).await.expect("count"), 1);
+        // Already seen by an earlier round.
+        assert_eq!(expired(0).await.expect("count"), 0);
         *services.db.write().await = Some(conn);
 
         let alice = insert_session(&services, "alice", "db").await;
         let bob = insert_session(&services, "bob", "db").await;
+        let carol = insert_session(&services, "carol", "db").await;
+        let dave = insert_session(&services, "dave", "db").await;
 
-        assert_eq!(services.revalidate_sessions().await, 1);
+        // Bob never had the role; Carol's assignment has expired.
+        assert_eq!(services.revalidate_sessions().await, 2);
         assert!(!alice.load(Ordering::SeqCst));
         assert!(bob.load(Ordering::SeqCst));
+        assert!(carol.load(Ordering::SeqCst));
+        assert!(!dave.load(Ordering::SeqCst));
     }
 }
 

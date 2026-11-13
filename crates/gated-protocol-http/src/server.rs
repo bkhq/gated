@@ -226,6 +226,16 @@ async fn handle_proxy_request(
 
     {
         let mut cp = services.config_provider.lock().await;
+        // Tokens and certificates do not stand in for the OTP device a
+        // user still has to enroll.
+        if cp
+            .mfa_setup_required(&user_info.username)
+            .await
+            .unwrap_or(true)
+        {
+            warn!(target: "audit", username = %user_info.username, "auth_mfa_setup_required");
+            return Err(ProxyError::unauthorized());
+        }
         if !cp
             .authorize_target(&user_info.username, &target.name)
             .await
@@ -378,12 +388,17 @@ async fn authenticate_request(
     req: &Parts,
     services: &Services,
 ) -> Result<AuthStateUserInfo, ProxyError> {
+    // API tokens are held to the address ranges of their user.
+    let client_ip =
+        gated_core::logging::http::client_ip_addr(&req.headers, &req.extensions, services).await;
     if let Some(auth_header) = req.headers.get(http::header::AUTHORIZATION)
         && let Ok(auth_str) = auth_header.to_str()
         && let Some(token) = auth_str.strip_prefix("Bearer ")
     {
         let mut cp = services.config_provider.lock().await;
-        if let Ok(Some(user)) = cp.validate_api_token(token).await {
+        if let Ok(Some(user)) = cp.validate_api_token(token).await
+            && user.allows_address(client_ip)
+        {
             return Ok((&user).into());
         }
     }
@@ -402,7 +417,9 @@ async fn authenticate_request(
         for pair in query.split('&') {
             if let Some(token) = pair.strip_prefix("gated-token=") {
                 let mut cp = services.config_provider.lock().await;
-                if let Ok(Some(user)) = cp.validate_api_token(token).await {
+                if let Ok(Some(user)) = cp.validate_api_token(token).await
+                    && user.allows_address(client_ip)
+                {
                     return Ok((&user).into());
                 }
             }

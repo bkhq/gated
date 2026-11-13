@@ -25,15 +25,28 @@ fn algorithms() -> [Algorithm; 2] {
 /// Generates Ed25519 and RSA host keys unless host keys exist. Returns
 /// whether any key was created.
 pub async fn generate_keys(db: &DatabaseConnection) -> Result<bool> {
+    if host_query().one(db).await?.is_some() {
+        return Ok(false);
+    }
+    // An RSA key takes seconds to generate. The keys are made before the
+    // transaction opens, so no write lock is held meanwhile: other writers
+    // would run into the busy timeout, and a listener that fails to store
+    // its certificate at startup ends the process.
+    let mut keys = Vec::new();
+    for algorithm in algorithms() {
+        info!("Generating host key ({algorithm:?})");
+        keys.push(
+            PrivateKey::random(&mut russh::keys::key::safe_rng(), algorithm.clone())
+                .context("Failed to generate key")?,
+        );
+    }
+
     let tx = db.begin().await?;
     if host_query().one(&tx).await?.is_some() {
         return Ok(false);
     }
-    for algorithm in algorithms() {
-        info!("Generating host key ({algorithm:?})");
-        let key = PrivateKey::random(&mut russh::keys::key::safe_rng(), algorithm.clone())
-            .context("Failed to generate key")?;
-        insert_key(&tx, &key).await?;
+    for key in &keys {
+        insert_key(&tx, key).await?;
     }
     tx.commit().await?;
     Ok(true)

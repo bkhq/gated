@@ -186,3 +186,44 @@ it('keeps the stored secret when editing an inline target with a blank field', a
     options: expect.objectContaining({ auth: { kind: 'PublicKey', private_key_pem: undefined, passphrase: undefined } }),
   }))
 })
+
+it('creates an RDP target with the safe defaults', async () => {
+  api.createAdminTarget.mockResolvedValue({ ...createdSsh, options: { kind: 'Rdp', host: '10.0.0.1', port: 3389, username: 'Administrator', verify_tls: true, record_keystrokes: false } })
+  const onClose = vi.fn()
+  renderDrawer({ onClose })
+  fillGeneral()
+  fireEvent.change(screen.getByLabelText('fields.protocol'), { target: { value: 'rdp' } })
+  expect(screen.getByLabelText('fields.port')).toHaveValue('3389')
+  switchToManualCredentials()
+  fireEvent.change(screen.getByLabelText('targets.form.auth.username'), { target: { value: 'Administrator' } })
+  fireEvent.change(screen.getByLabelText('targets.form.auth.domain'), { target: { value: 'CORP' } })
+  fireEvent.change(screen.getByLabelText('targets.form.auth.password'), { target: { value: 'hunter2' } })
+  fireEvent.click(screen.getByRole('button', { name: 'actions.save' }))
+
+  await waitFor(() => expect(onClose).toHaveBeenCalled())
+  expect(api.createAdminTarget).toHaveBeenCalledWith(expect.objectContaining({
+    accounts: [],
+    options: { kind: 'Rdp', host: '10.0.0.1', port: 3389, username: 'Administrator', domain: 'CORP', password: 'hunter2', verify_tls: true, record_keystrokes: false },
+  }))
+})
+
+it('a VNC target has no username and can opt in to keystroke recording', async () => {
+  api.createAdminTarget.mockResolvedValue({ ...createdSsh, options: { kind: 'Vnc', host: '10.0.0.1', port: 5900, record_keystrokes: true } })
+  const onClose = vi.fn()
+  renderDrawer({ onClose })
+  fillGeneral()
+  fireEvent.change(screen.getByLabelText('fields.protocol'), { target: { value: 'vnc' } })
+  switchToManualCredentials()
+  expect(screen.queryByLabelText('targets.form.auth.username')).toBeNull()
+  expect(screen.queryByLabelText('targets.form.policy.verifyTls')).toBeNull()
+  // VNC has no transport encryption; the form says so.
+  expect(screen.getByText('targets.form.policy.vncUnencrypted')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('targets.form.auth.password'), { target: { value: 'pw' } })
+  fireEvent.click(screen.getByLabelText('targets.form.policy.recordKeystrokes'))
+  fireEvent.click(screen.getByRole('button', { name: 'actions.save' }))
+
+  await waitFor(() => expect(onClose).toHaveBeenCalled())
+  expect(api.createAdminTarget).toHaveBeenCalledWith(expect.objectContaining({
+    options: { kind: 'Vnc', host: '10.0.0.1', port: 5900, password: 'pw', record_keystrokes: true },
+  }))
+})

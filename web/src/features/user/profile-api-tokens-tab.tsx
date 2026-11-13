@@ -12,9 +12,11 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { allowedExpiryValues, expiryLabelKey } from '@/features/api-tokens/expiry-options'
 import { useApiTokens, useCreateApiToken, useRevokeApiToken } from '@/features/api-tokens/hooks/use-api-tokens-queries'
 import { EmptyState } from '@/shared/components/empty-state'
 import { StatCard } from '@/shared/components/stat-card'
+import { useInfo } from '@/shared/hooks/use-info'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/shared/ui/dialog'
@@ -221,6 +223,12 @@ function CreateTokenDrawerBody({ existingNames, onClose, onCreated }: {
   const titleId = React.useId()
   const createMutation = useCreateApiToken()
   const [draft, setDraft] = React.useState<TokenCreateDraft>(() => ({ name: '', expiresIn: '90d' }))
+  const expiryValues = allowedExpiryValues(
+    EXPIRY_OPTIONS_KEYS.map(key => EXPIRY_VALUE_BY_KEY[key]),
+    useInfo().data?.max_api_token_duration_seconds,
+  )
+  // A preset beyond the administrator's limit falls back to the longest allowed.
+  const expiresIn = expiryValues.includes(draft.expiresIn) ? draft.expiresIn : (expiryValues.at(-1) ?? draft.expiresIn)
   const [touched, setTouched] = React.useState(false)
   const [discardOpen, setDiscardOpen] = React.useState(false)
 
@@ -240,7 +248,7 @@ function CreateTokenDrawerBody({ existingNames, onClose, onCreated }: {
     }
     const { fullSecret } = await createMutation.mutateAsync({
       name: nameTrimmed,
-      expiresIn: draft.expiresIn,
+      expiresIn,
     })
     onCreated(fullSecret)
   }
@@ -292,12 +300,9 @@ function CreateTokenDrawerBody({ existingNames, onClose, onCreated }: {
             <FieldGroup label={t('profile.tokens.createDrawer.expiresLabel')} htmlFor="token-expires">
               <Select
                 id="token-expires"
-                value={draft.expiresIn}
+                value={expiresIn}
                 onValueChange={value => setDraft(prev => ({ ...prev, expiresIn: value }))}
-                options={EXPIRY_OPTIONS_KEYS.map(key => ({
-                  value: EXPIRY_VALUE_BY_KEY[key],
-                  label: t(`profile.tokens.expiry.${key}`),
-                }))}
+                options={expiryValues.map(value => ({ value, label: t(expiryLabelKey(value)) }))}
               />
             </FieldGroup>
           </div>

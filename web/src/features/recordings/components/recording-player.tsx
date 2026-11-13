@@ -9,6 +9,7 @@ import { EmptyState } from '@/shared/components/empty-state'
 import { PageHeader } from '@/shared/components/page-header'
 import { ApiError } from '@/shared/lib/api/http'
 import { Button } from '@/shared/ui/button'
+import { DesktopPlayer } from './desktop-player'
 import { HttpProxyPlayer } from './http-proxy-player'
 import { SqlAuditPlayer } from './sql-audit-player'
 import { TerminalPlayer } from './terminal-player'
@@ -122,6 +123,8 @@ function RecordingBody({ recording }: { recording: Recording }) {
       )
     case 'SqlAudit':
       return <SqlAuditPlayer recording={recording} />
+    case 'Desktop':
+      return <DesktopPlayer recording={recording} />
     default:
       return (
         <EmptyState

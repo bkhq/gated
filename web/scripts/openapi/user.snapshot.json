@@ -851,6 +851,15 @@
                 }
               }
             }
+          },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -1111,6 +1120,15 @@
               }
             }
           },
+          "403": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "404": {}
         },
         "security": [
@@ -1142,6 +1160,15 @@
               "application/json; charset=utf-8": {
                 "schema": {
                   "$ref": "#/components/schemas/PasswordState"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -1254,6 +1281,15 @@
         "responses": {
           "204": {},
           "401": {
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
             "content": {
               "application/json; charset=utf-8": {
                 "schema": {
@@ -2417,7 +2453,8 @@
           "public_keys",
           "certificates",
           "sso",
-          "credential_policy"
+          "credential_policy",
+          "password_policy"
         ],
         "properties": {
           "certificates": {
@@ -2437,6 +2474,10 @@
           },
           "password": {
             "$ref": "#/components/schemas/PasswordState"
+          },
+          "password_policy": {
+            "$ref": "#/components/schemas/PasswordPolicy",
+            "description": "Rules a new password must satisfy."
           },
           "public_keys": {
             "type": "array",
@@ -2696,7 +2737,8 @@
           "own_credential_management_allowed",
           "terminal_watermark_enabled",
           "session_lifetime",
-          "session_lifetime_options"
+          "session_lifetime_options",
+          "mfa_setup_required"
         ],
         "properties": {
           "admin": {
@@ -2720,6 +2762,18 @@
               "null"
             ],
             "description": "Base domain of the HTTP-proxy listener (`<target>.<base_domain>`),\nwhen the proxy is enabled and a base domain is configured. Lets the\nfrontend build a per-target proxy URL. `None` if the proxy is off or\nhas no base domain."
+          },
+          "max_api_token_duration_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Longest lifetime of an API token the user creates, in seconds.\n`None`: no limit, or not signed in."
+          },
+          "mfa_setup_required": {
+            "type": "boolean",
+            "description": "The signed-in user must enroll an OTP device before anything else."
           },
           "minimize_password_login": {
             "type": "boolean"
@@ -2938,6 +2992,38 @@
         "properties": {
           "otp": {
             "type": "string"
+          }
+        }
+      },
+      "PasswordPolicy": {
+        "type": "object",
+        "description": "Rules a new password must satisfy.",
+        "required": [
+          "min_length",
+          "require_uppercase",
+          "require_lowercase",
+          "require_digits",
+          "require_special"
+        ],
+        "properties": {
+          "min_length": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minimum number of characters, 0 to 128 (0 = no requirement).",
+            "minimum": 0
+          },
+          "require_digits": {
+            "type": "boolean"
+          },
+          "require_lowercase": {
+            "type": "boolean"
+          },
+          "require_special": {
+            "type": "boolean",
+            "description": "An ASCII character that is neither a letter nor a digit."
+          },
+          "require_uppercase": {
+            "type": "boolean"
           }
         }
       },
@@ -3631,7 +3717,9 @@
           "Http",
           "MySql",
           "Ssh",
-          "Postgres"
+          "Postgres",
+          "Rdp",
+          "Vnc"
         ]
       },
       "TargetMySqlOptions": {
@@ -3761,6 +3849,48 @@
                 }
               }
             ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetRdpOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Rdp"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetVncOptions"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "Vnc"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         ]
       },
@@ -3809,6 +3939,50 @@
           },
           "username": {
             "type": "string"
+          }
+        }
+      },
+      "TargetRdpOptions": {
+        "type": "object",
+        "required": [
+          "host",
+          "port",
+          "username",
+          "verify_tls",
+          "record_keystrokes"
+        ],
+        "properties": {
+          "domain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "host": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Write-only: read endpoints return `null`. A blank value on update\nkeeps the stored password."
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "record_keystrokes": {
+            "type": "boolean",
+            "description": "Record key presses with the session; they include typed passwords."
+          },
+          "username": {
+            "type": "string"
+          },
+          "verify_tls": {
+            "type": "boolean",
+            "description": "Verify the server certificate against the system roots."
           }
         }
       },
@@ -3921,6 +4095,35 @@
           "target_id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "TargetVncOptions": {
+        "type": "object",
+        "required": [
+          "host",
+          "port",
+          "record_keystrokes"
+        ],
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Write-only, as for RDP. `null` with no stored password: the server\nasks for no authentication."
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "record_keystrokes": {
+            "type": "boolean",
+            "description": "Record key presses with the session; they include typed passwords."
           }
         }
       },

@@ -66,6 +66,11 @@ pub struct Info {
     session_lifetime: u64,
     /// Lifetimes the user may choose, in seconds.
     session_lifetime_options: Vec<u64>,
+    /// Longest lifetime of an API token the user creates, in seconds.
+    /// `None`: no limit, or not signed in.
+    max_api_token_duration_seconds: Option<i64>,
+    /// The signed-in user must enroll an OTP device before anything else.
+    mfa_setup_required: bool,
 }
 
 api_response! {
@@ -123,6 +128,20 @@ async fn api_get_info(
     };
 
     let authenticated = request_authorization.is_some();
+    let mfa_setup_required = match request_authorization
+        .as_ref()
+        .and_then(|auth| auth.account_username())
+    {
+        Some(username) => {
+            services
+                .config_provider
+                .lock()
+                .await
+                .mfa_setup_required(username)
+                .await?
+        }
+        None => false,
+    };
 
     Ok(InstanceInfoResponse::Ok(Json(Info {
         version: authenticated.then(|| gated_version().to_string()),
@@ -190,6 +209,10 @@ async fn api_get_info(
         session_lifetime: session
             .get::<u64>(SESSION_LIFETIME_KEY)
             .unwrap_or(config.store.admin.session_max_age.as_secs()),
+        max_api_token_duration_seconds: authenticated
+            .then_some(parameters.max_api_token_duration_seconds)
+            .flatten(),
+        mfa_setup_required,
         session_lifetime_options: session_lifetime_options(
             config.store.admin.session_max_age,
             config.store.admin.cookie_max_age,

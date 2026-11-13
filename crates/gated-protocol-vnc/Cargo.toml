@@ -1,0 +1,18 @@
+[package]
+edition.workspace = true
+rust-version.workspace = true
+license = "Apache-2.0"
+name = "gated-protocol-vnc"
+version = "0.0.1"
+
+[dependencies]
+gated-common = { version = "*", path = "../gated-common", default-features = false }
+gated-core = { version = "*", path = "../gated-core", default-features = false }
+anyhow.workspace = true
+bytes.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+vnc = { package = "vnc-rs", version = "0.6.0" }
+
+[lints]
+workspace = true

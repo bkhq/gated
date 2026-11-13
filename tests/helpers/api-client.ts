@@ -1,4 +1,4 @@
-const ADMIN_TOKEN = "token-value";
+export const ADMIN_TOKEN = "token-value";
 
 export interface Role {
   id: string;

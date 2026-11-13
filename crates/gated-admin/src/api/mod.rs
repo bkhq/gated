@@ -9,6 +9,7 @@ pub mod command_review;
 pub mod file_records;
 mod known_hosts_detail;
 mod known_hosts_list;
+mod login_protection;
 mod logs;
 mod management_sessions;
 mod otp_credentials;
@@ -53,6 +54,7 @@ pub fn router() -> OpenApiRouter {
         .merge(ssh_keys::router())
         .merge(tls_certificates::router())
         .merge(logs::router())
+        .merge(login_protection::router())
         .merge(targets::router())
         .merge(target_status::router())
         .merge(target_groups::router())

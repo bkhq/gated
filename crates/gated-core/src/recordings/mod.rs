@@ -14,10 +14,12 @@ use tracing::*;
 use uuid::Uuid;
 
 use crate::SharedDatabaseConnection;
+mod desktop;
 mod structured;
 mod terminal;
 mod traffic;
 mod writer;
+pub use desktop::*;
 pub use structured::*;
 pub use terminal::*;
 pub use traffic::*;
@@ -45,6 +47,12 @@ pub enum Error {
 
     #[error(transparent)]
     DbLocked(#[from] crate::DbLockedError),
+
+    #[error(transparent)]
+    PngEncode(#[from] crate::PngEncodeError),
+
+    #[error("Codec: {0}")]
+    Codec(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -149,6 +157,19 @@ impl SessionRecordings {
         Ok(T::new(writer))
     }
 
+    /// Start a desktop recording together with its seek index.
+    pub async fn start_desktop(&mut self, id: &SessionId) -> Result<DesktopRecorder> {
+        let name = Uuid::new_v4().to_string();
+        let recorder: DesktopRecorder = self
+            .start(id, Some(name.clone()), DesktopRecordingMetadata::Desktop)
+            .await?;
+        let index = self.path_for(id, format!("{name}{DESKTOP_INDEX_SUFFIX}"));
+        recorder
+            .open_index(&index, self.params.should_secure_files())
+            .await?;
+        Ok(recorder)
+    }
+
     /// Number of recordings whose data is still being written to disk.
     pub fn active_writers(&self) -> watch::Receiver<usize> {
         self.active_writers.subscribe()
@@ -162,6 +183,11 @@ impl SessionRecordings {
     pub async fn remove(&self, session_id: &SessionId, name: &str) -> Result<()> {
         let path = self.path_for(session_id, name);
         tokio::fs::remove_file(&path).await?;
+        let index = self.path_for(session_id, format!("{name}{DESKTOP_INDEX_SUFFIX}"));
+        match tokio::fs::remove_file(&index).await {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error.into()),
+            _ => {}
+        }
         if let Some(parent) = path.parent()
             && tokio::fs::read_dir(parent)
                 .await?

@@ -138,6 +138,33 @@ impl CredentialPolicy for PerProtocolCredentialPolicy {
     }
 }
 
+/// Demands `factor` on one protocol on top of whatever `inner` asks for.
+/// Used to enforce MFA: no stored credential policy can leave the factor out.
+pub struct RequiredFactorPolicy {
+    pub inner: Box<dyn CredentialPolicy + Send + Sync>,
+    pub protocol: &'static str,
+    pub factor: CredentialKind,
+}
+
+impl CredentialPolicy for RequiredFactorPolicy {
+    fn is_sufficient(
+        &self,
+        protocol: &str,
+        valid_credentials: &[AuthCredential],
+    ) -> CredentialPolicyResponse {
+        let response = self.inner.is_sufficient(protocol, valid_credentials);
+        if protocol != self.protocol || valid_credentials.iter().any(|c| c.kind() == self.factor) {
+            return response;
+        }
+        let mut needed = match response {
+            CredentialPolicyResponse::Ok => HashSet::new(),
+            CredentialPolicyResponse::Need(needed) => needed,
+        };
+        needed.insert(self.factor);
+        CredentialPolicyResponse::Need(needed)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::Secret;
@@ -290,6 +317,65 @@ mod tests {
         // Both required factors present -> ok.
         assert!(matches!(
             policy.is_sufficient("http", &[password(), otp()]),
+            CredentialPolicyResponse::Ok
+        ));
+    }
+
+    fn otp_on_http(inner: Box<dyn CredentialPolicy + Send + Sync>) -> RequiredFactorPolicy {
+        RequiredFactorPolicy {
+            inner,
+            protocol: "HTTP",
+            factor: CredentialKind::Totp,
+        }
+    }
+
+    fn any_password() -> Box<dyn CredentialPolicy + Send + Sync> {
+        Box::new(AnySingleCredentialPolicy {
+            supported_credential_types: HashSet::from([CredentialKind::Password]),
+        })
+    }
+
+    #[test]
+    fn required_factor_is_demanded_on_top_of_the_inner_policy() {
+        let policy = otp_on_http(any_password());
+
+        let CredentialPolicyResponse::Need(needed) = policy.is_sufficient("HTTP", &[]) else {
+            panic!("expected Need");
+        };
+        assert_eq!(
+            needed,
+            HashSet::from([CredentialKind::Password, CredentialKind::Totp])
+        );
+
+        let CredentialPolicyResponse::Need(needed) = policy.is_sufficient("HTTP", &[password()])
+        else {
+            panic!("expected Need");
+        };
+        assert_eq!(needed, HashSet::from([CredentialKind::Totp]));
+
+        assert!(matches!(
+            policy.is_sufficient("HTTP", &[password(), otp()]),
+            CredentialPolicyResponse::Ok
+        ));
+    }
+
+    #[test]
+    fn required_factor_alone_does_not_satisfy_the_inner_policy() {
+        let policy = otp_on_http(Box::new(AllCredentialsPolicy {
+            required_credential_types: HashSet::from([CredentialKind::Password]),
+            supported_credential_types: HashSet::from([CredentialKind::Password]),
+        }));
+        assert!(matches!(
+            policy.is_sufficient("HTTP", &[otp()]),
+            CredentialPolicyResponse::Need(_)
+        ));
+    }
+
+    #[test]
+    fn required_factor_leaves_other_protocols_alone() {
+        let policy = otp_on_http(any_password());
+        assert!(matches!(
+            policy.is_sufficient("SSH", &[password()]),
             CredentialPolicyResponse::Ok
         ));
     }

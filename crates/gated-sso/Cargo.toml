@@ -23,5 +23,8 @@ schemars.workspace = true
 # reqwest_12: Enables rustls TLS for the reqwest 0.12 client re-exported by openidconnect.
 ignored = ["reqwest_12"]
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [lints]
 workspace = true

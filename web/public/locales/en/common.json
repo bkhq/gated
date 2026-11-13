@@ -141,6 +141,9 @@
     },
     "terminal": {
       "workspace": "Terminal workspace"
+    },
+    "desktop": {
+      "workspace": "Desktop workspace"
     }
   },
   "section": {
@@ -295,7 +298,6 @@
     "auth": {
       "password": "Password",
       "passwordHint": "Last changed {{when}}",
-      "passwordPolicy": "At least 12 characters with upper, lower and digit.",
       "passwordChange": "Change password",
       "sshKeys": "SSH public keys",
       "sshKeysHint": "Used to sign in on the CLI and authenticate to managed targets.",
@@ -322,8 +324,6 @@
         "validate": {
           "currentRequired": "Current password is required.",
           "newRequired": "New password is required.",
-          "newTooShort": "New password must be at least 12 characters.",
-          "newWeak": "New password must contain upper, lower and a digit.",
           "confirmMismatch": "Passwords do not match.",
           "sameAsCurrent": "New password must differ from the current one."
         }
@@ -375,7 +375,8 @@
         "d30": "30 days",
         "d90": "90 days",
         "d365": "365 days",
-        "never": "Never"
+        "never": "Never",
+        "longestAllowed": "Longest allowed"
       },
       "fields": {
         "name": "Name",
@@ -816,7 +817,8 @@
           "title": "No compatible accounts",
           "body": "Create an account that matches this target's protocol to bind it as the primary credential.",
           "create": "Create account"
-        }
+        },
+        "domain": "Domain (optional)"
       },
       "policy": {
         "recording": "Record sessions",
@@ -829,7 +831,12 @@
         "idleTimeoutHint": "Auto-disconnect after this much idle time",
         "denyRules": "Command deny rules (regex)",
         "denyRulesHint": "Matching commands terminate the session immediately and raise an alert.",
-        "readOnlyDbOnly": "Read-only is enforced for database targets only."
+        "readOnlyDbOnly": "Read-only is enforced for database targets only.",
+        "recordKeystrokes": "Record keystrokes",
+        "recordKeystrokesHint": "Off by default: typed passwords would end up in the recording.",
+        "verifyTls": "Verify the server certificate",
+        "verifyTlsHint": "Turn off only for hosts with a self-signed certificate you trust.",
+        "vncUnencrypted": "VNC is not encrypted: the screen, the keystrokes and the password check cross the network between the gateway and the target in the clear. Use it on a trusted network only."
       },
       "httpFlavor": "HTTP flavor",
       "httpFlavorGeneric": "Generic",
@@ -927,7 +934,8 @@
     },
     "fields": {
       "username": "Username",
-      "password": "Password"
+      "password": "Password",
+      "allowedIpRanges": "Allowed addresses"
     },
     "empty": {
       "title": "No users yet",
@@ -969,9 +977,15 @@
       "usernamePlaceholder": "wei.zhang",
       "noRoles": "No roles granted yet",
       "noRolesHint": "Without a role this user can sign in, but cannot reach any target.",
+      "roleExpires": "Expires",
+      "roleExpiresHint": "Empty: never. After this time the role grants nothing and the sessions it admitted end.",
+      "roleExpiresPast": "Pick a time in the future.",
+      "roleExpired": "Expired",
       "noSessions": "No recent sessions",
       "passwordPlaceholder": "Enter a password",
-      "passwordHint": "Optional — sets the initial password credential for this user."
+      "passwordHint": "Optional — sets the initial password credential for this user.",
+      "allowedIpRangesPlaceholder": "10.0.0.0/8\n192.168.1.7",
+      "allowedIpRangesHint": "One IP address or CIDR range per line. The user can sign in, use API tokens and use tickets only from these addresses, on every listener. Empty means anywhere."
     },
     "errors": {
       "nameRequired": "Display name is required.",
@@ -1045,7 +1059,9 @@
       "builtin": "Built-in role",
       "builtinHint": "Built-in roles cannot be renamed or deleted, but you can grant or revoke users.",
       "allowFileTransfer": "Allow file transfer",
-      "allowFileTransferHint": "SFTP and the web file manager on this role's assets. Shell access is not affected."
+      "allowFileTransferHint": "SFTP and the web file manager on this role's assets. Shell access is not affected.",
+      "allowClipboard": "Allow clipboard",
+      "allowClipboardHint": "Copy and paste between the browser and RDP/VNC sessions on this role's assets. Off by default."
     },
     "delete": {
       "title": "Delete role",
@@ -1263,8 +1279,7 @@
         "description": "Used to sign in to the web console. SSH should prefer keys.",
         "change": "Change",
         "lastChanged": "Last changed",
-        "policy": "Policy",
-        "policyValue": "12+ chars, mixed case and digit required"
+        "policy": "Policy"
       },
       "sshKeys": {
         "rowMenu": "Open SSH key {{name}} menu"
@@ -1418,7 +1433,8 @@
       "db-password": "DB password",
       "k8s-token": "K8s token",
       "k8s-client-cert": "K8s client cert",
-      "http-headers": "HTTP headers"
+      "http-headers": "HTTP headers",
+      "desktop-password": "Desktop password"
     },
     "form": {
       "titleNew": "New account",
@@ -1458,7 +1474,9 @@
         "publicKey": "Public key",
         "fingerprint": "Fingerprint",
         "usernameFromTarget": "Target's username",
-        "usernameFromTargetHint": "Leave empty to use the target's username"
+        "usernameFromTargetHint": "Leave empty to use the target's username",
+        "domain": "Domain",
+        "desktopUsernameHint": "RDP only. Leave blank for VNC."
       },
       "rotation": {
         "label": "Rotation due",
@@ -1606,7 +1624,19 @@
       "targetCheckIntervalHint": "How often the gateway opens a TCP connection to every target to record whether it is up. Admins can also check targets from the target list.",
       "targetCheckOff": "Off",
       "targetCheckHours_one": "Every hour",
-      "targetCheckHours_other": "Every {{count}} hours"
+      "targetCheckHours_other": "Every {{count}} hours",
+      "maxApiTokenDuration": "Longest API token lifetime",
+      "maxApiTokenDurationHint": "Limits the expiry users may give the API tokens they create. Empty means no limit. Tokens an administrator creates for a user are not limited.",
+      "maxApiTokenDurationUnit": "days",
+      "passwordMinLength": "Minimum password length",
+      "passwordMinLengthHint": "Applies to passwords set from now on, by users and by administrators. Existing passwords keep working. 0 means no minimum.",
+      "passwordMinLengthUnit": "characters",
+      "passwordRequireUppercase": "Require an uppercase letter",
+      "passwordRequireLowercase": "Require a lowercase letter",
+      "passwordRequireDigits": "Require a digit",
+      "passwordRequireSpecial": "Require a special character",
+      "mfaRequired": "Require MFA",
+      "mfaRequiredHint": "Every user must enroll an OTP device. Until then the web interface offers only the enrollment, and SSH, database and HTTP proxy access is refused. Enrolled users enter a code at every web sign-in."
     },
     "encryptionAdmin": {
       "title": "Database encryption",
@@ -1806,6 +1836,42 @@
       "save": "Save",
       "saved": "Saved",
       "saveError": "Saving the ACME settings failed."
+    },
+    "loginProtection": {
+      "title": "Blocked addresses and locked users",
+      "hint": "Addresses and users refused at sign-in after repeated failed attempts. Lifting one also clears its failed attempts.",
+      "loadError": "Could not load the blocks and lockouts.",
+      "ipBlocks": "Blocked addresses",
+      "noIpBlocks": "No address is blocked.",
+      "userLockouts": "Locked users",
+      "noUserLockouts": "No user is locked out.",
+      "address": "Address",
+      "user": "User",
+      "since": "Since",
+      "until": "Until",
+      "untilLifted": "Until lifted",
+      "blockCount": "Blocks in a row",
+      "unblock": "Unblock",
+      "unblockLabel": "Unblock {{ip}}",
+      "unlock": "Unlock",
+      "unlockLabel": "Unlock {{username}}",
+      "params": {
+        "enabled": "Login protection",
+        "enabledHint": "Block client addresses and lock users out after repeated failed password or one-time code attempts, on every listener. Administrators are never locked out; their address can still be blocked.",
+        "ipMaxAttempts": "Failed attempts before an address is blocked",
+        "ipMaxAttemptsHint": "Counted per client address across all users. Users behind one shared address share this limit.",
+        "ipWindow": "Counting period for an address",
+        "ipBlock": "First block",
+        "ipBlockHint": "Each further block of the same address within a day is twice as long, up to the longest block.",
+        "ipMaxBlock": "Longest block",
+        "userMaxAttempts": "Failed attempts before a user is locked out",
+        "userMaxAttemptsHint": "Counted per user across all addresses.",
+        "userWindow": "Counting period for a user",
+        "userLockout": "Lockout length",
+        "userLockoutHint": "0 keeps the user locked until an administrator lifts the lockout.",
+        "minutes": "minutes",
+        "attempts": "attempts"
+      }
     }
   },
   "authRequests": {
@@ -2188,6 +2254,20 @@
       "ended": "Ended",
       "metadata": "Metadata",
       "wrongKind": "This recording is not a traffic capture."
+    },
+    "desktop": {
+      "title": "Desktop recording",
+      "loading": "Loading recording…",
+      "error": "Couldn't load this recording",
+      "empty": "No screen updates were recorded",
+      "download": "Download",
+      "canvas": "Recorded desktop",
+      "play": "Play",
+      "pause": "Pause",
+      "seek": "Playback position",
+      "speed": "Playback speed",
+      "inputs": "Input",
+      "pasted": "Paste: {{text}}"
     }
   },
   "states": {
@@ -2338,6 +2418,10 @@
     "confirm": "Verify and enable",
     "begin": "Begin setup",
     "qr": "QR code for your authenticator app"
+  },
+  "mfaSetup": {
+    "title": "Set up two-factor authentication",
+    "hint": "This gateway requires an authenticator app. Enroll one to continue."
   },
   "files": {
     "breadcrumbs": "Path",
@@ -2574,6 +2658,41 @@
       "copy": "Copy",
       "targets": "Used by targets",
       "noTargets": "No SSH target uses this host and port."
+    }
+  },
+  "passwordPolicy": {
+    "none": "No requirements on new passwords.",
+    "summary": "New passwords need {{rules}}.",
+    "violation": "The password needs {{rules}}.",
+    "rules": {
+      "minLength_one": "at least {{count}} character",
+      "minLength_other": "at least {{count}} characters",
+      "uppercase": "an uppercase letter",
+      "lowercase": "a lowercase letter",
+      "digit": "a digit",
+      "special": "a special character"
+    }
+  },
+  "desktop": {
+    "title": "Desktop — {{name}}",
+    "canvas": "Remote desktop",
+    "status": {
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "closed": "Session closed"
+    },
+    "clipboard": {
+      "on": "Clipboard shared",
+      "off": "Clipboard off"
+    },
+    "actions": {
+      "disconnect": "Disconnect",
+      "reconnect": "Reconnect",
+      "ctrlAltDel": "Ctrl+Alt+Del"
+    },
+    "closed": {
+      "title": "The session has ended",
+      "description": "The connection to the desktop was closed."
     }
   }
 }

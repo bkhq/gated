@@ -19,8 +19,8 @@ use futures::{SinkExt, StreamExt};
 use gated_common::auth::{AuthCredential, AuthResult, AuthState, CredentialKind};
 use gated_common::{GatedError, Secret};
 use gated_core::Services;
-use gated_core::auth_throttle::validate_credential_throttled;
-use gated_core::logging::http::get_client_ip;
+use gated_core::auth_throttle::{report_unknown_user, validate_credential_throttled};
+use gated_core::logging::http::{client_ip_addr, get_client_ip};
 use governor::{DefaultKeyedRateLimiter, Quota};
 use tokio::sync::Mutex;
 use tracing::*;
@@ -253,27 +253,37 @@ async fn api_auth_login(
     }
 
     let mut auth_state_store = services.auth_state_store.lock().await;
-    let state_arc =
-        match get_auth_state_for_request(&body.username, &session, &mut auth_state_store).await {
-            Err(GatedError::UserNotFound(_)) => {
-                metrics::counter!(
-                    "gated_auth_attempts_total",
-                    "result" => "rejected",
-                    "method" => "password",
-                )
-                .increment(1);
-                warn!(target: "audit",
-                    username = %body.username,
-                    protocol = "http",
-                    reason = "user_not_found",
-                    "auth_login_rejected"
-                );
-                return Ok(LoginResponse::Failure(Json(LoginFailureResponse {
-                    state: ApiAuthState::Failed,
-                })));
-            }
-            x => x,
-        }?;
+    let state_arc = match get_auth_state_for_request(
+        &body.username,
+        &session,
+        &mut auth_state_store,
+        client_ip_addr(&req.headers, &req.extensions, &services).await,
+    )
+    .await
+    {
+        Err(error @ GatedError::UserNotFound(_)) => {
+            let client_ip = get_client_ip(&req, Some(&services))
+                .await
+                .unwrap_or_else(|| "<unknown>".to_owned());
+            report_unknown_user(&services, &error, &client_ip).await;
+            metrics::counter!(
+                "gated_auth_attempts_total",
+                "result" => "rejected",
+                "method" => "password",
+            )
+            .increment(1);
+            warn!(target: "audit",
+                username = %body.username,
+                protocol = "http",
+                reason = "user_not_found",
+                "auth_login_rejected"
+            );
+            return Ok(LoginResponse::Failure(Json(LoginFailureResponse {
+                state: ApiAuthState::Failed,
+            })));
+        }
+        x => x,
+    }?;
     let mut state = state_arc.lock().await;
 
     let client_ip = get_client_ip(&req, Some(&services))
@@ -281,7 +291,7 @@ async fn api_auth_login(
         .unwrap_or_else(|| "<unknown>".to_owned());
     let password_cred = AuthCredential::Password(Secret::new(body.password.clone()));
     if validate_credential_throttled(
-        &services.config_provider,
+        &services,
         &state.user_info().username,
         &client_ip,
         &password_cred,
@@ -368,9 +378,7 @@ async fn api_auth_otp_login(
         .await
         .unwrap_or_else(|| "<unknown>".to_owned());
     let otp_cred = AuthCredential::Otp(body.otp.clone().into());
-    if validate_credential_throttled(&services.config_provider, &username, &client_ip, &otp_cred)
-        .await?
-    {
+    if validate_credential_throttled(&services, &username, &client_ip, &otp_cred).await? {
         state.add_valid_credential(otp_cred);
     } else {
         warn!(target: "audit",username = %username, protocol = "http", "auth_otp_invalid");

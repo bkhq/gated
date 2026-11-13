@@ -11,7 +11,7 @@ import {
 import { CopyableId } from '@/shared/components/copyable-id'
 import { EmptyState } from '@/shared/components/empty-state'
 import { PageHeader } from '@/shared/components/page-header'
-import { recordingCastUrl, recordingTcpdumpUrl } from '@/shared/lib/api/recordings'
+import { recordingCastUrl, recordingDesktopUrl, recordingTcpdumpUrl } from '@/shared/lib/api/recordings'
 import { Avatar } from '@/shared/ui/avatar'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -23,6 +23,7 @@ function recordingDownloadUrl(recording: Recording): string | null {
   switch (recording.kind) {
     case 'Traffic': return recordingTcpdumpUrl(recording.id)
     case 'Terminal': return recordingCastUrl(recording.id)
+    case 'Desktop': return recordingDesktopUrl(recording.id)
     case 'HttpProxy':
     case 'SqlAudit':
     case 'CommandAudit':
@@ -39,6 +40,7 @@ function recordingDownloadFilename(recording: Recording): string {
     case 'SqlAudit':
     case 'CommandAudit':
     case 'FileAudit':
+    case 'Desktop':
       return recording.name
   }
 }

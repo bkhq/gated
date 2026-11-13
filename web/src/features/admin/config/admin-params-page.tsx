@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { AboutPanel } from '@/features/about/about-panel'
 import { AcmeSettingsCard } from '@/features/admin/config/acme-settings-card'
 import { EncryptionAdminCard } from '@/features/admin/config/encryption-admin-card'
+import { LoginProtectionCard } from '@/features/admin/config/login-protection-card'
 import { SETTINGS_TABS } from '@/features/admin/config/settings-tabs'
 import { SshKeysCard } from '@/features/admin/config/ssh-keys-card'
 import { TlsCertificatesCard } from '@/features/admin/config/tls-certificates-card'
@@ -31,11 +32,18 @@ import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 const SAVED_HINT_MS = 3000
 const SITE_TITLE_MAX_CHARS = 64
 const DEFAULT_SQL_CONSOLE_RATE_LIMIT_PER_MINUTE = 60
+/** Login protection bounds of the API, in minutes: one day and thirty days. */
+const MAX_WINDOW_MINUTES = 1440
+const MAX_DURATION_MINUTES = 43200
+const MAX_API_TOKEN_DAYS = 3650
+const MAX_PASSWORD_MIN_LENGTH = 128
 
-type ParameterSection = Extract<SettingsTab, 'general' | 'sessions' | 'ssh'>
+type ParameterSection = Extract<SettingsTab, 'general' | 'sessions' | 'ssh' | 'security'>
+type LoginProtection = BackedParameters['login_protection']
+type PasswordPolicy = BackedParameters['password_policy']
 
 function isParameterSection(tab: SettingsTab): tab is ParameterSection {
-  return tab === 'general' || tab === 'sessions' || tab === 'ssh'
+  return tab === 'general' || tab === 'sessions' || tab === 'ssh' || tab === 'security'
 }
 
 export function AdminParamsPage() {
@@ -64,6 +72,7 @@ export function AdminParamsPage() {
       {tab === 'tls' ? <TlsCertificatesCard /> : null}
       {tab === 'tls' ? <AcmeSettingsCard /> : null}
       {tab === 'update' ? <UpdatePanel /> : null}
+      {tab === 'security' ? <LoginProtectionCard /> : null}
       {tab === 'security' ? <EncryptionAdminCard /> : null}
       {tab === 'about' ? <AboutPanel /> : null}
     </>
@@ -115,6 +124,11 @@ function GatewayParametersForm({ initial, section }: { initial: BackedParameters
     terminal_watermark_enabled: initial.terminal_watermark_enabled,
     site_title: initial.site_title ?? '',
     target_check_interval_hours: initial.target_check_interval_hours,
+    login_protection: initial.login_protection,
+    // 0 lifts the limit.
+    max_api_token_duration_seconds: initial.max_api_token_duration_seconds ?? 0,
+    password_policy: initial.password_policy,
+    mfa_required: initial.mfa_required,
   }), [initial])
 
   const [draft, setDraft] = React.useState<BackedParametersUpdate>(() => initialDraft)
@@ -145,6 +159,78 @@ function GatewayParametersForm({ initial, section }: { initial: BackedParameters
     setOriginal(draft)
     setSavedAt(Date.now())
   }
+
+  const passwordPolicy = draft.password_policy ?? initial.password_policy
+  const setPasswordPolicy = <K extends keyof PasswordPolicy>(key: K, value: PasswordPolicy[K]) =>
+    set('password_policy', { ...passwordPolicy, [key]: value })
+  const passwordFlagRow = (key: 'require_uppercase' | 'require_lowercase' | 'require_digits' | 'require_special', name: string) => (
+    <Row
+      label={t(`settings.parameters.${name}`)}
+      control={(
+        <Switch
+          checked={passwordPolicy[key]}
+          onCheckedChange={v => setPasswordPolicy(key, Boolean(v))}
+          aria-label={t(`settings.parameters.${name}`)}
+        />
+      )}
+    />
+  )
+  const loginProtection = draft.login_protection ?? initial.login_protection
+  const setLoginProtection = <K extends keyof LoginProtection>(key: K, value: LoginProtection[K]) =>
+    set('login_protection', { ...loginProtection, [key]: value })
+  const attemptsRow = (key: 'ip_max_attempts' | 'user_max_attempts', name: string, hint: boolean) => (
+    <Row
+      htmlFor={`setting-login-protection-${key}`}
+      label={t(`settings.loginProtection.params.${name}`)}
+      hint={hint ? t(`settings.loginProtection.params.${name}Hint`) : undefined}
+      control={(
+        <Input
+          id={`setting-login-protection-${key}`}
+          type="number"
+          min={1}
+          max={1000}
+          value={String(loginProtection[key])}
+          onChange={(e) => {
+            const parsed = Number(e.target.value)
+            if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000) {
+              setLoginProtection(key, parsed)
+            }
+          }}
+          wrapperClassName="w-[200px]"
+          suffix={<span className="text-[11.5px] text-muted-foreground">{t('settings.loginProtection.params.attempts')}</span>}
+        />
+      )}
+    />
+  )
+  // The API takes seconds; whole minutes are precise enough to edit.
+  const minutesRow = (
+    key: 'ip_window_seconds' | 'ip_block_seconds' | 'ip_max_block_seconds' | 'user_window_seconds' | 'user_lockout_seconds',
+    name: string,
+    { min, max, hint }: { min: number, max: number, hint?: boolean },
+  ) => (
+    <Row
+      htmlFor={`setting-login-protection-${key}`}
+      label={t(`settings.loginProtection.params.${name}`)}
+      hint={hint ? t(`settings.loginProtection.params.${name}Hint`) : undefined}
+      control={(
+        <Input
+          id={`setting-login-protection-${key}`}
+          type="number"
+          min={min}
+          max={max}
+          value={String(Math.round(loginProtection[key] / 60))}
+          onChange={(e) => {
+            const parsed = Number(e.target.value)
+            if (Number.isInteger(parsed) && parsed >= min && parsed <= max) {
+              setLoginProtection(key, parsed * 60)
+            }
+          }}
+          wrapperClassName="w-[200px]"
+          suffix={<span className="text-[11.5px] text-muted-foreground">{t('settings.loginProtection.params.minutes')}</span>}
+        />
+      )}
+    />
+  )
 
   const rateLimitValue = draft.rate_limit_bytes_per_second
   const rateLimitInput = typeof rateLimitValue === 'number' ? String(rateLimitValue) : ''
@@ -184,6 +270,33 @@ function GatewayParametersForm({ initial, section }: { initial: BackedParameters
                     checked={draft.minimize_password_login ?? false}
                     onCheckedChange={v => set('minimize_password_login', Boolean(v))}
                     aria-label={t('settings.parameters.minimizePasswordLogin')}
+                  />
+                )}
+              />
+              <Separator />
+              <Row
+                htmlFor="setting-parameters-max-api-token-duration"
+                label={t('settings.parameters.maxApiTokenDuration')}
+                hint={t('settings.parameters.maxApiTokenDurationHint')}
+                control={(
+                  <Input
+                    id="setting-parameters-max-api-token-duration"
+                    type="number"
+                    min={1}
+                    max={MAX_API_TOKEN_DAYS}
+                    value={draft.max_api_token_duration_seconds ? String(Math.round(draft.max_api_token_duration_seconds / 86400)) : ''}
+                    aria-describedby="setting-parameters-max-api-token-duration-hint"
+                    onChange={(e) => {
+                      const parsed = Number(e.target.value)
+                      if (e.target.value === '') {
+                        set('max_api_token_duration_seconds', 0)
+                      }
+                      else if (Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_API_TOKEN_DAYS) {
+                        set('max_api_token_duration_seconds', parsed * 86400)
+                      }
+                    }}
+                    wrapperClassName="w-[200px]"
+                    suffix={<span className="text-[11.5px] text-muted-foreground">{t('settings.parameters.maxApiTokenDurationUnit')}</span>}
                   />
                 )}
               />
@@ -339,6 +452,70 @@ function GatewayParametersForm({ initial, section }: { initial: BackedParameters
                   />
                 )}
               />
+            </>
+          )}
+          {section === 'security' && (
+            <>
+              <Row
+                htmlFor="setting-parameters-password-min-length"
+                label={t('settings.parameters.passwordMinLength')}
+                hint={t('settings.parameters.passwordMinLengthHint')}
+                control={(
+                  <Input
+                    id="setting-parameters-password-min-length"
+                    type="number"
+                    min={0}
+                    max={MAX_PASSWORD_MIN_LENGTH}
+                    value={String(passwordPolicy.min_length)}
+                    aria-describedby="setting-parameters-password-min-length-hint"
+                    onChange={(e) => {
+                      const parsed = Number(e.target.value)
+                      if (Number.isInteger(parsed) && parsed >= 0 && parsed <= MAX_PASSWORD_MIN_LENGTH) {
+                        setPasswordPolicy('min_length', parsed)
+                      }
+                    }}
+                    wrapperClassName="w-[200px]"
+                    suffix={<span className="text-[11.5px] text-muted-foreground">{t('settings.parameters.passwordMinLengthUnit')}</span>}
+                  />
+                )}
+              />
+              {passwordFlagRow('require_uppercase', 'passwordRequireUppercase')}
+              {passwordFlagRow('require_lowercase', 'passwordRequireLowercase')}
+              {passwordFlagRow('require_digits', 'passwordRequireDigits')}
+              {passwordFlagRow('require_special', 'passwordRequireSpecial')}
+              <Separator />
+              <Row
+                label={t('settings.parameters.mfaRequired')}
+                hint={t('settings.parameters.mfaRequiredHint')}
+                control={(
+                  <Switch
+                    checked={draft.mfa_required ?? initial.mfa_required}
+                    onCheckedChange={v => set('mfa_required', Boolean(v))}
+                    aria-label={t('settings.parameters.mfaRequired')}
+                  />
+                )}
+              />
+              <Separator />
+              <Row
+                label={t('settings.loginProtection.params.enabled')}
+                hint={t('settings.loginProtection.params.enabledHint')}
+                control={(
+                  <Switch
+                    checked={loginProtection.enabled}
+                    onCheckedChange={v => setLoginProtection('enabled', Boolean(v))}
+                    aria-label={t('settings.loginProtection.params.enabled')}
+                  />
+                )}
+              />
+              <Separator />
+              {attemptsRow('ip_max_attempts', 'ipMaxAttempts', true)}
+              {minutesRow('ip_window_seconds', 'ipWindow', { min: 1, max: MAX_WINDOW_MINUTES })}
+              {minutesRow('ip_block_seconds', 'ipBlock', { min: 1, max: MAX_DURATION_MINUTES, hint: true })}
+              {minutesRow('ip_max_block_seconds', 'ipMaxBlock', { min: 1, max: MAX_DURATION_MINUTES })}
+              <Separator />
+              {attemptsRow('user_max_attempts', 'userMaxAttempts', true)}
+              {minutesRow('user_window_seconds', 'userWindow', { min: 1, max: MAX_WINDOW_MINUTES })}
+              {minutesRow('user_lockout_seconds', 'userLockout', { min: 0, max: MAX_DURATION_MINUTES, hint: true })}
             </>
           )}
           <Separator />

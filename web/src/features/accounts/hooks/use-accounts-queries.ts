@@ -34,6 +34,7 @@ const KNOWN_KINDS: readonly AccountKind[] = [
   'k8s-token',
   'k8s-client-cert',
   'http-headers',
+  'desktop-password',
 ]
 
 function toAccountKind(backendKind: string): AccountKind {
@@ -70,6 +71,8 @@ export function defaultCredentialsFor(kind: AccountKind): AccountCredentials {
       return { kind, client_certificate_pem: '', client_private_key_pem: '', passphrase: '', ca_pem: '', namespace: '' }
     case 'http-headers':
       return { kind, headers: [] }
+    case 'desktop-password':
+      return { kind, username: '', password: '', domain: '' }
   }
 }
 

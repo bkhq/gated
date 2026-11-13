@@ -32,6 +32,16 @@ export async function getRecordingCastText(id: string, signal?: AbortSignal): Pr
   return response.text()
 }
 
+// Newline-delimited JSON as well: one desktop recording item per line.
+export async function getRecordingDesktopText(id: string, signal?: AbortSignal): Promise<string> {
+  const response = await fetch(recordingDesktopUrl(id), { credentials: 'include', signal })
+  if (!response.ok) {
+    const message = response.statusText.length > 0 ? response.statusText : `HTTP ${response.status}`
+    throw new ApiError(response.status, message, undefined)
+  }
+  return response.text()
+}
+
 export function parseAsciiCast(text: string): AsciiCastLine[] {
   const out: AsciiCastLine[] = []
   for (const raw of text.split('\n')) {
@@ -54,4 +64,8 @@ export function recordingCastUrl(id: string): string {
 
 export function recordingStreamUrl(id: string): string {
   return `/admin/api/recordings/${encodeURIComponent(id)}/stream`
+}
+
+export function recordingDesktopUrl(id: string): string {
+  return `/admin/api/recordings/${encodeURIComponent(id)}/desktop`
 }

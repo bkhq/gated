@@ -163,8 +163,27 @@ async fn create_admin(
     username: &str,
     password: Secret<String>,
 ) -> anyhow::Result<()> {
+    // The transaction reads before it writes. SQLite refuses that upgrade at
+    // once, without waiting, when a startup task is writing at the same time.
+    let mut attempt = 0;
+    loop {
+        match try_create_admin(db, username, &password).await {
+            Err(error) if attempt < 5 && error.to_string().contains("database is locked") => {
+                attempt += 1;
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+            result => return result,
+        }
+    }
+}
+
+async fn try_create_admin(
+    db: &sea_orm::DatabaseConnection,
+    username: &str,
+    password: &Secret<String>,
+) -> anyhow::Result<()> {
     let tx = db.begin().await?;
-    gated_core::db::create_user(&tx, username, &password, Some(BUILTIN_ADMIN_ROLE_NAME)).await?;
+    gated_core::db::create_user(&tx, username, password, Some(BUILTIN_ADMIN_ROLE_NAME)).await?;
     tx.commit().await?;
     Ok(())
 }

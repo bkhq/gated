@@ -94,6 +94,20 @@ it('shows the upstream certificate chain for HTTP targets', async () => {
   expect(screen.queryByText('targets.detail.security.title')).not.toBeInTheDocument()
 })
 
+it('shows that RDP runs in TLS, the certificate check and the presented certificate', async () => {
+  renderSecurity({ ...sshTarget, kind: 'rdp', port: 3389, verifyTls: false })
+  expect(screen.getByText('targets.detail.security.tlsModes.Required')).toBeInTheDocument()
+  expect(screen.getByText('targets.detail.security.verifyOff')).toBeInTheDocument()
+  expect(await screen.findByText('CN=grafana.internal')).toBeInTheDocument()
+})
+
+it('shows that VNC has no TLS and asks for no certificate', async () => {
+  renderSecurity({ ...sshTarget, kind: 'vnc', port: 5900 })
+  expect(screen.getByText('targets.detail.security.tlsModes.Disabled')).toBeInTheDocument()
+  await Promise.resolve()
+  expect(screen.queryByText('targets.detail.security.certTitle')).not.toBeInTheDocument()
+})
+
 it('shows the TLS settings for database targets', () => {
   renderSecurity({ ...sshTarget, kind: 'postgres', port: 5432, tls: { mode: 'Required', verify: false } })
   expect(screen.getByText('targets.detail.security.tlsModes.Required')).toBeInTheDocument()

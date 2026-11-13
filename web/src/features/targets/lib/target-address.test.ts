@@ -8,3 +8,7 @@ it('formats ssh-like targets as user@host:port', () => {
 it('shows only the URL for http targets', () => {
   expect(formatTargetAddress({ kind: 'http', user: '', host: 'http://h:8080', port: 0 })).toBe('http://h:8080')
 })
+
+it('leaves the user out for targets without one', () => {
+  expect(formatTargetAddress({ kind: 'vnc', user: '', host: '10.0.0.9', port: 5900 })).toBe('10.0.0.9:5900')
+})

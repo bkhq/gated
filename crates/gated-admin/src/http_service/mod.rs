@@ -14,7 +14,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use axum::extract::{Request, State};
 use axum::http::header::{
-    CACHE_CONTROL, STRICT_TRANSPORT_SECURITY, X_CONTENT_TYPE_OPTIONS, X_FRAME_OPTIONS,
+    CACHE_CONTROL, CONTENT_SECURITY_POLICY, STRICT_TRANSPORT_SECURITY, X_CONTENT_TYPE_OPTIONS,
+    X_FRAME_OPTIONS,
 };
 use axum::http::{HeaderName, HeaderValue, StatusCode};
 use axum::middleware::{Next, from_fn, from_fn_with_state};
@@ -123,6 +124,22 @@ async fn cache_bust(request: Request, next: Next) -> Response {
     response
 }
 
+/// Policy for the management UI and its API. Styles allow inline attributes
+/// because the terminal and the UI components set them; scripts do not. The
+/// terminal recording player runs its emulator as WebAssembly, which needs
+/// `'wasm-unsafe-eval'`; that does not allow evaluating script text.
+const CONTENT_SECURITY_POLICY_VALUE: &str = "default-src 'self'; \
+script-src 'self' 'wasm-unsafe-eval'; \
+style-src 'self' 'unsafe-inline'; \
+img-src 'self' data: blob:; \
+font-src 'self' data:; \
+connect-src 'self'; \
+worker-src 'self' blob:; \
+frame-ancestors 'none'; \
+base-uri 'self'; \
+form-action 'self'; \
+object-src 'none'";
+
 async fn security_headers(
     State(tls_enabled): State<bool>,
     request: Request,
@@ -132,6 +149,10 @@ async fn security_headers(
     let headers = response.headers_mut();
     headers.insert(X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
     headers.insert(X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    // A handler that needs a different policy sets its own.
+    headers
+        .entry(CONTENT_SECURITY_POLICY)
+        .or_insert(HeaderValue::from_static(CONTENT_SECURITY_POLICY_VALUE));
     headers.insert(
         HeaderName::from_static("referrer-policy"),
         HeaderValue::from_static("strict-origin-when-cross-origin"),
@@ -251,6 +272,10 @@ impl ProtocolServer for HTTPProtocolServer {
             get(api::ssh_terminal::api_ssh_terminal).route_layer(from_fn(require_auth)),
         )
         .route(
+            "/desktop/{target_name}",
+            get(api::desktop::api_desktop).route_layer(from_fn(require_auth)),
+        )
+        .route(
             "/sftp/{target_name}/download",
             get(api::sftp::api_sftp_download).route_layer(from_fn(require_auth)),
         )
@@ -341,5 +366,49 @@ impl ProtocolServer for HTTPProtocolServer {
 impl Debug for HTTPProtocolServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "HTTPProtocolServer")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::Body;
+    use tower::ServiceExt;
+
+    use super::*;
+
+    fn app() -> Router {
+        Router::new()
+            .route("/page", get(|| async { "ok" }))
+            .route(
+                "/own-policy",
+                get(|| async { ([(CONTENT_SECURITY_POLICY, "default-src 'none'")], "ok") }),
+            )
+            .layer(from_fn_with_state(true, security_headers))
+    }
+
+    async fn policy(path: &str) -> String {
+        let request = Request::builder().uri(path).body(Body::empty()).unwrap();
+        let response = app().oneshot(request).await.unwrap();
+        response
+            .headers()
+            .get(CONTENT_SECURITY_POLICY)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default()
+            .to_owned()
+    }
+
+    #[tokio::test]
+    async fn responses_carry_a_policy_without_inline_script() {
+        let policy = policy("/page").await;
+        assert!(policy.contains("default-src 'self'"));
+        // Compiling WebAssembly is allowed, evaluating script text is not.
+        assert!(policy.contains("script-src 'self' 'wasm-unsafe-eval';"));
+        assert!(policy.contains("frame-ancestors 'none'"));
+        assert!(policy.contains("object-src 'none'"));
+    }
+
+    #[tokio::test]
+    async fn a_handler_keeps_its_own_policy() {
+        assert_eq!(policy("/own-policy").await, "default-src 'none'");
     }
 }

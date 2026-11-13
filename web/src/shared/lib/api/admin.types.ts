@@ -205,6 +205,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/login-protection/ip-blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_ip_blocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/login-protection/ip-blocks/{ip}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_ip_block"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/login-protection/user-lockouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_user_lockouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/login-protection/user-lockouts/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_user_lockout"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/logs": {
         parameters: {
             query?: never;
@@ -1064,7 +1128,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /**
+         * Sets or clears the expiry of a role assignment. Clearing it or moving it
+         *     into the future also revives an expired assignment.
+         */
+        put: operations["update_user_role"];
         post: operations["add_user_role"];
         delete: operations["delete_user_role"];
         options?: never;
@@ -1287,6 +1355,9 @@ export interface components {
         }) | (components["schemas"]["DbPasswordAccountCredentials"] & {
             /** @enum {string} */
             kind: "db-password";
+        }) | (components["schemas"]["DesktopPasswordAccountCredentials"] & {
+            /** @enum {string} */
+            kind: "desktop-password";
         }) | (components["schemas"]["K8sTokenAccountCredentials"] & {
             /** @enum {string} */
             kind: "k8s-token";
@@ -1600,6 +1671,13 @@ export interface components {
         };
         /** @enum {string} */
         DbPasswordEngine: "mysql" | "postgres";
+        /** @description Login for an RDP or VNC target. VNC uses the password only. */
+        DesktopPasswordAccountCredentials: {
+            /** @description Windows domain for RDP; `None` for a local account. */
+            domain?: string | null;
+            password: string;
+            username: string;
+        };
         EnableAcmeRequest: {
             /** @description DNS names for the certificate; `*.example.com` requests a wildcard. */
             domains: string[];
@@ -1741,6 +1819,22 @@ export interface components {
             /** @description Unencrypted PEM private key of the leaf certificate. */
             private_key_pem: string;
         };
+        /**
+         * @description A client address refused at sign-in. The row outlives the block so a
+         *     repeat offender gets a longer one.
+         */
+        IpBlock: {
+            /**
+             * Format: int32
+             * @description How many blocks in a row this address has earned.
+             */
+            block_count: number;
+            /** Format: date-time */
+            blocked_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            ip_address: string;
+        };
         IssueCertificateCredentialRequest: {
             label: string;
             public_key_pem: string;
@@ -1786,6 +1880,51 @@ export interface components {
             /** @description Parts of the `state.json` contract this lode supports. */
             features?: string[];
             version: string;
+        };
+        /**
+         * @description Thresholds for blocking client addresses and locking users out after
+         *     failed sign-ins. Durations are in seconds.
+         */
+        LoginProtectionParameters: {
+            enabled: boolean;
+            /**
+             * Format: int32
+             * @description Length of the first block, 60 to 2592000. Each repeat doubles it.
+             */
+            ip_block_seconds: number;
+            /**
+             * Format: int32
+             * @description Failed attempts from one address within `ip_window_seconds` that
+             *     block it, 1 to 1000.
+             */
+            ip_max_attempts: number;
+            /**
+             * Format: int32
+             * @description Longest block, `ip_block_seconds` to 2592000.
+             */
+            ip_max_block_seconds: number;
+            /**
+             * Format: int32
+             * @description 60 to 86400.
+             */
+            ip_window_seconds: number;
+            /**
+             * Format: int32
+             * @description 60 to 2592000, or 0 to keep the user locked until an administrator
+             *     lifts the lockout.
+             */
+            user_lockout_seconds: number;
+            /**
+             * Format: int32
+             * @description Failed attempts for one user within `user_window_seconds` that lock
+             *     the user out, 1 to 1000. Administrators are not locked out.
+             */
+            user_max_attempts: number;
+            /**
+             * Format: int32
+             * @description 60 to 86400.
+             */
+            user_window_seconds: number;
         };
         ManagementSession: {
             /** Format: date-time */
@@ -1848,7 +1987,16 @@ export interface components {
         };
         ParameterUpdate: {
             allow_own_credential_management: boolean;
+            login_protection?: components["schemas"]["LoginProtectionParameters"] | null;
+            /**
+             * Format: int32
+             * @description Seconds; 0 lifts the limit. Omitted leaves the current value unchanged.
+             */
+            max_api_token_duration_seconds?: number | null;
+            /** @description Omitted leaves the current value unchanged. */
+            mfa_required?: boolean | null;
             minimize_password_login?: boolean | null;
+            password_policy?: components["schemas"]["PasswordPolicy"] | null;
             /** Format: int32 */
             rate_limit_bytes_per_second?: number | null;
             /**
@@ -1885,7 +2033,19 @@ export interface components {
         };
         ParameterValues: {
             allow_own_credential_management: boolean;
+            login_protection: components["schemas"]["LoginProtectionParameters"];
+            /**
+             * Format: int32
+             * @description Longest lifetime a user may give an API token they create, in
+             *     seconds. `None`: no limit. Tokens an administrator creates for a user
+             *     are not limited.
+             */
+            max_api_token_duration_seconds?: number | null;
+            /** @description Every user must enroll an OTP device before using the gateway. */
+            mfa_required: boolean;
             minimize_password_login: boolean;
+            /** @description Rules for passwords set through the admin and profile APIs. */
+            password_policy: components["schemas"]["PasswordPolicy"];
             /** Format: int32 */
             rate_limit_bytes_per_second?: number | null;
             /**
@@ -1919,6 +2079,19 @@ export interface components {
              */
             terminal_watermark_enabled: boolean;
         };
+        /** @description Rules a new password must satisfy. */
+        PasswordPolicy: {
+            /**
+             * Format: int32
+             * @description Minimum number of characters, 0 to 128 (0 = no requirement).
+             */
+            min_length: number;
+            require_digits: boolean;
+            require_lowercase: boolean;
+            /** @description An ASCII character that is neither a letter nor a digit. */
+            require_special: boolean;
+            require_uppercase: boolean;
+        };
         Recording: {
             /** Format: date-time */
             ended?: string | null;
@@ -1933,7 +2106,7 @@ export interface components {
             started: string;
         };
         /** @enum {string} */
-        RecordingKind: "Terminal" | "Traffic" | "HttpProxy" | "SqlAudit" | "CommandAudit" | "FileAudit";
+        RecordingKind: "Terminal" | "Traffic" | "HttpProxy" | "SqlAudit" | "CommandAudit" | "FileAudit" | "Desktop";
         RevealConfirmation: {
             otp?: string | null;
             password?: string | null;
@@ -1941,6 +2114,11 @@ export interface components {
             reason?: string | null;
         };
         Role: {
+            /**
+             * @description Desktop sessions (RDP, VNC) granted by the role may exchange
+             *     clipboard text with the browser.
+             */
+            allow_clipboard: boolean;
             allow_file_transfer: boolean;
             description: string;
             /** Format: uuid */
@@ -1948,6 +2126,8 @@ export interface components {
             name: string;
         };
         RoleDataRequest: {
+            /** @description Defaults to `false` on create; unchanged on update when omitted. */
+            allow_clipboard?: boolean | null;
             /** @description Defaults to `true` on create; unchanged on update when omitted. */
             allow_file_transfer?: boolean | null;
             description?: string | null;
@@ -2136,6 +2316,12 @@ export interface components {
         }) | (components["schemas"]["TargetPostgresOptions"] & {
             /** @enum {string} */
             kind: "Postgres";
+        }) | (components["schemas"]["TargetRdpOptions"] & {
+            /** @enum {string} */
+            kind: "Rdp";
+        }) | (components["schemas"]["TargetVncOptions"] & {
+            /** @enum {string} */
+            kind: "Vnc";
         });
         TargetPostgresOptions: {
             default_database_name?: string | null;
@@ -2148,6 +2334,22 @@ export interface components {
             readonly: boolean;
             tls: components["schemas"]["Tls"];
             username: string;
+        };
+        TargetRdpOptions: {
+            domain?: string | null;
+            host: string;
+            /**
+             * @description Write-only: read endpoints return `null`. A blank value on update
+             *     keeps the stored password.
+             */
+            password?: string | null;
+            /** Format: int32 */
+            port: number;
+            /** @description Record key presses with the session; they include typed passwords. */
+            record_keystrokes: boolean;
+            username: string;
+            /** @description Verify the server certificate against the system roots. */
+            verify_tls: boolean;
         };
         /** @description The account a role granted on a target signs in with. */
         TargetRoleAccount: {
@@ -2177,6 +2379,18 @@ export interface components {
             reachable: boolean;
             /** Format: uuid */
             target_id: string;
+        };
+        TargetVncOptions: {
+            host: string;
+            /**
+             * @description Write-only, as for RDP. `null` with no stored password: the server
+             *     asks for no authentication.
+             */
+            password?: string | null;
+            /** Format: int32 */
+            port: number;
+            /** @description Record key presses with the session; they include typed passwords. */
+            record_keystrokes: boolean;
         };
         Ticket: {
             /** Format: date-time */
@@ -2271,7 +2485,7 @@ export interface components {
             error?: string | null;
             /** @description False for an `http://` upstream; nothing else is reported then. */
             tls: boolean;
-            /** @description The target's `tls.verify` setting. */
+            /** @description The target's `tls.verify` setting; `verify_tls` for an RDP target. */
             verify: boolean;
             /**
              * @description Why the chain fails verification against the system roots and the
@@ -2280,6 +2494,8 @@ export interface components {
             verify_error?: string | null;
         };
         User: {
+            /** @description Addresses and CIDR ranges the user is limited to; `null` = anywhere. */
+            allowed_ip_ranges?: string[] | null;
             credential_policy?: components["schemas"]["UserRequireCredentialsPolicy"] | null;
             description: string;
             /** Format: uuid */
@@ -2289,6 +2505,11 @@ export interface components {
             username: string;
         };
         UserDataRequest: {
+            /**
+             * @description Addresses and CIDR ranges the user may sign in from, use API tokens
+             *     from and use tickets from. `null` or an empty list: anywhere.
+             */
+            allowed_ip_ranges?: string[] | null;
             credential_policy?: components["schemas"]["UserRequireCredentialsPolicy"] | null;
             description?: string | null;
             /** Format: int32 */
@@ -2296,8 +2517,22 @@ export interface components {
             username: string;
         };
         UserListItem: components["schemas"]["User"] & {
-            /** @description Names of the roles assigned to the user, sorted. */
+            /**
+             * @description Names of the roles the user holds now, sorted; expired assignments
+             *     are left out.
+             */
             roles: string[];
+        };
+        /** @description A user refused at sign-in after too many failed attempts. */
+        UserLockout: {
+            /**
+             * Format: date-time
+             * @description `None`: locked until an administrator lifts it.
+             */
+            expires_at?: string | null;
+            /** Format: date-time */
+            locked_at: string;
+            username: string;
         };
         UserRequireCredentialsPolicy: {
             http?: components["schemas"]["CredentialKind"][] | null;
@@ -2305,6 +2540,22 @@ export interface components {
             mysql?: components["schemas"]["CredentialKind"][] | null;
             postgres?: components["schemas"]["CredentialKind"][] | null;
             ssh?: components["schemas"]["CredentialKind"][] | null;
+        };
+        /** @description A role assigned to a user. */
+        UserRole: components["schemas"]["Role"] & {
+            /**
+             * Format: date-time
+             * @description The assignment grants nothing from this time on; `null` = never.
+             *     An expired assignment stays listed until it is removed or extended.
+             */
+            expires_at?: string | null;
+        };
+        UserRoleUpdate: {
+            /**
+             * Format: date-time
+             * @description When the assignment ends; `null` makes it permanent.
+             */
+            expires_at?: string | null;
         };
     };
     responses: never;
@@ -2935,6 +3186,94 @@ export interface operations {
                 content: {
                     "application/json; charset=utf-8": string;
                 };
+            };
+        };
+    };
+    get_ip_blocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["IpBlock"][];
+                };
+            };
+        };
+    };
+    delete_ip_block: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ip: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_user_lockouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["UserLockout"][];
+                };
+            };
+        };
+    };
+    delete_user_lockout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -4850,7 +5189,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json; charset=utf-8": components["schemas"]["Role"][];
+                    "application/json; charset=utf-8": components["schemas"]["UserRole"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_user_role: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json; charset=utf-8": components["schemas"]["UserRoleUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["UserRole"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
                 };
             };
             404: {
@@ -5211,6 +5590,14 @@ export interface operations {
                 };
                 content: {
                     "application/json; charset=utf-8": components["schemas"]["ExistingPasswordCredential"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json; charset=utf-8": string;
                 };
             };
         };

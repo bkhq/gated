@@ -19,6 +19,8 @@ pub enum RecordingKind {
     CommandAudit,
     #[sea_orm(string_value = "file_audit")]
     FileAudit,
+    #[sea_orm(string_value = "desktop")]
+    Desktop,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, utoipa::ToSchema)]

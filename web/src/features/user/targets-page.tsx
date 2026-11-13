@@ -167,6 +167,10 @@ export function TargetsPage() {
 
   const openTerminalTab = useAppStore(state => state.openTerminalTab)
   const connect = (target: Target) => {
+    if (target.kind === 'rdp' || target.kind === 'vnc') {
+      void navigate({ to: '/desktop/$targetName', params: { targetName: target.name } })
+      return
+    }
     openTerminalTab({ type: 'terminal', kind: target.kind as TerminalKind, targetId: target.id, targetName: target.name })
     void navigate({ to: '/sessions' })
   }

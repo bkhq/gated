@@ -19,6 +19,7 @@ function adminRoleToDomain(role: AdminRole): Role {
     name: role.name,
     description: role.description,
     allowFileTransfer: role.allow_file_transfer,
+    allowClipboard: role.allow_clipboard,
     builtin: role.builtin,
   }
 }
@@ -28,6 +29,7 @@ function roleDraftToCreateRequest(draft: RoleDraft): AdminRoleDataRequest {
     name: draft.name,
     ...(draft.description ? { description: draft.description } : {}),
     ...(draft.allowFileTransfer === undefined ? {} : { allow_file_transfer: draft.allowFileTransfer }),
+    ...(draft.allowClipboard === undefined ? {} : { allow_clipboard: draft.allowClipboard }),
   }
 }
 
@@ -35,7 +37,8 @@ function rolePatchToDataRequest(existing: AdminRole, patch: Partial<Role>): Admi
   const name = patch.name ?? existing.name
   const description = patch.description !== undefined ? patch.description : existing.description
   const allow_file_transfer = patch.allowFileTransfer ?? existing.allow_file_transfer
-  return { name, description, allow_file_transfer }
+  const allow_clipboard = patch.allowClipboard ?? existing.allow_clipboard
+  return { name, description, allow_file_transfer, allow_clipboard }
 }
 
 export function useRoles() {

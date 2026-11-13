@@ -22,6 +22,8 @@ struct RoleDataRequest {
     description: Option<String>,
     /// Defaults to `true` on create; unchanged on update when omitted.
     allow_file_transfer: Option<bool>,
+    /// Defaults to `false` on create; unchanged on update when omitted.
+    allow_clipboard: Option<bool>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -111,6 +113,7 @@ async fn api_create_role(
         name: Set(body.name.clone()),
         description: Set(body.description.clone().unwrap_or_default()),
         allow_file_transfer: Set(body.allow_file_transfer.unwrap_or(true)),
+        allow_clipboard: Set(body.allow_clipboard.unwrap_or(false)),
     };
 
     let role = values.insert(&db).await.map_err(GatedError::from)?;
@@ -208,6 +211,9 @@ async fn api_update_role(
     if let Some(allow_file_transfer) = body.allow_file_transfer {
         model.allow_file_transfer = Set(allow_file_transfer);
     }
+    if let Some(allow_clipboard) = body.allow_clipboard {
+        model.allow_clipboard = Set(allow_clipboard);
+    }
     let role = model.update(&db).await?;
 
     Ok(UpdateRoleResponse::Ok(Json(role.into())))
@@ -303,6 +309,7 @@ mod tests {
             name: name.into(),
             description: String::new(),
             allow_file_transfer: true,
+            allow_clipboard: false,
         }
     }
 

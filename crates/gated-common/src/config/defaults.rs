@@ -19,6 +19,14 @@ pub(crate) const fn _default_mysql_port() -> u16 {
     3306
 }
 
+pub(crate) const fn _default_rdp_port() -> u16 {
+    3389
+}
+
+pub(crate) const fn _default_vnc_port() -> u16 {
+    5900
+}
+
 #[inline]
 pub(crate) fn _default_username() -> String {
     "root".to_owned()

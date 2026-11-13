@@ -1,7 +1,7 @@
 import type { BreadcrumbItem } from '@/shared/components/page-header'
 import type { Target } from '@/shared/types/domain'
 import type { DropdownItem } from '@/shared/ui/dropdown-menu'
-import { Copy, Database, Edit, FolderOpen, MoreHorizontal, Play, RefreshCw, Star, Terminal, Trash2 } from 'lucide-react'
+import { Copy, Database, Edit, FolderOpen, Monitor, MoreHorizontal, Play, RefreshCw, Star, Terminal, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatTargetAddress } from '@/features/targets/lib/target-address'
 import { PageHeader } from '@/shared/components/page-header'
@@ -58,6 +58,14 @@ export function TargetDetailHeader({
         ? (
             <Button onClick={() => onConnect(target)}>
               <Terminal size={14} />
+              <span>{t('actions.connect')}</span>
+            </Button>
+          )
+        : null}
+      {onConnect && (target.kind === 'rdp' || target.kind === 'vnc')
+        ? (
+            <Button onClick={() => onConnect(target)}>
+              <Monitor size={14} />
               <span>{t('actions.connect')}</span>
             </Button>
           )

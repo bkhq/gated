@@ -1,4 +1,4 @@
-export type TargetKind = 'ssh' | 'mysql' | 'postgres' | 'http'
+export type TargetKind = 'ssh' | 'mysql' | 'postgres' | 'http' | 'rdp' | 'vnc'
 
 // HTTP targets carry a flavor: `generic` is a plain reverse-proxy target,
 // `kubernetes` enables the gateway's K8s-API-proxy behaviour (it maps to the
@@ -21,6 +21,11 @@ export interface Target {
   flavor?: HttpFlavor
   // Upstream TLS settings of HTTP/MySQL/PostgreSQL targets (admin data only).
   tls?: { mode: string, verify: boolean }
+  // RDP only: Windows domain and upstream certificate verification.
+  domain?: string
+  verifyTls?: boolean
+  // RDP/VNC only: keystrokes are left out of recordings unless this is on.
+  recordKeystrokes?: boolean
   // Last reachability check; null when never checked.
   status?: TargetHealth | null
 }
@@ -62,6 +67,8 @@ export interface User {
   description?: string
   roles: string[]
   rate_limit_bytes_per_second?: number
+  /** Addresses and CIDR ranges the user is limited to; absent = anywhere. */
+  allowed_ip_ranges?: string[]
 }
 
 export interface Role {
@@ -71,6 +78,8 @@ export interface Role {
   builtin?: boolean
   /** SFTP and the web file manager on this role's targets. */
   allowFileTransfer?: boolean
+  /** Clipboard sync in RDP and VNC sessions on this role's targets. */
+  allowClipboard?: boolean
 }
 
 export type AuthRequestState = 'pending' | 'approved' | 'rejected' | 'expired'
@@ -172,6 +181,7 @@ export type AccountKind
     | 'k8s-token'
     | 'k8s-client-cert'
     | 'http-headers'
+    | 'desktop-password'
 
 export type DbEngine = 'mysql' | 'postgres'
 
@@ -192,6 +202,8 @@ export type AccountCredentials
     | { kind: 'k8s-token', token: string, ca_pem?: string | null, namespace?: string | null }
     | { kind: 'k8s-client-cert', client_certificate_pem: string, client_private_key_pem: string, passphrase?: string | null, ca_pem?: string | null, namespace?: string | null }
     | { kind: 'http-headers', headers: HttpHeaderCredential[] }
+    // RDP sign-in (username, optional domain) or a VNC password (no username).
+    | { kind: 'desktop-password', username: string, password: string, domain?: string | null }
 
 export interface Account {
   id: string

@@ -15,6 +15,7 @@ Gated 是一个面向 SSH、HTTP、MySQL 和 PostgreSQL 的智能堡垒机（[Wa
 | [protocol-ssh.zh-CN.md](protocol-ssh.zh-CN.md) | SSH 代理：监听器、认证握手、通道模型、录制 |
 | [protocol-http.zh-CN.md](protocol-http.zh-CN.md) | HTTP 反向代理，包括 Kubernetes 变体和 mTLS |
 | [protocol-database.zh-CN.md](protocol-database.zh-CN.md) | MySQL 和 PostgreSQL 代理，共享线协议 crate |
+| [protocol-desktop.zh-CN.md](protocol-desktop.zh-CN.md) | 浏览器中的 RDP 与 VNC 桌面：桥接层、协议客户端、录像 |
 | [auth.zh-CN.md](auth.zh-CN.md) | 凭据类型、认证状态机、SSO/OIDC、RBAC、票据 |
 | [management-plane.zh-CN.md](management-plane.zh-CN.md) | 管理 API、内嵌 Web UI、用户门户、CLI、配置结构 |
 | [sessions-recordings-audit.zh-CN.md](sessions-recordings-audit.zh-CN.md) | 会话注册表、录制、日志条目、数据库层、指标 |

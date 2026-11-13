@@ -1,7 +1,8 @@
 use std::fmt::Debug;
+use std::net::IpAddr;
 
 use axum::http::request::Parts;
-use axum::http::{HeaderMap, Method, StatusCode, Uri};
+use axum::http::{Extensions, HeaderMap, Method, StatusCode, Uri};
 use gated_common::web::server::ConnectionInfo;
 use tracing::*;
 
@@ -35,6 +36,14 @@ fn header<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
 }
 
 pub async fn get_client_ip(parts: &Parts, services: Option<&Services>) -> Option<String> {
+    client_ip(&parts.headers, &parts.extensions, services).await
+}
+
+async fn client_ip(
+    headers: &HeaderMap,
+    extensions: &Extensions,
+    services: Option<&Services>,
+) -> Option<String> {
     let trust_x_forwarded_headers = if let Some(services) = services {
         let config = services.config.read().await;
         config.store.admin.trust_x_forwarded_headers
@@ -42,18 +51,30 @@ pub async fn get_client_ip(parts: &Parts, services: Option<&Services>) -> Option
         false
     };
 
-    let remote_ip = parts
-        .extensions
+    let remote_ip = extensions
         .get::<ConnectionInfo>()
         .map(|info| info.remote_addr.ip().to_string());
 
     if trust_x_forwarded_headers {
-        header(&parts.headers, "x-forwarded-for")
+        header(headers, "x-forwarded-for")
             .map(|x| x.to_string())
             .or(remote_ip)
     } else {
         remote_ip
     }
+}
+
+/// The client address to decide on, not to log: the TCP peer, or with
+/// trusted forwarding headers the entry the nearest proxy added.
+pub async fn client_ip_addr(
+    headers: &HeaderMap,
+    extensions: &Extensions,
+    services: &Services,
+) -> Option<IpAddr> {
+    client_ip(headers, extensions, Some(services))
+        .await
+        .as_deref()
+        .and_then(crate::login_protection::parse_client_ip)
 }
 
 pub async fn span_for_request(parts: &Parts, handle: Option<&GatedServerHandle>) -> Span {

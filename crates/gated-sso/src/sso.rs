@@ -66,14 +66,64 @@ pub async fn discover_metadata(
     config: &SsoInternalProviderConfig,
     http_client: &reqwest::Client,
 ) -> Result<ProviderMetadataWithLogout, SsoError> {
-    ProviderMetadataWithLogout::discover_async(config.issuer_url()?, http_client)
+    let metadata = ProviderMetadataWithLogout::discover_async(config.issuer_url()?, http_client)
         .await
         .map_err(|e| {
             SsoError::Discovery(match e {
                 DiscoveryError::Request(inner) => format!("Request error: {inner:?}"),
                 e => format!("{e}"),
             })
-        })
+        })?;
+    validate_endpoint_schemes(&metadata)?;
+    Ok(metadata)
+}
+
+fn check_endpoint_scheme(endpoint: &str, url: &Url) -> Result<(), SsoError> {
+    if matches!(url.scheme(), "https" | "http") {
+        return Ok(());
+    }
+    Err(SsoError::UnsupportedEndpointScheme {
+        endpoint: endpoint.to_owned(),
+        url: url.to_string(),
+    })
+}
+
+/// The authorization and end-session endpoints are handed to the browser as
+/// URLs to navigate to, so a `javascript:` value would run on the gateway's
+/// origin. The others are fetched by the gateway and have no legitimate
+/// non-HTTP value either.
+fn validate_endpoint_schemes(metadata: &ProviderMetadataWithLogout) -> Result<(), SsoError> {
+    check_endpoint_scheme(
+        "authorization_endpoint",
+        metadata.authorization_endpoint().url(),
+    )?;
+    check_endpoint_scheme("jwks_uri", metadata.jwks_uri().url())?;
+
+    let optional = [
+        ("token_endpoint", metadata.token_endpoint().map(|x| x.url())),
+        (
+            "userinfo_endpoint",
+            metadata.userinfo_endpoint().map(|x| x.url()),
+        ),
+        (
+            "registration_endpoint",
+            metadata.registration_endpoint().map(|x| x.url()),
+        ),
+        (
+            "end_session_endpoint",
+            metadata
+                .additional_metadata()
+                .end_session_endpoint
+                .as_ref()
+                .map(|x| x.url()),
+        ),
+    ];
+    for (endpoint, url) in optional {
+        if let Some(url) = url {
+            check_endpoint_scheme(endpoint, url)?;
+        }
+    }
+    Ok(())
 }
 
 async fn make_client(
@@ -249,5 +299,62 @@ impl SsoClient {
         req = req.set_client_id(self.config.client_id().clone());
         req = req.set_post_logout_redirect_uri(PostLogoutRedirectUrl::from_url(redirect_url));
         Ok(req.http_get_url())
+    }
+}
+
+#[cfg(test)]
+mod endpoint_scheme_tests {
+    use serde_json::{Value, json};
+
+    use super::{ProviderMetadataWithLogout, SsoError, validate_endpoint_schemes};
+
+    fn rejected_endpoint(extra: &Value) -> Option<String> {
+        let mut doc = json!({
+            "issuer": "https://idp.example.com",
+            "authorization_endpoint": "https://idp.example.com/authorize",
+            "jwks_uri": "https://idp.example.com/jwks",
+            "response_types_supported": ["code"],
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["RS256"],
+        });
+        if let (Some(doc), Some(extra)) = (doc.as_object_mut(), extra.as_object()) {
+            for (key, value) in extra {
+                doc.insert(key.clone(), value.clone());
+            }
+        }
+        let metadata: ProviderMetadataWithLogout = serde_json::from_value(doc).expect("metadata");
+        match validate_endpoint_schemes(&metadata) {
+            Err(SsoError::UnsupportedEndpointScheme { endpoint, .. }) => Some(endpoint),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn http_and_https_endpoints_are_accepted() {
+        assert_eq!(
+            rejected_endpoint(&json!({
+                "token_endpoint": "https://idp.example.com/token",
+                "userinfo_endpoint": "http://idp.internal/userinfo",
+                "end_session_endpoint": "https://idp.example.com/logout",
+            })),
+            None
+        );
+    }
+
+    #[test]
+    fn other_schemes_are_rejected() {
+        for (endpoint, url) in [
+            ("authorization_endpoint", "javascript:alert(1)"),
+            ("end_session_endpoint", "javascript:alert(1)"),
+            ("jwks_uri", "file:///etc/passwd"),
+            ("token_endpoint", "ftp://idp.example.com/token"),
+            ("userinfo_endpoint", "data:text/plain,x"),
+        ] {
+            assert_eq!(
+                rejected_endpoint(&json!({ endpoint: url })).as_deref(),
+                Some(endpoint),
+                "{endpoint} = {url}"
+            );
+        }
     }
 }

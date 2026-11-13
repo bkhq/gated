@@ -245,27 +245,27 @@ async fn api_return_to_sso_post(
     let url = api_return_to_sso_get_common(&req, &session, services, &data.code, &data.state)
         .await?
         .unwrap_or_else(|x| make_redirect_url(&x));
-    // Escape the URL for each output context it lands in.
-    // Script context: prevent a `</script>` (or similar) breakout from a
-    // valid JSON string by encoding the markup-significant characters.
-    let serialized_url = serde_json::to_string(&url)?
-        .replace('<', "\\u003c")
-        .replace('>', "\\u003e")
-        .replace('&', "\\u0026");
-    // HTML text/attribute context: encode `& < > " '`.
-    let escaped_url = html_escape(&url);
-    Ok(ReturnToSsoPostResponse::Redirect(Html(format!(
-        "<!doctype html>\n
-            <html>
-                <script>
-                    location.href = {serialized_url};
-                </script>
-                <body>
-                    Redirecting to <a href='{escaped_url}'>{escaped_url}</a>...
-                </body>
-            </html>
-        "
+    Ok(ReturnToSsoPostResponse::Redirect(Html(sso_redirect_page(
+        &url,
     ))))
+}
+
+/// The page that takes the browser from the identity provider's cross-site
+/// POST to the UI. It navigates with a meta refresh, so it needs no script.
+fn sso_redirect_page(url: &str) -> String {
+    let escaped_url = html_escape(url);
+    format!(
+        "<!doctype html>
+<html>
+    <head>
+        <meta http-equiv=\"refresh\" content=\"0;url={escaped_url}\">
+    </head>
+    <body>
+        Redirecting to <a href=\"{escaped_url}\">{escaped_url}</a>...
+    </body>
+</html>
+"
+    )
 }
 
 async fn api_return_to_sso_get_common(
@@ -340,7 +340,13 @@ async fn api_return_to_sso_get_common(
     };
 
     let mut auth_state_store = services.auth_state_store.lock().await;
-    let state_arc = get_auth_state_for_request(&username, session, &mut auth_state_store).await?;
+    let state_arc = get_auth_state_for_request(
+        &username,
+        session,
+        &mut auth_state_store,
+        gated_core::logging::http::client_ip_addr(&req.headers, &req.extensions, &services).await,
+    )
+    .await?;
 
     let mut state = state_arc.lock().await;
     let mut cp = services.config_provider.lock().await;
@@ -450,7 +456,10 @@ pub fn router() -> OpenApiRouter {
 mod tests {
     use std::collections::HashMap;
 
-    use super::{compute_sso_role_sync, html_escape, sanitize_next_path, sso_state_is_valid};
+    use super::{
+        compute_sso_role_sync, html_escape, sanitize_next_path, sso_redirect_page,
+        sso_state_is_valid,
+    };
 
     // Off-host redirect targets are rejected; local paths pass.
     #[test]
@@ -462,6 +471,13 @@ mod tests {
         assert!(sanitize_next_path("evil.com").is_none());
         assert_eq!(sanitize_next_path("/ui/auth/login"), Some("/ui/auth/login"));
         assert_eq!(sanitize_next_path("/dashboard"), Some("/dashboard"));
+    }
+
+    #[test]
+    fn sso_redirect_page_has_no_script_and_escapes_the_url() {
+        let page = sso_redirect_page("/ui/?login_error=\"><script>alert(1)</script>");
+        assert!(!page.contains("<script"));
+        assert!(page.contains("content=\"0;url=/ui/?login_error=&quot;&gt;&lt;script&gt;"));
     }
 
     // HTML-special characters are neutralized in every output context.

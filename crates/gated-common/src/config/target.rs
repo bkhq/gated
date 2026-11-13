@@ -125,6 +125,54 @@ pub struct TargetPostgresOptions {
     pub readonly: bool,
 }
 
+/// A Windows (or xrdp) desktop reached over RDP from the browser client.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TargetRdpOptions {
+    #[serde(default = "_default_empty_string")]
+    pub host: String,
+
+    #[serde(default = "_default_rdp_port")]
+    pub port: u16,
+
+    #[serde(default = "_default_empty_string")]
+    pub username: String,
+
+    #[serde(default)]
+    pub domain: Option<String>,
+
+    #[serde(default)]
+    pub password: Option<String>,
+
+    /// Verify the server certificate against the system roots. RDP always
+    /// runs over TLS; switch this off only for a self-signed target.
+    #[serde(default = "_default_true")]
+    pub verify_tls: bool,
+
+    /// Record key presses with the session. Off by default: they include
+    /// the passwords typed into the remote desktop.
+    #[serde(default)]
+    pub record_keystrokes: bool,
+}
+
+/// A desktop reached over VNC (RFB) from the browser client. The RFB
+/// password scheme is DES-based and the stream is not encrypted.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TargetVncOptions {
+    #[serde(default = "_default_empty_string")]
+    pub host: String,
+
+    #[serde(default = "_default_vnc_port")]
+    pub port: u16,
+
+    /// `None`: the server asks for no authentication.
+    #[serde(default)]
+    pub password: Option<String>,
+
+    /// See `TargetRdpOptions::record_keystrokes`.
+    #[serde(default)]
+    pub record_keystrokes: bool,
+}
+
 /// Unified HTTP-reverse-proxy target.  Replaces the old `TargetApiOptions`
 /// and `TargetKubernetesOptions`.  `flavor` toggles Kubernetes-specific
 /// behaviour (channel.k8s.io WebSocket, watch streaming, exec/attach
@@ -270,6 +318,10 @@ pub enum TargetOptions {
     MySql(TargetMySqlOptions),
     #[serde(rename = "postgres")]
     Postgres(TargetPostgresOptions),
+    #[serde(rename = "rdp")]
+    Rdp(TargetRdpOptions),
+    #[serde(rename = "vnc")]
+    Vnc(TargetVncOptions),
 }
 
 #[cfg(test)]
@@ -295,6 +347,26 @@ mod tests {
             let restored: UpstreamAuth = serde_json::from_value(json).unwrap();
             assert_eq!(restored, auth);
         }
+    }
+
+    #[test]
+    fn desktop_options_default_to_the_safe_settings() {
+        let rdp: TargetRdpOptions = serde_json::from_str(r#"{"host": "win"}"#).unwrap();
+        assert_eq!(rdp.port, 3389);
+        assert!(rdp.verify_tls);
+        assert!(!rdp.record_keystrokes);
+        assert_eq!(rdp.password, None);
+
+        let vnc: TargetVncOptions = serde_json::from_str(r#"{"host": "desk"}"#).unwrap();
+        assert_eq!(vnc.port, 5900);
+        assert!(!vnc.record_keystrokes);
+
+        let stored = serde_json::to_value(TargetOptions::Vnc(vnc)).unwrap();
+        assert!(stored.get("vnc").is_some());
+        assert!(matches!(
+            serde_json::from_value::<TargetOptions>(stored).unwrap(),
+            TargetOptions::Vnc(_)
+        ));
     }
 
     #[test]

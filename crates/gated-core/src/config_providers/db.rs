@@ -2,7 +2,7 @@ use chrono::Utc;
 use data_encoding::BASE64;
 use gated_common::auth::{
     AllCredentialsPolicy, AnySingleCredentialPolicy, AuthCredential, CredentialKind,
-    CredentialPolicy, PerProtocolCredentialPolicy, PublicKeyOrPolicy,
+    CredentialPolicy, PerProtocolCredentialPolicy, PublicKeyOrPolicy, RequiredFactorPolicy,
 };
 use gated_common::helpers::hash::verify_password_hash;
 use gated_common::helpers::otp::verify_totp;
@@ -13,8 +13,8 @@ use gated_common::{
 use gated_db_entities as entities;
 use gated_sso::SsoProviderConfig;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter,
-    QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, Set,
 };
 use std::collections::{HashMap, HashSet};
 use tracing::*;
@@ -46,6 +46,7 @@ impl DatabaseConfigProvider {
                 UserRequireCredentialsPolicy::default(),
             )?),
             rate_limit_bytes_per_second: Set(None),
+            allowed_ip_ranges: Set(None),
         }
         .insert(db)
         .await?;
@@ -61,6 +62,46 @@ impl DatabaseConfigProvider {
         info!(target: "audit", username = %preferred_username, "Auto-created SSO user {}", preferred_username);
 
         Ok(Some(preferred_username))
+    }
+
+    /// True when one of the user's unexpired roles that grants access to
+    /// `target_name` passes `allows`.
+    async fn granting_role_allows(
+        &self,
+        username: &str,
+        target_name: &str,
+        allows: impl Fn(&entities::Role::Model) -> bool,
+    ) -> Result<bool, GatedError> {
+        let db = crate::db_required(&self.db).await?;
+
+        let Some(target_model) = entities::Target::Entity::find()
+            .filter(entities::Target::Column::Name.eq(target_name))
+            .one(&db)
+            .await?
+        else {
+            return Ok(false);
+        };
+        let Some(user_model) = entities::User::Entity::find()
+            .filter(entities::User::Column::Username.eq(username))
+            .one(&db)
+            .await?
+        else {
+            return Ok(false);
+        };
+
+        let target_roles: HashSet<Uuid> = target_model
+            .find_related(entities::Role::Entity)
+            .all(&db)
+            .await?
+            .into_iter()
+            .map(|role| role.id)
+            .collect();
+
+        Ok(user_model
+            .active_roles(&db)
+            .await?
+            .into_iter()
+            .any(|role| allows(&role) && target_roles.contains(&role.id)))
     }
 }
 
@@ -183,7 +224,7 @@ impl ConfigProvider for DatabaseConfigProvider {
             },
         }) as Box<dyn CredentialPolicy + Sync + Send>;
 
-        if let Some(req) = user.credential_policy.clone() {
+        let policy = if let Some(req) = user.credential_policy.clone() {
             let mut policy = PerProtocolCredentialPolicy {
                 default: default_policy,
                 protocols: HashMap::new(),
@@ -229,12 +270,45 @@ impl ConfigProvider for DatabaseConfigProvider {
                 );
             }
 
-            Ok(Some(
-                Box::new(policy) as Box<dyn CredentialPolicy + Sync + Send>
-            ))
+            Box::new(policy) as Box<dyn CredentialPolicy + Sync + Send>
         } else {
-            Ok(Some(default_policy))
+            default_policy
+        };
+
+        // With MFA required, an enrolled user proves the device at every web
+        // sign-in, whatever the stored policy says. A user without a device
+        // signs in to enroll one, see `mfa_setup_required`.
+        let has_otp = user
+            .credentials
+            .iter()
+            .any(|c| c.kind() == CredentialKind::Totp);
+        if has_otp && entities::Parameters::Entity::get(&db).await?.mfa_required {
+            return Ok(Some(Box::new(RequiredFactorPolicy {
+                inner: policy,
+                protocol: "HTTP",
+                factor: CredentialKind::Totp,
+            })));
         }
+        Ok(Some(policy))
+    }
+
+    async fn mfa_setup_required(&mut self, username: &str) -> Result<bool, GatedError> {
+        let db = crate::db_required(&self.db).await?;
+        if !entities::Parameters::Entity::get(&db).await?.mfa_required {
+            return Ok(false);
+        }
+        let Some(user) = entities::User::Entity::find()
+            .filter(entities::User::Column::Username.eq(username))
+            .one(&db)
+            .await?
+        else {
+            return Ok(false);
+        };
+        let devices = entities::OtpCredential::Entity::find()
+            .filter(entities::OtpCredential::Column::UserId.eq(user.id))
+            .count(&db)
+            .await?;
+        Ok(devices == 0)
     }
 
     async fn username_for_sso_credential(
@@ -431,8 +505,7 @@ impl ConfigProvider for DatabaseConfigProvider {
             .collect();
 
         let user_roles: HashSet<String> = user_model
-            .find_related(entities::Role::Entity)
-            .all(&db)
+            .active_roles(&db)
             .await?
             .into_iter()
             .map(Into::<Role>::into)
@@ -449,37 +522,17 @@ impl ConfigProvider for DatabaseConfigProvider {
         username: &str,
         target_name: &str,
     ) -> Result<bool, GatedError> {
-        let db = crate::db_required(&self.db).await?;
+        self.granting_role_allows(username, target_name, |role| role.allow_file_transfer)
+            .await
+    }
 
-        let Some(target_model) = entities::Target::Entity::find()
-            .filter(entities::Target::Column::Name.eq(target_name))
-            .one(&db)
-            .await?
-        else {
-            return Ok(false);
-        };
-        let Some(user_model) = entities::User::Entity::find()
-            .filter(entities::User::Column::Username.eq(username))
-            .one(&db)
-            .await?
-        else {
-            return Ok(false);
-        };
-
-        let target_roles: HashSet<Uuid> = target_model
-            .find_related(entities::Role::Entity)
-            .all(&db)
-            .await?
-            .into_iter()
-            .map(|role| role.id)
-            .collect();
-
-        Ok(user_model
-            .find_related(entities::Role::Entity)
-            .all(&db)
-            .await?
-            .into_iter()
-            .any(|role| role.allow_file_transfer && target_roles.contains(&role.id)))
+    async fn authorize_clipboard(
+        &mut self,
+        username: &str,
+        target_name: &str,
+    ) -> Result<bool, GatedError> {
+        self.granting_role_allows(username, target_name, |role| role.allow_clipboard)
+            .await
     }
 
     async fn apply_sso_role_mappings(
@@ -654,6 +707,7 @@ mod tests {
             description: Set(String::new()),
             credential_policy: Set(serde_json::json!({})),
             rate_limit_bytes_per_second: Set(None),
+            allowed_ip_ranges: Set(None),
         }
         .insert(&conn)
         .await
@@ -842,7 +896,7 @@ mod tests {
 
         // Presenting the original plaintext still authorizes the ticket.
         let presented = gated_common::Secret::new(plaintext.to_string());
-        let authorized = crate::config_providers::authorize_ticket(&db, &presented)
+        let authorized = crate::config_providers::authorize_ticket(&db, &presented, None)
             .await
             .unwrap();
         assert_eq!(
@@ -853,7 +907,7 @@ mod tests {
         // The raw stored digest is not itself a valid presented secret.
         let digest_as_secret = gated_common::Secret::new(stored.secret.clone());
         assert!(
-            crate::config_providers::authorize_ticket(&db, &digest_as_secret)
+            crate::config_providers::authorize_ticket(&db, &digest_as_secret, None)
                 .await
                 .unwrap()
                 .is_none()
@@ -899,6 +953,7 @@ mod tests {
             name: Set(role_name.into()),
             description: Set(String::new()),
             allow_file_transfer: Set(allow_file_transfer),
+            allow_clipboard: Set(false),
         }
         .insert(conn)
         .await
@@ -949,6 +1004,38 @@ mod tests {
         // "movers" allows transfer but does not grant access to "web".
         assert!(!cp.authorize_file_transfer("alice", "web").await.unwrap());
         assert!(cp.authorize_file_transfer("alice", "other").await.unwrap());
+    }
+
+    async fn allow_clipboard(db: &SharedDatabaseConnection, role_name: &str) {
+        let guard = db.read().await;
+        let conn = guard.as_ref().expect("db");
+        let role = entities::Role::Entity::find()
+            .filter(entities::Role::Column::Name.eq(role_name))
+            .one(conn)
+            .await
+            .unwrap()
+            .expect("role");
+        let mut role: entities::Role::ActiveModel = role.into();
+        role.allow_clipboard = Set(true);
+        role.update(conn).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn clipboard_follows_the_granting_roles() {
+        let db = setup().await;
+        grant_target(&db, "desk", "ops", true).await;
+        grant_target(&db, "kiosk", "viewers", true).await;
+        grant_target(&db, "other", "pasters", false).await;
+        allow_clipboard(&db, "ops").await;
+        allow_clipboard(&db, "pasters").await;
+        let mut cp = DatabaseConfigProvider::new(&db).await;
+
+        assert!(cp.authorize_clipboard("alice", "desk").await.unwrap());
+        // File transfer does not imply the clipboard, and "pasters" does not
+        // grant access to "kiosk".
+        assert!(!cp.authorize_clipboard("alice", "kiosk").await.unwrap());
+        assert!(!cp.authorize_clipboard("alice", "missing").await.unwrap());
+        assert!(!cp.authorize_clipboard("bob", "desk").await.unwrap());
     }
 
     // Auto-create with a fresh (iss, sub) but a colliding email must

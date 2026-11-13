@@ -33,7 +33,6 @@ impl KnownHosts {
         let entries = KnownHost::Entity::find()
             .filter(KnownHost::Column::Host.eq(host))
             .filter(KnownHost::Column::Port.eq(port))
-            .filter(KnownHost::Column::KeyType.eq(key.algorithm().as_str()))
             .all(&db)
             .await?;
 
@@ -70,5 +69,64 @@ impl KnownHosts {
         values.insert(&db).await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use russh::keys::{Algorithm, PrivateKey};
+    use sea_orm::{ConnectionTrait, Database, Schema};
+    use tokio::sync::RwLock;
+
+    use super::*;
+
+    fn random_key(algorithm: Algorithm) -> PublicKey {
+        PrivateKey::random(&mut russh::keys::key::safe_rng(), algorithm)
+            .expect("key")
+            .public_key()
+            .clone()
+    }
+
+    #[tokio::test]
+    async fn key_of_another_type_is_a_mismatch() {
+        let db = Database::connect("sqlite::memory:").await.expect("db");
+        let backend = db.get_database_backend();
+        let table = Schema::new(backend).create_table_from_entity(KnownHost::Entity);
+        db.execute(backend.build(&table)).await.expect("table");
+        let mut known_hosts = KnownHosts::new(&Arc::new(RwLock::new(Some(db))));
+
+        let trusted = random_key(Algorithm::Ed25519);
+        assert!(matches!(
+            known_hosts
+                .validate("host", 22, &trusted)
+                .await
+                .expect("validate"),
+            KnownHostValidationResult::Unknown
+        ));
+
+        known_hosts
+            .trust("host", 22, &trusted)
+            .await
+            .expect("trust");
+        assert!(matches!(
+            known_hosts
+                .validate("host", 22, &trusted)
+                .await
+                .expect("validate"),
+            KnownHostValidationResult::Valid
+        ));
+
+        let other_type = random_key(Algorithm::Ecdsa {
+            curve: russh::keys::EcdsaCurve::NistP256,
+        });
+        assert!(matches!(
+            known_hosts
+                .validate("host", 22, &other_type)
+                .await
+                .expect("validate"),
+            KnownHostValidationResult::Invalid { .. }
+        ));
     }
 }

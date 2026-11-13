@@ -39,7 +39,7 @@ pub(super) struct CertificateInfo {
 struct UpstreamCertificate {
     /// False for an `http://` upstream; nothing else is reported then.
     tls: bool,
-    /// The target's `tls.verify` setting.
+    /// The target's `tls.verify` setting; `verify_tls` for an RDP target.
     verify: bool,
     /// Leaf first.
     chain: Vec<CertificateInfo>,
@@ -48,6 +48,23 @@ struct UpstreamCertificate {
     verify_error: Option<String>,
     /// Why the upstream could not be reached.
     error: Option<String>,
+}
+
+impl UpstreamCertificate {
+    /// Record what an inspection of the upstream found.
+    fn fill(&mut self, inspected: Result<gated_tls::PeerChain, gated_tls::InspectError>) {
+        match inspected {
+            Ok(chain) => {
+                self.chain = chain
+                    .certificates
+                    .iter()
+                    .filter_map(|der| describe(der))
+                    .collect();
+                self.verify_error = chain.verify_error;
+            }
+            Err(error) => self.error = Some(error.to_string()),
+        }
+    }
 }
 
 api_response! {
@@ -127,8 +144,27 @@ async fn api_get_upstream_certificate(
         return Ok(UpstreamCertificateResponse::NotFound);
     };
     let target: TargetConfig = target.try_into()?;
-    let TargetOptions::Http(options) = target.options else {
-        return Ok(UpstreamCertificateResponse::InvalidType);
+    let options = match target.options {
+        TargetOptions::Http(options) => options,
+        // RDP always runs in TLS, which starts after a negotiation of its own.
+        TargetOptions::Rdp(options) => {
+            let mut report = UpstreamCertificate {
+                tls: true,
+                verify: options.verify_tls,
+                chain: vec![],
+                verify_error: None,
+                error: None,
+            };
+            let inspected = gated_protocol_rdp::inspect_certificate(
+                &options.host,
+                options.port,
+                HANDSHAKE_TIMEOUT,
+            )
+            .await;
+            report.fill(inspected);
+            return Ok(UpstreamCertificateResponse::Ok(Json(report)));
+        }
+        _ => return Ok(UpstreamCertificateResponse::InvalidType),
     };
 
     let mut report = UpstreamCertificate {
@@ -160,24 +196,14 @@ async fn api_get_upstream_certificate(
         .as_ref()
         .map(|ca| ca.expose_secret().clone());
 
-    match gated_tls::inspect_peer_chain(
+    let inspected = gated_tls::inspect_peer_chain(
         host,
         port,
         ca.as_deref().map(str::as_bytes),
         HANDSHAKE_TIMEOUT,
     )
-    .await
-    {
-        Ok(chain) => {
-            report.chain = chain
-                .certificates
-                .iter()
-                .filter_map(|der| describe(der))
-                .collect();
-            report.verify_error = chain.verify_error;
-        }
-        Err(error) => report.error = Some(error.to_string()),
-    }
+    .await;
+    report.fill(inspected);
     Ok(UpstreamCertificateResponse::Ok(Json(report)))
 }
 

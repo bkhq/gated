@@ -6,7 +6,7 @@ use gated_common::helpers::hash::generate_ticket_secret;
 use gated_common::web::{Data, Json};
 use gated_common::{api_response, api_routes};
 use gated_core::Services;
-use gated_db_entities::ApiToken;
+use gated_db_entities::{ApiToken, Parameters};
 use sea_orm::{ActiveModelTrait, ColumnTrait, ModelTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -64,6 +64,8 @@ api_response! {
         BadRequest(Json<String>),
         #[oai(status = 401)]
         Unauthorized(Json<String>),
+        #[oai(status = 403)]
+        Forbidden(Json<String>),
     }
 }
 
@@ -104,6 +106,13 @@ async fn api_create_api_token(
     services: Data<Services>,
     body: Json<NewApiToken>,
 ) -> Result<CreateApiTokenResponse, GatedError> {
+    // A token that could issue tokens would renew itself forever once leaked.
+    if matches!(&*auth, RequestAuthorization::UserToken { .. }) {
+        return Ok(CreateApiTokenResponse::Forbidden(Json(
+            "an API token cannot create API tokens".into(),
+        )));
+    }
+
     let db = services.db_required().await?;
 
     let Some(user_model) = get_user(&auth, &db).await? else {
@@ -116,6 +125,15 @@ async fn api_create_api_token(
         return Ok(CreateApiTokenResponse::BadRequest(Json(
             "expiry must be in the future".into(),
         )));
+    }
+    if let Some(max_seconds) = Parameters::Entity::get(&db)
+        .await?
+        .max_api_token_duration_seconds
+        && body.expiry > Utc::now() + chrono::Duration::seconds(max_seconds)
+    {
+        return Ok(CreateApiTokenResponse::BadRequest(Json(format!(
+            "expiry is more than the allowed {max_seconds} seconds away"
+        ))));
     }
 
     let secret = generate_ticket_secret();

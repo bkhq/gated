@@ -48,6 +48,8 @@ export function TargetDetailPage() {
   // button is hidden for them (handleConnect stays undefined).
   const isTerminalKind = target && (target.kind === 'ssh' || target.kind === 'mysql' || target.kind === 'postgres')
   const handleConnect = React.useMemo(() => {
+    if (target && (target.kind === 'rdp' || target.kind === 'vnc'))
+      return () => void navigate({ to: '/desktop/$targetName', params: { targetName: target.name } })
     if (!target || !isTerminalKind)
       return undefined
     return () => {

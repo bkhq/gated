@@ -121,4 +121,59 @@ describe("Gateway HTTP - /api/profile/api-tokens", () => {
     const info = (await probe.json()) as { username?: string };
     expect(info.username).toBeFalsy();
   });
+
+  test("a token cannot issue another token", async () => {
+    const { session } = await loggedInUser();
+    const createResp = await session.post(`${url}/api/profile/api-tokens`, {
+      label: "first",
+      expiry: new Date(Date.now() + 86400_000).toISOString(),
+    });
+    const { secret } = (await createResp.json()) as { secret: string };
+
+    const resp = await fetch(`${url}/api/profile/api-tokens`, {
+      method: "POST",
+      headers: { "X-Gated-Token": secret, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: "renewed",
+        expiry: new Date(Date.now() + 10 * 365 * 86400_000).toISOString(),
+      }),
+      tls: { rejectUnauthorized: false },
+    } as any);
+    expect(resp.status).toBe(403);
+
+    const list = (await (
+      await session.get(`${url}/api/profile/api-tokens`)
+    ).json()) as Array<{ label: string }>;
+    expect(list.map((t) => t.label)).toEqual(["first"]);
+  });
+
+  test("a token cannot outlive the configured maximum lifetime", async () => {
+    const admin = (method: string, body?: unknown) =>
+      fetch(`${url}/admin/api/parameters`, {
+        method,
+        headers: { "X-Gated-Token": "token-value", "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        tls: { rejectUnauthorized: false },
+      } as any);
+    const current = await (await admin("GET")).json();
+    expect(current.max_api_token_duration_seconds).toBeNull();
+    expect((await admin("PUT", { ...current, max_api_token_duration_seconds: 3600 })).status).toBe(201);
+
+    const { session } = await loggedInUser();
+    const create = (ms: number) =>
+      session.post(`${url}/api/profile/api-tokens`, {
+        label: "bounded",
+        expiry: new Date(Date.now() + ms).toISOString(),
+      });
+    expect((await create(86400_000)).status).toBe(400);
+    expect((await create(1800_000)).status).toBe(201);
+    const info = await (await session.get(`${url}/api/info`)).json();
+    expect(info.max_api_token_duration_seconds).toBe(3600);
+
+    // 0 lifts the limit; leaving the field out keeps it.
+    expect((await admin("PUT", { ...current, max_api_token_duration_seconds: undefined })).status).toBe(201);
+    expect((await (await admin("GET")).json()).max_api_token_duration_seconds).toBe(3600);
+    expect((await admin("PUT", { ...current, max_api_token_duration_seconds: 0 })).status).toBe(201);
+    expect((await create(86400_000)).status).toBe(201);
+  });
 });

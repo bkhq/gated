@@ -54,6 +54,7 @@ const ACCOUNT_KINDS: readonly AccountKind[] = [
   'k8s-token',
   'k8s-client-cert',
   'http-headers',
+  'desktop-password',
 ]
 
 type Tab = 'details' | 'targets'
@@ -135,6 +136,12 @@ function sanitizeCredentials(creds: AccountCredentials): AccountCredentials {
         out.ca_pem = creds.ca_pem
       if (creds.namespace)
         out.namespace = creds.namespace
+      return out
+    }
+    case 'desktop-password': {
+      const out: AccountCredentials = { kind: 'desktop-password', username: creds.username, password: creds.password }
+      if (creds.domain)
+        out.domain = creds.domain
       return out
     }
     case 'http-headers':

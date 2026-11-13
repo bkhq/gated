@@ -42,6 +42,13 @@ export function setOnUnauthorized(cb: (() => void) | null): void {
   onUnauthorized = cb
 }
 
+// The gateway requires an OTP device this user has not enrolled yet.
+let onMfaSetupRequired: (() => void) | null = null
+
+export function setOnMfaSetupRequired(cb: (() => void) | null): void {
+  onMfaSetupRequired = cb
+}
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, signal } = opts
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -59,6 +66,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const sessionExpired = response.status === 401 && path !== '/api/profile/credentials/password' && !isStepUpRequest(path, method) && !SKIP_GLOBAL_UNAUTHORIZED_PREFIXES.some(p => path.startsWith(p))
   if (sessionExpired)
     onUnauthorized?.()
+  if (response.headers.get('x-gated-mfa-setup-required'))
+    onMfaSetupRequired?.()
 
   if (response.status === 204)
     return undefined as T
