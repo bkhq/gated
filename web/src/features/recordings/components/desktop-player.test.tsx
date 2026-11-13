@@ -60,6 +60,12 @@ async function seekTo(time: number) {
   await settle()
 }
 
+// Playback starts on its own; a test that asserts an exact position stops
+// it first, or a slow machine has moved on by the time it looks.
+async function pause() {
+  fireEvent.click(await screen.findByRole('button', { name: 'recordings.desktop.pause' }))
+}
+
 function canvas(): HTMLCanvasElement {
   return screen.getByLabelText('recordings.desktop.canvas')
 }
@@ -88,6 +94,7 @@ it('fetches the recording and shows its first frame', async () => {
 
 it('draws up to the chosen time and marks the pointer and the keys', async () => {
   renderPlayer()
+  await pause()
   await seekTo(5)
   expect(drawn).toEqual([[0, 0], [10, 20]])
   expect(screen.getByTestId('recorded-pointer')).toHaveStyle({ left: '25%', top: '25%' })
@@ -98,6 +105,7 @@ it('draws up to the chosen time and marks the pointer and the keys', async () =>
 it('starts from the last keyframe when seeking past one', async () => {
   renderPlayer()
   await waitFor(() => expect(drawn).toEqual([[0, 0]]))
+  await pause()
   drawn.length = 0
   await seekTo(14)
   // Only the keyframe at 12 s; the frames before it are skipped.
@@ -110,6 +118,7 @@ it('starts from the last keyframe when seeking past one', async () => {
 
 it('redraws from a keyframe when going back', async () => {
   renderPlayer()
+  await pause()
   await seekTo(14)
   drawn.length = 0
   await seekTo(5)
