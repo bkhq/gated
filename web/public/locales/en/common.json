@@ -247,7 +247,8 @@
     },
     "docs": "Documentation",
     "github": "GitHub repository",
-    "about": "About"
+    "about": "About",
+    "sessionExpiresIn": "Signs out in {{time}} without activity"
   },
   "profile": {
     "description": "Your account, sign-in methods, API tokens, and temporary grants — all in one place.",
@@ -1476,7 +1477,8 @@
         "usernameFromTarget": "Target's username",
         "usernameFromTargetHint": "Leave empty to use the target's username",
         "domain": "Domain",
-        "desktopUsernameHint": "RDP only. Leave blank for VNC."
+        "desktopUsernameHint": "RDP only. Leave blank for VNC.",
+        "cloneHint": "Secrets left blank are copied from the account being cloned; type one to use a different value."
       },
       "rotation": {
         "label": "Rotation due",
@@ -1509,7 +1511,8 @@
       "saveVerified": "Verify and save",
       "sections": {
         "credential": "Credential"
-      }
+      },
+      "clone": "Clone"
     },
     "delete": {
       "title": "Delete account",
@@ -1523,7 +1526,8 @@
       "revealHint": "Secret values are hidden. Revealing requires identity confirmation and is audited.",
       "rotationDue": "Rotation due",
       "editing": "Editing",
-      "copy": "Copy {{field}}"
+      "copy": "Copy {{field}}",
+      "cloning": "Cloning"
     },
     "stepUp": {
       "createTitle": "Confirm account creation",
@@ -1535,7 +1539,8 @@
       "errors": {
         "unauthorized": "Confirmation failed. Check your password or code; an OTP code can only be used once.",
         "rateLimited": "Too many attempts. Wait a minute and try again."
-      }
+      },
+      "cloneDescription": "Copying the stored secret of an account needs your password or a one-time code every time."
     },
     "empty": {
       "title": "No accounts yet",

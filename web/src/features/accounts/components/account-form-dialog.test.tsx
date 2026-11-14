@@ -199,3 +199,45 @@ async function confirmStepUpReveal() {
   fireEvent.change(await screen.findByLabelText('accounts.form.reveal.password'), { target: { value: 'pw' } })
   fireEvent.click(screen.getAllByRole('button', { name: 'accounts.form.reveal.show' }).at(-1)!)
 }
+
+it('clones an account: non-secret fields prefilled, secrets left to the server', async () => {
+  api.createAdminAccount.mockResolvedValue({ ...summary, id: 8, name: 'prod-db-copy' })
+  const onSaved = vi.fn()
+  renderDialog({ onSaved })
+  // Available once the stored credentials have loaded.
+  expect(await screen.findByText('reader')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'accounts.form.clone' }))
+
+  // A create form that starts from the source; the kind cannot change.
+  expect(await screen.findByDisplayValue('prod-db-copy')).toBeInTheDocument()
+  expect(screen.getByLabelText('accounts.form.cred.kindLabel')).toBeDisabled()
+  expect(screen.getByText('accounts.form.cred.cloneHint')).toBeInTheDocument()
+  fireEvent.change(screen.getByDisplayValue('reader'), { target: { value: 'writer' } })
+
+  fireEvent.click(screen.getByRole('button', { name: 'accounts.form.saveVerified' }))
+  await confirmStepUp()
+  await waitFor(() => expect(api.createAdminAccount).toHaveBeenCalledOnce())
+  expect(api.createAdminAccount).toHaveBeenCalledWith(expect.objectContaining({
+    name: 'prod-db-copy',
+    kind: 'db-password',
+    clone_from: 7,
+    credentials: expect.objectContaining({ username: 'writer', password: '' }),
+    confirmation: { password: 'pw' },
+  }))
+  expect(api.updateAdminAccount).not.toHaveBeenCalled()
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: '8' })))
+})
+
+it('a clone is confirmed even while the step-up window is open', async () => {
+  openWindow()
+  api.createAdminAccount.mockResolvedValue({ ...summary, id: 8, name: 'prod-db-copy' })
+  renderDialog()
+  expect(await screen.findByText('reader')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'accounts.form.clone' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'accounts.form.saveVerified' }))
+
+  expect(await screen.findByLabelText('accounts.form.reveal.password')).toBeInTheDocument()
+  expect(api.createAdminAccount).not.toHaveBeenCalled()
+  await confirmStepUp()
+  await waitFor(() => expect(api.createAdminAccount).toHaveBeenCalledWith(expect.objectContaining({ clone_from: 7, confirmation: { password: 'pw' } })))
+})

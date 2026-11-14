@@ -63,6 +63,8 @@ export interface AccountDraft {
   credentials: AccountCredentials
   tags: string[]
   rotationDueAt?: string | null
+  // Id of the account whose secrets fill the ones left blank here.
+  cloneFrom?: string
 }
 
 export interface AccountReferences {

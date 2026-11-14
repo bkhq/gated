@@ -62,6 +62,9 @@ pub struct AccountCreate {
     pub credentials: Value,
     pub tags: Option<Vec<String>>,
     pub rotation_due_at: Option<DateTime<Utc>>,
+    /// An account of the same kind to copy secrets from: a secret left
+    /// blank in `credentials` takes the value stored there.
+    pub clone_from: Option<i32>,
     /// Step-up confirmation; required for browser-session callers.
     pub confirmation: Option<RevealConfirmation>,
 }
@@ -275,11 +278,39 @@ async fn api_create_account(
         Ok(credentials) => credentials,
         Err(message) => return Ok(CreateAccountResponse::UnprocessableEntity(Json(message))),
     };
+
+    let db = gated_core::db_required(&db).await?;
+    let source = match body.clone_from {
+        Some(id) => {
+            let source = Account::Entity::find_by_id(id).one(&db).await?;
+            match source.as_ref().map(stored_credentials) {
+                Some(Ok(stored)) if stored.kind() == credentials.kind() => Some((id, stored)),
+                Some(Ok(_)) => {
+                    return Ok(CreateAccountResponse::UnprocessableEntity(Json(
+                        "the account to clone is of another kind".into(),
+                    )));
+                }
+                Some(Err(message)) => {
+                    return Ok(CreateAccountResponse::UnprocessableEntity(Json(message)));
+                }
+                None => {
+                    return Ok(CreateAccountResponse::UnprocessableEntity(Json(
+                        "the account to clone does not exist".into(),
+                    )));
+                }
+            }
+        }
+        None => None,
+    };
+    let cloned_from = source.as_ref().map(|(id, _)| *id);
+    let credentials = match &source {
+        Some((_, stored)) => merge_credentials(stored, credentials),
+        None => credentials,
+    };
     if let Err(message) = validate_required_credentials(&credentials) {
         return Ok(CreateAccountResponse::UnprocessableEntity(Json(message)));
     }
 
-    let db = gated_core::db_required(&db).await?;
     let existing = Account::Entity::find()
         .filter(Account::Column::Name.eq(name))
         .one(&db)
@@ -290,12 +321,27 @@ async fn api_create_account(
         )));
     }
 
+    // Copying a stored secret is confirmed every time: the step-up window
+    // a session has open covers writes, not this.
+    if cloned_from.is_some()
+        && matches!(&*auth, RequestAuthorization::Session(_))
+        && !body
+            .confirmation
+            .as_ref()
+            .is_some_and(|c| c.password.is_some() || c.otp.is_some())
+    {
+        return Ok(CreateAccountResponse::BadRequest(Json(
+            "confirmation is required".into(),
+        )));
+    }
+
     let step_up = match require_step_up(
         &auth,
         &session,
         &services,
         &db,
-        0,
+        // A clone is throttled per source account, a create per actor.
+        cloned_from.unwrap_or(0),
         body.confirmation.as_ref(),
     )
     .await?
@@ -334,7 +380,10 @@ async fn api_create_account(
             &account,
             &step_up,
             "account.create",
-            "Admin account created",
+            &match cloned_from {
+                Some(id) => format!("Admin account created as a copy of account {id}"),
+                None => "Admin account created".to_owned(),
+            },
         )
         .await?;
     }

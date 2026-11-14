@@ -253,6 +253,104 @@ describe("API Accounts - CRUD + reveal + references", () => {
     expect((await request(again, "POST", `/admin/api/accounts/${id}/reveal`, {})).status).toBe(400);
   });
 
+  test("a clone takes the secrets it leaves blank from its source", async () => {
+    const source = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-key",
+      name: `key-${randomUUID()}`,
+      credentials: { kind: "ssh-key", username: "root", private_key_pem: "", generate: "ed25519" },
+    });
+    expect(source.status).toBe(201);
+    const clone = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-key",
+      name: `key-${randomUUID()}`,
+      clone_from: source.body.id,
+      credentials: { kind: "ssh-key", username: "deploy", private_key_pem: "" },
+    });
+    expect(clone.status).toBe(201);
+    expect(clone.body.id).not.toBe(source.body.id);
+
+    // An administrator of its own: confirmations are throttled per user,
+    // and the other tests confirm as "admin".
+    const operator = await adminReq(url, "POST", "/users", { username: `admin-${randomUUID()}` });
+    await adminReq(url, "POST", `/users/${operator.body.id}/credentials/passwords`, { password: "123" });
+    const roles = await adminReq(url, "GET", "/roles?search=admin");
+    const adminRole = (roles.body.items ?? roles.body).find((role: { name: string }) => role.name === "admin");
+    await adminReq(url, "POST", `/users/${operator.body.id}/roles/${adminRole.id}`, {});
+    const login = await fetch(`${url}/api/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: operator.body.username, password: "123" }),
+      tls: { rejectUnauthorized: false },
+    });
+    expect(login.status).toBe(201);
+    const cookie = login.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
+    // The first reveal confirms with the password; the rest fall into the
+    // step-up window it opens, which keeps them out of the reveal throttle.
+    const reveal = async (accountId: number, password?: string) => (await (await fetch(`${url}/admin/api/accounts/${accountId}/reveal`, {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ reason: "integration verification", password }),
+      tls: { rejectUnauthorized: false },
+    })).json() as any).credentials;
+    const original = await reveal(source.body.id, "123");
+    const copied = await reveal(clone.body.id);
+    expect(original.private_key_pem).toContain("PRIVATE KEY");
+    expect(copied.private_key_pem).toBe(original.private_key_pem);
+    expect(copied.username).toBe("deploy");
+    expect(original.username).toBe("root");
+
+    // A secret that is given replaces the copied one.
+    const password = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-password", name: `acct-${randomUUID()}`, credentials: sshPasswordCredentials("first"),
+    });
+    const keep = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-password", name: `acct-${randomUUID()}`, clone_from: password.body.id,
+      credentials: { kind: "ssh-password", username: "other", password: "" },
+    });
+    const replace = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-password", name: `acct-${randomUUID()}`, clone_from: password.body.id,
+      credentials: sshPasswordCredentials("second"),
+    });
+    expect((await reveal(keep.body.id)).password).toBe("first");
+    expect((await reveal(replace.body.id)).password).toBe("second");
+
+    // A browser session confirms every clone: the step-up window the
+    // reveals above opened covers a plain create, not copying a secret.
+    const browserCreate = async (body: unknown) => fetch(`${url}/admin/api/accounts`, {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify(body),
+      tls: { rejectUnauthorized: false },
+    });
+    const cloneBody = () => ({
+      kind: "ssh-key", name: `key-${randomUUID()}`, clone_from: source.body.id,
+      credentials: { kind: "ssh-key", username: "ops", private_key_pem: "" },
+    });
+    const plain = await browserCreate({
+      kind: "ssh-password", name: `acct-${randomUUID()}`, credentials: sshPasswordCredentials("in-window"),
+    });
+    expect(plain.status).toBe(201);
+    const unconfirmed = await browserCreate(cloneBody());
+    expect(unconfirmed.status).toBe(400);
+    expect(await unconfirmed.json()).toBe("confirmation is required");
+    expect((await browserCreate({ ...cloneBody(), confirmation: { password: "wrong" } })).status).toBe(401);
+    expect((await browserCreate({ ...cloneBody(), confirmation: { password: "123" } })).status).toBe(201);
+
+    // Another kind or a missing source is refused; so is a blank secret without a source.
+    const otherKind = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-password", name: `acct-${randomUUID()}`, clone_from: source.body.id,
+      credentials: { kind: "ssh-password", username: "deploy", password: "" },
+    });
+    expect(otherKind.status).toBe(422);
+    const missing = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-key", name: `key-${randomUUID()}`, clone_from: 999999,
+      credentials: { kind: "ssh-key", username: "deploy", private_key_pem: "" },
+    });
+    expect(missing.status).toBe(422);
+    const blank = await adminReq(url, "POST", "/accounts", {
+      kind: "ssh-key", name: `key-${randomUUID()}`,
+      credentials: { kind: "ssh-key", username: "deploy", private_key_pem: "" },
+    });
+    expect(blank.status).toBe(422);
+  });
+
   test("references list referencing targets and block deletion while referenced", async () => {
     const account = await adminReq(url, "POST", "/accounts", {
       kind: "ssh-password",

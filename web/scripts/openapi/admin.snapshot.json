@@ -4738,6 +4738,14 @@
           "credentials"
         ],
         "properties": {
+          "clone_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "An account of the same kind to copy secrets from: a secret left\nblank in `credentials` takes the value stored there."
+          },
           "confirmation": {
             "oneOf": [
               {

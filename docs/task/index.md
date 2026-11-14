@@ -1,4 +1,6 @@
 # Tasks
+- [x] [**20261114-0140-clone-account Clone an account with its stored secret**](20261114-0140-clone-account.md) `P2`
+- [x] [**20261114-0100-session-countdown-in-user-menu Show the time left on the browser session in the user menu**](20261114-0100-session-countdown-in-user-menu.md) `P3`
 - [x] [**20261112-1530-russh-agent-confirm-advisory Upgrade russh for RUSTSEC-2026-0495**](20261112-1530-russh-agent-confirm-advisory.md) `P1`
 - [x] [**20261112-1411-port-upstream-security-measures Port the security fixes and controls upstream added since the fork**](20261112-1411-port-upstream-security-measures.md) `P1`
 - [x] [**20261112-1301-rdp-vnc-web-desktop Add RDP and VNC targets with a browser desktop client**](20261112-1301-rdp-vnc-web-desktop.md) `P1`

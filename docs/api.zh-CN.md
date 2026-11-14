@@ -53,8 +53,8 @@
 
 #### `GET /api/auth/session` — `check_session` [OAS]
 
-- Summary：调用者的浏览器会话是否仍处于登录状态。不计为活动；SPA 每分钟以及标签页重新可见时查询一次，会话失效后回到登录页。
-- Responses：`204 No Content` / `401`。
+- Summary：调用者的浏览器会话是否仍处于登录状态，以及在没有新活动的情况下还能保持多久。不计为活动；SPA 每分钟以及标签页重新可见时查询一次，会话失效后回到登录页。用户菜单把 `expires_in` 显示为倒计时。
+- Responses：`200` `{ expires_in }`（秒）/ `401`。
 
 #### `POST /api/auth/activity` — `report_activity` [OAS]
 
@@ -625,12 +625,13 @@
 
 #### `POST /admin/api/accounts` — `create_account` [OAS]
 
-- Body：`AccountCreate { kind, name, description?, credentials: object, tags? }`。
+- Body：`AccountCreate { kind, name, description?, credentials: object, tags?, clone_from? }`。
+- `clone_from` 是同类型账号的 id：`credentials` 中留空的密钥或密码沿用该账号已存的值，这样与另一个账号共用密钥或密码的账号无需让密钥经过调用方即可创建。浏览器会话每次克隆都必须用 `confirmation.password` 或 `confirmation.otp` 确认，适用于其他账号写操作的免确认窗口对克隆无效（`400 "confirmation is required"`）。确认次数按来源账号限流。审计记录会注明来源账号。
 - Responses：
   - `201 Created` `AccountSummary`。
   - `400` `"name is required"`。
   - `409` `"name already exists"`。
-  - `422` `"credentials must be a JSON object"` / `"credentials kind \"X\" does not match account kind \"Y\""` / `"invalid credentials for kind \"X\": ..."`。
+  - `422` `"the account to clone does not exist"` / `"the account to clone is of another kind"` / `"credentials must be a JSON object"` / `"credentials kind \"X\" does not match account kind \"Y\""` / `"invalid credentials for kind \"X\": ..."`。
 
 #### `GET /admin/api/accounts/:id` — `get_account` [OAS]
 
@@ -1273,7 +1274,7 @@ Roll-up：任一 `fail` → `fail`；否则任一 `warn` → `warn`；否则 `ok
 | DELETE | `/api/profile/credentials/otp/:id` | `delete_my_otp` |  |
 | DELETE | `/api/profile/credentials/public-keys/:id` | `delete_my_public_key` |  |
 | DELETE | `/api/profile/tickets/:id` | `delete_my_ticket` |  |
-| GET | `/api/auth/session` | `check_session` | Whether the browser session is still signed in. Does not count as |
+| GET | `/api/auth/session` | `check_session` | Whether the browser session is still signed in, and for how long without |
 | GET | `/api/auth/state/:id` | `get_auth_state` |  |
 | GET | `/api/auth/state` | `get_default_auth_state` |  |
 | GET | `/api/auth/web-auth-requests` | `get_web_auth_requests` |  |

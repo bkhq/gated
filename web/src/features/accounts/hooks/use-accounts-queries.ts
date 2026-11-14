@@ -115,6 +115,7 @@ function draftToCreate(draft: AccountDraft, confirmation?: RevealConfirmation): 
     credentials: draft.credentials,
     tags: draft.tags.length > 0 ? draft.tags : undefined,
     rotation_due_at: draft.rotationDueAt ?? undefined,
+    clone_from: draft.cloneFrom ? parseId(draft.cloneFrom) ?? undefined : undefined,
     confirmation,
   }
 }

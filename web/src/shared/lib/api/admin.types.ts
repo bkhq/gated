@@ -1337,6 +1337,12 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AccountCreate: {
+            /**
+             * Format: int32
+             * @description An account of the same kind to copy secrets from: a secret left
+             *     blank in `credentials` takes the value stored there.
+             */
+            clone_from?: number | null;
             confirmation?: components["schemas"]["RevealConfirmation"] | null;
             credentials: unknown;
             description?: string | null;

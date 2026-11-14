@@ -697,23 +697,42 @@ async fn api_report_activity(
     ActivityResponse::Recorded
 }
 
+#[derive(Serialize, ToSchema)]
+struct SessionStatus {
+    /// Seconds the session stays signed in without further activity.
+    expires_in: u64,
+}
+
 api_response! {
     enum SessionCheckResponse {
-        #[oai(status = 204)]
-        SignedIn,
+        #[oai(status = 200)]
+        SignedIn(Json<SessionStatus>),
         #[oai(status = 401)]
         SignedOut,
     }
 }
 
-/// Whether the browser session is still signed in. Does not count as
-/// activity, so the web UI can poll it to notice an expired session.
+/// Whether the browser session is still signed in, and for how long without
+/// further activity. Does not count as activity, so the web UI can poll it
+/// to notice an expired session and show the time left.
 #[utoipa::path(get, path = "/auth/session", operation_id = "check_session")]
-async fn api_check_session(auth: Option<Data<RequestAuthorization>>) -> SessionCheckResponse {
-    match auth {
-        Some(_) => SessionCheckResponse::SignedIn,
-        None => SessionCheckResponse::SignedOut,
+async fn api_check_session(
+    auth: Option<Data<RequestAuthorization>>,
+    session: Session,
+    services: Data<Services>,
+    store: Data<Arc<Mutex<SessionStore>>>,
+) -> SessionCheckResponse {
+    if auth.is_none() {
+        return SessionCheckResponse::SignedOut;
     }
+    let default_lifetime = services.config.read().await.store.admin.session_max_age;
+    let expires_in = store
+        .lock()
+        .await
+        .remaining(&session, default_lifetime)
+        .unwrap_or_default()
+        .as_secs();
+    SessionCheckResponse::SignedIn(Json(SessionStatus { expires_in }))
 }
 
 pub async fn api_get_web_auth_requests_stream(

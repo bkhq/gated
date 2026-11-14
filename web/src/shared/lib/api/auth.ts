@@ -6,6 +6,7 @@ export type LoginRequest = components['schemas']['LoginRequest']
 export type OtpLoginRequest = components['schemas']['OtpLoginRequest']
 export type LoginFailureResponse = components['schemas']['LoginFailureResponse']
 export type AuthStateResponse = components['schemas']['AuthStateResponseInternal']
+export type SessionStatus = components['schemas']['SessionStatus']
 
 export async function login(req: LoginRequest, signal?: AbortSignal): Promise<void> {
   await userApi.post<void>('/auth/login', req, signal)
@@ -20,9 +21,12 @@ export async function setSessionLifetime(seconds: number, signal?: AbortSignal):
   await userApi.put<void>('/auth/session-lifetime', { seconds }, signal)
 }
 
-/** Rejects with a 401 once this browser session is no longer signed in. */
-export async function checkSession(signal?: AbortSignal): Promise<void> {
-  await userApi.get<void>('/auth/session', signal)
+/**
+ * The seconds this browser session stays signed in without further activity.
+ * Rejects with a 401 once it is no longer signed in. Does not extend it.
+ */
+export async function checkSession(signal?: AbortSignal): Promise<SessionStatus> {
+  return userApi.get<SessionStatus>('/auth/session', signal)
 }
 
 /** Mark the browser session as used now, extending it by its lifetime. */

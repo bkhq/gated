@@ -12,6 +12,7 @@ import { cn } from '@/shared/lib/utils'
 import { Avatar } from '@/shared/ui/avatar'
 import { Badge } from '@/shared/ui/badge'
 import { useAppStore } from '@/store/app-store'
+import { SessionCountdown } from './session-countdown'
 
 interface UserMenuProps {
   open: boolean
@@ -118,6 +119,7 @@ export function UserMenu({ open, onClose, anchorRef, collapsed, pendingCount = 0
         <Avatar name={displayName} size={36} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-semibold">{displayName}</div>
+          <SessionCountdown />
         </div>
       </div>
 

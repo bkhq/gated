@@ -407,6 +407,14 @@ impl SessionStore {
         }
     }
 
+    /// How long the session stays signed in without further activity.
+    /// `None`: not a live session.
+    pub fn remaining(&self, session: &Session, default_lifetime: Duration) -> Option<Duration> {
+        let id = session.get::<SessionId>(SESSION_ID_SESSION_KEY)?;
+        let idle = self.session_timestamps.get(&id)?.elapsed();
+        Some(self.lifetime(&id, default_lifetime).saturating_sub(idle))
+    }
+
     pub fn create_handle_for(&mut self, session: &Session) -> ManagementSessionFromRequest {
         if let Some(handle) = self.handle_for(session) {
             return handle.into();
@@ -704,6 +712,32 @@ mod tests {
         store.vacuum(Duration::from_secs(1800)).await;
         assert!(store.session_handles.contains_key(&chosen));
         assert!(!store.session_handles.contains_key(&default));
+    }
+
+    #[tokio::test]
+    async fn reports_the_time_left_without_extending_the_session() {
+        let store = SessionStore::new();
+        let mut store = store.lock().await;
+        let ten_minutes_ago = Instant::now() - Duration::from_secs(600);
+        let id = add(&mut store, "alice", ten_minutes_ago).await;
+        let session = Session::new(BTreeMap::new());
+        session.set(SESSION_ID_SESSION_KEY, id);
+
+        let left = store.remaining(&session, Duration::from_secs(1800));
+        assert!(left.is_some_and(|left| (1195..=1200).contains(&left.as_secs())));
+        assert_eq!(store.session_timestamps.get(&id), Some(&ten_minutes_ago));
+
+        // The lifetime the user chose applies; an overdue session has none left.
+        session.set(SESSION_LIFETIME_KEY, 300);
+        store.touch(&session);
+        assert_eq!(
+            store.remaining(&session, Duration::from_secs(1800)),
+            Some(Duration::ZERO)
+        );
+        assert_eq!(
+            store.remaining(&Session::new(BTreeMap::new()), Duration::from_secs(1800)),
+            None
+        );
     }
 
     #[test]

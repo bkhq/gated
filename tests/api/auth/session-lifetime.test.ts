@@ -53,6 +53,11 @@ describe("API Auth - Session lifetime", () => {
     const current = list.find((s: { current: boolean }) => s.current);
     const expires = Date.parse(current.expires) - Date.parse(current.last_active);
     expect(expires).toBe(14400 * 1000);
+
+    // The countdown the user menu shows starts from the chosen lifetime.
+    const { expires_in } = await (await session.get(`${url}/api/auth/session`)).json();
+    expect(expires_in).toBeLessThanOrEqual(14400);
+    expect(expires_in).toBeGreaterThan(14400 - 30);
   });
 
   test("polled endpoints do not move the session's last activity", async () => {
@@ -69,11 +74,18 @@ describe("API Auth - Session lifetime", () => {
       const list = await (await session.get(`${url}/admin/api/management-sessions`)).json();
       return list.find((s: { current: boolean }) => s.current).last_active as string;
     };
+    // Asked first: this request counts as activity.
+    const lifetime = (await (await session.get(`${url}/api/info`)).json()).session_lifetime;
     const atLogin = await lastActive();
     await Bun.sleep(1100);
     await session.get(`${url}/admin/api/system/update`);
     await session.get(`${url}/admin/api/command-reviews`);
-    expect((await session.get(`${url}/api/auth/session`)).status).toBe(204);
+    // Asking for the time left is no activity either; a second has passed.
+    const check = await session.get(`${url}/api/auth/session`);
+    expect(check.status).toBe(200);
+    const { expires_in } = await check.json();
+    expect(expires_in).toBeLessThan(lifetime);
+    expect(expires_in).toBeGreaterThan(lifetime - 30);
     expect((await new HttpSession().get(`${url}/api/auth/session`)).status).toBe(401);
     // last_active is derived from a monotonic clock, so allow a little drift.
     expect(Math.abs(Date.parse(await lastActive()) - Date.parse(atLogin))).toBeLessThan(200);

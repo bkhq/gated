@@ -624,3 +624,15 @@ In the RDP session loop a channel receiver whose sender had been dropped (the cl
 ## 2026-11-12 22:57 [progress]
 
 RDP/VNC step 8 (hardening and documentation), which closes the plan. The upstream certificate endpoint and the Security tab of a target now cover RDP: `gated-protocol-rdp::inspect_certificate` sends the X.224 connection request and reads the chain over the upgraded stream (`gated-tls::inspect_peer_chain_over`); the tab shows RDP as TLS required with `verify_tls`, and VNC as unencrypted. The RDP client rejects a desktop size reported by the target that is empty, wider or taller than 8192 pixels, or above 64 MiB of RGBA, at connect and at every reactivation. The target form says under a VNC target that the connection to the target is not encrypted. New: `docs/architecture/protocol-desktop.md` (and zh-CN), desktop sections in `docs/api.md`. Verified: clippy clean, 447 Rust tests, cargo-deny ok, web lint/typecheck/i18n/build and 595 tests, `tests/desktop/rdp.test.ts` (3), `tests/desktop/vnc.test.ts` (8), `tests/api/targets/desktop.test.ts` (4). Not verified: NLA and dynamic resize, which need a Windows target (xrdp supports neither).
+
+## 2026-11-14 01:20 [progress]
+
+The user menu shows how long the browser session stays signed in without further activity, counting down. `GET /api/auth/session` now answers `200 { expires_in }` (seconds) instead of `204`; it still does not count as activity, so looking at the countdown does not extend the session. The menu asks once when it opens and counts down locally. Tests: unit test for `SessionStore::remaining`, component tests, `tests/api/auth/session-lifetime.test.ts`, browser check in English and zh-CN.
+
+## 2026-11-14 02:10 [progress]
+
+Accounts can be cloned. `POST /admin/api/accounts` accepts `clone_from`: secrets left blank in `credentials` are filled in on the server from that account, which must be of the same kind, so accounts that share one SSH key and differ in the user name are created without pasting or revealing the key. The account dialog has a Clone action that opens a create form seeded with the source's non-secret fields. Step-up applies as for any create and the audit entry names the source. Tests: `tests/api/accounts/crud.test.ts` (copied key equals the source's, a typed secret replaces it, other kind / missing source / blank secret without a source are 422), dialog test, browser check.
+
+## 2026-11-14 02:40 [progress]
+
+Cloning an account from a browser session is confirmed with the current password or a one-time code every time: the open step-up window does not cover it, and `POST /admin/api/accounts` with `clone_from` answers `400 confirmation is required` without one. Attempts are counted against the source account, as for reveal. API tokens are unaffected. The step-up prompt (accounts, and every other place that uses it) offers the two factors as tabs instead of a dropdown; a user with only one factor sees no tabs. Tests: `tests/api/accounts/crud.test.ts` (create inside the window passes, unconfirmed clone 400, wrong password 401, confirmed 201), dialog tests, browser check in zh-CN.

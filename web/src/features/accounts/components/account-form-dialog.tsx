@@ -2,7 +2,7 @@ import type { AccountUpdateInput } from '@/features/accounts/hooks/use-accounts-
 import type { RevealConfirmation } from '@/shared/lib/api/accounts'
 import type { Account, AccountCredentials, AccountKind, HttpHeaderCredential } from '@/shared/types/domain'
 import type { AccountDraft } from '@/shared/types/drafts'
-import { Pencil, ShieldCheck, Trash2, User as UserIcon } from 'lucide-react'
+import { Copy, Pencil, ShieldCheck, Trash2, User as UserIcon } from 'lucide-react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -33,7 +33,9 @@ import { AccountCredentialsView } from './account-credentials-view'
 import { DeleteAccountDialog } from './delete-account-dialog'
 import { StepUpDialog } from './step-up-dialog'
 
-export type AccountFormMode = 'view' | 'create' | 'edit'
+// 'clone' is entered from the view: a create form seeded from the account,
+// whose blank secrets the server fills in from it.
+export type AccountFormMode = 'view' | 'create' | 'edit' | 'clone'
 
 export interface AccountFormDialogProps {
   open: boolean
@@ -209,7 +211,7 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
   const missing = draft
     ? [
         ...(draft.name.trim() === '' ? ['fields.name'] : []),
-        ...(credentialsDirty ? missingCredentialFields(draft.credentials, mode === 'edit') : []),
+        ...(credentialsDirty ? missingCredentialFields(draft.credentials, mode !== 'create') : []),
       ]
     : []
 
@@ -242,6 +244,24 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
     setMode('edit')
   }
 
+  function startClone() {
+    if (!account || !storedCredentials)
+      return
+    revealMutation.reset()
+    const seeded: DraftState = {
+      ...draftFromAccount(account, storedCredentials),
+      name: `${account.name}-copy`,
+      rotation: 'never',
+    }
+    setDraft(seeded)
+    setBaseline(seeded)
+    setCredentialsDirty(true)
+    setRotationDirty(false)
+    setShowErrors(false)
+    setTab('details')
+    setMode('clone')
+  }
+
   function backToView() {
     setDiscardToView(false)
     setDraft(null)
@@ -256,6 +276,12 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
     if (missing.length > 0) {
       setShowErrors(true)
       setTab('details')
+      return
+    }
+    // Copying a stored secret is confirmed every time; the open step-up
+    // window does not cover it.
+    if (mode === 'clone') {
+      setStepUp('save')
       return
     }
     void withStepUp('save')
@@ -307,6 +333,7 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
           credentials: sanitizeCredentials(draft.credentials),
           tags: [],
           rotationDueAt: resolveRotation(draft.rotation, null),
+          cloneFrom: mode === 'clone' ? account?.id : undefined,
         }
         const created = await createMutation.mutateAsync({ draft: accountDraft, confirmation })
         setStepUp(null)
@@ -348,6 +375,7 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
           <span className="truncate">{account?.name || t('accounts.form.titleNew')}</span>
           {account ? <Badge tone="mono" className="font-sans">{t(`accounts.credLabels.${account.kind}`)}</Badge> : null}
           {mode === 'edit' ? <Badge tone="info" className="font-sans">{t('accounts.view.editing')}</Badge> : null}
+          {mode === 'clone' ? <Badge tone="info" className="font-sans">{t('accounts.view.cloning')}</Badge> : null}
         </FormDialogTitle>
         <FormDialogDescription className="mt-0.5 truncate text-[13px] text-muted-foreground">
           {account?.description || t('accounts.form.descNew')}
@@ -358,7 +386,7 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
 
   const tabs = ['details', 'targets'] as const
   // A new account has no bindings yet, so create is a single page.
-  const tabsStrip = mode === 'create'
+  const tabsStrip = mode === 'create' || mode === 'clone'
     ? undefined
     : (
         <div className="border-b border-border px-6 pt-2">
@@ -383,10 +411,16 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
     ? (
         <DrawerFooter
           leftAction={(
-            <Button variant="ghost" size="sm" className="text-[hsl(var(--destructive))]" onClick={() => setDeleteOpen(true)}>
-              <Trash2 size={13} />
-              <span>{t('actions.delete')}</span>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="text-[hsl(var(--destructive))]" onClick={() => setDeleteOpen(true)}>
+                <Trash2 size={13} />
+                <span>{t('actions.delete')}</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={startClone} disabled={!storedCredentials}>
+                <Copy size={13} />
+                <span>{t('accounts.form.clone')}</span>
+              </Button>
+            </div>
           )}
           onCancel={requestClose}
           cancelLabel={t('actions.close')}
@@ -408,7 +442,7 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
                 </span>
               )
             : undefined}
-          onCancel={mode === 'edit' ? () => (dirty ? setDiscardToView(true) : backToView()) : requestClose}
+          onCancel={mode === 'create' ? requestClose : () => (dirty ? setDiscardToView(true) : backToView())}
           onSave={requestSave}
           saveLabel={(
             <>
@@ -504,8 +538,8 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
                                 id="account-kind"
                                 value={draft.kind}
                                 onValueChange={value => setKind(value as AccountKind)}
-                                disabled={mode === 'edit'}
-                                options={(mode === 'edit' ? ACCOUNT_KINDS : kinds).map(k => ({ value: k, label: t(`accounts.credLabels.${k}`) }))}
+                                disabled={mode !== 'create'}
+                                options={(mode === 'create' ? kinds : ACCOUNT_KINDS).map(k => ({ value: k, label: t(`accounts.credLabels.${k}`) }))}
                               />
                             </div>
                             <div className="sm:col-span-2">
@@ -522,10 +556,10 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
 
                           <section className="flex flex-col gap-4 border-t border-border pt-5">
                             <h3 className="m-0 text-[13px] font-semibold">{t('accounts.form.sections.credential')}</h3>
-                            {mode === 'edit'
+                            {mode === 'edit' || mode === 'clone'
                               ? (
                                   <div className="rounded-md border border-border/60 bg-[hsl(var(--muted)/0.25)] p-3 text-[12px] text-muted-foreground">
-                                    {t('accounts.form.cred.emptyOnEditHint')}
+                                    {t(mode === 'edit' ? 'accounts.form.cred.emptyOnEditHint' : 'accounts.form.cred.cloneHint')}
                                   </div>
                                 )
                               : null}
@@ -577,8 +611,8 @@ function AccountFormDialogBody({ open, mode: initialMode, account: initialAccoun
 
       <StepUpDialog
         open={stepUp === 'save'}
-        title={t(mode === 'create' ? 'accounts.stepUp.createTitle' : 'accounts.stepUp.updateTitle')}
-        description={t('accounts.stepUp.saveDescription')}
+        title={t(mode === 'edit' ? 'accounts.stepUp.updateTitle' : 'accounts.stepUp.createTitle')}
+        description={t(mode === 'clone' ? 'accounts.stepUp.cloneDescription' : 'accounts.stepUp.saveDescription')}
         confirmLabel={t('accounts.stepUp.confirmSave')}
         onCancel={() => setStepUp(null)}
         onConfirm={save}

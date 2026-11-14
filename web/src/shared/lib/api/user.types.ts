@@ -78,8 +78,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Whether the browser session is still signed in. Does not count as
-         *     activity, so the web UI can poll it to notice an expired session.
+         * Whether the browser session is still signed in, and for how long without
+         *     further activity. Does not count as activity, so the web UI can poll it
+         *     to notice an expired session and show the time left.
          */
         get: operations["check_session"];
         put?: never;
@@ -1071,6 +1072,13 @@ export interface components {
             ticket_id?: string | null;
             username?: string | null;
         };
+        SessionStatus: {
+            /**
+             * Format: int64
+             * @description Seconds the session stays signed in without further activity.
+             */
+            expires_in: number;
+        };
         SetupState: {
             has_targets: boolean;
             has_users: boolean;
@@ -1439,11 +1447,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json; charset=utf-8": components["schemas"]["SessionStatus"];
+                };
             };
             401: {
                 headers: {

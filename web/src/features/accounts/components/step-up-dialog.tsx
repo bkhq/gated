@@ -8,7 +8,7 @@ import { Button } from '@/shared/ui/button'
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
-import { Select } from '@/shared/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 
 type Factor = 'password' | 'otp'
 
@@ -75,21 +75,18 @@ function StepUpDialogBody({ open, title, description, confirmLabel, factor: fixe
           {fixedFactor
             ? null
             : (
-                <div>
-                  <Label htmlFor="step-up-factor">{t('accounts.form.reveal.factor')}</Label>
-                  <Select
-                    id="step-up-factor"
-                    value={factor}
-                    onValueChange={(value) => {
-                      setFactor(value as Factor)
-                      setSecret('')
-                    }}
-                    options={[
-                      { value: 'password', label: t('accounts.form.reveal.password') },
-                      { value: 'otp', label: t('accounts.form.reveal.otp') },
-                    ]}
-                  />
-                </div>
+                <Tabs
+                  value={factor}
+                  onChange={(value) => {
+                    setFactor(value as Factor)
+                    setSecret('')
+                  }}
+                >
+                  <TabsList aria-label={t('accounts.form.reveal.factor')}>
+                    <TabsTrigger value="password">{t('accounts.form.reveal.password')}</TabsTrigger>
+                    <TabsTrigger value="otp">{t('accounts.form.reveal.otp')}</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               )}
           <div>
             <Label htmlFor="step-up-secret">{t(`accounts.form.reveal.${factor}`)}</Label>
